@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "items.json",
+  "description": "Stage 1.5 structure analysis output: every content blob in the book with line-precise boundaries.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["id", "type", "title", "start_page", "end_page", "start_line", "end_line"],
+    "properties": {
+      "id": {
+        "type": "string",
+        "description": "Unique identifier, e.g. Chapter3/Theorem3.1 or Frontmatter/Preface"
+      },
+      "type": {
+        "type": "string",
+        "enum": [
+          "theorem", "lemma", "proposition", "corollary",
+          "definition", "example", "exercise", "remark",
+          "discussion", "introduction", "preface", "notation",
+          "bibliography", "index"
+        ]
+      },
+      "title": {
+        "type": "string",
+        "description": "Human-readable title or brief description"
+      },
+      "start_page": {
+        "type": "string",
+        "description": "Logical page name matching pages/*.md filename without extension"
+      },
+      "end_page": {
+        "type": "string",
+        "description": "Logical page name matching pages/*.md filename without extension"
+      },
+      "start_line": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "1-based line number within start_page"
+      },
+      "end_line": {
+        "type": "integer",
+        "minimum": 1,
+        "description": "1-based line number within end_page (inclusive)"
+      }
+    },
+    "additionalProperties": false
+  }
+}
