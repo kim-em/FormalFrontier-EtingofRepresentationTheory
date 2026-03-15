@@ -1,0 +1,1019 @@
+[
+  {
+    "id": "Chapter2/Introduction",
+    "type": "introduction",
+    "title": "Chapter 2: Basic notions of representation theory — chapter heading and Section 2.1 heading",
+    "start_page": "5",
+    "end_page": "5",
+    "start_line": 1,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Discussion_2.1_overview",
+    "type": "discussion",
+    "title": "Overview of representation theory: associative algebras, representations, subrepresentations, direct sums",
+    "start_page": "5",
+    "end_page": "5",
+    "start_line": 5,
+    "end_line": 11
+  },
+  {
+    "id": "Chapter2/Discussion_2.1_irreducible_indecomposable",
+    "type": "discussion",
+    "title": "Irreducible and indecomposable representations; typical problems of representation theory",
+    "start_page": "6",
+    "end_page": "6",
+    "start_line": 1,
+    "end_line": 17
+  },
+  {
+    "id": "Chapter2/Theorem2.1.1",
+    "type": "theorem",
+    "title": "Classification of irreducible representations of U(sl(2))",
+    "start_page": "6",
+    "end_page": "6",
+    "start_line": 18,
+    "end_line": 25
+  },
+  {
+    "id": "Chapter2/Discussion_after_Theorem2.1.1",
+    "type": "discussion",
+    "title": "Transition to quiver representation theory",
+    "start_page": "6",
+    "end_page": "7",
+    "start_line": 26,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Theorem2.1.2",
+    "type": "theorem",
+    "title": "Gabriel's theorem: classification of quivers of finite type by Dynkin diagrams",
+    "start_page": "7",
+    "end_page": "8",
+    "start_line": 5,
+    "end_line": 7
+  },
+  {
+    "id": "Chapter2/Discussion_after_Theorem2.1.2",
+    "type": "discussion",
+    "title": "Dynkin diagrams significance; representation theory of finite groups overview",
+    "start_page": "8",
+    "end_page": "8",
+    "start_line": 8,
+    "end_line": 10
+  },
+  {
+    "id": "Chapter2/Discussion_2.2_intro",
+    "type": "discussion",
+    "title": "Section 2.2 heading and introduction to systematic discussion",
+    "start_page": "8",
+    "end_page": "8",
+    "start_line": 11,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Definition2.2.1",
+    "type": "definition",
+    "title": "Associative algebra",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 1,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Definition2.2.2",
+    "type": "definition",
+    "title": "Unit in an associative algebra",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 2,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Proposition2.2.3",
+    "type": "proposition",
+    "title": "Uniqueness of unit",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 5,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Discussion_after_Proposition2.2.3",
+    "type": "discussion",
+    "title": "Convention: algebra means associative algebra with unit",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 9,
+    "end_line": 10
+  },
+  {
+    "id": "Chapter2/Example2.2.4",
+    "type": "example",
+    "title": "Examples of algebras over k",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 11,
+    "end_line": 22
+  },
+  {
+    "id": "Chapter2/Definition2.2.5",
+    "type": "definition",
+    "title": "Commutative algebra",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 23,
+    "end_line": 23
+  },
+  {
+    "id": "Chapter2/Discussion_commutativity_examples",
+    "type": "discussion",
+    "title": "Commutativity of the examples in 2.2.4",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 24,
+    "end_line": 26
+  },
+  {
+    "id": "Chapter2/Definition2.2.6",
+    "type": "definition",
+    "title": "Homomorphism of algebras",
+    "start_page": "9",
+    "end_page": "9",
+    "start_line": 27,
+    "end_line": 27
+  },
+  {
+    "id": "Chapter2/Definition2.3.1",
+    "type": "definition",
+    "title": "Representation of an algebra (left A-module)",
+    "start_page": "10",
+    "end_page": "10",
+    "start_line": 1,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Remark2.3.2",
+    "type": "remark",
+    "title": "Left and right modules over commutative rings",
+    "start_page": "10",
+    "end_page": "10",
+    "start_line": 9,
+    "end_line": 10
+  },
+  {
+    "id": "Chapter2/Discussion_examples_intro",
+    "type": "discussion",
+    "title": "Transition to examples of representations",
+    "start_page": "10",
+    "end_page": "10",
+    "start_line": 11,
+    "end_line": 11
+  },
+  {
+    "id": "Chapter2/Example2.3.3",
+    "type": "example",
+    "title": "Examples of representations: zero, regular, k, free algebra",
+    "start_page": "10",
+    "end_page": "10",
+    "start_line": 12,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Definition2.3.4",
+    "type": "definition",
+    "title": "Subrepresentation",
+    "start_page": "10",
+    "end_page": "10",
+    "start_line": 21,
+    "end_line": 23
+  },
+  {
+    "id": "Chapter2/Definition2.3.5",
+    "type": "definition",
+    "title": "Irreducible (simple) representation",
+    "start_page": "11",
+    "end_page": "11",
+    "start_line": 1,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Definition2.3.6",
+    "type": "definition",
+    "title": "Homomorphism (intertwining operator) of representations",
+    "start_page": "11",
+    "end_page": "11",
+    "start_line": 2,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Definition2.3.7",
+    "type": "definition",
+    "title": "Direct sum of representations",
+    "start_page": "11",
+    "end_page": "11",
+    "start_line": 9,
+    "end_line": 9
+  },
+  {
+    "id": "Chapter2/Definition2.3.8",
+    "type": "definition",
+    "title": "Indecomposable representation",
+    "start_page": "11",
+    "end_page": "11",
+    "start_line": 10,
+    "end_line": 11
+  },
+  {
+    "id": "Chapter2/Discussion_irreducible_vs_indecomposable",
+    "type": "discussion",
+    "title": "Irreducible implies indecomposable; main problems of representation theory",
+    "start_page": "11",
+    "end_page": "11",
+    "start_line": 12,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Discussion_Schur_intro",
+    "type": "discussion",
+    "title": "Introduction to Schur's lemma",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 1,
+    "end_line": 2
+  },
+  {
+    "id": "Chapter2/Proposition2.3.9",
+    "type": "proposition",
+    "title": "Schur's lemma",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 3,
+    "end_line": 13
+  },
+  {
+    "id": "Chapter2/Corollary2.3.10",
+    "type": "corollary",
+    "title": "Schur's lemma for algebraically closed fields",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 14,
+    "end_line": 16
+  },
+  {
+    "id": "Chapter2/Remark2.3.11",
+    "type": "remark",
+    "title": "Corollary 2.3.10 is false over the reals",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 17,
+    "end_line": 17
+  },
+  {
+    "id": "Chapter2/Discussion_proof_Corollary2.3.10",
+    "type": "discussion",
+    "title": "Proof of Corollary 2.3.10",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 18,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Corollary2.3.12",
+    "type": "corollary",
+    "title": "Irreducible representations of commutative algebras are 1-dimensional",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 21,
+    "end_line": 21
+  },
+  {
+    "id": "Chapter2/Remark2.3.13",
+    "type": "remark",
+    "title": "1-dimensional representations are automatically irreducible",
+    "start_page": "12",
+    "end_page": "12",
+    "start_line": 22,
+    "end_line": 23
+  },
+  {
+    "id": "Chapter2/Discussion_proof_Corollary2.3.12",
+    "type": "discussion",
+    "title": "Proof of Corollary 2.3.12",
+    "start_page": "13",
+    "end_page": "13",
+    "start_line": 1,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Example2.3.14",
+    "type": "example",
+    "title": "Irreducible and indecomposable representations of k and k[x]",
+    "start_page": "13",
+    "end_page": "13",
+    "start_line": 9,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Example2.3.14_continued",
+    "type": "example",
+    "title": "Representations of group algebras k[G]",
+    "start_page": "14",
+    "end_page": "14",
+    "start_line": 1,
+    "end_line": 2
+  },
+  {
+    "id": "Chapter2/Problem2.3.15",
+    "type": "exercise",
+    "title": "Irreducible subrepresentation existence",
+    "start_page": "14",
+    "end_page": "14",
+    "start_line": 3,
+    "end_line": 3
+  },
+  {
+    "id": "Chapter2/Problem2.3.16",
+    "type": "exercise",
+    "title": "Central character of representations",
+    "start_page": "14",
+    "end_page": "14",
+    "start_line": 4,
+    "end_line": 12
+  },
+  {
+    "id": "Chapter2/Problem2.3.17",
+    "type": "exercise",
+    "title": "End_A(A) = A^op",
+    "start_page": "14",
+    "end_page": "14",
+    "start_line": 13,
+    "end_line": 13
+  },
+  {
+    "id": "Chapter2/Problem2.3.18",
+    "type": "exercise",
+    "title": "Infinite dimensional Schur lemma (Dixmier)",
+    "start_page": "14",
+    "end_page": "15",
+    "start_line": 14,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Discussion_2.4_heading",
+    "type": "discussion",
+    "title": "Section 2.4 Ideals — heading and definitions",
+    "start_page": "15",
+    "end_page": "15",
+    "start_line": 2,
+    "end_line": 14
+  },
+  {
+    "id": "Chapter2/Problem2.4.1",
+    "type": "exercise",
+    "title": "Existence of maximal ideals",
+    "start_page": "15",
+    "end_page": "15",
+    "start_line": 15,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Discussion_2.5_heading",
+    "type": "discussion",
+    "title": "Section 2.5 Quotients — heading and definition of quotient algebra",
+    "start_page": "15",
+    "end_page": "15",
+    "start_line": 16,
+    "end_line": 19
+  },
+  {
+    "id": "Chapter2/Discussion_2.5_well_defined",
+    "type": "discussion",
+    "title": "Quotient algebra is well-defined; quotient representations",
+    "start_page": "16",
+    "end_page": "16",
+    "start_line": 1,
+    "end_line": 18
+  },
+  {
+    "id": "Chapter2/Problem2.5.1",
+    "type": "exercise",
+    "title": "Indecomposable quotient representation of polynomial algebra",
+    "start_page": "16",
+    "end_page": "16",
+    "start_line": 19,
+    "end_line": 19
+  },
+  {
+    "id": "Chapter2/Problem2.5.2",
+    "type": "exercise",
+    "title": "Cyclic representations",
+    "start_page": "16",
+    "end_page": "16",
+    "start_line": 20,
+    "end_line": 29
+  },
+  {
+    "id": "Chapter2/Discussion_2.6",
+    "type": "discussion",
+    "title": "Section 2.6: Algebras defined by generators and relations",
+    "start_page": "17",
+    "end_page": "17",
+    "start_line": 1,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Discussion_2.7_intro",
+    "type": "discussion",
+    "title": "Section 2.7: Examples of algebras — Weyl algebra and q-Weyl algebra",
+    "start_page": "17",
+    "end_page": "17",
+    "start_line": 5,
+    "end_line": 12
+  },
+  {
+    "id": "Chapter2/Proposition2.7.1",
+    "type": "proposition",
+    "title": "Basis for the Weyl algebra and q-Weyl algebra",
+    "start_page": "17",
+    "end_page": "18",
+    "start_line": 13,
+    "end_line": 16
+  },
+  {
+    "id": "Chapter2/Remark2.7.2",
+    "type": "remark",
+    "title": "Weyl algebra as algebra of polynomial differential operators",
+    "start_page": "18",
+    "end_page": "18",
+    "start_line": 17,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Definition2.7.3",
+    "type": "definition",
+    "title": "Faithful representation",
+    "start_page": "18",
+    "end_page": "18",
+    "start_line": 21,
+    "end_line": 21
+  },
+  {
+    "id": "Chapter2/Discussion_faithful_example",
+    "type": "discussion",
+    "title": "Faithful representations of the Weyl algebra in different characteristics",
+    "start_page": "18",
+    "end_page": "18",
+    "start_line": 22,
+    "end_line": 24
+  },
+  {
+    "id": "Chapter2/Problem2.7.4",
+    "type": "exercise",
+    "title": "Representations and ideals of the Weyl algebra",
+    "start_page": "18",
+    "end_page": "19",
+    "start_line": 25,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Problem2.7.5",
+    "type": "exercise",
+    "title": "Center, ideals, and representations of the q-Weyl algebra",
+    "start_page": "19",
+    "end_page": "19",
+    "start_line": 9,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Definition2.8.1",
+    "type": "definition",
+    "title": "Quiver",
+    "start_page": "19",
+    "end_page": "19",
+    "start_line": 21,
+    "end_line": 24
+  },
+  {
+    "id": "Chapter2/Example2.8.2",
+    "type": "example",
+    "title": "Example of a quiver",
+    "start_page": "19",
+    "end_page": "19",
+    "start_line": 25,
+    "end_line": 30
+  },
+  {
+    "id": "Chapter2/Discussion_quiver_notation",
+    "type": "discussion",
+    "title": "Notation for vertices and edges of quivers",
+    "start_page": "19",
+    "end_page": "19",
+    "start_line": 31,
+    "end_line": 34
+  },
+  {
+    "id": "Chapter2/Definition2.8.3",
+    "type": "definition",
+    "title": "Representation of a quiver",
+    "start_page": "19",
+    "end_page": "19",
+    "start_line": 35,
+    "end_line": 35
+  },
+  {
+    "id": "Chapter2/Discussion_path_algebra_intro",
+    "type": "discussion",
+    "title": "Representations of quivers as representations of path algebras",
+    "start_page": "20",
+    "end_page": "20",
+    "start_line": 1,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Definition2.8.4",
+    "type": "definition",
+    "title": "Path algebra of a quiver",
+    "start_page": "20",
+    "end_page": "20",
+    "start_line": 2,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Remark2.8.5",
+    "type": "remark",
+    "title": "Path algebra of a finite quiver has a unit",
+    "start_page": "20",
+    "end_page": "20",
+    "start_line": 5,
+    "end_line": 5
+  },
+  {
+    "id": "Chapter2/Problem2.8.6",
+    "type": "exercise",
+    "title": "Generators and relations for the path algebra",
+    "start_page": "20",
+    "end_page": "20",
+    "start_line": 6,
+    "end_line": 16
+  },
+  {
+    "id": "Chapter2/Discussion_quiver_rep_bijection",
+    "type": "discussion",
+    "title": "Bijection between representations of path algebra and quiver",
+    "start_page": "20",
+    "end_page": "21",
+    "start_line": 17,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Remark2.8.7",
+    "type": "remark",
+    "title": "Quiver representations are easier in practice",
+    "start_page": "21",
+    "end_page": "21",
+    "start_line": 5,
+    "end_line": 7
+  },
+  {
+    "id": "Chapter2/Definition2.8.8",
+    "type": "definition",
+    "title": "Subrepresentation of a quiver representation",
+    "start_page": "21",
+    "end_page": "21",
+    "start_line": 8,
+    "end_line": 9
+  },
+  {
+    "id": "Chapter2/Definition2.8.9",
+    "type": "definition",
+    "title": "Direct sum of quiver representations",
+    "start_page": "21",
+    "end_page": "21",
+    "start_line": 10,
+    "end_line": 10
+  },
+  {
+    "id": "Chapter2/Discussion_quiver_irreducible_indecomposable",
+    "type": "discussion",
+    "title": "Irreducible and indecomposable quiver representations",
+    "start_page": "21",
+    "end_page": "21",
+    "start_line": 11,
+    "end_line": 13
+  },
+  {
+    "id": "Chapter2/Definition2.8.10",
+    "type": "definition",
+    "title": "Homomorphism of quiver representations",
+    "start_page": "21",
+    "end_page": "21",
+    "start_line": 14,
+    "end_line": 14
+  },
+  {
+    "id": "Chapter2/Problem2.8.11",
+    "type": "exercise",
+    "title": "Hilbert series of graded algebras",
+    "start_page": "21",
+    "end_page": "22",
+    "start_line": 15,
+    "end_line": 11
+  },
+  {
+    "id": "Chapter2/Discussion_2.9_heading",
+    "type": "discussion",
+    "title": "Section 2.9: Lie algebras — heading and skew-symmetric bilinear map",
+    "start_page": "22",
+    "end_page": "22",
+    "start_line": 12,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Definition2.9.1",
+    "type": "definition",
+    "title": "Lie algebra",
+    "start_page": "22",
+    "end_page": "22",
+    "start_line": 16,
+    "end_line": 21
+  },
+  {
+    "id": "Chapter2/Example2.9.2",
+    "type": "example",
+    "title": "Examples of Lie algebras",
+    "start_page": "22",
+    "end_page": "22",
+    "start_line": 22,
+    "end_line": 35
+  },
+  {
+    "id": "Chapter2/Example2.9.2_continued",
+    "type": "example",
+    "title": "Examples of Lie algebras (continued): Lie subalgebras",
+    "start_page": "23",
+    "end_page": "23",
+    "start_line": 1,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Remark2.9.3",
+    "type": "remark",
+    "title": "Ado's theorem",
+    "start_page": "23",
+    "end_page": "23",
+    "start_line": 2,
+    "end_line": 3
+  },
+  {
+    "id": "Chapter2/Remark2.9.4",
+    "type": "remark",
+    "title": "Derivations as infinitesimal automorphisms; motivation for Lie algebras",
+    "start_page": "23",
+    "end_page": "23",
+    "start_line": 4,
+    "end_line": 7
+  },
+  {
+    "id": "Chapter2/Discussion_concrete_Lie_examples",
+    "type": "discussion",
+    "title": "Concrete examples of Lie algebras: R^3, sl(n), Heisenberg",
+    "start_page": "23",
+    "end_page": "23",
+    "start_line": 8,
+    "end_line": 27
+  },
+  {
+    "id": "Chapter2/Discussion_concrete_Lie_examples_continued",
+    "type": "discussion",
+    "title": "Concrete Lie algebra examples (continued): aff(1), so(n)",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 1,
+    "end_line": 5
+  },
+  {
+    "id": "Chapter2/Exercise2.9.5",
+    "type": "exercise",
+    "title": "R^3 cross product as special case of so(3)",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 6,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter2/Definition2.9.6",
+    "type": "definition",
+    "title": "Homomorphism of Lie algebras",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 7,
+    "end_line": 9
+  },
+  {
+    "id": "Chapter2/Definition2.9.7",
+    "type": "definition",
+    "title": "Representation of a Lie algebra",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 10,
+    "end_line": 10
+  },
+  {
+    "id": "Chapter2/Example2.9.8",
+    "type": "example",
+    "title": "Examples of representations of Lie algebras",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 11,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Definition2.9.9",
+    "type": "definition",
+    "title": "Universal enveloping algebra",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 21,
+    "end_line": 23
+  },
+  {
+    "id": "Chapter2/Remark2.9.10",
+    "type": "remark",
+    "title": "Basis-dependent definition of universal enveloping algebra",
+    "start_page": "24",
+    "end_page": "24",
+    "start_line": 24,
+    "end_line": 24
+  },
+  {
+    "id": "Chapter2/Discussion_2.9_Lie_groups",
+    "type": "discussion",
+    "title": "Linear algebraic groups, Lie groups, and Lie's correspondence",
+    "start_page": "26",
+    "end_page": "26",
+    "start_line": 1,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter2/Discussion_2.10_heading",
+    "type": "discussion",
+    "title": "Section 2.10: Historical interlude — Sophus Lie's trials and transformations",
+    "start_page": "26",
+    "end_page": "30",
+    "start_line": 7,
+    "end_line": 7
+  },
+  {
+    "id": "Chapter2/Discussion_2.10_continued",
+    "type": "discussion",
+    "title": "Historical interlude on Sophus Lie (continued and conclusion)",
+    "start_page": "31",
+    "end_page": "31",
+    "start_line": 1,
+    "end_line": 2
+  },
+  {
+    "id": "Chapter2/Discussion_2.11_heading",
+    "type": "discussion",
+    "title": "Section 2.11: Tensor products — heading and introduction",
+    "start_page": "31",
+    "end_page": "31",
+    "start_line": 3,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter2/Definition2.11.1",
+    "type": "definition",
+    "title": "Tensor product of vector spaces",
+    "start_page": "31",
+    "end_page": "31",
+    "start_line": 7,
+    "end_line": 22
+  },
+  {
+    "id": "Chapter2/Exercise2.11.2",
+    "type": "exercise",
+    "title": "Equivalent definition of tensor product via free abelian group",
+    "start_page": "31",
+    "end_page": "31",
+    "start_line": 23,
+    "end_line": 37
+  },
+  {
+    "id": "Chapter2/Discussion_pure_tensors",
+    "type": "discussion",
+    "title": "Pure tensors and tensor products of multiple spaces",
+    "start_page": "31",
+    "end_page": "32",
+    "start_line": 38,
+    "end_line": 3
+  },
+  {
+    "id": "Chapter2/Discussion_tensors_type",
+    "type": "discussion",
+    "title": "Tensors of type (m,n), basis of tensor spaces, Einstein summation",
+    "start_page": "32",
+    "end_page": "32",
+    "start_line": 4,
+    "end_line": 19
+  },
+  {
+    "id": "Chapter2/Discussion_tensor_product_maps",
+    "type": "discussion",
+    "title": "Tensor product of linear maps",
+    "start_page": "32",
+    "end_page": "33",
+    "start_line": 20,
+    "end_line": 1
+  },
+  {
+    "id": "Chapter2/Problem2.11.3",
+    "type": "exercise",
+    "title": "Properties of tensor products: universal property, basis, duals, symmetric and exterior powers",
+    "start_page": "33",
+    "end_page": "33",
+    "start_line": 2,
+    "end_line": 15
+  },
+  {
+    "id": "Chapter2/Remark2.11.4",
+    "type": "remark",
+    "title": "Tensor product over a ring",
+    "start_page": "33",
+    "end_page": "34",
+    "start_line": 16,
+    "end_line": 11
+  },
+  {
+    "id": "Chapter2/Exercise2.11.5",
+    "type": "exercise",
+    "title": "Base change for algebras and modules",
+    "start_page": "34",
+    "end_page": "34",
+    "start_line": 12,
+    "end_line": 14
+  },
+  {
+    "id": "Chapter2/Problem2.11.6",
+    "type": "exercise",
+    "title": "Bimodules and tensor products: associativity and Hom-tensor adjunction",
+    "start_page": "34",
+    "end_page": "35",
+    "start_line": 15,
+    "end_line": 24
+  },
+  {
+    "id": "Chapter2/Exercise2.11.7",
+    "type": "exercise",
+    "title": "Tensor product of modules over commutative ring",
+    "start_page": "35",
+    "end_page": "35",
+    "start_line": 25,
+    "end_line": 26
+  },
+  {
+    "id": "Chapter2/Discussion_2.12_heading",
+    "type": "discussion",
+    "title": "Section 2.12: The tensor algebra — heading and introduction",
+    "start_page": "35",
+    "end_page": "35",
+    "start_line": 27,
+    "end_line": 33
+  },
+  {
+    "id": "Chapter2/Definition2.12.1",
+    "type": "definition",
+    "title": "Symmetric algebra, exterior algebra, and universal enveloping algebra (coordinate-free)",
+    "start_page": "36",
+    "end_page": "36",
+    "start_line": 1,
+    "end_line": 16
+  },
+  {
+    "id": "Chapter2/Discussion_2.13_heading",
+    "type": "discussion",
+    "title": "Section 2.13: Hilbert's third problem — heading",
+    "start_page": "36",
+    "end_page": "36",
+    "start_line": 17,
+    "end_line": 17
+  },
+  {
+    "id": "Chapter2/Problem2.13.1",
+    "type": "exercise",
+    "title": "Hilbert's third problem and the Dehn invariant",
+    "start_page": "36",
+    "end_page": "37",
+    "start_line": 18,
+    "end_line": 8
+  },
+  {
+    "id": "Chapter2/Discussion_2.14_heading",
+    "type": "discussion",
+    "title": "Section 2.14: Tensor products and duals of representations of Lie algebras — heading",
+    "start_page": "37",
+    "end_page": "37",
+    "start_line": 9,
+    "end_line": 9
+  },
+  {
+    "id": "Chapter2/Definition2.14.1",
+    "type": "definition",
+    "title": "Tensor product of Lie algebra representations",
+    "start_page": "37",
+    "end_page": "37",
+    "start_line": 10,
+    "end_line": 14
+  },
+  {
+    "id": "Chapter2/Definition2.14.2",
+    "type": "definition",
+    "title": "Dual representation of a Lie algebra",
+    "start_page": "37",
+    "end_page": "37",
+    "start_line": 15,
+    "end_line": 17
+  },
+  {
+    "id": "Chapter2/Problem2.14.3",
+    "type": "exercise",
+    "title": "Hom-tensor adjunction for Lie algebra representations",
+    "start_page": "37",
+    "end_page": "37",
+    "start_line": 18,
+    "end_line": 20
+  },
+  {
+    "id": "Chapter2/Discussion_2.15_heading",
+    "type": "discussion",
+    "title": "Section 2.15: Representations of sl(2) — heading and introduction",
+    "start_page": "37",
+    "end_page": "37",
+    "start_line": 21,
+    "end_line": 24
+  },
+  {
+    "id": "Chapter2/Problem2.15.1",
+    "type": "exercise",
+    "title": "Classification of finite dimensional representations of sl(2)",
+    "start_page": "37",
+    "end_page": "39",
+    "start_line": 25,
+    "end_line": 16
+  },
+  {
+    "id": "Chapter2/Discussion_2.16_heading",
+    "type": "discussion",
+    "title": "Section 2.16: Problems on Lie algebras — heading",
+    "start_page": "39",
+    "end_page": "39",
+    "start_line": 17,
+    "end_line": 17
+  },
+  {
+    "id": "Chapter2/Problem2.16.1",
+    "type": "exercise",
+    "title": "Lie's theorem: irreducible representations of solvable Lie algebras",
+    "start_page": "39",
+    "end_page": "40",
+    "start_line": 18,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter2/Problem2.16.2",
+    "type": "exercise",
+    "title": "Irreducible representations of the 2d Lie algebra; Lie theorem in positive characteristic",
+    "start_page": "40",
+    "end_page": "40",
+    "start_line": 5,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter2/Problem2.16.3",
+    "type": "exercise",
+    "title": "Lie algebras defined by ad relations",
+    "start_page": "40",
+    "end_page": "40",
+    "start_line": 7,
+    "end_line": 12
+  },
+  {
+    "id": "Chapter2/Problem2.16.4",
+    "type": "exercise",
+    "title": "Irreducible representations of sl(2) in characteristic p",
+    "start_page": "40",
+    "end_page": "40",
+    "start_line": 13,
+    "end_line": 13
+  },
+  {
+    "id": "Chapter2/Problem2.16.5",
+    "type": "exercise",
+    "title": "Quantum enveloping algebra U_q(sl(2)) and its irreducible representations",
+    "start_page": "40",
+    "end_page": "41",
+    "start_line": 14,
+    "end_line": 1
+  }
+]
