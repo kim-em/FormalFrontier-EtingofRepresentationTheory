@@ -18,15 +18,20 @@ Progress is recorded here as stages from PLAN.md are completed.
 - **Notes:** 8 frontmatter pages, 227 main content pages (1–227). Mapping in `pdf/pages/mapping.json`.
 
 ## Stage 1.4: Page Transcription
-- **Status:** In progress — **175 of 227 main-content pages transcribed (77.1%)**
+- **Status:** Complete
+- **Date:** 2026-03-16
+- **Notes:** All 235 pages transcribed (8 frontmatter + 227 main content). 235 `.md` files in `pages/`. Spurious PDF running headers cleaned up across all pages. Quality spot-check passed on 10-page sample.
+
+## Stage 1.5: Structure Analysis
+- **Status:** In progress — **9 of 10 chapters complete (422 items identified)**
 - **Last updated:** 2026-03-16
 - **Notes:**
-  - Pages 31–110: **complete** (80/80)
-  - Pages 111–160: 39/50 (78%) — missing 111–118, 120–121, 134
-  - Pages 161–227: 56/67 (84%) — missing 161–162, 164, 204, 216–221, 227
-  - Pages 1–30: 0/30 (not started)
-  - Frontmatter: 0/8 (not started)
-  - 108 merged PRs total across ~36 hours of project lifetime
-  - 24 PRs merged since last checkpoint: 8 new transcriptions, 15 validations (13 no-changes, 2 minor corrections)
-  - 2 open PRs (both mergeable)
-  - Remaining gaps: pages 1–30 (early chapters), scattered mid/late pages
+  - Complete: Frontmatter (4 items), Chapter 1 (3), Chapter 2 (113), Chapter 3 (58), Chapter 4 (60), Chapter 6 (64), Chapter 7 (59), Chapter 8 (24), Chapter 9 (35), Backmatter (2)
+  - Remaining: Chapter 5 (#429, in progress)
+  - Validation tooling created: contiguity checker + JSON schema (#414)
+  - Cross-chapter validation passed (#444)
+  - Items.json assembly (#441) blocked on Chapter 5 completion
+
+## Stage 1.6: Blob Extraction
+- **Status:** Not started
+- **Notes:** Blocked on items.json assembly (#441), which depends on Chapter 5 structure analysis (#429).
