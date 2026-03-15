@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "internal.json",
+  "description": "Stage 2.1 internal dependency analysis: maps each item ID to the list of item IDs it depends on.",
+  "type": "object",
+  "additionalProperties": {
+    "type": "array",
+    "items": {
+      "type": "string"
+    },
+    "uniqueItems": true
+  }
+}
