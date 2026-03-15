@@ -1,0 +1,29 @@
+[
+  {
+    "id": "Chapter1/Introduction",
+    "type": "introduction",
+    "title": "Chapter 1: Introduction",
+    "start_page": "1",
+    "end_page": "2",
+    "start_line": 1,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter1/Discussion_BookOrganization",
+    "type": "discussion",
+    "title": "Organization of the book by chapter",
+    "start_page": "2",
+    "end_page": "3",
+    "start_line": 5,
+    "end_line": 12
+  },
+  {
+    "id": "Chapter1/Acknowledgments",
+    "type": "preface",
+    "title": "Acknowledgments",
+    "start_page": "3",
+    "end_page": "4",
+    "start_line": 13,
+    "end_line": 1
+  }
+]

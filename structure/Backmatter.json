@@ -1,0 +1,20 @@
+[
+  {
+    "id": "Backmatter/ReferencesHistorical",
+    "type": "bibliography",
+    "title": "References for historical interludes",
+    "start_page": "221",
+    "end_page": "225",
+    "start_line": 1,
+    "end_line": 11
+  },
+  {
+    "id": "Backmatter/MathematicalReferences",
+    "type": "bibliography",
+    "title": "Mathematical references",
+    "start_page": "227",
+    "end_page": "227",
+    "start_line": 1,
+    "end_line": 19
+  }
+]

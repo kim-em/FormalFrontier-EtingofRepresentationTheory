@@ -1,0 +1,38 @@
+[
+  {
+    "id": "Frontmatter/TitlePage",
+    "type": "introduction",
+    "title": "Title page",
+    "start_page": "frontmatter-1",
+    "end_page": "frontmatter-1",
+    "start_line": 1,
+    "end_line": 5
+  },
+  {
+    "id": "Frontmatter/BlankPage1",
+    "type": "discussion",
+    "title": "Blank page",
+    "start_page": "frontmatter-2",
+    "end_page": "frontmatter-2",
+    "start_line": 1,
+    "end_line": 1
+  },
+  {
+    "id": "Frontmatter/TableOfContents",
+    "type": "notation",
+    "title": "Table of Contents",
+    "start_page": "frontmatter-3",
+    "end_page": "frontmatter-7",
+    "start_line": 1,
+    "end_line": 15
+  },
+  {
+    "id": "Frontmatter/BlankPage2",
+    "type": "discussion",
+    "title": "Blank page",
+    "start_page": "frontmatter-8",
+    "end_page": "frontmatter-8",
+    "start_line": 1,
+    "end_line": 1
+  }
+]
