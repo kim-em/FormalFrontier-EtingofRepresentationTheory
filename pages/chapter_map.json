@@ -1,0 +1,618 @@
+{
+  "book": "Introduction to Representation Theory",
+  "authors": [
+    "Pavel Etingof",
+    "Oleg Golberg",
+    "Sebastian Hensel",
+    "Tiankai Liu",
+    "Alex Schwendner",
+    "Dmitry Vaintrob",
+    "Elena Yudovina"
+  ],
+  "total_content_pages": 227,
+  "frontmatter": {
+    "start_page": "frontmatter-1",
+    "end_page": "frontmatter-8",
+    "page_count": 8
+  },
+  "chapters": [
+    {
+      "id": "Chapter1",
+      "number": 1,
+      "title": "Introduction",
+      "start_page": "1",
+      "end_page": "4",
+      "sections": []
+    },
+    {
+      "id": "Chapter2",
+      "number": 2,
+      "title": "Basic notions of representation theory",
+      "start_page": "5",
+      "end_page": "42",
+      "sections": [
+        {
+          "id": "2.1",
+          "title": "What is representation theory?",
+          "start_page": "5"
+        },
+        {
+          "id": "2.2",
+          "title": "Algebras",
+          "start_page": "8"
+        },
+        {
+          "id": "2.3",
+          "title": "Representations",
+          "start_page": "10"
+        },
+        {
+          "id": "2.4",
+          "title": "Ideals",
+          "start_page": "15"
+        },
+        {
+          "id": "2.5",
+          "title": "Quotients",
+          "start_page": "15"
+        },
+        {
+          "id": "2.6",
+          "title": "Algebras defined by generators and relations",
+          "start_page": "17"
+        },
+        {
+          "id": "2.7",
+          "title": "Examples of algebras",
+          "start_page": "17"
+        },
+        {
+          "id": "2.8",
+          "title": "Quivers",
+          "start_page": "19"
+        },
+        {
+          "id": "2.9",
+          "title": "Lie algebras",
+          "start_page": "22"
+        },
+        {
+          "id": "2.10",
+          "title": "Historical interlude: Sophus Lie's trials and transformations",
+          "start_page": "26"
+        },
+        {
+          "id": "2.11",
+          "title": "Tensor products",
+          "start_page": "31"
+        },
+        {
+          "id": "2.12",
+          "title": "The tensor algebra",
+          "start_page": "35"
+        },
+        {
+          "id": "2.13",
+          "title": "Hilbert's third problem",
+          "start_page": "36"
+        },
+        {
+          "id": "2.14",
+          "title": "Tensor products and duals of representations of Lie algebras",
+          "start_page": "37"
+        },
+        {
+          "id": "2.15",
+          "title": "Representations of $\\mathfrak{sl}(2)$",
+          "start_page": "37"
+        },
+        {
+          "id": "2.16",
+          "title": "Problems on Lie algebras",
+          "start_page": "39"
+        }
+      ],
+      "missing_pages": [
+        "25"
+      ]
+    },
+    {
+      "id": "Chapter3",
+      "number": 3,
+      "title": "General results of representation theory",
+      "start_page": "43",
+      "end_page": "60",
+      "sections": [
+        {
+          "id": "3.1",
+          "title": "Subrepresentations in semisimple representations",
+          "start_page": "43"
+        },
+        {
+          "id": "3.2",
+          "title": "The density theorem",
+          "start_page": "45"
+        },
+        {
+          "id": "3.3",
+          "title": "Representations of direct sums of matrix algebras",
+          "start_page": "47"
+        },
+        {
+          "id": "3.4",
+          "title": "Filtrations",
+          "start_page": "49"
+        },
+        {
+          "id": "3.5",
+          "title": "Finite dimensional algebras",
+          "start_page": "49"
+        },
+        {
+          "id": "3.6",
+          "title": "Characters of representations",
+          "start_page": "52"
+        },
+        {
+          "id": "3.7",
+          "title": "The Jordan-Holder theorem",
+          "start_page": "53"
+        },
+        {
+          "id": "3.8",
+          "title": "The Krull-Schmidt theorem",
+          "start_page": "54"
+        },
+        {
+          "id": "3.9",
+          "title": "Problems",
+          "start_page": "56"
+        },
+        {
+          "id": "3.10",
+          "title": "Representations of tensor products",
+          "start_page": "59"
+        }
+      ]
+    },
+    {
+      "id": "Chapter4",
+      "number": 4,
+      "title": "Representations of finite groups: Basic results",
+      "start_page": "61",
+      "end_page": "92",
+      "sections": [
+        {
+          "id": "4.1",
+          "title": "Maschke's theorem",
+          "start_page": "61"
+        },
+        {
+          "id": "4.2",
+          "title": "Characters",
+          "start_page": "63"
+        },
+        {
+          "id": "4.3",
+          "title": "Examples",
+          "start_page": "64"
+        },
+        {
+          "id": "4.4",
+          "title": "Duals and tensor products of representations",
+          "start_page": "67"
+        },
+        {
+          "id": "4.5",
+          "title": "Orthogonality of characters",
+          "start_page": "67"
+        },
+        {
+          "id": "4.6",
+          "title": "Unitary representations. Another proof of Maschke's theorem for complex representations",
+          "start_page": "71"
+        },
+        {
+          "id": "4.7",
+          "title": "Orthogonality of matrix elements",
+          "start_page": "72"
+        },
+        {
+          "id": "4.8",
+          "title": "Character tables, examples",
+          "start_page": "73"
+        },
+        {
+          "id": "4.9",
+          "title": "Computing tensor product multiplicities using character tables",
+          "start_page": "77"
+        },
+        {
+          "id": "4.10",
+          "title": "Frobenius determinant",
+          "start_page": "78"
+        },
+        {
+          "id": "4.11",
+          "title": "Historical interlude: Georg Frobenius's \"Principle of Horse Trade\"",
+          "start_page": "79"
+        },
+        {
+          "id": "4.12",
+          "title": "Problems",
+          "start_page": "83"
+        },
+        {
+          "id": "4.13",
+          "title": "Historical interlude: William Rowan Hamilton's quaternion of geometry, algebra, metaphysics, and poetry",
+          "start_page": "88"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5",
+      "number": 5,
+      "title": "Representations of finite groups: Further results",
+      "start_page": "93",
+      "end_page": "148",
+      "sections": [
+        {
+          "id": "5.1",
+          "title": "Frobenius-Schur indicator",
+          "start_page": "93"
+        },
+        {
+          "id": "5.2",
+          "title": "Algebraic numbers and algebraic integers",
+          "start_page": "95"
+        },
+        {
+          "id": "5.3",
+          "title": "Frobenius divisibility",
+          "start_page": "98"
+        },
+        {
+          "id": "5.4",
+          "title": "Burnside's theorem",
+          "start_page": "100"
+        },
+        {
+          "id": "5.5",
+          "title": "Historical interlude: William Burnside and intellectual harmony in mathematics",
+          "start_page": "102"
+        },
+        {
+          "id": "5.6",
+          "title": "Representations of products",
+          "start_page": "107"
+        },
+        {
+          "id": "5.7",
+          "title": "Virtual representations",
+          "start_page": "107"
+        },
+        {
+          "id": "5.8",
+          "title": "Induced representations",
+          "start_page": "107"
+        },
+        {
+          "id": "5.9",
+          "title": "The Frobenius formula for the character of an induced representation",
+          "start_page": "109"
+        },
+        {
+          "id": "5.10",
+          "title": "Frobenius reciprocity",
+          "start_page": "110"
+        },
+        {
+          "id": "5.11",
+          "title": "Examples",
+          "start_page": "112",
+          "source": "toc"
+        },
+        {
+          "id": "5.12",
+          "title": "Representations of $S_n$",
+          "start_page": "112",
+          "source": "toc"
+        },
+        {
+          "id": "5.13",
+          "title": "Proof of the classification theorem for representations of $S_n$",
+          "start_page": "114",
+          "source": "toc"
+        },
+        {
+          "id": "5.14",
+          "title": "Induced representations for $S_n$",
+          "start_page": "116",
+          "source": "toc"
+        },
+        {
+          "id": "5.15",
+          "title": "The Frobenius character formula",
+          "start_page": "118",
+          "source": "toc"
+        },
+        {
+          "id": "5.16",
+          "title": "Problems",
+          "start_page": "120",
+          "source": "toc"
+        },
+        {
+          "id": "5.17",
+          "title": "The hook length formula",
+          "start_page": "121"
+        },
+        {
+          "id": "5.18",
+          "title": "Schur-Weyl duality for $\\mathfrak{gl}(V)$",
+          "start_page": "122"
+        },
+        {
+          "id": "5.19",
+          "title": "Schur-Weyl duality for $GL(V)$",
+          "start_page": "124"
+        },
+        {
+          "id": "5.20",
+          "title": "Historical interlude: Hermann Weyl at the intersection of limitation and freedom",
+          "start_page": "125"
+        },
+        {
+          "id": "5.21",
+          "title": "Schur polynomials",
+          "start_page": "131"
+        },
+        {
+          "id": "5.22",
+          "title": "The characters of $L_\\lambda$",
+          "start_page": "132"
+        },
+        {
+          "id": "5.23",
+          "title": "Algebraic representations of $GL(V)$",
+          "start_page": "133"
+        },
+        {
+          "id": "5.24",
+          "title": "Problems",
+          "start_page": "135"
+        },
+        {
+          "id": "5.25",
+          "title": "Representations of $GL_2(\\mathbb{F}_q)$",
+          "start_page": "135"
+        },
+        {
+          "id": "5.26",
+          "title": "Artin's theorem",
+          "start_page": "144"
+        },
+        {
+          "id": "5.27",
+          "title": "Representations of semidirect products",
+          "start_page": "145"
+        }
+      ],
+      "missing_pages": [
+        "111",
+        "112",
+        "113",
+        "114",
+        "116",
+        "117",
+        "118",
+        "120",
+        "134"
+      ]
+    },
+    {
+      "id": "Chapter6",
+      "number": 6,
+      "title": "Quiver representations",
+      "start_page": "149",
+      "end_page": "180",
+      "sections": [
+        {
+          "id": "6.1",
+          "title": "Problems",
+          "start_page": "149"
+        },
+        {
+          "id": "6.2",
+          "title": "Indecomposable representations of the quivers $A_1$, $A_2$, $A_3$",
+          "start_page": "154"
+        },
+        {
+          "id": "6.3",
+          "title": "Indecomposable representations of the quiver $D_4$",
+          "start_page": "158"
+        },
+        {
+          "id": "6.4",
+          "title": "Roots",
+          "start_page": "164"
+        },
+        {
+          "id": "6.5",
+          "title": "Gabriel's theorem",
+          "start_page": "167"
+        },
+        {
+          "id": "6.6",
+          "title": "Reflection functors",
+          "start_page": "168"
+        },
+        {
+          "id": "6.7",
+          "title": "Coxeter elements",
+          "start_page": "173"
+        },
+        {
+          "id": "6.8",
+          "title": "Proof of Gabriel's theorem",
+          "start_page": "174"
+        },
+        {
+          "id": "6.9",
+          "title": "Problems",
+          "start_page": "177"
+        }
+      ]
+    },
+    {
+      "id": "Chapter7",
+      "number": 7,
+      "title": "Introduction to categories",
+      "start_page": "181",
+      "end_page": "204",
+      "sections": [
+        {
+          "id": "7.1",
+          "title": "The definition of a category",
+          "start_page": "181"
+        },
+        {
+          "id": "7.2",
+          "title": "Functors",
+          "start_page": "183"
+        },
+        {
+          "id": "7.3",
+          "title": "Morphisms of functors",
+          "start_page": "185"
+        },
+        {
+          "id": "7.4",
+          "title": "Equivalence of categories",
+          "start_page": "186"
+        },
+        {
+          "id": "7.5",
+          "title": "Representable functors",
+          "start_page": "187"
+        },
+        {
+          "id": "7.6",
+          "title": "Adjoint functors",
+          "start_page": "188"
+        },
+        {
+          "id": "7.7",
+          "title": "Abelian categories",
+          "start_page": "190"
+        },
+        {
+          "id": "7.8",
+          "title": "Complexes and cohomology",
+          "start_page": "191"
+        },
+        {
+          "id": "7.9",
+          "title": "Exact functors",
+          "start_page": "194"
+        },
+        {
+          "id": "7.10",
+          "title": "Historical interlude: Eilenberg, Mac Lane, and \"general abstract nonsense\"",
+          "start_page": "196"
+        }
+      ]
+    },
+    {
+      "id": "Chapter8",
+      "number": 8,
+      "title": "Homological algebra",
+      "start_page": "205",
+      "end_page": "212",
+      "sections": [
+        {
+          "id": "8.1",
+          "title": "Projective and injective modules",
+          "start_page": "205"
+        },
+        {
+          "id": "8.2",
+          "title": "Tor and Ext functors",
+          "start_page": "207"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9",
+      "number": 9,
+      "title": "Structure of finite dimensional algebras",
+      "start_page": "213",
+      "end_page": "220",
+      "sections": [
+        {
+          "id": "9.1",
+          "title": "Lifting of idempotents",
+          "start_page": "213"
+        },
+        {
+          "id": "9.2",
+          "title": "Projective covers",
+          "start_page": "214"
+        },
+        {
+          "id": "9.3",
+          "title": "The Cartan matrix of a finite dimensional algebra",
+          "start_page": "216"
+        },
+        {
+          "id": "9.4",
+          "title": "Homological dimension",
+          "start_page": "216"
+        },
+        {
+          "id": "9.5",
+          "title": "Blocks",
+          "start_page": "217"
+        },
+        {
+          "id": "9.6",
+          "title": "Finite abelian categories",
+          "start_page": "218"
+        },
+        {
+          "id": "9.7",
+          "title": "Morita equivalence",
+          "start_page": "220"
+        }
+      ]
+    }
+  ],
+  "backmatter": {
+    "start_page": "221",
+    "end_page": "227",
+    "entries": [
+      {
+        "title": "References for historical interludes",
+        "start_page": "221"
+      },
+      {
+        "title": "Mathematical references",
+        "start_page": "227"
+      }
+    ]
+  },
+  "missing_pages": [
+    "25",
+    "111",
+    "112",
+    "113",
+    "114",
+    "116",
+    "117",
+    "118",
+    "120",
+    "134"
+  ],
+  "transcribed_count": 225,
+  "transcribed_percentage": 95.7
+}
