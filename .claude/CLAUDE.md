@@ -158,3 +158,9 @@ Use the current UTC time as the filename (e.g., `progress/2026-03-15T14-30-00Z.m
 ### Starting a turn (mandatory)
 
 At the start of every turn, read the most recent file in `progress/` (sorted alphabetically = chronologically). This is your primary onboarding document. Then read `PLAN.md` for stage details as needed. If `progress/` contains only `progress/0000-init.md` (or no handoff file), the repo is freshly initialized — proceed with Stage 1.1.
+
+**Before the first `lake build` of any session**, always run:
+```bash
+lake exe cache get
+```
+This downloads pre-built Mathlib oleans and avoids a full rebuild (1800+ jobs). Skipping this wastes significant time and compute.
