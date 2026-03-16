@@ -2335,7 +2335,7 @@
     "end_page": "95",
     "start_line": 9,
     "end_line": 20,
-    "status": "scaffolded"
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter5/Corollary5.1.6",
@@ -2374,7 +2374,7 @@
     "end_page": "95",
     "start_line": 29,
     "end_line": 29,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter5/Definition5.2.2",
@@ -2384,7 +2384,7 @@
     "end_page": "96",
     "start_line": 1,
     "end_line": 2,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter5/Proposition5.2.3",
