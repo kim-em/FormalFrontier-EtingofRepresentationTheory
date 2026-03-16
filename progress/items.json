@@ -2827,8 +2827,8 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "110",
     "start_line": 7,
     "end_line": 34,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Problem5.10.2",
