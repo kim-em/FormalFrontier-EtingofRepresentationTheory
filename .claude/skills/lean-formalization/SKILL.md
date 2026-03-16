@@ -224,7 +224,7 @@ Based on Phase 2 experience with issue sizing:
 
 ## Proven Proof Strategies
 
-Patterns that have succeeded in this project, derived from 30+ merged proof PRs.
+Patterns that have succeeded in this project, derived from 50+ merged proof PRs.
 
 ### Mathlib Alias Pattern (Chapter 2)
 
@@ -272,6 +272,95 @@ This is sanctioned for items where the *statement itself* cannot be formalized (
 
 **Never use `True` as a placeholder** — it compiles silently and hides the gap.
 
+### Multipart Theorem Strategy
+
+When a theorem has multiple parts (e.g., existence + uniqueness, or (i)+(ii)+(iii)), prove them independently and leave unsolved parts as `sorry`:
+
+```lean
+theorem foo : Part1 ∧ Part2 ∧ Part3 := by
+  refine ⟨?_, ?_, ?_⟩
+  · -- Part 1: proved
+    exact proof1
+  · -- Part 2: hardest, work on this first
+    sorry
+  · -- Part 3: easy, fill in after Part 2
+    sorry
+```
+
+**Always work on the hardest part first.** If Part 2 fails, all effort on Parts 1 and 3 is wasted. Commit partial proofs — they document exactly what's missing and unblock downstream work that doesn't need the sorry'd parts.
+
+This pattern succeeded for Theorem 3.10.2 (part i proved, part ii sorry'd), Theorem 5.4.4 (main structure done, one ingredient sorry'd), and IrreducibleEnumeration (injectivity + simplicity proved, surjectivity sorry'd).
+
+### FDRep Categorical Plumbing
+
+Working with `FDRep` (finite-dimensional representations as a category) requires navigating multiple abstraction layers. This is the #1 blocker in Chapters 4-5.
+
+**The problem:** Book proofs work with concrete linear maps `V →ₗ[k] V`, but Mathlib's FDRep uses categorical morphisms. Converting requires unwrapping 3 levels: `Action.Hom → FGModuleCat.Hom → ModuleCat.Hom → LinearMap`.
+
+**Pattern 1: Reflect through a full+faithful functor**
+
+When you need to prove a property about FDRep objects (like simplicity), prove it for the underlying module and reflect through the functor:
+
+```lean
+-- Prove simplicity for the concrete module first
+have h : IsSimpleModule k M := Matrix.instIsSimpleModule ...
+-- Reflect to FDRep via full+faithful functor
+exact Simple.of_full_faithful_preservesMono FDRep.forget₂ h
+```
+
+This avoids working inside the categorical abstraction entirely.
+
+**Pattern 2: Use Representation directly instead of FDRep**
+
+For character theory, prefer `Representation k G V` (which gives you `V →ₗ[k] V` directly) over `FDRep k G` (which wraps in a category). Most character computations don't need the categorical structure.
+
+**Pattern 3: Avoid `.hom.hom` chains**
+
+If your proof requires distributing `.hom.hom` over `Finset.sum` or similar, you're fighting the abstraction. Instead:
+- Define a helper that states the result directly on `LinearMap`
+- Or use `Representation.averageMap` which already works at the LinearMap level
+
+**When stuck on FDRep plumbing after 2 attempts:** Sorry the categorical step with a comment explaining what's needed, and file an issue. Don't spend an entire session on unwrapping functors.
+
+### Bezout Reduction for Integrality
+
+When proving `IsIntegral ℤ (a / b)` where `a` and `b` are related by coprimality:
+
+1. Find `m, n` with `m * b + n * a = 1` via `Nat.Coprime` and `Nat.gcd_eq_gcd_ab`
+2. Rewrite `a / b = m * (stuff₁) + n * (stuff₂)` where both summands are provably integral
+3. Apply `IsIntegral.add` and `IsIntegral.mul`
+
+This avoids dependent type issues from rewriting `a/b` directly. Used successfully in Theorem 5.4.4.
+
+### Full+Faithful Functor Reflection for Simplicity
+
+To prove an FDRep is simple:
+1. Prove `IsSimpleModule k M` for the underlying module (often via `Matrix.instIsSimpleModule`)
+2. Lift through `IsSimpleModule.compHom` if needed (for algebra homomorphisms)
+3. Reflect to categorical `Simple` via `Simple.of_full_faithful_preservesMono`
+
+This chain: concrete simplicity → algebra hom transfer → functor reflection was the successful pattern for IrreducibleEnumeration (#678).
+
+### Permutation Matrix Arguments
+
+For character identities involving the regular representation (e.g., χ_reg(g) = 0 for g ≠ 1):
+- Express the representation matrix as a permutation matrix of left-multiplication
+- Show the permutation has no fixed points when g ≠ 1
+- Conclude the trace (= character value) is zero
+
+This is more concrete than abstract character theory and avoids FDRep entirely.
+
+### Jacobson Radical for Injectivity
+
+To prove a ring homomorphism from a semisimple ring is injective:
+1. Show every element of the kernel acts as zero on all simple modules
+2. Therefore the kernel element is in every maximal left ideal
+3. The intersection of all maximal left ideals is the Jacobson radical
+4. For semisimple rings, Jacobson radical = ⊥
+5. Hence kernel = ⊥, so the map is injective
+
+**Lean tip:** May need explicit universe parameters (`.{v}`) to make the Jacobson radical API work with the correct universe level.
+
 ## Mathlib Gap Handling
 
 When you discover a Mathlib API gap during formalization, follow this escalation ladder:
@@ -303,12 +392,13 @@ If the same gap blocks 3+ items (e.g., column orthogonality blocking all charact
 
 ### Known Gaps in This Project
 
-| Gap | What Exists | What's Missing | Blocks |
-|-----|------------|----------------|--------|
-| Column orthogonality | `FDRep.char_orthonormal` (row) | `∑_V χ_V(g) · χ_V(h⁻¹) = \|C_G(g)\| · δ` | Thm 5.4.6, Burnside |
-| Regular rep decomposition | `FDRep`, `Simple` | `k[G] ≅ ⊕ dim(V_i) · V_i` | Thm 5.4.6 |
-| Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch7 items |
-| Finite simple object enumeration | `Simple` predicate | Enumerating all simples in `FDRep` | Character table results |
+| Gap | What Exists | What's Missing | Blocks | Status |
+|-----|------------|----------------|--------|--------|
+| Column orthogonality | `FDRep.char_orthonormal` (row) | `∑_V χ_V(g) · χ_V(h⁻¹) = \|C_G(g)\| · δ` | Thm 5.4.6, Burnside | Issue #633 |
+| Regular rep decomposition | `FDRep`, `Simple` | `k[G] ≅ ⊕ dim(V_i) · V_i` | Thm 5.4.6 | Issue #643 |
+| Simple module classification | `Simple` predicate | Every simple FDRep ≅ some columnFDRep | IrrepEnum surjectivity | Issue #655 |
+| FDRep ↔ LinearMap plumbing | `.hom` unwrapping | Distributing `.hom.hom` over sums, Schur at LinearMap level | Prop 5.3.2, Thm 5.4.4 | See FDRep Plumbing pattern |
+| Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch7 items | Unchanged |
 
 ## When Aristotle Is Unavailable
 
@@ -323,9 +413,13 @@ Aristotle availability varies by machine. Recording the need for escalation ensu
 
 ## Common Failure Modes
 
-From Phase 2 review patterns (50% attribution error rate in Stage 2.4 Part 1):
+From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
 
 1. **Wrong Mathlib declaration name.** Always `#check` the declaration before using it.
 2. **Fabricated references.** If `.refs.md` cites a Mathlib declaration, verify it exists.
 3. **Scope mismatch.** The book may state a theorem for a specific case (e.g., finite-dimensional) but Mathlib has it more generally. Use the general version.
 4. **Missing instances.** Representation theory needs many type class instances. If Lean can't find one, check if Mathlib has it under a different name or if you need to `open` a namespace.
+5. **Hidden hypotheses in book statements.** The book may omit hypotheses that are implicit in context (e.g., algebraic closure, field characteristic). Discovered examples: Theorem 3.10.2 needed `[IsAlgClosed k]`, Example 8.1.7 needed `Field k` not `CommRing R`. When a proof attempt fails at a fundamental level, check whether the statement needs additional hypotheses.
+6. **Status tracking lag.** After proving a theorem, update `items.json` immediately in the same commit. Audits have found items marked `scaffolded` that were actually `sorry_free`. Automated sorry detection (via LeanArchitect) is more reliable than manual tracking, but agents should still update proactively.
+7. **FDRep abstraction fighting.** If your proof requires distributing `.hom.hom` over sums or otherwise unwrapping 3+ layers of categorical abstraction, you're fighting the wrong abstraction. See the FDRep Categorical Plumbing patterns above for alternatives.
+8. **Universe level mismatches.** Representation theory proofs sometimes need explicit universe annotations (`.{v}`) especially when working with Jacobson radical or maximal ideal APIs. If type unification fails mysteriously, try adding explicit universe parameters.
