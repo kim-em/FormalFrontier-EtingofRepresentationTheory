@@ -41,7 +41,14 @@ theorem Etingof.Theorem_8_1_1_i_iff_ii
       (∀ {M : Type v} [AddCommGroup M] [Module R M]
         (f : M →ₗ[R] P), Function.Surjective f →
           ∃ g : P →ₗ[R] M, f.comp g = LinearMap.id) := by
-  sorry
+  constructor
+  · intro hP M _ _ f hf
+    exact LinearMap.exists_rightInverse_of_surjective f (LinearMap.range_eq_top.mpr hf)
+  · intro h
+    refine Module.Projective.of_lifting_property'' (fun p hp ↦ ?_)
+    let e := Finsupp.mapRange.linearEquiv (α := P) (Shrink.linearEquiv R R)
+    obtain ⟨g, hg⟩ := h (p ∘ₗ e.toLinearMap) (hp.comp e.surjective)
+    exact ⟨e.toLinearMap ∘ₗ g, hg⟩
 
 /-- **Part (i) ↔ (iii)**: P is projective if and only if P is a direct summand of a
 free module.
@@ -53,4 +60,10 @@ theorem Etingof.Theorem_8_1_1_i_iff_iii
       (∃ (Q : Type (max u v)) (_ : AddCommGroup Q) (_ : Module R Q)
         (_ : Module.Free R Q) (i : P →ₗ[R] Q) (s : Q →ₗ[R] P),
           s.comp i = LinearMap.id) := by
-  sorry
+  constructor
+  · intro hP
+    obtain ⟨s, hs⟩ := hP.out
+    exact ⟨P →₀ R, inferInstance, inferInstance, inferInstance, s,
+      Finsupp.linearCombination R id, LinearMap.ext hs⟩
+  · intro ⟨_, _, _, _, i, s, his⟩
+    exact Module.Projective.of_split i s his

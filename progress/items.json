@@ -4994,7 +4994,7 @@
     "end_page": "206",
     "start_line": 11,
     "end_line": 6,
-    "status": "statement_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter8/Definition8.1.2",
@@ -5041,7 +5041,7 @@
     "end_page": "207",
     "start_line": 23,
     "end_line": 16,
-    "status": "statement_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter8/Definition8.1.6",
