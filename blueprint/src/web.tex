@@ -11,8 +11,16 @@
 \usepackage[showmore, dep_graph]{blueprint}
 
 
-\input{macros/common}
-\input{macros/web}
+% Theorem-like environments (from macros/common.tex)
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
 
 \home{https://kim-em.github.io/FormalFrontier-EtingofRepresentationTheory}
 \github{https://github.com/kim-em/FormalFrontier-EtingofRepresentationTheory}
