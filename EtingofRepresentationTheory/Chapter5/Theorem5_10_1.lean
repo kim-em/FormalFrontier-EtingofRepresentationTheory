@@ -29,8 +29,8 @@ open CategoryTheory
 This is the adjunction between the induction and restriction functors.
 (Etingof Theorem 5.10.1) -/
 theorem Etingof.Theorem5_10_1
-    (k G : Type) [Field k] [Group G] [Fintype G]
+    (k G : Type) [Field k] [Group G]
     (H : Subgroup G)
     (V : Rep k G) (W : Rep k ↥H) :
-    Nonempty ((Rep.ind H.subtype W ⟶ V) ≃ₗ[k] (W ⟶ (Action.res _ H.subtype).obj V)) := by
-  sorry
+    Nonempty ((Rep.ind H.subtype W ⟶ V) ≃ₗ[k] (W ⟶ (Action.res _ H.subtype).obj V)) :=
+  ⟨Rep.indResHomEquiv H.subtype W V⟩
