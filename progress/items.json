@@ -1543,7 +1543,7 @@
     "start_line": 11,
     "end_line": 14,
     "status": "proof_formalized",
-    "note": "Existence proved (sorry-free). Uniqueness has sorry, escalated to #676."
+    "note": "Existence sorry-free. Uniqueness: find_iso_summand + complement IsCompl proved. 1 sorry remains in inductive step (IH application plumbing)."
   },
   {
     "id": "Chapter3/Lemma3.8.2",
