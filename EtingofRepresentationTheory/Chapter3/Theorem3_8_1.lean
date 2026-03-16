@@ -220,4 +220,9 @@ theorem Etingof.krull_schmidt_uniqueness (k : Type*) (A : Type*) (V : Type*)
     (hW_sup : iSup W = ⊤) (hW_ind : iSupIndep W)
     (hW'_sup : iSup W' = ⊤) (hW'_ind : iSupIndep W') :
     n = m ∧ ∃ σ : Fin n ≃ Fin m, ∀ i, Nonempty ((W i) ≃ₗ[A] (W' (σ i))) := by
+  -- The full uniqueness proof requires:
+  -- 1. Construction of projection maps from internal direct sum decompositions
+  -- 2. Application of Lemma 3.8.2 (endo_indecomposable_iso_or_nilpotent)
+  -- 3. Induction on the number of summands with a cancellation step
+  -- This is a substantial formalization effort; escalated for dedicated proof work.
   sorry
