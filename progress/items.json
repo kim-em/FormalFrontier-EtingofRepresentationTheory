@@ -356,7 +356,7 @@
     "end_page": "12",
     "start_line": 21,
     "end_line": 21,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter2/Remark2.3.13",
@@ -1157,7 +1157,8 @@
     "start_page": "43",
     "end_page": "43",
     "start_line": 11,
-    "end_line": 12
+    "end_line": 12,
+    "status": "sorry_free"
   },
   {
     "id": "Chapter3/Remark3.1.3",
