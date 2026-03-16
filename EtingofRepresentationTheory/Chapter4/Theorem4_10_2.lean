@@ -87,7 +87,7 @@ private lemma IrrepDecomp.blockPoly_totalDegree [NeZero (Nat.card G : k)]
         (∏ a, M (σ a) a).totalDegree := by
       rcases Int.units_eq_one_or (Equiv.Perm.sign σ) with h | h
       · simp [h]
-      · simp [h, neg_smul, totalDegree_neg]
+      · simp [h, totalDegree_neg]
     rw [hsmul]
     calc (∏ a, M (σ a) a).totalDegree
         ≤ ∑ a, (M (σ a) a).totalDegree := totalDegree_finset_prod _ _
@@ -103,8 +103,58 @@ private lemma IrrepDecomp.blockPoly_totalDegree [NeZero (Nat.card G : k)]
             _ = 0 + 1 := by rw [totalDegree_C, totalDegree_X]
             _ = 1 := by ring
       _ = D.d i := by simp
-  · -- ≥ d_i: evaluate at x₁=t, xg=0 gives det(tI)=t^{d_i}
-    sorry
+  · -- ≥ d_i: blockPoly is homogeneous of degree d_i and nonzero
+    -- Step 1: each entry is homogeneous of degree 1
+    have hentry : ∀ (a b : Fin (D.d i)),
+        (∑ g : G, C (D.projRingHom i (MonoidAlgebra.of k G g) a b) *
+          X g).IsHomogeneous 1 :=
+      fun a b => IsHomogeneous.sum _ _ _ fun g _ =>
+        (MvPolynomial.isHomogeneous_C (σ := G)
+          (D.projRingHom i (MonoidAlgebra.of k G g) a b)).mul
+          (MvPolynomial.isHomogeneous_X (R := k) g)
+    -- Step 2: blockPoly is homogeneous of degree d_i
+    have hhom : (D.blockPoly i).IsHomogeneous (D.d i) := by
+      unfold blockPoly; rw [det_apply]
+      apply IsHomogeneous.sum; intro σ _
+      have hprod : IsHomogeneous (∏ a : Fin (D.d i),
+          of (fun a b => ∑ g : G,
+            C (D.projRingHom i (MonoidAlgebra.of k G g) a b) * X g)
+          (σ a) a) (∑ _a : Fin (D.d i), 1) := by
+        apply IsHomogeneous.prod; intro a _
+        exact hentry (σ a) a
+      simp only [Finset.sum_const, Finset.card_fin, smul_eq_mul, mul_one] at hprod
+      rcases Int.units_eq_one_or (Equiv.Perm.sign σ) with h | h
+      · rw [h, one_smul]; exact hprod
+      · simp only [h, Units.smul_def] at *
+        rw [show ((-1 : ℤˣ) : ℤ) = -1 from rfl, neg_one_zsmul]
+        exact (homogeneousSubmodule G k (D.d i)).neg_mem hprod
+    -- Step 3: blockPoly is nonzero (eval at x₁=1, rest=0 gives det(I)=1)
+    have hne : D.blockPoly i ≠ 0 := by
+      intro h
+      have heval : MvPolynomial.eval
+          (fun g => if g = (1 : G) then (1 : k) else 0) (D.blockPoly i) = 1 := by
+        unfold blockPoly
+        rw [show MvPolynomial.eval _ (det _) = det
+          ((MvPolynomial.eval _).mapMatrix _) from RingHom.map_det _ _]
+        have hmat : (MvPolynomial.eval
+            (fun g => if g = (1 : G) then (1 : k) else 0)).mapMatrix
+            (of fun a b => ∑ g : G,
+              C (D.projRingHom i (MonoidAlgebra.of k G g) a b) * X g) =
+            (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k) := by
+          ext a b
+          simp only [RingHom.mapMatrix_apply, Matrix.map_apply, of_apply,
+            map_sum, map_mul, MvPolynomial.eval_C, MvPolynomial.eval_X,
+            one_apply]
+          simp only [mul_ite, mul_one, mul_zero, Finset.sum_ite_eq',
+            Finset.mem_univ, ite_true]
+          have : D.projRingHom i (MonoidAlgebra.of k G 1) = 1 := by
+            have h1 : MonoidAlgebra.of k G (1 : G) = 1 := map_one _
+            rw [h1, map_one]
+          rw [this]; simp [one_apply]
+        rw [hmat, det_one]
+      rw [h, map_zero] at heval; exact one_ne_zero heval.symm
+    -- Step 4: combine
+    exact (hhom.totalDegree hne).symm.le
 
 /-- The number of Wedderburn-Artin components equals the number of conjugacy classes.
 Proof: dim center(k[G]) = |ConjClasses G| (class functions) and
