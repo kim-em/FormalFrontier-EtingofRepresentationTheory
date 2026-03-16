@@ -1407,7 +1407,7 @@
     "end_page": "51",
     "start_line": 5,
     "end_line": 8,
-    "status": "proof_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter3/Definition3.5.7",

@@ -117,13 +117,81 @@ upper triangular matrices. Etingof Example 3.5.6(2). -/
 theorem Etingof.radical_upper_triangular (k : Type*) [Field k] (n : ℕ) :
     Ring.jacobson (↥(Etingof.upperTriangularSubalgebra k n)) =
       Etingof.strictlyUpperTriangularIdeal k n := by
-  -- Proof strategy:
-  -- ≤: For each i : Fin n, define diagExtract_i : R →+* k by M ↦ M_{ii}.
-  --    This is surjective, so ker(diagExtract_i) is maximal.
-  --    jacobson ≤ ker(diagExtract_i) for each i.
-  --    ∩_i ker(diagExtract_i) = {M | M_{ii} = 0 ∀i} ∩ upper_tri = strictly upper triangular.
-  -- ≥: I is nilpotent (I^n = 0, since multiplying n strictly upper triangular matrices
-  --    shifts entries up by n rows, yielding 0). For x ∈ I and any y, x*y ∈ I (left ideal),
-  --    so x*y is nilpotent, hence 1 + x*y is a unit (IsNilpotent.isUnit_one_sub applied
-  --    to -(x*y)). By Ideal.mem_jacobson_iff, x ∈ jacobson.
-  sorry
+  set S := Etingof.upperTriangularSubalgebra k n
+  set I := Etingof.strictlyUpperTriangularIdeal k n
+  apply le_antisymm
+  · -- ≤: jacobson ≤ I (via diagonal extraction homomorphisms)
+    intro x hx
+    show ∀ i j : Fin n, j ≤ i → (x : Matrix (Fin n) (Fin n) k) i j = 0
+    intro i j hij
+    rcases hij.eq_or_lt with rfl | hlt
+    · -- j = i: show x.val j j = 0 via diagonal extraction ring hom to k
+      let π : ↥S →+* k :=
+        { toFun := fun M => M.val j j
+          map_one' := by simp
+          map_mul' := fun a b => by
+            change (a.1 * b.1) j j = a.1 j j * b.1 j j
+            simp only [Matrix.mul_apply]
+            apply Finset.sum_eq_single j
+            · intro l _ hli
+              rcases lt_or_gt_of_ne hli with h | h
+              · simp [a.2 j l h]
+              · simp [b.2 l j h]
+            · intro h; exact absurd (Finset.mem_univ j) h
+          map_zero' := by simp
+          map_add' := fun a b => by simp }
+      have π_surj : Function.Surjective π := by
+        intro c
+        exact ⟨⟨Matrix.diagonal (Function.update 0 j c), fun p q hpq => by
+          simp [Matrix.diagonal_apply, Function.update_apply]
+          intro h; exact absurd (h ▸ hpq) (lt_irrefl _)⟩, by
+          simp [π]⟩
+      haveI : (RingHom.ker π).IsMaximal := RingHom.ker_isMaximal_of_surjective _ π_surj
+      exact Ring.jacobson_le_of_isMaximal (RingHom.ker π) hx
+    · -- j < i: upper triangular property
+      exact x.2 i j hlt
+  · -- ≥: I ≤ jacobson (strictly upper triangular elements are nilpotent)
+    -- Helper: elements of I are nilpotent (z^n = 0)
+    have nil_of_mem : ∀ z : ↥S, z ∈ I → IsNilpotent z := by
+      intro z hz
+      refine ⟨n, Subtype.ext ?_⟩
+      show ((z ^ n : ↥S) : Matrix (Fin n) (Fin n) k) = 0
+      ext p q; simp only [Matrix.zero_apply]
+      suffices ∀ (m : ℕ) (p q : Fin n), (q : ℕ) < (p : ℕ) + m →
+          ((z ^ m : ↥S) : Matrix (Fin n) (Fin n) k) p q = 0 by
+        exact this n p q (by omega)
+      intro m; induction m with
+      | zero =>
+        intro p q h; simp only [pow_zero]
+        show (1 : Matrix (Fin n) (Fin n) k) p q = 0
+        rw [Matrix.one_apply, if_neg (Fin.ne_of_val_ne (by omega))]
+      | succ m ih =>
+        intro p q h
+        have : ((z ^ (m + 1) : ↥S) : Matrix _ _ k) p q =
+            ∑ l, ((z ^ m : ↥S) : Matrix _ _ k) p l * z.val l q := by
+          show ((z ^ m).val * z.val) p q = _
+          rw [Matrix.mul_apply]
+        rw [this]
+        apply Finset.sum_eq_zero; intro l _
+        by_cases hl : (l : ℕ) < (p : ℕ) + m
+        · simp [ih p l hl]
+        · push_neg at hl; simp [hz l q (show (q : ℕ) ≤ (l : ℕ) by omega)]
+    -- x ∈ I → x ∈ every maximal ideal → x ∈ jacobson
+    rw [Ring.jacobson_eq_sInf_isMaximal]
+    intro x hx
+    simp only [Ideal.mem_sInf, Set.mem_setOf_eq]
+    intro J hJ
+    -- If x ∉ J, then J < J ⊔ Ideal.span {x}, so J ⊔ Ideal.span {x} = ⊤ by maximality.
+    -- Then 1 = a + r*x with a ∈ J. Since r*x ∈ I is nilpotent, a = 1-r*x is a unit.
+    -- Unit in J → J = ⊤, contradicting maximality.
+    by_contra hxJ
+    apply hJ.ne_top
+    have hlt : J < J ⊔ Ideal.span {x} := by
+      refine lt_of_le_of_ne le_sup_left fun heq => hxJ ?_
+      exact heq ▸ SetLike.le_def.mp le_sup_right (Ideal.mem_span_singleton_self x)
+    have htop := hJ.1.2 _ hlt
+    rw [Ideal.eq_top_iff_one] at htop
+    obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop
+    obtain ⟨r, rfl⟩ := Ideal.mem_span_singleton'.mp hb
+    have ha_eq : a = 1 - r * x := (eq_sub_iff_add_eq).mpr hab
+    exact J.eq_top_of_isUnit_mem ha (ha_eq ▸ (nil_of_mem _ (I.smul_mem r hx)).isUnit_one_sub)
