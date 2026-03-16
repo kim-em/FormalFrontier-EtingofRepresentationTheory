@@ -24,8 +24,8 @@ theorem Etingof.Proposition_2_3_9_injective
     {R : Type*} [Ring R]
     {V₁ : Type*} [AddCommGroup V₁] [Module R V₁] [IsSimpleModule R V₁]
     {V₂ : Type*} [AddCommGroup V₂] [Module R V₂]
-    (φ : V₁ →ₗ[R] V₂) (hφ : φ ≠ 0) : Function.Injective φ := by
-  sorry
+    (φ : V₁ →ₗ[R] V₂) (hφ : φ ≠ 0) : Function.Injective φ :=
+  LinearMap.injective_of_ne_zero hφ
 
 /-- Schur's lemma, part (ii): A nonzero homomorphism to an irreducible representation
 is surjective. (Etingof Proposition 2.3.9(ii)) -/
@@ -33,5 +33,5 @@ theorem Etingof.Proposition_2_3_9_surjective
     {R : Type*} [Ring R]
     {V₁ : Type*} [AddCommGroup V₁] [Module R V₁]
     {V₂ : Type*} [AddCommGroup V₂] [Module R V₂] [IsSimpleModule R V₂]
-    (φ : V₁ →ₗ[R] V₂) (hφ : φ ≠ 0) : Function.Surjective φ := by
-  sorry
+    (φ : V₁ →ₗ[R] V₂) (hφ : φ ≠ 0) : Function.Surjective φ :=
+  LinearMap.surjective_of_ne_zero hφ
