@@ -10,10 +10,20 @@ an injective right A-module.
 
 ## Mathlib correspondence
 
-This duality uses `Module.Dual` for P*. The statement connects `Module.Projective` and
-`Module.Injective` via duality. Not directly stated in Mathlib as a single theorem.
+This duality uses `Module.Dual` for P*. The categorical version of this duality is
+available as `CategoryTheory.injective_iff_projective_op` / `projective_iff_injective_op`
+in `Mathlib.CategoryTheory.Preadditive.Injective.Basic`.
+
+At the module level, this relates `Module.Projective R P` and
+`Module.Injective R (Module.Dual R P)`.
 -/
 
-/-- Duality between projective and injective modules: P is projective iff P* is injective.
+/-- Duality between projective and injective modules: P is projective iff the dual module
+P* = Hom(P, R) is injective.
 (Etingof Example 8.1.7) -/
-theorem Etingof.Example_8_1_7 : (sorry : Prop) := sorry
+theorem Etingof.Example_8_1_7
+    (R : Type*) [CommRing R]
+    (P : Type*) [AddCommGroup P] [Module R P] :
+    Module.Projective R P →
+      Module.Injective R (Module.Dual R P) := by
+  sorry
