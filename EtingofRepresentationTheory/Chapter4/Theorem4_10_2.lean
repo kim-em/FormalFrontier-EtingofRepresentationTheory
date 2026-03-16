@@ -69,11 +69,42 @@ private lemma IrrepDecomp.blockPoly_not_associated [NeZero (Nat.card G : k)]
 
 /-- The total degree of the i-th block polynomial equals d_i. Each entry of the
 representation matrix is a linear polynomial in the x_g, so det has degree ≤ d_i.
-The leading term is nonzero by irreducibility (or by direct Leibniz formula argument). -/
+For ≥ d_i, evaluation at x₁=t, xg=0 gives det(tI)=t^{d_i}. -/
 private lemma IrrepDecomp.blockPoly_totalDegree [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (i : Fin D.n) :
     (D.blockPoly i).totalDegree = D.d i := by
-  sorry
+  apply le_antisymm
+  · -- ≤ d_i: det of matrix with degree-1 entries
+    unfold blockPoly
+    let M := of fun (a b : Fin (D.d i)) =>
+      ∑ g : G, C (D.projRingHom i (MonoidAlgebra.of k G g) a b) * X g
+    show (det M).totalDegree ≤ D.d i
+    rw [det_apply]
+    apply (totalDegree_finset_sum _ _).trans
+    apply Finset.sup_le
+    intro σ _
+    have hsmul : (Equiv.Perm.sign σ • ∏ a, M (σ a) a).totalDegree =
+        (∏ a, M (σ a) a).totalDegree := by
+      rcases Int.units_eq_one_or (Equiv.Perm.sign σ) with h | h
+      · simp [h]
+      · simp [h, neg_smul, totalDegree_neg]
+    rw [hsmul]
+    calc (∏ a, M (σ a) a).totalDegree
+        ≤ ∑ a, (M (σ a) a).totalDegree := totalDegree_finset_prod _ _
+      _ ≤ ∑ _a : Fin (D.d i), 1 := by
+          apply Finset.sum_le_sum; intro a _
+          show (∑ g : G, C (D.projRingHom i (MonoidAlgebra.of k G g) (σ a) a) *
+            X g).totalDegree ≤ 1
+          apply (totalDegree_finset_sum _ _).trans
+          apply Finset.sup_le; intro g _
+          calc MvPolynomial.totalDegree (C _ * X g)
+              ≤ MvPolynomial.totalDegree (C _) +
+                MvPolynomial.totalDegree (X g) := totalDegree_mul _ _
+            _ = 0 + 1 := by rw [totalDegree_C, totalDegree_X]
+            _ = 1 := by ring
+      _ = D.d i := by simp
+  · -- ≥ d_i: evaluate at x₁=t, xg=0 gives det(tI)=t^{d_i}
+    sorry
 
 /-- The number of Wedderburn-Artin components equals the number of conjugacy classes.
 Proof: dim center(k[G]) = |ConjClasses G| (class functions) and
