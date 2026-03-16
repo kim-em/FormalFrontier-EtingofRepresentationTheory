@@ -1,3 +1,4 @@
+
 Define the **Young projectors**
 
 $$a_\lambda := \frac{1}{|P_\lambda|} \sum_{g \in P_\lambda} g,$$

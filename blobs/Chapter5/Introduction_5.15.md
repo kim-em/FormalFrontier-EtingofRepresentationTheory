@@ -1,10 +1,5 @@
-$r_{jm}$ times, such that the total (over all $j$) number of times each part $m$ occurs is $i_m$. Thus we get
 
-$$\chi_{U_\lambda}(C_\mathbf{i}) = \sum_r \prod_m \frac{i_m!}{\prod_j r_{jm}!}.$$
+## 5.15. The Frobenius character formula
 
-But this is exactly the coefficient of $x^\lambda$ in
-
-$$\prod_{m \geq 1} (x_1^m + \cdots + x_N^m)^{i_m}$$
-
-($r_{jm}$ is the number of times we take $x_j^m$). $\square$
+Let $\Delta(x) = \prod_{1 \leq i < j \leq N} (x_i - x_j)$. Recall that $\Delta(x)$ is the Vandermonde determinant, $\det(x_i^{N-j})$. Let $\rho = (N-1, N-2, \ldots, 0) \in \mathbb{C}^N$. The following theorem, due to Frobenius, gives a character formula for the Specht modules $V_\lambda$.
 
