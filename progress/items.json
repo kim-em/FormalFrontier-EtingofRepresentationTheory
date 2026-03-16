@@ -1784,7 +1784,8 @@
     "end_page": "64",
     "start_line": 23,
     "end_line": 8,
-    "status": "statement_formalized"
+    "status": "proof_formalized",
+    "notes": "1 sorry remains: hd_ne (d_i : k) \u2260 0 needs Frobenius dimension theorem"
   },
   {
     "id": "Chapter4/Corollary4.2.2",

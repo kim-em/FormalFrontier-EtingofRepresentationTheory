@@ -165,8 +165,11 @@ private lemma classFunction_eq_zero_of_orthogonal_simples
   -- c * (D.d i : k) = 0, need (D.d i : k) ≠ 0
   -- This follows from d_i | |G| (dimension divisibility theorem) and Invertible (|G| : k)
   have hd_ne : (D.d i : k) ≠ 0 := by
-    -- d_i divides |G| for irreducible representations over algebraically closed fields
-    -- with char(k) ∤ |G|. This is a standard result but requires separate formalization.
+    -- Requires: d_i | |G| (Frobenius dimension theorem) + Invertible (|G| : k) ⇒ (d_i : k) ≠ 0.
+    -- The divisibility d_i | |G| follows from the theory of algebraic integers and characters
+    -- (Etingof Theorem 5.3.1). With d_i | |G| and char(k) ∤ |G|, the cast is nonzero.
+    -- Alternatively: the left-regular trace form on k[G] is non-degenerate (since Invertible |G|),
+    -- and under Wedderburn it decomposes as ∑ d_i · tr_i, so each d_i must be nonzero in k.
     sorry
   have hc_zero : c = 0 := (mul_eq_zero.mp htrace).resolve_right hd_ne
   rw [hc, hc_zero, zero_smul]
@@ -183,6 +186,79 @@ theorem Etingof.Theorem4_2_1
     (f : G → k) (hf : ∀ g h : G, f (h * g * h⁻¹) = f g) :
     f ∈ Submodule.span k (FDRep.character '' { V : FDRep k G | Simple V }) := by
   classical
-  rw [Submodule.mem_span]
-  intro p hp
-  sorry
+  haveI : NeZero (Nat.card G : k) :=
+    ⟨by rw [Nat.card_eq_fintype_card]; exact Invertible.ne_zero _⟩
+  let D := IrrepDecomp.mk' (k := k) (G := G)
+  -- Fourier coefficients
+  let c : Fin D.n → k := fun i =>
+    ⅟(Fintype.card G : k) * ∑ g : G, f g * (D.columnFDRep i).character g⁻¹
+  -- f' = ∑ c_i • χ_i
+  set f' : G → k := ∑ i : Fin D.n, c i • (D.columnFDRep i).character with hf'_def
+  -- f' is in the span of characters
+  have hf'_span : f' ∈ Submodule.span k (FDRep.character '' { V : FDRep k G | Simple V }) := by
+    apply Submodule.sum_mem
+    intro i _
+    exact Submodule.smul_mem _ _
+      (Submodule.subset_span ⟨_, D.columnFDRep_simple i, rfl⟩)
+  -- f = f' (hence f ∈ span)
+  suffices h : f - f' = 0 by
+    have := sub_eq_zero.mp h; rwa [this]
+  apply classFunction_eq_zero_of_orthogonal_simples
+  · -- f - f' is a class function
+    intro g h
+    simp only [Pi.sub_apply, hf'_def, Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
+    congr 1
+    · exact hf g h
+    · congr 1; ext i; congr 1
+      exact FDRep.char_conj (D.columnFDRep i) g h
+  · -- f - f' is orthogonal to all simple characters
+    intro V
+    intro
+    obtain ⟨j, ⟨iso_j⟩⟩ := D.columnFDRep_surjective V ‹Simple V›
+    -- Replace χ_V with χ_{columnFDRep j} via the isomorphism
+    rw [FDRep.char_iso iso_j]
+    -- Goal: ∑ g, (f - f') g * χ_j g⁻¹ = 0
+    -- Expand and separate sums
+    have : ∀ g : G, (f - f') g * (D.columnFDRep j).character g⁻¹ =
+        f g * (D.columnFDRep j).character g⁻¹ -
+        (∑ i : Fin D.n, c i * (D.columnFDRep i).character g) *
+          (D.columnFDRep j).character g⁻¹ := by
+      intro g; simp [Pi.sub_apply, hf'_def, Finset.sum_apply, Pi.smul_apply, smul_eq_mul, sub_mul]
+    simp_rw [this]
+    rw [Finset.sum_sub_distrib, sub_eq_zero]
+    -- Goal: ∑ g, f g * χ_j g⁻¹ = ∑ g, (∑ i, c_i * χ_i g) * χ_j g⁻¹
+    -- Swap sums on RHS
+    simp_rw [Finset.sum_mul]
+    rw [Finset.sum_comm]
+    simp_rw [mul_assoc, ← Finset.mul_sum]
+    -- Goal: ∑ g, f g * χ_j g⁻¹ = ∑ i, c_i * ∑ g, χ_i g * χ_j g⁻¹
+    -- Use char_orthonormal to evaluate inner products
+    -- Key helper: extract sum from ⅟|G| * sum = y to sum = |G| * y
+    have hinv : ∀ (x y : k), ⅟(Fintype.card G : k) * x = y → x = (Fintype.card G : k) * y := by
+      intro x y h
+      calc x = (Fintype.card G : k) * ⅟(Fintype.card G : k) * x := by rw [mul_invOf_self, one_mul]
+        _ = (Fintype.card G : k) * (⅟(Fintype.card G : k) * x) := by rw [mul_assoc]
+        _ = (Fintype.card G : k) * y := by rw [h]
+    have horth : ∀ i : Fin D.n,
+        ∑ g : G, (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ =
+          if i = j then (Fintype.card G : k) else 0 := by
+      intro i
+      have h := FDRep.char_orthonormal (D.columnFDRep i) (D.columnFDRep j)
+      rw [smul_eq_mul] at h
+      by_cases hij : i = j
+      · subst hij
+        rw [if_pos ⟨Iso.refl _⟩] at h
+        rw [if_pos rfl]; exact (hinv _ _ h).trans (mul_one _)
+      · have hne : ¬ Nonempty (D.columnFDRep i ≅ D.columnFDRep j) :=
+          fun ⟨iso⟩ => hij (D.columnFDRep_injective i j ⟨iso⟩)
+        rw [if_neg hne] at h
+        rw [if_neg hij]; exact (hinv _ _ h).trans (mul_zero _)
+    simp_rw [horth]
+    -- Goal: ∑ g, f g * χ_j g⁻¹ = ∑ i, c_i * if i = j then |G| else 0
+    simp only [mul_ite, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    -- Goal: ∑ g, f g * χ_j g⁻¹ = c j * |G|
+    -- c j = ⅟|G| * ∑ g, f g * χ_j g⁻¹, so c j * |G| = ∑ g, f g * χ_j g⁻¹
+    -- c j * |G| = (⅟|G| * S) * |G| = S
+    set S := ∑ g, f g * (D.columnFDRep j).character g⁻¹
+    show S = (⅟(Fintype.card G : k) * S) * (Fintype.card G : k)
+    rw [mul_comm (⅟_ * S) _, ← mul_assoc, mul_invOf_self, one_mul]

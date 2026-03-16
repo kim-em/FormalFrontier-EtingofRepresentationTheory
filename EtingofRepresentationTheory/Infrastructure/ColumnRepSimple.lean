@@ -122,22 +122,7 @@ private noncomputable def invariantsEquivIntertwining :
   map_add' _ _ := rfl
   map_smul' _ _ := rfl
 
-/-- The column vector FDRep is a simple object in `FDRep k G`. -/
-instance columnFDRep_simple : Simple (D.columnFDRep i) := by
-  haveI := D.d_pos i
-  haveI := D.columnRep_isIrreducible i
-  show Simple (FDRep.of (D.columnRep i))
-  rw [FDRep.simple_iff_end_is_rank_one]
-  rw [← LinearEquiv.finrank_eq (Representation.linHom.invariantsEquivFDRepHom
-    (FDRep.of (D.columnRep i)) (FDRep.of (D.columnRep i)))]
-  -- Goal: finrank k (linHom ρ ρ).invariants = 1
-  -- (FDRep.of ρ).ρ = ρ by rfl, so convert the goal
-  show Module.finrank k (Representation.linHom (D.columnRep i) (D.columnRep i)).invariants = 1
-  rw [LinearEquiv.finrank_eq (D.invariantsEquivIntertwining i)]
-  -- Goal: finrank k (IntertwiningMap ρ ρ) = 1
-  have hbij := Representation.IsIrreducible.algebraMap_intertwiningMap_bijective_of_isAlgClosed
-    (ρ := D.columnRep i) (k := k)
-  have hequiv := LinearEquiv.ofBijective (Algebra.linearMap k _) hbij
-  rw [← hequiv.finrank_eq, Module.finrank_self]
+-- columnFDRep_simple is defined in IrreducibleEnumeration.lean; register as instance here
+attribute [instance] IrrepDecomp.columnFDRep_simple
 
 end IrrepDecomp
