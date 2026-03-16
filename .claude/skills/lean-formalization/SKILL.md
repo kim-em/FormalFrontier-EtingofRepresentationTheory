@@ -8,6 +8,14 @@ allowed-tools: Read, Edit, Write, Bash, Glob, Grep
 
 Patterns for formalizing mathematics textbooks into Lean 4 with Mathlib. Derived from Phase 2 analysis of 583 items across 10 chapters of Etingof's Representation Theory.
 
+## Session Setup
+
+Before the first `lake build` or `lake env lean` in any session:
+```bash
+lake exe cache get
+```
+This downloads pre-built Mathlib oleans. Skipping it triggers a full Mathlib rebuild (1800+ jobs).
+
 ## Translation Pipeline
 
 Formalizing an item follows three stages: **translate**, **scaffold**, **prove**.
@@ -113,6 +121,86 @@ Escalate after **2-3 serious attempts** (not 2-3 minor variations of the same ap
 - **Success:** Verify with `lake env lean`, copy proof, update status to `sorry_free`.
 - **False statement:** Mark `attention_needed`, post GitHub issue with counterexample.
 - **Failure/timeout:** Mark `attention_needed`, move on to next item.
+
+## Scaffolding Anti-Patterns
+
+These patterns were discovered during Chapter 2 and 7-8 reviews. Avoid them in all scaffolding work.
+
+### Never sorry a Type
+
+```lean
+-- BAD: sorry'd type breaks all downstream usage
+noncomputable def Etingof.PathAlgebra ... : Type* := sorry
+
+-- GOOD: define carrier concretely, sorry the algebraic instances
+def Etingof.PathAlgebra ... := FreeModule k (Quiver.Path ...)
+instance : Algebra k (Etingof.PathAlgebra ...) := sorry
+```
+
+A sorry producing `Type*` gives `sorryAx Type*` — no instances can be built on it. Define the carrier type concretely and sorry the structure instances.
+
+### Don't alias only the carrier type
+
+```lean
+-- BAD: misses the Lie module structure (the actual content of the definition)
+abbrev Etingof.LieTensorProduct ... := TensorProduct k V W
+
+-- GOOD: alias and import the relevant instance
+import Mathlib.Algebra.Lie.TensorProduct
+abbrev Etingof.LieTensorProduct ... := TensorProduct k V W
+-- The Lie module instance is provided by the import
+```
+
+When a definition is about *structure on a type*, the alias must capture the structure, not just the carrier.
+
+### Don't scaffold definitions as theorems
+
+```lean
+-- BAD: book definition scaffolded as theorem
+theorem Etingof.Definition_8_2_3 : (sorry : Prop) := sorry
+
+-- GOOD: use def/abbrev for definitions
+noncomputable def Etingof.TorFunctor ... := sorry
+```
+
+Use `def`/`abbrev`/`noncomputable def` for definitions, `theorem`/`lemma` for propositions.
+
+### Don't write tautological examples
+
+```lean
+-- BAD: proves nothing
+example (A : Type*) [Ring A] : (1 : A) = 1 := rfl
+
+-- GOOD: demonstrate actual properties
+example (A : Type*) [Ring A] (a : A) : 1 * a = a := one_mul a
+```
+
+### Verify blob content before scaffolding
+
+If a blob file is empty, flag it rather than scaffolding from the title alone. Title-only scaffolding produces low-quality formalizations.
+
+### Use minimal imports
+
+Prefer the most specific Mathlib module. Don't import `Mathlib.LinearAlgebra.DirectSum.Finite` when `Mathlib.Algebra.Module.Prod` suffices.
+
+### Match Mathlib's generality for type class assumptions
+
+If Mathlib uses `[Semiring R]`, don't restrict to `[CommRing R]`. Use the same or a compatible assumption. Within a chapter, be consistent — don't use `[CommRing R]` in one definition and `[Ring R]` in the adjacent one.
+
+## Scaffolding Review Checklist
+
+When reviewing scaffolded files, check each item against this list:
+
+1. **Compilation**: `lake build <module>` passes with only expected sorry warnings
+2. **Lean↔Blob↔items.json alignment**: every items.json entry has a .lean file and a blob file, no orphans
+3. **Mathlib alias correctness**: `#check` the referenced declaration, verify it exists and is non-deprecated
+4. **Type class consistency**: assumptions match Mathlib's (or are intentionally more specific with documented rationale)
+5. **Anti-pattern scan**: no sorry'd types, no carrier-only aliases, no definitions-as-theorems, no tautological examples
+6. **Import minimality**: imports are the most specific Mathlib module needed
+7. **Doc-string quality**: matches the blob text, identifies Mathlib correspondence
+8. **Gap definitions**: carrier type is concrete (not sorry'd), instances are sorry'd
+
+Write findings to `reviews/<chapter>-scaffolding-review.md` with per-file scores and systematic pattern analysis.
 
 ## Quality Checks
 
