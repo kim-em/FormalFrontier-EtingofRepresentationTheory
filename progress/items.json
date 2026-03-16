@@ -1251,7 +1251,7 @@
     "start_line": 5,
     "end_line": 13,
     "status": "proof_formalized",
-    "notes": "Part (i) sorry-free; Part (ii) requires IsSimpleRing/TwoSidedIdeal infrastructure — needs dedicated session"
+    "notes": "Part (i) sorry-free; Part (ii) requires IsSimpleRing/TwoSidedIdeal infrastructure \u2014 needs dedicated session"
   },
   {
     "id": "Chapter3/Introduction_to_3.3",
@@ -1680,7 +1680,7 @@
     "end_page": "62",
     "start_line": 11,
     "end_line": 20,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter4/Discussion_before_Proposition4.1.2",
