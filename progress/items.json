@@ -1426,7 +1426,7 @@
     "end_page": "50",
     "start_line": 5,
     "end_line": 22,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter3/Corollary3.5.5",
@@ -1436,7 +1436,7 @@
     "end_page": "51",
     "start_line": 23,
     "end_line": 4,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter3/Example3.5.6",
