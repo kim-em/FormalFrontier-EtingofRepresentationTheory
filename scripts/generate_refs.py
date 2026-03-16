@@ -65,12 +65,23 @@ def build_definition_gap_map(ext_sources: dict) -> dict[str, dict]:
     return result
 
 
-def build_ext_dep_gap_map(ext_sources: dict) -> dict[str, dict]:
-    """Map external dep description to external sources for gaps."""
-    return {
-        entry["description"]: entry
-        for entry in ext_sources.get("external_dependency_gaps", [])
-    }
+def build_ext_dep_gap_map(ext_sources: dict) -> list[dict]:
+    """Return list of external dep gap entries for prefix matching."""
+    return ext_sources.get("external_dependency_gaps", [])
+
+
+def find_ext_dep_gap(desc: str, ext_dep_gaps: list[dict]) -> dict | None:
+    """Find matching gap entry using prefix matching.
+
+    external-sources.json may use abbreviated descriptions (e.g. "Ext functors")
+    while external.json uses expanded ones (e.g. "Ext functors: definition as...").
+    Match if either is a prefix of the other.
+    """
+    for gap in ext_dep_gaps:
+        gap_desc = gap.get("description", "")
+        if desc == gap_desc or desc.startswith(gap_desc) or gap_desc.startswith(desc):
+            return gap
+    return None
 
 
 def generate_refs_content(
@@ -80,7 +91,7 @@ def generate_refs_content(
     ext_dep_map: dict[str, list[dict]],
     ext_coverage_map: dict[str, dict],
     def_gap_map: dict[str, dict],
-    ext_dep_gap_map: dict[str, dict],
+    ext_dep_gaps: list[dict],
 ) -> str | None:
     """Generate .refs.md content for one item. Returns None if no references."""
     sections = []
@@ -141,8 +152,8 @@ def generate_refs_content(
                     lines.append(f"  {cov_notes}")
 
             # Add external sources for gaps
-            if desc in ext_dep_gap_map:
-                gap = ext_dep_gap_map[desc]
+            gap = find_ext_dep_gap(desc, ext_dep_gaps)
+            if gap:
                 gap_sources = gap.get("sources", [])
                 for src in gap_sources:
                     src_type = src.get("source_type", "unknown")
@@ -187,7 +198,7 @@ def main():
     ext_dep_map = build_external_dep_map(ext_deps)
     ext_coverage_map = build_ext_coverage_map(ext_coverage)
     def_gap_map = build_definition_gap_map(ext_sources)
-    ext_dep_gap_map = build_ext_dep_gap_map(ext_sources)
+    ext_dep_gaps = build_ext_dep_gap_map(ext_sources)
 
     generated = 0
     skipped = 0
@@ -205,7 +216,7 @@ def main():
         content = generate_refs_content(
             item_id, item,
             def_coverage, ext_dep_map, ext_coverage_map,
-            def_gap_map, ext_dep_gap_map,
+            def_gap_map, ext_dep_gaps,
         )
 
         if content is None:
