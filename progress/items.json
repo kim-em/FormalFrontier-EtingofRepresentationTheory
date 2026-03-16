@@ -3695,7 +3695,8 @@
     "start_page": "150",
     "end_page": "150",
     "start_line": 3,
-    "end_line": 4
+    "end_line": 4,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Discussion_after_Definition6.1.4",
@@ -3713,7 +3714,8 @@
     "start_page": "150",
     "end_page": "150",
     "start_line": 7,
-    "end_line": 27
+    "end_line": 27,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Problem6.1.3_continued_E7_E8",
@@ -3749,7 +3751,8 @@
     "start_page": "153",
     "end_page": "153",
     "start_line": 1,
-    "end_line": 4
+    "end_line": 4,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Problem6.1.5_parts",
@@ -3794,7 +3797,8 @@
     "start_page": "154",
     "end_page": "154",
     "start_line": 13,
-    "end_line": 14
+    "end_line": 14,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Example6.2.3",
@@ -3803,7 +3807,8 @@
     "start_page": "154",
     "end_page": "155",
     "start_line": 15,
-    "end_line": 20
+    "end_line": 20,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Example6.2.4",
@@ -3812,7 +3817,8 @@
     "start_page": "155",
     "end_page": "158",
     "start_line": 21,
-    "end_line": 10
+    "end_line": 10,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Section6.3_heading",
@@ -3830,7 +3836,8 @@
     "start_page": "158",
     "end_page": "163",
     "start_line": 15,
-    "end_line": 74
+    "end_line": 74,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Discussion_after_Example6.3.1",
@@ -3857,7 +3864,8 @@
     "start_page": "164",
     "end_page": "164",
     "start_line": 7,
-    "end_line": 20
+    "end_line": 20,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Lemma6.4.2",
@@ -3866,7 +3874,8 @@
     "start_page": "164",
     "end_page": "164",
     "start_line": 21,
-    "end_line": 38
+    "end_line": 38,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Definition6.4.3",
@@ -3875,7 +3884,8 @@
     "start_page": "164",
     "end_page": "164",
     "start_line": 39,
-    "end_line": 46
+    "end_line": 46,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Remark6.4.4",
@@ -3893,7 +3903,8 @@
     "start_page": "165",
     "end_page": "165",
     "start_line": 1,
-    "end_line": 10
+    "end_line": 10,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Lemma6.4.6",
@@ -3902,7 +3913,8 @@
     "start_page": "165",
     "end_page": "166",
     "start_line": 11,
-    "end_line": 14
+    "end_line": 14,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Definition6.4.7",
@@ -3911,7 +3923,8 @@
     "start_page": "166",
     "end_page": "166",
     "start_line": 15,
-    "end_line": 16
+    "end_line": 16,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Remark6.4.8",
@@ -3929,7 +3942,8 @@
     "start_page": "166",
     "end_page": "167",
     "start_line": 19,
-    "end_line": 21
+    "end_line": 21,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Definition6.4.10",
@@ -3938,7 +3952,8 @@
     "start_page": "167",
     "end_page": "167",
     "start_line": 22,
-    "end_line": 29
+    "end_line": 29,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Remark6.4.11",
@@ -3965,7 +3980,8 @@
     "start_page": "167",
     "end_page": "167",
     "start_line": 40,
-    "end_line": 47
+    "end_line": 47,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Discussion_before_Theorem6.5.2",
@@ -3983,7 +3999,8 @@
     "start_page": "168",
     "end_page": "168",
     "start_line": 1,
-    "end_line": 2
+    "end_line": 2,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter6/Section6.6_heading",

@@ -1,4 +1,20 @@
-import Mathlib
+import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
+import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
+import EtingofRepresentationTheory.Chapter6.Example6_2_2
+import EtingofRepresentationTheory.Chapter6.Example6_2_3
+import EtingofRepresentationTheory.Chapter6.Example6_2_4
+import EtingofRepresentationTheory.Chapter6.Example6_3_1
+import EtingofRepresentationTheory.Chapter6.Definition6_4_1
+import EtingofRepresentationTheory.Chapter6.Lemma6_4_2
+import EtingofRepresentationTheory.Chapter6.Definition6_4_3
+import EtingofRepresentationTheory.Chapter6.Definition6_4_5
+import EtingofRepresentationTheory.Chapter6.Lemma6_4_6
+import EtingofRepresentationTheory.Chapter6.Definition6_4_7
+import EtingofRepresentationTheory.Chapter6.Example6_4_9
+import EtingofRepresentationTheory.Chapter6.Definition6_4_10
+import EtingofRepresentationTheory.Chapter6.Definition6_5_1
+import EtingofRepresentationTheory.Chapter6.Theorem6_5_2
 
 /-!
 # Chapter 6: Quiver Representations
