@@ -17,6 +17,8 @@
 - **Characters of representations are class functions; character of a direct sum is sum of characters; character of a tensor product is product of characters** (folklore)
   Mathlib (partial): `FDRep.character`, `Representation`, `FDRep`
   `FDRep.character` gives the character of a finite-dimensional representation. The properties (class function, additivity over direct sums, multiplicativity over tensor products) may need to be proved from the definition, though some are likely available.
+  External source [natural_language]: Serre, 'Linear Representations of Finite Groups' — Section 2.1
+  External source [other_formal]: MathComp (Coq) — character.v, classfun.v
 - **Properties of the trace: tr(AB) = tr(BA), trace of identity is dimension, trace is basis-independent** (folklore)
   Mathlib (exact): `Matrix.trace`, `Matrix.trace_mul_comm`
   `Matrix.trace_mul_comm` gives tr(AB) = tr(BA). Trace of identity equals dimension. Basis independence follows from the linear map trace.
@@ -26,3 +28,4 @@
 - **Averaging (Reynolds) operator for finite group actions: (1/|G|) Σ_g ρ(g) is the projection onto invariants when char k does not divide |G|** (folklore)
   Mathlib (partial): `Representation`, `IsSemisimpleModule`
   The averaging operator is not explicitly named in Mathlib, but `IsSemisimpleModule` captures its consequence (complete reducibility). Maschke's theorem (semisimplicity of group algebra when char k ∤ |G|) is available via the semisimplicity framework.
+  External source [natural_language]: Serre, 'Linear Representations of Finite Groups' — Section 1.3

@@ -8,6 +8,8 @@
 - **Nilpotent ideals and nilpotency: a nilpotent ideal I satisfies I^n = 0 for some n; properties of nilpotent elements in algebras** (folklore)
   Mathlib (partial): `IsNilpotent`, `Ideal.jacobson`
   `IsNilpotent` for elements. Nilpotent ideals can be expressed as `I ^ n = ⊥`. The Jacobson radical contains all nilpotent ideals. Some connecting lemmas may need to be proved.
+  External source [natural_language]: Lam, 'A First Course in Noncommutative Rings' — Chapter 2
 - **Idempotents in algebras: decomposition of identity into orthogonal idempotents, primitive idempotents, lifting of idempotents** (folklore)
   Mathlib (partial): `IsIdempotentElem`
   `IsIdempotentElem` exists for the basic notion. Orthogonal idempotent decomposition, primitive idempotents, and lifting of idempotents are NOT systematically developed in Mathlib. These will need custom development for Chapter 9.
+  External source [natural_language]: Assem, Simson, Skowroński, Vol. 1 — Section I.4

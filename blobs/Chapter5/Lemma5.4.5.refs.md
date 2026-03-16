@@ -17,3 +17,4 @@
 - **Algebraic conjugates of roots of unity are roots of unity; product of algebraic conjugates of an algebraic integer is a rational integer** (folklore)
   Mathlib (partial): `IsPrimitiveRoot`, `Algebra.norm`, `IsIntegral`
   The individual components exist (roots of unity, algebraic integers, norms). The specific fact that algebraic conjugates of roots of unity are roots of unity may need to be proved from the Galois theory of cyclotomic fields, which is well-developed in Mathlib.
+  External source [natural_language]: Washington, 'Introduction to Cyclotomic Fields' — Chapter 1

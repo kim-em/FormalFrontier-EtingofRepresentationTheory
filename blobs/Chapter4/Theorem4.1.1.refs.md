@@ -20,3 +20,4 @@
 - **Averaging (Reynolds) operator for finite group actions: (1/|G|) Σ_g ρ(g) is the projection onto invariants when char k does not divide |G|** (folklore)
   Mathlib (partial): `Representation`, `IsSemisimpleModule`
   The averaging operator is not explicitly named in Mathlib, but `IsSemisimpleModule` captures its consequence (complete reducibility). Maschke's theorem (semisimplicity of group algebra when char k ∤ |G|) is available via the semisimplicity framework.
+  External source [natural_language]: Serre, 'Linear Representations of Finite Groups' — Section 1.3
