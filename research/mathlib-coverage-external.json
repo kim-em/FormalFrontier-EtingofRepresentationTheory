@@ -7,7 +7,7 @@
       "IsAlgClosed",
       "IntermediateField",
       "CharP",
-      "FiniteField"
+      "GaloisField"
     ],
     "match_quality": "exact",
     "notes": "All core field theory is well-covered. `Field`, `IsAlgClosed`, `CharP` are standard typeclasses. Finite fields via `GaloisField` and `FiniteField.card`."
@@ -266,10 +266,10 @@
     "mathlib_names": [
       "GaloisField",
       "FiniteField.card",
-      "ZMod.legendreSym"
+      "legendreSym"
     ],
     "match_quality": "exact",
-    "notes": "`GaloisField p n` constructs F_{p^n}. `FiniteField.card` proves the cardinality is a prime power. Quadratic residues via Legendre symbol. Field extensions of finite fields well-supported."
+    "notes": "`GaloisField p n` constructs F_{p^n}. `FiniteField.card` proves the cardinality is a prime power. Quadratic residues via `legendreSym`. Field extensions of finite fields well-supported."
   },
   {
     "description": "Semidirect products of groups: construction and characterization",
@@ -309,7 +309,7 @@
     "mathlib_names": [
       "CategoryTheory.ShortComplex",
       "CategoryTheory.ShortComplex.Exact",
-      "CategoryTheory.Functor.PreservesFiniteLimits"
+      "CategoryTheory.Limits.PreservesFiniteLimits"
     ],
     "match_quality": "exact",
     "notes": "Short exact sequences via `ShortComplex` with `Exact` predicate. Left/right exactness via preservation of limits/colimits. Splitting available."
@@ -585,7 +585,7 @@
     "mathlib_names": [
       "CategoryTheory.NatTrans",
       "CategoryTheory.yoneda",
-      "CategoryTheory.Functor.Representable"
+      "CategoryTheory.Functor.RepresentableBy"
     ],
     "match_quality": "exact",
     "notes": "Full support. Yoneda lemma proved. Natural transformations and functor categories complete."
