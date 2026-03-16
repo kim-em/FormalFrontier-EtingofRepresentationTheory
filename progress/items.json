@@ -4567,8 +4567,8 @@
     "end_page": "185",
     "start_line": 9,
     "end_line": 15,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false
   },
   {
     "id": "Chapter7/Introduction_7.4",
@@ -4634,8 +4634,8 @@
     "end_page": "188",
     "start_line": 7,
     "end_line": 8,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false
   },
   {
     "id": "Chapter7/Introduction_7.6",
