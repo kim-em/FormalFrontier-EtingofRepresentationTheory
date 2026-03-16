@@ -1,0 +1,35 @@
+% This file makes a web version of the blueprint
+% It should include all the \usepackage needed for this version.
+% The template includes standard AMS packages.
+% It is otherwise a very minimal preamble (you should probably at least
+% add cleveref and tikz-cd).
+
+\documentclass{report}
+
+\usepackage{amssymb, amsthm, amsmath}
+\usepackage{hyperref}
+\usepackage[showmore, dep_graph]{blueprint}
+
+
+% Theorem-like environments (from macros/common.tex)
+\newtheorem{theorem}{Theorem}[chapter]
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+
+\theoremstyle{definition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{example}[theorem]{Example}
+\newtheorem{remark}[theorem]{Remark}
+
+\home{https://kim-em.github.io/FormalFrontier-EtingofRepresentationTheory}
+\github{https://github.com/kim-em/FormalFrontier-EtingofRepresentationTheory}
+\dochome{https://kim-em.github.io/FormalFrontier-EtingofRepresentationTheory/docs}
+
+\title{Introduction to Representation Theory}
+\author{Pavel Etingof \and Oleg Golberg \and Sebastian Hensel \and Tiankai Liu \and Alex Schwendner \and Dmitry Vaintrob \and Elena Yudovina}
+
+\begin{document}
+\maketitle
+\input{content}
+\end{document}

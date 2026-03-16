@@ -5,4 +5,3 @@ The irreducible representations of $S_n$ are described by the following theorem.
 The modules $V_\lambda$ are called the **Specht modules**.
 
 The proof of this theorem is given in the next subsection.
-

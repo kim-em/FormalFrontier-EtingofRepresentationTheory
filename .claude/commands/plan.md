@@ -5,7 +5,7 @@ items as GitHub issues, then exit. You do NOT execute any code changes.
 
 ## Step 1: Orient
 
-1. `git fetch origin master`
+1. `git fetch origin main`
 2. `coordination orient` — see open issues (claimed and unclaimed), PRs, attention items
 3. Read the last 5 files in `progress/` (sorted by filename) to understand recent work
 4. Read the project's roadmap document to understand current phase

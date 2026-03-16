@@ -39,6 +39,12 @@ Rotate through these areas across sessions:
 **Security**:
 - Check for new issues in recent code, verify past fixes
 
+**Data validation** (Phase 2+):
+- Verify JSON outputs against schemas (`scripts/validate_*.py`)
+- Spot-check blob content against source pages
+- Cross-validate chapter boundaries and item coverage
+- Check dependency completeness (are all references captured?)
+
 ## Updating Skills
 
 When you discover a recurring pattern or encounter a situation not covered by

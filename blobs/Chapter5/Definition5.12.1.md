@@ -8,4 +8,3 @@ We can define two subgroups of $S_n$ corresponding to $T_\lambda$:
 2. The column subgroup $Q_\lambda$: the subgroup which maps every element of $\{1, \ldots, n\}$ into an element standing in the same column in $T_\lambda$.
 
 Clearly, $P_\lambda \cap Q_\lambda = \{1\}$.
-

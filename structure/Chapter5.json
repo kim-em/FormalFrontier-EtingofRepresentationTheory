@@ -533,20 +533,20 @@
   {
     "id": "Chapter5/Problem5.10.2",
     "type": "exercise",
-    "title": "Tensor products over k-algebras framework for Ind and Res",
+    "title": "Tensor products over k-algebras framework for Ind and Res (continues to missing page)",
     "start_page": "110",
     "end_page": "110",
     "start_line": 35,
     "end_line": 35
   },
   {
-    "id": "Chapter5/Exercise5.10.3",
+    "id": "Chapter5/Discussion_Problem5.10.2_parts",
     "type": "exercise",
-    "title": "Frobenius reciprocity via tensor products and bimodules",
+    "title": "Problem 5.10.2 parts (a)-(f): tensor products over k-algebras for Ind and Res",
     "start_page": "111",
     "end_page": "112",
     "start_line": 1,
-    "end_line": 2
+    "end_line": 1
   },
   {
     "id": "Chapter5/Introduction_5.11",
@@ -554,13 +554,22 @@
     "title": "Section 5.11: Examples of induced representations",
     "start_page": "112",
     "end_page": "112",
-    "start_line": 3,
+    "start_line": 2,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter5/Discussion_5.11_examples",
+    "type": "discussion",
+    "title": "Examples of induced representations for S_3 and S_4",
+    "start_page": "112",
+    "end_page": "112",
+    "start_line": 7,
     "end_line": 12
   },
   {
     "id": "Chapter5/Problem5.11.1",
     "type": "exercise",
-    "title": "Decomposition of induced representations of A_5",
+    "title": "Decompose induced representations from subgroups of A_5",
     "start_page": "112",
     "end_page": "112",
     "start_line": 13,
@@ -578,43 +587,43 @@
   {
     "id": "Chapter5/Definition5.12.1",
     "type": "definition",
-    "title": "Partitions, Young diagrams, and Young tableaux",
+    "title": "Partition, Young diagram, Young tableau, row and column subgroups",
     "start_page": "112",
     "end_page": "113",
     "start_line": 29,
-    "end_line": 10
+    "end_line": 9
   },
   {
     "id": "Chapter5/Discussion_Young_projectors",
     "type": "discussion",
-    "title": "Young projectors a_λ, b_λ, c_λ",
+    "title": "Young projectors a_lambda, b_lambda, c_lambda and the Young symmetrizer",
     "start_page": "113",
     "end_page": "113",
-    "start_line": 11,
+    "start_line": 10,
     "end_line": 18
   },
   {
     "id": "Chapter5/Theorem5.12.2",
     "type": "theorem",
-    "title": "Classification of irreducible representations of S_n via Specht modules",
+    "title": "Classification of irreducible representations of S_n via Specht modules V_lambda",
     "start_page": "113",
     "end_page": "113",
     "start_line": 19,
-    "end_line": 26
+    "end_line": 25
   },
   {
     "id": "Chapter5/Example5.12.3",
     "type": "example",
-    "title": "Specht modules for small n",
+    "title": "Specht modules for partitions (n), (1^n), and small n",
     "start_page": "113",
     "end_page": "114",
-    "start_line": 27,
+    "start_line": 26,
     "end_line": 6
   },
   {
     "id": "Chapter5/Corollary5.12.4",
     "type": "corollary",
-    "title": "Irreducible representations of S_n have rational matrices",
+    "title": "All irreducible representations of S_n can be given by matrices with rational entries",
     "start_page": "114",
     "end_page": "114",
     "start_line": 7,
@@ -623,7 +632,7 @@
   {
     "id": "Chapter5/Problem5.12.5",
     "type": "exercise",
-    "title": "Sum of dimensions of irreducible representations of S_n",
+    "title": "Find the sum of dimensions of all irreducible representations of S_n",
     "start_page": "114",
     "end_page": "114",
     "start_line": 9,
@@ -641,7 +650,7 @@
   {
     "id": "Chapter5/Lemma5.13.1",
     "type": "lemma",
-    "title": "a_λ x b_λ = ℓ_λ(x) c_λ for a linear function ℓ_λ",
+    "title": "a_lambda x b_lambda = l_lambda(x) c_lambda where l_lambda is a linear function",
     "start_page": "114",
     "end_page": "114",
     "start_line": 15,
@@ -650,7 +659,7 @@
   {
     "id": "Chapter5/Discussion_end_of_Lemma5.13.1_proof",
     "type": "discussion",
-    "title": "End of proof of Lemma 5.13.1",
+    "title": "End of proof of Lemma 5.13.1 (statement on missing page)",
     "start_page": "115",
     "end_page": "115",
     "start_line": 1,
@@ -686,10 +695,19 @@
   {
     "id": "Chapter5/Lemma5.13.4",
     "type": "lemma",
-    "title": "Hom_A(Ae, M) ≅ eM for idempotent e",
+    "title": "Hom_A(Ae, M) ≅ eM for idempotent e (continues to missing page)",
     "start_page": "115",
-    "end_page": "116",
+    "end_page": "115",
     "start_line": 13,
+    "end_line": 13
+  },
+  {
+    "id": "Chapter5/Discussion_proof_of_Lemma5.13.4",
+    "type": "discussion",
+    "title": "Proof of Lemma 5.13.4 using idempotent decomposition",
+    "start_page": "116",
+    "end_page": "116",
+    "start_line": 1,
     "end_line": 2
   },
   {
@@ -704,7 +722,7 @@
   {
     "id": "Chapter5/Introduction_5.14",
     "type": "introduction",
-    "title": "Section 5.14: Induced representations for S_n",
+    "title": "Section 5.14: Induced representations for S_n and definition of U_lambda",
     "start_page": "116",
     "end_page": "116",
     "start_line": 9,
@@ -713,7 +731,7 @@
   {
     "id": "Chapter5/Proposition5.14.1",
     "type": "proposition",
-    "title": "Decomposition of U_λ into V_μ with Kostka numbers",
+    "title": "Decomposition of U_lambda in terms of V_mu with Kostka numbers",
     "start_page": "116",
     "end_page": "116",
     "start_line": 13,
@@ -722,7 +740,7 @@
   {
     "id": "Chapter5/Definition5.14.2",
     "type": "definition",
-    "title": "Kostka numbers K_{μλ}",
+    "title": "Kostka numbers K_{mu,lambda}",
     "start_page": "116",
     "end_page": "116",
     "start_line": 15,
@@ -731,20 +749,29 @@
   {
     "id": "Chapter5/Discussion_proof_of_Proposition5.14.1",
     "type": "discussion",
-    "title": "Proof of Proposition 5.14.1 and character computation for U_λ",
+    "title": "Proof of Proposition 5.14.1",
     "start_page": "116",
     "end_page": "116",
     "start_line": 17,
+    "end_line": 22
+  },
+  {
+    "id": "Chapter5/Discussion_character_computation_setup",
+    "type": "discussion",
+    "title": "Setup for computing characters of U_lambda: conjugacy classes C_i and power sums H_m",
+    "start_page": "116",
+    "end_page": "116",
+    "start_line": 23,
     "end_line": 27
   },
   {
     "id": "Chapter5/Theorem5.14.3",
     "type": "theorem",
-    "title": "Character formula for U_λ via power sum polynomials",
+    "title": "Character of U_lambda as coefficient of x^lambda in product of power sums",
     "start_page": "117",
-    "end_page": "117",
+    "end_page": "118",
     "start_line": 1,
-    "end_line": 33
+    "end_line": 9
   },
   {
     "id": "Chapter5/Introduction_5.15",
@@ -752,22 +779,22 @@
     "title": "Section 5.15: The Frobenius character formula",
     "start_page": "118",
     "end_page": "118",
-    "start_line": 1,
-    "end_line": 10
+    "start_line": 10,
+    "end_line": 14
   },
   {
     "id": "Chapter5/Theorem5.15.1",
     "type": "theorem",
-    "title": "Frobenius character formula for Specht modules",
+    "title": "Frobenius character formula for Specht modules V_lambda",
     "start_page": "118",
     "end_page": "118",
-    "start_line": 11,
+    "start_line": 15,
     "end_line": 18
   },
   {
     "id": "Chapter5/Remark5.15.2",
     "type": "remark",
-    "title": "Equivalent formulation of Frobenius character formula",
+    "title": "Equivalent formulation of Theorem 5.15.1 using Laurent polynomials",
     "start_page": "118",
     "end_page": "118",
     "start_line": 19,
@@ -776,7 +803,7 @@
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.15.1",
     "type": "discussion",
-    "title": "Proof of the Frobenius character formula",
+    "title": "Start of proof of Theorem 5.15.1 (Frobenius character formula)",
     "start_page": "118",
     "end_page": "118",
     "start_line": 23,
@@ -785,7 +812,7 @@
   {
     "id": "Chapter5/Discussion_proof_of_Frobenius_character_formula",
     "type": "discussion",
-    "title": "Continuation of proof of the Frobenius character formula",
+    "title": "Continuation of proof of the Frobenius character formula (from missing page)",
     "start_page": "119",
     "end_page": "119",
     "start_line": 1,
@@ -810,18 +837,27 @@
     "end_line": 29
   },
   {
-    "id": "Chapter5/Corollary5.15.4",
-    "type": "corollary",
-    "title": "Cauchy identity and proof of Theorem 5.15.1",
+    "id": "Chapter5/Discussion_proof_of_Lemma5.15.3",
+    "type": "discussion",
+    "title": "End of proof of Cauchy determinant (Lemma 5.15.3) by proportionality and induction",
     "start_page": "120",
     "end_page": "120",
     "start_line": 1,
+    "end_line": 4
+  },
+  {
+    "id": "Chapter5/Corollary5.15.4",
+    "type": "corollary",
+    "title": "Cauchy identity: R(x,y) as determinant and coefficient of x^{lambda+rho} y^{lambda+rho} is 1",
+    "start_page": "120",
+    "end_page": "120",
+    "start_line": 5,
     "end_line": 10
   },
   {
     "id": "Chapter5/Remark5.15.5",
     "type": "remark",
-    "title": "Partial order on partitions and Kostka number vanishing",
+    "title": "Partial order on partitions and vanishing of Kostka numbers",
     "start_page": "120",
     "end_page": "120",
     "start_line": 11,
@@ -830,7 +866,7 @@
   {
     "id": "Chapter5/Introduction_5.16",
     "type": "introduction",
-    "title": "Section 5.16: Problems",
+    "title": "Section 5.16: Problems on Young diagrams and branching rules",
     "start_page": "120",
     "end_page": "120",
     "start_line": 17,
@@ -839,7 +875,7 @@
   {
     "id": "Chapter5/Problem5.16.1",
     "type": "exercise",
-    "title": "Restriction and induction branching rules for S_n",
+    "title": "Branching rules: restriction and induction for S_n representations",
     "start_page": "120",
     "end_page": "120",
     "start_line": 21,
@@ -1136,16 +1172,25 @@
   {
     "id": "Chapter5/Theorem5.23.2",
     "type": "theorem",
-    "title": "Complete reducibility and Peter-Weyl theorem for GL(V)",
+    "title": "Complete reducibility and Peter-Weyl theorem for GL(V) (continues to missing page)",
     "start_page": "133",
-    "end_page": "134",
+    "end_page": "133",
     "start_line": 13,
+    "end_line": 21
+  },
+  {
+    "id": "Chapter5/Discussion_proof_of_Theorem5.23.2",
+    "type": "discussion",
+    "title": "Proof of Theorem 5.23.2: complete reducibility via algebraic representations",
+    "start_page": "134",
+    "end_page": "134",
+    "start_line": 1,
     "end_line": 4
   },
   {
     "id": "Chapter5/Remark5.23.3",
     "type": "remark",
-    "title": "Extension to sl(V) and SL(V) representations",
+    "title": "Extension to sl(V) and SL(V); recovery of sl(2) representation theory",
     "start_page": "134",
     "end_page": "134",
     "start_line": 5,
