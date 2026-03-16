@@ -22,9 +22,9 @@ representation.
 field of characteristic ≠ 2, 3). (Etingof Example 4.3) -/
 theorem Etingof.Example4_3_S3_irreps_count :
     Fintype.card (ConjClasses (Equiv.Perm (Fin 3))) = 3 := by
-  sorry
+  native_decide
 
 /-- The sum-of-squares formula for S₃: 1² + 1² + 2² = 6 = |S₃|. -/
 theorem Etingof.Example4_3_S3_sum_of_squares :
     1 ^ 2 + 1 ^ 2 + 2 ^ 2 = Fintype.card (Equiv.Perm (Fin 3)) := by
-  sorry
+  native_decide
