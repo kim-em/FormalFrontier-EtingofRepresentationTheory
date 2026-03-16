@@ -1,0 +1,7 @@
+In technical terms, representation theory studies representations of associative algebras. Its general content can be very briefly summarized as follows.
+
+An **associative algebra** over a field $k$ is a vector space $A$ over $k$ equipped with an associative bilinear multiplication $a, b \mapsto ab$, $a, b \in A$. We will always consider associative algebras with unit, i.e., with an element $1$ such that $1 \cdot a = a \cdot 1 = a$ for all $a \in A$. A basic example of an associative algebra is the algebra $\operatorname{End} V$ of linear operators from a vector space $V$ to itself. Other important examples include algebras defined by generators and relations, such as group algebras and universal enveloping algebras of Lie algebras.
+
+A **representation** of an associative algebra $A$ (also called a **left $A$-module**) is a vector space $V$ equipped with a homomorphism $\rho : A \to \operatorname{End} V$, i.e., a linear map preserving the multiplication and unit.
+
+A **subrepresentation** of a representation $V$ is a subspace $U \subset V$ which is invariant under all operators $\rho(a)$, $a \in A$. Also, if $V_1, V_2$ are two representations of $A$, then the **direct sum** $V_1 \oplus V_2$ has an obvious structure of a representation of $A$.

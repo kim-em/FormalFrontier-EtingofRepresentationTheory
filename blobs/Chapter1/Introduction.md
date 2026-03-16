@@ -1,0 +1,11 @@
+# Chapter 1: Introduction
+
+Very roughly speaking, representation theory studies symmetry in linear spaces. It is a beautiful mathematical subject which has many applications, ranging from number theory and combinatorics to geometry, probability theory, quantum mechanics, and quantum field theory.
+
+Representation theory was born in 1896 in the work of the German mathematician F. G. Frobenius. This work was triggered by a letter to Frobenius by R. Dedekind. In this letter Dedekind made the following observation: take the multiplication table of a finite group $G$ and turn it into a matrix $X_G$ by replacing every entry $g$ of this table by a variable $x_g$. Then the determinant of $X_G$ factors into a product of irreducible polynomials in $\{x_g\}$, each of which occurs with multiplicity equal to its degree. Dedekind checked this surprising fact in a few special cases but could not prove it in general. So he gave this problem to Frobenius. In order to find a solution of this problem (which we will explain below), Frobenius created the representation theory of finite groups.
+
+The goal of this book is to give a "holistic" introduction to representation theory, presenting it as a unified subject which studies representations of associative algebras and treating the representation theories of groups, Lie algebras, and quivers as special cases. It is designed as a textbook for advanced undergraduate and beginning
+graduate students and should be accessible to students with a strong background in linear algebra and a basic knowledge of abstract algebra. Theoretical material in this book is supplemented by many problems and exercises which touch upon a lot of additional topics; the more difficult exercises are provided with hints.
+
+The book covers a number of standard topics in representation theory of groups, associative algebras, Lie algebras, and quivers. For a more detailed treatment of these topics, we refer the reader to the textbooks [S], [**FH**], and [**CR**]. We mostly follow [**FH**], with the exception of the sections discussing quivers, which follow [**BGP**], and the sections on homological algebra and finite dimensional algebras, for which we recommend [**W**] and [**CR**], respectively.
+

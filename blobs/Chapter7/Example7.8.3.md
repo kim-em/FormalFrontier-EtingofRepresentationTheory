@@ -1,0 +1,1 @@
+**Example 7.8.3.** The sequence $0 \to X \to X \oplus Z \to Z \to 0$ with the obvious morphisms is a short exact sequence. Such a sequence is called **split**. It corresponds to the trivial extension of $Z$ by $X$.

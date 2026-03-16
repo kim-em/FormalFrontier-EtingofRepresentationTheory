@@ -1,0 +1,1 @@
+**Definition 7.7.1.** An **abelian category** is a category (enriched over the category of abelian groups) which is equivalent to a full subcategory $\mathcal{C}$ of the category $A$-mod of left modules over a ring $A$, closed under taking finite direct sums, as well as kernels, cokernels, and images of morphisms.

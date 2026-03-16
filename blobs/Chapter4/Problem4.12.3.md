@@ -1,0 +1,4 @@
+**Problem 4.12.3.** Let $V$ be a finite dimensional complex vector space, and let $GL(V)$ be the group of invertible linear transformations of $V$. Then $S^n V$ and $\Lambda^m V$ ($m \leq \dim(V)$) are representations of $GL(V)$ in a natural way. Show that they are irreducible representations.
+
+Hint: Choose a basis $\{e_i\}$ in $V$. Find a diagonal element $H$ of $GL(V)$ such that $\rho(H)$ has distinct eigenvalues (where $\rho$ is one of the above representations). This shows that if $W$ is a subrepresentation, then it is spanned by a subset $S$ of a basis of eigenvectors of $\rho(H)$. Use the invariance of $W$ under the operators $\rho(1 + E_{ij})$ (where $E_{ij}$ is defined by $E_{ij} e_k = \delta_{jk} e_i$) for all $i \neq j$ to show that if the subset $S$ is nonempty, it is necessarily the entire basis.
+

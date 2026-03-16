@@ -1,0 +1,1 @@
+**Definition 2.8.3.** A **representation of a quiver** $Q$ is an assignment to each vertex $i \in I$ of a vector space $V_i$ and to each edge $h \in E$ of a linear map $x_h : V_{h'} \longrightarrow V_{h''}$.

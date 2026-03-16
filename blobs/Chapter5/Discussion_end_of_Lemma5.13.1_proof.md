@@ -1,0 +1,2 @@
+Any two elements in the first row of $T$ must be in different columns of $T'$, so there exists $q'_1 \in Q'_\lambda$ which moves all these elements to the first row. So there is $p_1 \in P_\lambda$ such that $p_1 T$ and $q'_1 T'$ have the same first row. Now do the same procedure with the second row, finding elements $p_2, q'_2$ such that $p_2 p_1 T$ and $q'_2 q'_1 T'$ have the same first two rows. Continuing so, we will construct the desired elements $p, q'$. The lemma is proved. $\square$
+

@@ -1,0 +1,1 @@
+**Problem 2.3.17.** Let $A$ be an associative algebra, and let $V$ be a representation of $A$. By $\operatorname{End}_A(V)$ one denotes the algebra of all homomorphisms of representations $V \to V$. Show that $\operatorname{End}_A(A) = A^{\mathrm{op}}$, the algebra $A$ with opposite multiplication.

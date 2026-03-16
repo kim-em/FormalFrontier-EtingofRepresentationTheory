@@ -1,0 +1,2 @@
+**Problem 6.1.1.** Field embeddings. Recall that $k(y_1, \ldots, y_m)$ denotes the field of rational functions of $y_1, \ldots, y_m$ over a field $k$. Let $f : k[x_1, \ldots, x_n] \to k(y_1, \ldots, y_m)$ be an injective $k$-algebra homomorphism. Show that $m \geq n$. (Look at the growth of dimensions of the spaces $W_N$ of polynomials of degree $N$ in $x_i$ and their images under $f$ as $N \to \infty$.) Deduce that if $f : k(x_1, \ldots, x_n) \to k(y_1, \ldots, y_m)$ is a $k$-linear field embedding, then $m \geq n$.
+

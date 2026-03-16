@@ -1,0 +1,1 @@
+(5) Any subspace $\mathfrak{a}$ of a Lie algebra $\mathfrak{g}$ which is closed under the commutator map $[\ ,\ ]$, i.e., such that $[a, b] \in \mathfrak{a}$ if $a, b \in \mathfrak{a}$. Such a subspace is called a **Lie subalgebra** of $\mathfrak{g}$.

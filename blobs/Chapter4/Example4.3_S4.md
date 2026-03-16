@@ -1,0 +1,7 @@
+(4) The symmetric group $S_4$. The order of $S_4$ is 24, and there are five conjugacy classes: $e, (12), (123), (1234), (12)(34)$. Thus the sum of the squares of the dimensions of five irreducible representations is 24. As with $S_3$, there are two of dimension 1: the trivial and sign representations, $\mathbb{C}_+$ and $\mathbb{C}_-$. The other three must then have dimensions 2, 3, and 3. Because $S_3 \cong S_4/\mathbb{Z}_2 \times \mathbb{Z}_2$, where $\mathbb{Z}_2 \times \mathbb{Z}_2$ is $\{e, (12)(34), (13)(24), (14)(23)\}$, the 2-dimensional representation of $S_3$ can be pulled back to the 2-dimensional representation of $S_4$, which we will call $\mathbb{C}^2$.
+
+We can consider $S_4$ as the group of rotations of a cube acting by permuting the interior diagonals (or, equivalently, on a regular octahedron permuting pairs of opposite faces); this gives the 3-dimensional representation $\mathbb{C}^3_+$.
+
+The last 3-dimensional representation is $\mathbb{C}^3_-$, the product of $\mathbb{C}^3_+$ with the sign representation. $\mathbb{C}^3_+$ and $\mathbb{C}^3_-$ are different, for if $g$ is a transposition, $\det g|_{\mathbb{C}^3_+} = 1$ while $\det g|_{\mathbb{C}^3_-} = (-1)^3 = -1$. Note
+that another realization of $\mathbb{C}^3_-$ is by action of $S_4$ by symmetries (not necessarily rotations) of the regular tetrahedron. Yet another realization of this representation is the space of functions on the set of four elements (on which $S_4$ acts by permutations) with zero sum of values.
+

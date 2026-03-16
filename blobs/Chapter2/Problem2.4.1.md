@@ -1,0 +1,1 @@
+**Problem 2.4.1.** A **maximal** ideal in a ring $A$ is an ideal $I \neq A$ such that any strictly larger ideal coincides with $A$. (This definition is made for left, right, or two-sided ideals.) Show that any unital ring has a maximal left, right, and two-sided ideal. (Hint: Use Zorn's lemma.)

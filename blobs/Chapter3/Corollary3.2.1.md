@@ -1,0 +1,4 @@
+**Corollary 3.2.1.** *Let $V$ be an irreducible finite dimensional representation of $A$, and let $v_1, \ldots, v_n \in V$ be any linearly independent vectors. Then for any $w_1, \ldots, w_n \in V$ there exists an element $a \in A$ such that $av_i = w_i$ for all $i$.*
+
+**Proof.** Assume the contrary. Then the image of the map $A \to nV$ given by $a \mapsto (av_1, \ldots, av_n)$ is a proper subrepresentation, so by Proposition 3.1.4 it corresponds to an $r \times n$ matrix $X$, $r < n$. Thus, taking $a = 1$, we see that there exist vectors $u_1, \ldots, u_r \in V$ such that $(u_1, \ldots, u_r)X = (v_1, \ldots, v_n)$. Let $(q_1, \ldots, q_n)$ be a nonzero vector such that $X(q_1, \ldots, q_n)^T = 0$ (it exists because $r < n$). Then $\sum q_i v_i = (u_1, \ldots, u_r)X(q_1, \ldots, q_n)^T = 0$, i.e. $\sum q_i v_i = 0$ — a contradiction to the linear independence of $v_i$. $\square$
+

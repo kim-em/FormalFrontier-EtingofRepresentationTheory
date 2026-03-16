@@ -1,0 +1,2 @@
+**Remark 5.2.8.** Here is a modification of this argument, which does not use (a). Let $N = |G|$. For any $0 < j < N$ coprime to $N$, show that the map $g \mapsto g^j$ is a bijection $G \to G$. Deduce that $\prod_{g \neq 1} |\chi_V(g^j)|^2 = \beta$. Then show that $\beta \in K := \mathbb{Q}(\zeta)$, $\zeta = e^{2\pi i/N}$, and that it does not change under the automorphism of $K$ given by $\zeta \mapsto \zeta^j$. Deduce that $\beta$ is an integer, and derive a contradiction.
+

@@ -1,0 +1,3 @@
+**Lemma 5.4.5.** *If $\varepsilon_1, \varepsilon_2, \ldots, \varepsilon_n$ are roots of unity such that $\frac{1}{n}(\varepsilon_1 + \varepsilon_2 + \cdots + \varepsilon_n)$ is an algebraic integer, then either $\varepsilon_1 = \cdots = \varepsilon_n$ or $\varepsilon_1 + \cdots + \varepsilon_n = 0$.*
+**Proof.** Let $a = \frac{1}{n}(\varepsilon_1 + \cdots + \varepsilon_n)$. If not all $\varepsilon_i$ are equal, then $|a| < 1$. Moreover, since any algebraic conjugate of a root of unity is also a root of unity, $|a'| \leq 1$ for any algebraic conjugate $a'$ of $a$. But the product of all algebraic conjugates of $a$ is an integer. Since it has absolute value $< 1$, it must equal zero. Therefore, $a = 0$. $\square$
+

@@ -1,0 +1,2 @@
+**Example 4.1.3.** If $G = \mathbb{Z}/p\mathbb{Z}$ and $k$ has characteristic $p$, then every irreducible representation of $G$ over $k$ is trivial (so $k[\mathbb{Z}/p\mathbb{Z}]$ indeed is not semisimple). Indeed, an irreducible representation of this group is a 1-dimensional space on which the generator acts by a $p$th root of unity. But every $p$th root of unity in $k$ equals 1, as $x^p - 1 = (x - 1)^p$ over $k$.
+

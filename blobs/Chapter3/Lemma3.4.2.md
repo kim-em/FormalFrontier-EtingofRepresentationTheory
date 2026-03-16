@@ -1,0 +1,4 @@
+**Lemma 3.4.2.** *Any finite dimensional representation $V$ of an algebra $A$ admits a finite filtration $0 = V_0 \subset V_1 \subset \cdots \subset V_n = V$ such that the successive quotients $V_i / V_{i-1}$ are irreducible.*
+
+**Proof.** The proof is by induction in $\dim(V)$. The base is clear, and only the induction step needs to be justified. Pick an irreducible subrepresentation $V_1 \subset V$, and consider the representation $U = V/V_1$. Then by the induction assumption $U$ has a filtration $0 = U_0 \subset U_1 \subset \cdots \subset U_{n-1} = U$ such that $U_i / U_{i-1}$ are irreducible. Define $V_i$ for $i \geq 2$ to be the preimages of $U_{i-1}$ under the tautological projection $V \to V/V_1 = U$. Then $0 = V_0 \subset V_1 \subset V_2 \subset \cdots \subset V_n = V$ is a filtration of $V$ with the desired property. $\square$
+
