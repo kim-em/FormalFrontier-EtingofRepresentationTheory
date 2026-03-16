@@ -1,2 +1,5 @@
-/-! # Chapter 5: Representations of the Symmetric Group -/
+import Mathlib
 
+/-!
+# Chapter 5: Representations of the Symmetric Group
+-/

@@ -1,2 +1,5 @@
-/-! # Chapter 6: Quiver Representations -/
+import Mathlib
 
+/-!
+# Chapter 6: Quiver Representations
+-/

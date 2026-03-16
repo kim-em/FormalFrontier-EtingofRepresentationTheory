@@ -1,2 +1,5 @@
-/-! # Chapter 7: Introduction to Categories -/
+import Mathlib
 
+/-!
+# Chapter 7: Introduction to Categories
+-/

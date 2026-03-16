@@ -1,2 +1,5 @@
-/-! # Chapter 9: Structure of Finite-Dimensional Algebras -/
+import Mathlib
 
+/-!
+# Chapter 9: Structure of Finite-Dimensional Algebras
+-/

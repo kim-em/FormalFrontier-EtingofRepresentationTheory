@@ -1,2 +1,5 @@
-/-! # Chapter 4: Representations of Finite Groups: Further Results -/
+import Mathlib
 
+/-!
+# Chapter 4: Representations of Finite Groups: Further Results
+-/
