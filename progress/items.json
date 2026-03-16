@@ -1689,7 +1689,8 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "59",
     "start_line": 13,
     "end_line": 16,
-    "status": "scaffolded"
+    "status": "proof_formalized",
+    "notes": "Part (i) proved. Part (ii) classification still sorry."
   },
   {
     "id": "Chapter3/Remark3.10.3",
