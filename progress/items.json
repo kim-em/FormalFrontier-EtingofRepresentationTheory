@@ -1494,7 +1494,8 @@
     "end_page": "53",
     "start_line": 13,
     "end_line": 2,
-    "status": "scaffolded"
+    "status": "proof_formalized",
+    "notes": "Part (i) fully proved. Part (ii) structure proved modulo 2 helper lemmas (tracial_of_end_eq_scalar_trace, rep_map_injective_of_semisimple)."
   },
   {
     "id": "Chapter3/Introduction_to_3.7",
