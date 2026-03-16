@@ -32,11 +32,12 @@ theorem Etingof.Theorem4_1_1_semisimple
   infer_instance
 
 /-- Maschke's theorem, part (ii): The sum-of-squares formula |G| = Σᵢ (dim Vᵢ)².
-(Etingof Theorem 4.1.1) -/
+This is now precisely stated as `IrrepDecomp.sum_sq_eq_card` in
+`EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration`. -/
 theorem Etingof.Theorem4_1_1_sum_of_squares
     (k : Type*) (G : Type*) [Field k] [Group G] [Fintype G]
     [DecidableEq G] :
-    -- The sum of squares of dimensions of irreducible representations equals |G|
-    -- TODO: State precisely once irreducible rep enumeration is available
+    -- See `IrrepDecomp.sum_sq_eq_card` for the precise statement:
+    -- Given a Wedderburn-Artin decomposition D, ∑ i, (D.d i)² = |G|
     True := by
   trivial
