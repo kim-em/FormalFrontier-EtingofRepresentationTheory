@@ -22,6 +22,4 @@ theorem Etingof.Lemma5_2_6
     -- Every root of the minimal polynomial of Σ αᵢ is a sum of roots of
     -- the minimal polynomials of the individual αᵢ
     IsAlgebraic ℚ (∑ i, α i) := by
-  sorry
-  -- TODO: The full statement involves showing the conjugates have a specific form.
-  -- This weaker version at least states that the sum is algebraic.
+  exact (Subalgebra.algebraicClosure ℚ ℂ).sum_mem (fun i _ => hα i)
