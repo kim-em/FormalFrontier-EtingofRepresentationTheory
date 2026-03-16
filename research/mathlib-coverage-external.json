@@ -1,0 +1,614 @@
+[
+  {
+    "description": "Fields: definition, algebraically closed fields, field extensions, finite fields, characteristic of a field",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Field",
+      "IsAlgClosed",
+      "IntermediateField",
+      "CharP",
+      "FiniteField"
+    ],
+    "match_quality": "exact",
+    "notes": "All core field theory is well-covered. `Field`, `IsAlgClosed`, `CharP` are standard typeclasses. Finite fields via `GaloisField` and `FiniteField.card`."
+  },
+  {
+    "description": "Vector spaces over a field: definition, dimension, subspaces, quotient spaces, direct sums, bases",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Module",
+      "FiniteDimensional",
+      "Module.finrank",
+      "Submodule",
+      "Submodule.Quotient",
+      "DirectSum",
+      "Basis"
+    ],
+    "match_quality": "exact",
+    "notes": "Vector spaces are modeled as `Module k V` where `k` is a `Field`. Dimension via `Module.finrank`. Full support for subspaces, quotients, direct sums, and bases."
+  },
+  {
+    "description": "Linear maps and endomorphisms: kernel, image, isomorphism theorems, linear operators on finite-dimensional spaces",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "LinearMap",
+      "LinearMap.ker",
+      "LinearMap.range",
+      "LinearEquiv",
+      "Module.End"
+    ],
+    "match_quality": "exact",
+    "notes": "Complete coverage. `Module.End R M` is the endomorphism ring. Isomorphism theorems available. Rank-nullity via `LinearMap.rank_range_add_rank_ker`."
+  },
+  {
+    "description": "Matrix algebra: matrix multiplication, trace, determinant, similarity, matrix units",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Matrix",
+      "Matrix.mul",
+      "Matrix.trace",
+      "Matrix.det",
+      "Matrix.StdBasisMatrix",
+      "Matrix.trace_mul_comm"
+    ],
+    "match_quality": "exact",
+    "notes": "Full matrix algebra. `Matrix.StdBasisMatrix` provides matrix units. `Matrix.trace_mul_comm` gives tr(AB) = tr(BA)."
+  },
+  {
+    "description": "Eigenvalues and eigenvectors: characteristic polynomial, eigenspaces, diagonalization",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Module.End.HasEigenvalue",
+      "Module.End.eigenspace",
+      "Matrix.charpoly"
+    ],
+    "match_quality": "exact",
+    "notes": "Eigenvalues and eigenspaces well-covered. Characteristic polynomial via `Matrix.charpoly`. Diagonalization results available."
+  },
+  {
+    "description": "Bilinear forms and inner products: Hermitian inner product on complex vector spaces, orthogonality",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "LinearMap.BilinForm",
+      "InnerProductSpace",
+      "inner",
+      "Orthogonal"
+    ],
+    "match_quality": "exact",
+    "notes": "Inner products via `InnerProductSpace`. Bilinear forms via `LinearMap.BilinForm`. Complex Hermitian inner product supported via `RCLike` typeclass."
+  },
+  {
+    "description": "Groups: definition, subgroups, normal subgroups, quotient groups, group homomorphisms, group actions, conjugacy classes, center of a group",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Group",
+      "Subgroup",
+      "Subgroup.Normal",
+      "QuotientGroup.Quotient",
+      "MonoidHom",
+      "MulAction",
+      "ConjClasses",
+      "Subgroup.center"
+    ],
+    "match_quality": "exact",
+    "notes": "Comprehensive group theory. All listed concepts have direct Mathlib counterparts."
+  },
+  {
+    "description": "Symmetric group: permutations, cycle decomposition, conjugacy classes of S_n, sign homomorphism",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Equiv.Perm",
+      "Equiv.Perm.cycleType",
+      "Equiv.Perm.sign"
+    ],
+    "match_quality": "exact",
+    "notes": "Symmetric group as `Equiv.Perm (Fin n)`. Cycle decomposition, sign homomorphism, and conjugacy class characterization all present."
+  },
+  {
+    "description": "Finite abelian groups: classification by elementary divisors, structure theorem, characters of abelian groups",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CommGroup",
+      "Module.equiv_directSum_of_isTorsion",
+      "CharacterModule"
+    ],
+    "match_quality": "partial",
+    "notes": "Basic finite abelian group theory present. The full classification theorem (elementary divisors) has partial coverage. `CharacterModule` provides character theory for abelian groups. The structure theorem for finitely generated abelian groups may require piecing together several results."
+  },
+  {
+    "description": "Group algebra k[G]: construction, basis indexed by group elements, convolution product",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "MonoidAlgebra"
+    ],
+    "match_quality": "exact",
+    "notes": "`MonoidAlgebra k G` is the group algebra. It has the correct basis and convolution product structure. For finite groups, this is `k[G]`."
+  },
+  {
+    "description": "Tensor product of vector spaces: construction, universal property, tensor product of linear maps",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "TensorProduct",
+      "TensorProduct.map",
+      "TensorProduct.mk"
+    ],
+    "match_quality": "exact",
+    "notes": "Full tensor product support. Universal property via `TensorProduct.lift`. Tensor product of maps via `TensorProduct.map`."
+  },
+  {
+    "description": "Rings and ideals: definition of rings, two-sided ideals, quotient rings, nilpotent ideals, Jacobson radical",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Ring",
+      "Ideal",
+      "Ideal.Quotient",
+      "IsNilpotent",
+      "Ideal.jacobson"
+    ],
+    "match_quality": "exact",
+    "notes": "Complete ring theory. `IsNilpotent` for elements; nilpotent ideals expressible as `∀ x ∈ I, IsNilpotent x` or via `I ^ n = ⊥`. Jacobson radical via `Ideal.jacobson`."
+  },
+  {
+    "description": "Modules over rings: left modules, right modules, submodules, quotient modules, free modules, simple modules",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Module",
+      "Submodule",
+      "Submodule.Quotient",
+      "Module.Free",
+      "IsSimpleModule"
+    ],
+    "match_quality": "exact",
+    "notes": "Full module theory. Mathlib uses left modules by convention. `IsSimpleModule` for simple modules. Free modules via `Module.Free`."
+  },
+  {
+    "description": "Dual vector space V* and natural pairing, dual maps (transpose/adjoint of linear maps)",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Module.Dual",
+      "Module.evalEquiv",
+      "LinearMap.dualMap"
+    ],
+    "match_quality": "exact",
+    "notes": "`Module.Dual R M` is `M →ₗ[R] R`. `Module.evalEquiv` gives the canonical isomorphism `M ≃ₗ[R] (M*)* ` for reflexive modules. `LinearMap.dualMap` is the transpose/dual map."
+  },
+  {
+    "description": "Polynomial rings k[x]: division algorithm, irreducible polynomials, minimal polynomial of a linear operator",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Polynomial",
+      "Polynomial.IsRoot",
+      "Polynomial.divByMonic",
+      "Irreducible",
+      "minpoly"
+    ],
+    "match_quality": "exact",
+    "notes": "Complete polynomial ring support. Division algorithm, irreducibility, and minimal polynomial of an element all present."
+  },
+  {
+    "description": "Algebraic integers and algebraic number theory basics: algebraic integers form a ring, norm of algebraic integers",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "IsIntegral",
+      "NumberField.RingOfIntegers",
+      "Algebra.norm"
+    ],
+    "match_quality": "exact",
+    "notes": "`IsIntegral R x` for algebraic elements. `NumberField.RingOfIntegers` for the ring of integers. `Algebra.norm` for the norm map."
+  },
+  {
+    "description": "Combinatorics of partitions and Young diagrams: partitions of integers, Young tableaux, hook lengths, content of a cell",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "Nat.Partition",
+      "YoungDiagram"
+    ],
+    "match_quality": "partial",
+    "notes": "`Nat.Partition` and `YoungDiagram` exist. However, Young tableaux (standard/semistandard), hook lengths, and content of cells are NOT in Mathlib. These will need custom definitions for the representation theory of S_n."
+  },
+  {
+    "description": "Lie algebras: Jacobi identity, bracket operation, examples (gl_n, sl_n, so_n, sp_2n)",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "LieAlgebra",
+      "LieRing",
+      "LieAlgebra.Orthogonal.so",
+      "LieAlgebra.SpecialLinear.sl"
+    ],
+    "match_quality": "exact",
+    "notes": "Lie algebras well-covered. `LieRing` provides the bracket, `LieAlgebra R L` is the Lie algebra over a commutative ring. Classical Lie algebras (sl, so, sp) available."
+  },
+  {
+    "description": "Universal enveloping algebra U(g) of a Lie algebra: construction and basic properties",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "UniversalEnvelopingAlgebra"
+    ],
+    "match_quality": "exact",
+    "notes": "`UniversalEnvelopingAlgebra R L` constructs U(g). Basic algebraic properties available."
+  },
+  {
+    "description": "Topological groups and Lie groups: continuous group homomorphisms, examples (GL_n(R), SO(n), U(n))",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "IsTopologicalGroup",
+      "ContinuousMonoidHom",
+      "GroupTopology"
+    ],
+    "match_quality": "partial",
+    "notes": "Topological groups via `IsTopologicalGroup`. Continuous homomorphisms via `ContinuousMonoidHom`. However, Lie groups as smooth manifolds with group structure are NOT in Mathlib. The book uses Lie groups informally; the topological group API suffices for most needs."
+  },
+  {
+    "description": "Complex analysis basics: roots of unity, absolute values of complex numbers, triangle inequality for sums of roots of unity",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "IsPrimitiveRoot",
+      "rootsOfUnity",
+      "Complex.normSq",
+      "Complex.instNorm"
+    ],
+    "match_quality": "exact",
+    "notes": "Roots of unity via `IsPrimitiveRoot` and `rootsOfUnity`. Complex absolute value via the norm instance `Complex.instNorm` (using `‖z‖`). Triangle inequality available through the normed field instance."
+  },
+  {
+    "description": "Symmetric polynomials and power sums: elementary symmetric polynomials, power sum symmetric polynomials, Newton's identities",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "MvPolynomial.esymm",
+      "MvPolynomial.psum"
+    ],
+    "match_quality": "partial",
+    "notes": "`MvPolynomial.esymm` and `MvPolynomial.psum` provide elementary symmetric and power sum polynomials. Newton's identities (relating esymm and psum) may not be fully proved in Mathlib. Schur polynomials are NOT in Mathlib."
+  },
+  {
+    "description": "Finite fields: existence and uniqueness of F_q, multiplicative group, quadratic residues, field extensions of finite fields",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "GaloisField",
+      "FiniteField.card",
+      "ZMod.legendreSym"
+    ],
+    "match_quality": "exact",
+    "notes": "`GaloisField p n` constructs F_{p^n}. `FiniteField.card` proves the cardinality is a prime power. Quadratic residues via Legendre symbol. Field extensions of finite fields well-supported."
+  },
+  {
+    "description": "Semidirect products of groups: construction and characterization",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "SemidirectProduct"
+    ],
+    "match_quality": "exact",
+    "notes": "`SemidirectProduct N G φ` where `φ : G →* MulAut N`. Full group structure available."
+  },
+  {
+    "description": "Graph theory basics: undirected graphs, connected components, trees, adjacency matrix, positive definite quadratic forms",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "SimpleGraph",
+      "SimpleGraph.Connected",
+      "SimpleGraph.IsTree",
+      "SimpleGraph.adjMatrix",
+      "QuadraticMap.PosDef"
+    ],
+    "match_quality": "exact",
+    "notes": "`SimpleGraph` covers undirected graphs. Connectivity, trees, and adjacency matrices present. Positive definite quadratic forms via `QuadraticMap.PosDef`."
+  },
+  {
+    "description": "Category theory basics assumed in Chapter 7: sets, functions, composition, associativity (for motivating examples)",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.Category",
+      "CategoryTheory.Functor"
+    ],
+    "match_quality": "exact",
+    "notes": "Comprehensive category theory library. `CategoryTheory.Category` and `CategoryTheory.Functor` are the core types."
+  },
+  {
+    "description": "Exact sequences of modules: short exact sequences, left/right exactness of functors, splitting of exact sequences",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.ShortComplex",
+      "CategoryTheory.ShortComplex.Exact",
+      "CategoryTheory.Functor.PreservesFiniteLimits"
+    ],
+    "match_quality": "exact",
+    "notes": "Short exact sequences via `ShortComplex` with `Exact` predicate. Left/right exactness via preservation of limits/colimits. Splitting available."
+  },
+  {
+    "description": "Hom functor and its properties: Hom_A(M,N) as a vector space, left exactness, contravariance in first argument",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.yoneda",
+      "CategoryTheory.coyoneda",
+      "LinearMap"
+    ],
+    "match_quality": "exact",
+    "notes": "Yoneda embedding provides the Hom functor abstractly. For modules, `LinearMap` (i.e., `M →ₗ[R] N`) is the Hom. Left exactness of Hom available."
+  },
+  {
+    "description": "Zorn's lemma: every partially ordered set in which every chain has an upper bound has a maximal element",
+    "category": "external_result",
+    "mathlib_names": [
+      "zorn_le"
+    ],
+    "match_quality": "exact",
+    "notes": "`zorn_le` states Zorn's lemma for preorders. Also available: `zorn_partialOrder`, `zorn_nonempty_preorder`."
+  },
+  {
+    "description": "Jordan-Hölder theorem: any two composition series of a finite-length module have the same length and the same composition factors (up to reordering and isomorphism)",
+    "category": "external_result",
+    "mathlib_names": [
+      "CompositionSeries",
+      "JordanHolderLattice"
+    ],
+    "match_quality": "partial",
+    "notes": "`CompositionSeries` and `JordanHolderLattice` provide the framework. The Jordan-Hölder theorem is stated in terms of lattices satisfying `JordanHolderLattice`. The connection to module composition series requires showing modules form a `JordanHolderLattice`."
+  },
+  {
+    "description": "Wedderburn-Artin theorem: a semisimple artinian ring is isomorphic to a finite direct product of matrix rings over division rings",
+    "category": "external_result",
+    "mathlib_names": [
+      "IsSemisimpleRing",
+      "IsArtinianRing"
+    ],
+    "match_quality": "partial",
+    "notes": "`IsSemisimpleRing` exists as a typeclass. The full Wedderburn-Artin structure theorem (decomposition into matrix rings over division rings) may not be fully stated as a single theorem. The semisimplicity API provides many consequences."
+  },
+  {
+    "description": "Dynkin diagram classification: the complete list of positive definite Cartan matrices / Dynkin diagrams (A_n, D_n, E_6, E_7, E_8)",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Dynkin diagrams and their classification are NOT in Mathlib. This will need to be formalized from scratch or worked around. The graph theory and quadratic form infrastructure exists but the classification theorem itself is absent."
+  },
+  {
+    "description": "Gabriel's theorem: a connected quiver has finitely many indecomposable representations if and only if its underlying graph is a Dynkin diagram of type ADE",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Gabriel's theorem is NOT in Mathlib. Quiver representations have basic support (`Quiver`, `Representation`), but Gabriel's classification is absent. This is a major theorem that would need full formalization."
+  },
+  {
+    "description": "Classification of irreducible representations of sl(2): the (n+1)-dimensional representations V_n for n >= 0 exhaust all irreducibles",
+    "category": "external_result",
+    "mathlib_names": [
+      "LieModule",
+      "LieAlgebra"
+    ],
+    "match_quality": "partial",
+    "notes": "Lie module infrastructure exists (`LieModule`, `LieAlgebra`). However, the classification of irreducible sl(2)-representations is NOT stated as a theorem in Mathlib. The weight space decomposition theory is partially developed."
+  },
+  {
+    "description": "Vandermonde determinant formula: det(x_i^{N-j}) = product_{i<j}(x_i - x_j)",
+    "category": "folklore",
+    "mathlib_names": [
+      "Matrix.vandermonde",
+      "Matrix.det_vandermonde"
+    ],
+    "match_quality": "exact",
+    "notes": "`Matrix.det_vandermonde` gives the exact formula: `det(vandermonde v) = ∏ i, ∏ j ∈ Finset.Ioi i, (v j - v i)`."
+  },
+  {
+    "description": "Algebraic conjugates of roots of unity are roots of unity; product of algebraic conjugates of an algebraic integer is a rational integer",
+    "category": "folklore",
+    "mathlib_names": [
+      "IsPrimitiveRoot",
+      "Algebra.norm",
+      "IsIntegral"
+    ],
+    "match_quality": "partial",
+    "notes": "The individual components exist (roots of unity, algebraic integers, norms). The specific fact that algebraic conjugates of roots of unity are roots of unity may need to be proved from the Galois theory of cyclotomic fields, which is well-developed in Mathlib."
+  },
+  {
+    "description": "Every module over a ring is a quotient of a free module (existence of free resolutions)",
+    "category": "folklore",
+    "mathlib_names": [
+      "Module.Free",
+      "Submodule.Quotient"
+    ],
+    "match_quality": "partial",
+    "notes": "Free modules and quotients exist. The statement that every module is a quotient of a free module is a standard construction (take generators, map from a free module). Projective resolutions available via `CategoryTheory.ProjectiveResolution`."
+  },
+  {
+    "description": "Characters of representations are class functions; character of a direct sum is sum of characters; character of a tensor product is product of characters",
+    "category": "folklore",
+    "mathlib_names": [
+      "FDRep.character",
+      "Representation",
+      "FDRep"
+    ],
+    "match_quality": "partial",
+    "notes": "`FDRep.character` gives the character of a finite-dimensional representation. The properties (class function, additivity over direct sums, multiplicativity over tensor products) may need to be proved from the definition, though some are likely available."
+  },
+  {
+    "description": "Nilpotent ideals and nilpotency: a nilpotent ideal I satisfies I^n = 0 for some n; properties of nilpotent elements in algebras",
+    "category": "folklore",
+    "mathlib_names": [
+      "IsNilpotent",
+      "Ideal.jacobson"
+    ],
+    "match_quality": "partial",
+    "notes": "`IsNilpotent` for elements. Nilpotent ideals can be expressed as `I ^ n = ⊥`. The Jacobson radical contains all nilpotent ideals. Some connecting lemmas may need to be proved."
+  },
+  {
+    "description": "Dimension counting arguments: if V = W ⊕ W' as vector spaces then dim V = dim W + dim W'; rank-nullity theorem",
+    "category": "folklore",
+    "mathlib_names": [
+      "LinearMap.rank_range_add_rank_ker",
+      "Submodule.finrank_sup_add_finrank_inf_eq",
+      "Module.finrank"
+    ],
+    "match_quality": "exact",
+    "notes": "Rank-nullity via `LinearMap.rank_range_add_rank_ker`. Dimension of direct sums available. `Module.finrank` for finite-dimensional spaces."
+  },
+  {
+    "description": "Properties of the trace: tr(AB) = tr(BA), trace of identity is dimension, trace is basis-independent",
+    "category": "folklore",
+    "mathlib_names": [
+      "Matrix.trace",
+      "Matrix.trace_mul_comm"
+    ],
+    "match_quality": "exact",
+    "notes": "`Matrix.trace_mul_comm` gives tr(AB) = tr(BA). Trace of identity equals dimension. Basis independence follows from the linear map trace."
+  },
+  {
+    "description": "Idempotents in algebras: decomposition of identity into orthogonal idempotents, primitive idempotents, lifting of idempotents",
+    "category": "folklore",
+    "mathlib_names": [
+      "IsIdempotentElem"
+    ],
+    "match_quality": "partial",
+    "notes": "`IsIdempotentElem` exists for the basic notion. Orthogonal idempotent decomposition, primitive idempotents, and lifting of idempotents are NOT systematically developed in Mathlib. These will need custom development for Chapter 9."
+  },
+  {
+    "description": "Krull-Schmidt theorem: every module of finite length has a unique decomposition into indecomposable direct summands (up to isomorphism and reordering)",
+    "category": "external_result",
+    "mathlib_names": [
+      "IsNoetherian",
+      "IsArtinian"
+    ],
+    "match_quality": "missing",
+    "notes": "The Krull-Schmidt theorem itself is NOT in Mathlib. Noetherian and Artinian module conditions exist, but the unique decomposition theorem is absent. This would need to be formalized."
+  },
+  {
+    "description": "Schur-Weyl duality: the commuting actions of GL(V) and S_n on V^{⊗n} give a double centralizer relationship",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Schur-Weyl duality is NOT in Mathlib. The ingredients (representations, symmetric group, tensor products) exist, but the double centralizer theorem and Schur-Weyl duality are absent."
+  },
+  {
+    "description": "Frobenius reciprocity: Hom_G(Ind_H^G V, W) ≅ Hom_H(V, Res_H W) naturally",
+    "category": "external_result",
+    "mathlib_names": [
+      "Representation",
+      "Representation.linHom",
+      "Representation.ofMulAction"
+    ],
+    "match_quality": "missing",
+    "notes": "Representation theory infrastructure exists but Frobenius reciprocity (adjunction between induction and restriction) is NOT stated in Mathlib. Induction and restriction functors would need to be defined and the adjunction proved."
+  },
+  {
+    "description": "Mackey's theorem (intertwining number formula for induced representations and double coset decomposition)",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Mackey's theorem is NOT in Mathlib. Double cosets have some support but the intertwining number formula for induced representations is absent."
+  },
+  {
+    "description": "Generalized Schur orthogonality relations: orthogonality of matrix coefficients of irreducible representations over compact or finite groups",
+    "category": "folklore",
+    "mathlib_names": [
+      "FDRep.character",
+      "Representation"
+    ],
+    "match_quality": "missing",
+    "notes": "Schur orthogonality relations are NOT proved in Mathlib. The character infrastructure exists (`FDRep.character`) but the orthogonality results (both for matrix coefficients and characters) are absent."
+  },
+  {
+    "description": "Averaging (Reynolds) operator for finite group actions: (1/|G|) Σ_g ρ(g) is the projection onto invariants when char k does not divide |G|",
+    "category": "folklore",
+    "mathlib_names": [
+      "Representation",
+      "IsSemisimpleModule"
+    ],
+    "match_quality": "partial",
+    "notes": "The averaging operator is not explicitly named in Mathlib, but `IsSemisimpleModule` captures its consequence (complete reducibility). Maschke's theorem (semisimplicity of group algebra when char k ∤ |G|) is available via the semisimplicity framework."
+  },
+  {
+    "description": "PBW (Poincaré-Birkhoff-Witt) theorem: the universal enveloping algebra U(g) has an ordered monomial basis",
+    "category": "external_result",
+    "mathlib_names": [
+      "UniversalEnvelopingAlgebra"
+    ],
+    "match_quality": "partial",
+    "notes": "`UniversalEnvelopingAlgebra R L` exists with its universal property. The PBW theorem (that U(g) has a basis of ordered monomials, equivalently that the canonical map g → U(g) is injective) is NOT proved in Mathlib."
+  },
+  {
+    "description": "Nakayama's lemma: if M is a finitely generated module over a local ring and IM = M for I in the maximal ideal, then M = 0",
+    "category": "external_result",
+    "mathlib_names": [
+      "Submodule.eq_bot_of_le_smul_of_le_jacobson_bot"
+    ],
+    "match_quality": "exact",
+    "notes": "Nakayama's lemma is in Mathlib as `Submodule.eq_bot_of_le_smul_of_le_jacobson_bot`: if N is finitely generated, N ≤ I • N, and I ≤ jacobson ⊥, then N = ⊥."
+  },
+  {
+    "description": "Ext functors: definition as derived functors of Hom, long exact sequence in Ext, Ext^1 classifies extensions",
+    "category": "external_result",
+    "mathlib_names": [
+      "Ext",
+      "CategoryTheory.ProjectiveResolution"
+    ],
+    "match_quality": "partial",
+    "notes": "`Ext` is defined as a functor in Mathlib via projective resolutions. The long exact sequence in Ext exists. The classification of extensions by Ext^1 may not be fully stated."
+  },
+  {
+    "description": "Deformation theory of algebras: Hochschild cohomology, formal deformations, Maurer-Cartan equation",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Deformation theory is NOT in Mathlib. Formal deformations, Maurer-Cartan equation, and the deformation-theoretic interpretation of Hochschild cohomology are all absent."
+  },
+  {
+    "description": "Hochschild cohomology of an algebra: definition via bar resolution, interpretation of low-degree cohomology groups",
+    "category": "external_result",
+    "mathlib_names": [],
+    "match_quality": "missing",
+    "notes": "Hochschild cohomology is NOT in Mathlib. The bar resolution, Hochschild cochain complex, and interpretations of H^0, H^1, H^2 are all absent."
+  },
+  {
+    "description": "Quadratic forms: positive definiteness, Sylvester's criterion, relationship between quadratic forms and symmetric bilinear forms",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "QuadraticForm",
+      "QuadraticMap.PosDef",
+      "QuadraticForm.associated"
+    ],
+    "match_quality": "exact",
+    "notes": "`QuadraticForm` with `QuadraticMap.PosDef` for positive definiteness. `QuadraticForm.associated` gives the correspondence with bilinear forms. Sylvester's criterion may not be explicitly stated but the positive definiteness framework is complete."
+  },
+  {
+    "description": "Abelian categories: kernels, cokernels, exact sequences in abstract categorical setting",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.Abelian",
+      "CategoryTheory.Limits.kernel",
+      "CategoryTheory.Limits.cokernel"
+    ],
+    "match_quality": "exact",
+    "notes": "Comprehensive abelian category library. Kernels, cokernels, exact sequences, diagram lemmas all present."
+  },
+  {
+    "description": "Natural transformations and functor categories: Yoneda lemma and representable functors",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.NatTrans",
+      "CategoryTheory.yoneda",
+      "CategoryTheory.Functor.Representable"
+    ],
+    "match_quality": "exact",
+    "notes": "Full support. Yoneda lemma proved. Natural transformations and functor categories complete."
+  },
+  {
+    "description": "Adjoint functors: unit and counit of adjunction, adjoint functor theorem (existence statements)",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.Adjunction",
+      "CategoryTheory.Adjunction.unit",
+      "CategoryTheory.Adjunction.counit"
+    ],
+    "match_quality": "exact",
+    "notes": "`CategoryTheory.Adjunction` with unit and counit. Adjoint functor theorems available."
+  },
+  {
+    "description": "Tensor categories and monoidal structure: associativity and unit constraints, coherence, braiding",
+    "category": "undergraduate_prerequisite",
+    "mathlib_names": [
+      "CategoryTheory.MonoidalCategory",
+      "CategoryTheory.BraidedCategory"
+    ],
+    "match_quality": "exact",
+    "notes": "Monoidal categories with associator, unitors, and coherence. Braided and symmetric monoidal categories present."
+  }
+]
