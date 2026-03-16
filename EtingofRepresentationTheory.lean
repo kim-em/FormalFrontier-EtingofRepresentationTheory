@@ -1,1 +1,8 @@
-import EtingofRepresentationTheory.Basic
+import EtingofRepresentationTheory.Chapter2
+import EtingofRepresentationTheory.Chapter3
+import EtingofRepresentationTheory.Chapter4
+import EtingofRepresentationTheory.Chapter5
+import EtingofRepresentationTheory.Chapter6
+import EtingofRepresentationTheory.Chapter7
+import EtingofRepresentationTheory.Chapter8
+import EtingofRepresentationTheory.Chapter9
