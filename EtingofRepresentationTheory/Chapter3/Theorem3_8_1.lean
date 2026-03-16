@@ -228,7 +228,8 @@ private lemma krull_schmidt_find_iso_summand (k : Type*) (A : Type*) (V : Type*)
     (hW_sup : iSup W = ⊤) (hW_ind : iSupIndep W)
     (hW'_sup : iSup W' = ⊤) (hW'_ind : iSupIndep W')
     (hn_pos : 0 < n) (hm_pos : 0 < m) :
-    ∃ j : Fin m, Nonempty ((W ⟨0, hn_pos⟩) ≃ₗ[A] (W' j)) := by
+    ∃ j : Fin m, Nonempty ((W ⟨0, hn_pos⟩) ≃ₗ[A] (W' j)) ∧
+      IsCompl (W' j) (⨆ i, ⨆ (_ : i ≠ (⟨0, hn_pos⟩ : Fin n)), W i) := by
   set i₀ : Fin n := ⟨0, hn_pos⟩
   -- Build internal direct sum structures
   have hIntW : DirectSum.IsInternal W :=
@@ -362,25 +363,113 @@ private lemma krull_schmidt_find_iso_summand (k : Type*) (A : Type*) (V : Type*)
     intro y; obtain ⟨x, hx⟩ := hj₀_bij.2 y
     rw [hf_eq] at hx; simp only [LinearMap.comp_apply] at hx
     exact ⟨β x, hx⟩
-  exact ⟨j₀, ⟨(LinearEquiv.ofBijective α ⟨hα_inj, hα_surj⟩).symm⟩⟩
+  set C := ⨆ i, ⨆ (_ : i ≠ i₀), W i
+  -- W i₀ and C are complements in V (from the direct sum)
+  have hIsCompl_W0_C : IsCompl (W i₀) C := by
+    constructor
+    · exact hW_ind i₀
+    · rw [codisjoint_iff]
+      apply top_le_iff.mp
+      rw [← hW_sup]
+      exact iSup_le fun i => by
+        rcases eq_or_ne i i₀ with rfl | h
+        · exact le_sup_left
+        · exact le_sup_of_le_right (le_biSup _ h)
+  -- α : W' j₀ → W i₀ is bijective, so W' j₀ is also a complement of C
+  -- Construct projection g : V → W' j₀ with g ∘ subtype = id
+  -- g = α⁻¹ ∘ π₀, where α : W' j₀ → W i₀ is the bijection via projection
+  set αe := LinearEquiv.ofBijective α ⟨hα_inj, hα_surj⟩
+  set g : V →ₗ[A] ↥(W' j₀) := αe.symm.toLinearMap.comp π₀
+  have hg_proj : ∀ x : ↥(W' j₀), g ((W' j₀).subtype x) = x := by
+    intro x
+    show αe.symm (π₀ ↑x) = x
+    have : π₀ ↑x = αe x := rfl
+    rw [this, αe.symm_apply_apply]
+  -- By isCompl_of_proj, IsCompl (W' j₀) (ker g)
+  have hIsCompl_g : IsCompl (W' j₀) (LinearMap.ker g) :=
+    LinearMap.isCompl_of_proj hg_proj
+  -- ker g = C (ker g = ker π₀ since αe.symm is injective, and ker π₀ = C)
+  have hker_g_eq_C : LinearMap.ker g = C := by
+    -- ker g = ker (αe.symm ∘ π₀) = ker π₀ (since αe.symm is injective)
+    have : LinearMap.ker g = LinearMap.ker π₀ := by
+      ext v; simp only [g, LinearMap.mem_ker, LinearMap.comp_apply]
+      constructor
+      · intro h
+        have h0 : αe.symm (π₀ v) = αe.symm 0 := by
+          rw [map_zero]; exact h
+        exact αe.symm.injective h0
+      · intro h; simp [h]
+    rw [this]
+    -- Strategy: show C ≤ ker π₀, then use that both are complements of W i₀
+    -- to conclude C = ker π₀
+    have hπ₀_proj : IsCompl (W i₀) (LinearMap.ker π₀) :=
+      LinearMap.isCompl_of_proj (fun x => LinearMap.congr_fun hπ₀_ι₀ x)
+    -- C ≤ ker π₀: for v ∈ C, π₀ v = 0
+    -- Use: linearProjOfIsCompl (W i₀) C hIsCompl_W0_C has kernel C
+    -- and agrees with π₀ on W i₀ (both = id). Since they're both projections
+    -- onto the same submodule with the same fixed point property, they agree.
+    -- So ker π₀ = ker (linearProjOfIsCompl) = C.
+    -- More directly: π₀ = linearProjOfIsCompl (W i₀) C hIsCompl_W0_C
+    -- Both satisfy f ∘ subtype = id, and for projections in complemented spaces,
+    -- there's a unique projection with given image and kernel.
+    -- Use Submodule.linearProjOfIsCompl_eq_ofBijective or similar...
+    -- Actually, let's use the uniqueness: if f, g : V →ₗ P are both
+    -- left-inverses of subtype and P ⊕ ker f = V = P ⊕ ker g, then f = g.
+    -- Simpler: linearProjOfIsCompl satisfies f ∘ subtype = id and ker f = C.
+    -- Our π₀ satisfies π₀ ∘ subtype = id. The unique projection with this
+    -- property and range in the given complement is linearProjOfIsCompl.
+    -- C ≤ ker π₀: for v ∈ W i (i ≠ i₀), π₀ v = 0
+    have hC_le : C ≤ LinearMap.ker π₀ := by
+      -- C = ⨆ i ≠ i₀, W i. For v ∈ W i with i ≠ i₀, eW.symm v = DirectSum.of i ⟨v,_⟩
+      -- and component i₀ of that is 0.
+      apply iSup₂_le
+      intro i hi v hv
+      rw [LinearMap.mem_ker]
+      show (DirectSum.component A (Fin n) (fun i => ↥(W i)) i₀) (eW.symm ((W i).subtype ⟨v, hv⟩)) = 0
+      have heq : eW.symm ((W i).subtype ⟨v, hv⟩) = DirectSum.lof A (Fin n) (fun i => ↥(W i)) i ⟨v, hv⟩ := by
+        apply eW.injective
+        simp only [eW_def, LinearEquiv.ofBijective_apply, LinearEquiv.apply_symm_apply,
+          DirectSum.coeLinearMap_of, Submodule.subtype_apply, DirectSum.lof_eq_of]
+      rw [heq, DirectSum.component.of, dif_neg hi]
+    -- ker π₀ ≤ C: use that ker π₀ ⊔ W i₀ = ⊤ and C ⊔ W i₀ = ⊤ and
+    -- C ≤ ker π₀ together with W i₀ ⊓ ker π₀ = ⊥
+    -- If C ≤ ker π₀ and both are complements of W i₀, then C = ker π₀
+    -- Proof: ker π₀ ≤ C because:
+    -- ker π₀ ≤ ker π₀ ⊔ ⊥ = ker π₀ ⊔ (W i₀ ⊓ C) ≤ (by modular law, since W i₀ ≤ W i₀)
+    -- = (ker π₀ ⊔ C) ⊓ ... no, use: ker π₀ ≤ ⊤ = W i₀ ⊔ C, so
+    -- ker π₀ = ker π₀ ⊓ (W i₀ ⊔ C) = (ker π₀ ⊓ W i₀) ⊔ C (modular law, C ≤ ker π₀)
+    -- = ⊥ ⊔ C = C
+    apply le_antisymm _ hC_le
+    -- ker π₀ ≤ C via modular law:
+    -- ker π₀ = ker π₀ ⊓ ⊤ = ker π₀ ⊓ (W i₀ ⊔ C) = C ⊔ (ker π₀ ⊓ W i₀) = C ⊔ ⊥ = C
+    intro x hx
+    have hx_top : x ∈ W i₀ ⊔ C := hIsCompl_W0_C.sup_eq_top ▸ Submodule.mem_top
+    obtain ⟨w, hw, c, hc, rfl⟩ := Submodule.mem_sup.mp hx_top
+    -- x = w + c where w ∈ W i₀, c ∈ C
+    -- x ∈ ker π₀ means π₀ x = 0, i.e., π₀ (w + c) = 0
+    -- π₀ w = w (since π₀ ∘ subtype = id) and π₀ c = 0 (since c ∈ C ≤ ker π₀)
+    -- So w = 0, hence x = c ∈ C
+    rw [LinearMap.mem_ker] at hx
+    have hπ₀c : π₀ c = 0 := LinearMap.mem_ker.mp (hC_le hc)
+    have hπ₀_w : (π₀ w : ↥(W i₀)) = ⟨w, hw⟩ := LinearMap.congr_fun hπ₀_ι₀ ⟨w, hw⟩
+    have : π₀ (w + c) = 0 := hx
+    rw [map_add, hπ₀c, add_zero] at this
+    rw [hπ₀_w] at this
+    have hw_zero : w = 0 := congrArg Subtype.val (Subtype.ext_iff.mpr (congrArg Subtype.val this))
+    rw [hw_zero, zero_add]
+    exact hc
+  have hIsCompl_Wj₀_C : IsCompl (W' j₀) C := hker_g_eq_C ▸ hIsCompl_g
+  exact ⟨j₀, ⟨αe.symm⟩, hIsCompl_Wj₀_C⟩
 
-/-- Complement replacement lemma: if W₀ and W'_{j₀} are isomorphic direct summands
-(via the projection map) in two decompositions of V, then the complements are isomorphic.
-Specifically, (⨆ i ≠ 0, W i) ≃ₗ[A] (⨆ j ≠ j₀, W' j) as A-modules, and both
-inherit internal decompositions from the original decompositions. -/
-private lemma krull_schmidt_complement_iso (k : Type*) (A : Type*) (V : Type*)
-    [Field k] [Ring A] [Algebra k A]
-    [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
-    [FiniteDimensional k V]
-    {n m : ℕ} (W : Fin n → Submodule A V) (W' : Fin m → Submodule A V)
-    (hW_sup : iSup W = ⊤) (hW_ind : iSupIndep W)
-    (hW'_sup : iSup W' = ⊤) (hW'_ind : iSupIndep W')
-    (hn_pos : 0 < n) (j₀ : Fin m)
-    (hiso : Nonempty ((W ⟨0, hn_pos⟩) ≃ₗ[A] (W' j₀))) :
-    let C : Submodule A V := ⨆ i, ⨆ (_ : i ≠ (⟨0, hn_pos⟩ : Fin n)), W i
-    let D : Submodule A V := ⨆ j, ⨆ (_ : j ≠ j₀), W' j
-    Nonempty (C ≃ₗ[A] D) := by
-  sorry
+/-- Two complements of the same submodule are isomorphic. If M ⊕ C = V = M ⊕ D,
+then C ≃ₗ[R] D via the quotient V/M. -/
+private lemma isCompl_equiv_of_isCompl {R : Type*} {V : Type*}
+    [Ring R] [AddCommGroup V] [Module R V]
+    {M C D : Submodule R V}
+    (hMC : IsCompl M C) (hMD : IsCompl M D) :
+    Nonempty (C ≃ₗ[R] D) :=
+  ⟨(Submodule.quotientEquivOfIsCompl M C hMC).symm.trans
+    (Submodule.quotientEquivOfIsCompl M D hMD)⟩
 
 /-- Auxiliary lemma for Krull-Schmidt uniqueness. Proved by induction on k-dimension.
 Universally quantifies over the module type so the IH applies to the complement. -/
