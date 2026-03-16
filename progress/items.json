@@ -1239,7 +1239,8 @@
     "start_page": "46",
     "end_page": "46",
     "start_line": 1,
-    "end_line": 4
+    "end_line": 4,
+    "status": "sorry_free"
   },
   {
     "id": "Chapter3/Theorem3.2.2",
@@ -1250,7 +1251,7 @@
     "start_line": 5,
     "end_line": 13,
     "status": "proof_formalized",
-    "notes": "Part (i) sorry-free; Part (ii) statement formalized but proof sorry'd"
+    "notes": "Part (i) sorry-free; Part (ii) requires IsSimpleRing/TwoSidedIdeal infrastructure — needs dedicated session"
   },
   {
     "id": "Chapter3/Introduction_to_3.3",
