@@ -214,7 +214,56 @@ private lemma character_div_dim_isIntegral
       (Fintype.card { h : G // IsConj g h })
       (Module.finrank ℂ V)) :
     IsIntegral ℤ (V.character g / (Module.finrank ℂ V : ℂ)) := by
-  sorry
+  -- V has positive dimension (it's simple)
+  have hn : 0 < Module.finrank ℂ V := by
+    by_contra h
+    push_neg at h
+    have h0 : Module.finrank ℂ V = 0 := by omega
+    haveI : Subsingleton V.V.obj := Module.finrank_zero_iff.1 h0
+    apply id_nonzero V
+    ext x
+    exact Subsingleton.elim _ _
+  have hdim_ne : (Module.finrank ℂ V : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr (by omega)
+  set C := Fintype.card { h : G // IsConj g h } with hC_def
+  set d := Module.finrank ℂ V with hd_def
+  -- Step 1: χ_V(g) is an algebraic integer (sum of roots of unity)
+  obtain ⟨ε, hε_roots, hε_sum, _⟩ := character_eigenvalue_decomposition G V g hn
+  have hchar_int : IsIntegral ℤ (V.character g) := by
+    rw [hε_sum]
+    apply IsIntegral.sum
+    intro i _
+    obtain ⟨m, hm_pos, hm⟩ := hε_roots i
+    exact ⟨Polynomial.X ^ m - Polynomial.C 1, Polynomial.monic_X_pow_sub_C 1 (by omega),
+      by simp [Polynomial.eval₂_sub, Polynomial.eval₂_pow, Polynomial.eval₂_X, hm]⟩
+  -- Step 2: |C| · χ_V(g) / dim(V) is an algebraic integer (Prop 5.3.2)
+  -- The class sum ∑_{h ∈ C(g)} ρ(h) acts on V as a scalar by Schur's lemma;
+  -- that scalar is |C| · χ(g) / dim(V), which is integral because the center of ℤ[G]
+  -- is a finitely generated ℤ-module and the representation gives a ring hom to ℂ.
+  have hclass_int : IsIntegral ℤ ((C : ℂ) * V.character g / (d : ℂ)) := by
+    /- Prop 5.3.2: The class sum ∑_{h conjugate to g} ρ(h) is a G-equivariant
+       endomorphism of V. By Schur's lemma it equals λ·id for some λ ∈ ℂ.
+       Taking trace: λ = |C|·χ(g)/dim(V). This λ is an algebraic integer because
+       each ρ(h) is integral over ℤ (satisfies X^d-1=0), hence the sum is integral,
+       and integrality descends through the injective algebraMap ℂ → End(V).
+       Full proof requires categorical morphism construction in FDRep; deferred. -/
+    sorry
+  -- Step 3: Bezout from coprimality: ∃ a b : ℤ, a * C + b * d = 1
+  have hbezout := Nat.gcd_eq_gcd_ab C d
+  rw [h_coprime] at hbezout
+  set a := Nat.gcdA C d
+  set b := Nat.gcdB C d
+  -- hbezout : (1 : ℤ) = ↑C * a + ↑d * b
+  -- Step 4: χ_V(g) / dim(V) = a * (|C| * χ_V(g) / dim(V)) + b * χ_V(g)
+  have h1 : (1 : ℂ) = (C : ℂ) * (a : ℂ) + (d : ℂ) * (b : ℂ) := by
+    exact_mod_cast hbezout
+  have hkey : V.character g / (d : ℂ) =
+      (a : ℂ) * ((C : ℂ) * V.character g / (d : ℂ)) + (b : ℂ) * V.character g := by
+    field_simp
+    linear_combination V.character g * h1
+  rw [hkey]
+  exact (isIntegral_algebraMap (x := a).mul hclass_int).add
+    (isIntegral_algebraMap (x := b).mul hchar_int)
 
 open CategoryTheory in
 /-- If gcd(|C|, dim V) = 1 for an irreducible V and conjugacy class C containing g, then
