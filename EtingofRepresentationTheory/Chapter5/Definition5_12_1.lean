@@ -23,23 +23,96 @@ Mathlib has `Nat.Partition`, `YoungDiagram`, and `SemistandardYoungTableau`.
 Standard Young tableaux, row/column subgroups, and Young symmetrizers need custom definitions.
 -/
 
-/-- A standard Young tableau of shape λ is a filling of a Young diagram with 1..n
-such that entries increase along rows and down columns. (Etingof Definition 5.12.1) -/
-def Etingof.StandardYoungTableau (n : ℕ) (la : Nat.Partition n) : Type :=
-  sorry
+namespace Etingof
+
+/-- Given a list of row lengths and a position k, return the row index
+in the canonical (left-to-right, top-to-bottom) filling of the Young diagram. -/
+private def rowOfPos : List ℕ → ℕ → ℕ
+  | [], _ => 0
+  | p :: ps, k => if k < p then 0 else 1 + rowOfPos ps (k - p)
+
+/-- Given a list of row lengths and a position k, return the column index
+in the canonical (left-to-right, top-to-bottom) filling of the Young diagram. -/
+private def colOfPos : List ℕ → ℕ → ℕ
+  | [], _ => 0
+  | p :: ps, k => if k < p then k else colOfPos ps (k - p)
+
+/-- The sorted (descending) parts of a partition, as a list of row lengths. -/
+noncomputable def _root_.Nat.Partition.sortedParts {n : ℕ} (la : Nat.Partition n) : List ℕ :=
+  la.parts.sort (· ≥ ·)
+
+/-- A standard Young tableau of shape λ is a filling of a Young diagram with 0..n-1
+such that entries increase along rows and down columns. (Etingof Definition 5.12.1)
+
+Concretely: a bijection from cells of the diagram to `Fin n`, strictly increasing
+along rows and down columns. A cell (i, j) is valid when i < number of rows and
+j < length of row i (using the canonical descending-sorted parts). -/
+noncomputable def StandardYoungTableau (n : ℕ) (la : Nat.Partition n) : Type :=
+  let parts := la.sortedParts
+  let Cell := { c : ℕ × ℕ // c.1 < parts.length ∧ c.2 < parts.getD c.1 0 }
+  { f : Cell → Fin n //
+    Function.Bijective f ∧
+    (∀ c₁ c₂ : Cell, c₁.1.1 = c₂.1.1 → c₁.1.2 < c₂.1.2 → f c₁ < f c₂) ∧
+    (∀ c₁ c₂ : Cell, c₁.1.2 = c₂.1.2 → c₁.1.1 < c₂.1.1 → f c₁ < f c₂) }
 
 /-- The row subgroup P_λ of S_n: permutations preserving each row of
-the Young diagram. (Etingof Definition 5.12.1) -/
-def Etingof.RowSubgroup (n : ℕ) (la : Nat.Partition n) : Subgroup (Equiv.Perm (Fin n)) :=
-  sorry
+the Young diagram. (Etingof Definition 5.12.1)
+
+Two positions i, j ∈ Fin n are in the same row when `rowOfPos parts i = rowOfPos parts j`
+where `parts` are the descending-sorted parts and `rowOfPos` computes the row index
+in the canonical left-to-right, top-to-bottom filling. -/
+noncomputable def RowSubgroup (n : ℕ) (la : Nat.Partition n) :
+    Subgroup (Equiv.Perm (Fin n)) where
+  carrier := { σ | ∀ k : Fin n,
+    rowOfPos la.sortedParts (σ k).val = rowOfPos la.sortedParts k.val }
+  one_mem' := by
+    intro k
+    simp [Equiv.Perm.one_apply]
+  mul_mem' := by
+    intro σ τ hσ hτ k
+    simp only [Equiv.Perm.coe_mul, Function.comp_apply]
+    rw [hσ (τ k), hτ k]
+  inv_mem' := by
+    intro σ hσ k
+    have h := hσ (σ⁻¹ k)
+    rw [show σ (σ⁻¹ k) = k from σ.apply_symm_apply k] at h
+    exact h.symm
 
 /-- The column subgroup Q_λ of S_n: permutations preserving each column of
-the Young diagram. (Etingof Definition 5.12.1) -/
-def Etingof.ColumnSubgroup (n : ℕ) (la : Nat.Partition n) : Subgroup (Equiv.Perm (Fin n)) :=
-  sorry
+the Young diagram. (Etingof Definition 5.12.1)
+
+Two positions i, j ∈ Fin n are in the same column when `colOfPos parts i = colOfPos parts j`
+where `parts` are the descending-sorted parts and `colOfPos` computes the column index
+in the canonical left-to-right, top-to-bottom filling. -/
+noncomputable def ColumnSubgroup (n : ℕ) (la : Nat.Partition n) :
+    Subgroup (Equiv.Perm (Fin n)) where
+  carrier := { σ | ∀ k : Fin n,
+    colOfPos la.sortedParts (σ k).val = colOfPos la.sortedParts k.val }
+  one_mem' := by
+    intro k
+    simp [Equiv.Perm.one_apply]
+  mul_mem' := by
+    intro σ τ hσ hτ k
+    simp only [Equiv.Perm.coe_mul, Function.comp_apply]
+    rw [hσ (τ k), hτ k]
+  inv_mem' := by
+    intro σ hσ k
+    have h := hσ (σ⁻¹ k)
+    rw [show σ (σ⁻¹ k) = k from σ.apply_symm_apply k] at h
+    exact h.symm
 
 /-- The Young symmetrizer c_λ = a_λ · b_λ in the group algebra ℂ[S_n].
-(Etingof Definition 5.12.1) -/
-noncomputable def Etingof.YoungSymmetrizer (n : ℕ) (la : Nat.Partition n) :
+(Etingof Definition 5.12.1)
+
+Here a_λ = ∑_{g ∈ P_λ} g and b_λ = ∑_{g ∈ Q_λ} sign(g) · g,
+where P_λ is the row subgroup and Q_λ is the column subgroup. -/
+noncomputable def YoungSymmetrizer (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℂ (Equiv.Perm (Fin n)) :=
-  sorry
+  haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  let a := ∑ g : (RowSubgroup n la), MonoidAlgebra.of ℂ _ g.val
+  let b := ∑ g : (ColumnSubgroup n la),
+    ((↑(Equiv.Perm.sign g.val) : ℤ) : ℂ) • MonoidAlgebra.of ℂ _ g.val
+  a * b
+
+end Etingof
