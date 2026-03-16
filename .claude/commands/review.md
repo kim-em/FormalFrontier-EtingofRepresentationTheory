@@ -39,12 +39,9 @@ Rotate through these areas across sessions:
 **Security**:
 - Check for new issues in recent code, verify past fixes
 
-**Formalization quality** (Phase 3):
-- Does the formalized statement match the book's natural language?
-- Are Mathlib declarations correctly referenced (not fabricated)?
-- Is the proof approach reasonable (not overly long or using `native_decide` on large terms)?
-- Are there remaining `sorry` or `admit` that should have been resolved?
-- See the `lean-formalization` skill for detailed review patterns
+**Scaffolding reviews**: Read the `lean-formalization` skill's "Scaffolding Review
+Checklist" and "Scaffolding Anti-Patterns" sections before starting. These encode
+patterns discovered in Chapters 2 and 7-8 reviews and should be applied consistently.
 
 ## Updating Skills
 

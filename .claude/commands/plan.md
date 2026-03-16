@@ -5,7 +5,7 @@ items as GitHub issues, then exit. You do NOT execute any code changes.
 
 ## Step 1: Orient
 
-1. `git fetch origin master`
+1. `git fetch origin main`
 2. `coordination orient` — see open issues (claimed and unclaimed), PRs, attention items
 3. Read the last 5 files in `progress/` (sorted by filename) to understand recent work
 4. Read the project's roadmap document to understand current phase
@@ -53,15 +53,7 @@ unclaimed queue composition — if dominated by one type, choose a different typ
 
 Priority order for **feature** work:
 1. PRs needing attention (merge conflicts, failing CI)
-2. Aristotle result harvesting (if items are in `sent_to_aristotle` status)
-3. Next deliverable from the project's roadmap
-
-**Phase 3 formalization planning:**
-- Check `progress/items.json` for ready items (dependencies sorry-free)
-- Group items by dependency cluster and difficulty level
-- Never mix hard theorems (may need Aristotle) with easy definitions in one issue
-- Front-load foundational definitions (Chapters 1-2) — everything depends on them
-- See the `parallel-agent-coordination` skill for DAG traversal patterns
+2. Next deliverable from the project's roadmap
 
 **Summarize trigger**: Create a summarize issue (if none is already open) when
 10+ PRs have merged since the last summarize issue closed, or PR titles suggest

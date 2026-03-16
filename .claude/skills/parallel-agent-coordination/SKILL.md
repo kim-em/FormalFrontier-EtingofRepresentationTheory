@@ -72,6 +72,36 @@ Even for short turns, write `progress/<timestamp>.md`. The next agent depends on
 
 Always read the most recent progress file before starting. It may contain warnings about stale issues, broken CI, or other traps.
 
+## Stale State Management
+
+Stale claims, labels, and branches accumulate when agents crash or PRs are abandoned. Check for and clean these up at the start of planning sessions.
+
+### Stale Claims
+
+Issues with `claimed` label but no PR after several hours are stale. Use `coordination release-stale-claims` to release them (default 4h threshold). Planners should check for stale claims during orientation.
+
+### Stale `has-pr` Labels
+
+If a PR was closed without merging, the issue may still have `has-pr` (excluding it from `list-unclaimed`). Fix by removing the label and adding `replan`:
+```bash
+gh issue edit N --remove-label has-pr --add-label replan
+```
+
+### Dead Branches
+
+Branches from abandoned PRs create merge conflict risk. After closing a PR, delete its remote branch:
+```bash
+gh pr close N --delete-branch
+```
+
+### Pre-Flight Before PR Creation
+
+Before creating a PR, verify you haven't accidentally modified protected files:
+```bash
+git diff --name-only main..HEAD | grep -E '^(\.claude/CLAUDE\.md|PLAN\.md)$'
+```
+If this outputs anything, remove those changes before pushing.
+
 ## Coordination Anti-Patterns
 
 1. **Claiming an issue without checking `main`** — wastes a turn discovering it's already done
@@ -80,6 +110,7 @@ Always read the most recent progress file before starting. It may contain warnin
 4. **Working on tooling during a parallelizable phase** — tooling should be done in a dedicated turn before parallel work begins
 5. **Not enabling auto-merge** — forces manual merge, blocking downstream agents
 6. **Deferring cross-validation** — gaps between chapters were discovered late in Phase 1 because cross-validation was reactive, not planned upfront
+7. **Not cleaning stale state** — stale claims and labels silently block work items from the queue
 
 ## Phase Transitions
 
