@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "external.json",
+  "description": "Stage 2.2 external dependency analysis: mathematical concepts the book assumes but does not prove.",
+  "type": "array",
+  "items": {
+    "type": "object",
+    "required": ["description", "category", "items"],
+    "properties": {
+      "description": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Human-readable description of the external dependency."
+      },
+      "category": {
+        "type": "string",
+        "enum": ["undergraduate_prerequisite", "external_result", "folklore"],
+        "description": "Classification of the external dependency."
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "minItems": 1,
+        "uniqueItems": true,
+        "description": "Item IDs from items.json that require this external dependency."
+      },
+      "source": {
+        "type": "string",
+        "description": "Citation or source for external results (optional)."
+      }
+    },
+    "additionalProperties": false
+  }
+}
