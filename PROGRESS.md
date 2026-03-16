@@ -73,5 +73,6 @@ Progress is recorded here as stages from PLAN.md are completed.
 - **Notes:** All 8 chapters (2–9) scaffolded: 231 Lean files, ~249 sorry placeholders. Module structure established (#535). Chapter 2 reviewed (#539). Remaining chapter reviews pending (#531, #541, #542, #543). Three scaffolding patterns: Mathlib alias, custom definition, sorry'd statement.
 
 ## Stage 3.2: Proof Filling
-- **Status:** Not started
-- **Notes:** Blocked on scaffolding reviews. Ready to begin once reviews complete — prioritize Mathlib-heavy chapters (7, 8) first.
+- **Status:** In progress
+- **Date started:** 2026-03-16
+- **Notes:** 120/583 items sorry_free (20.6%). Of 230 formal items, 120 proved (52.2%). 205 sorry occurrences remain across 110 files. 37 PRs merged in first proof wave. Chapters 2, 3, 7, 8 leading (30–33% completion). Chapter 9 lagging (2.9%). Column orthogonality infrastructure gap (#633) blocks character theory proofs. See `progress/summaries/stage3-2-first-wave.md` for full details.
