@@ -49,6 +49,39 @@ After individual content work is complete, run a **cross-validation** pass that 
 
 Cross-validation should be a separate issue, not an afterthought. Plan for it explicitly.
 
+## Phase 3: Formalization Verification Patterns
+
+Formalization adds a new dimension to validation — the Lean compiler itself is the ultimate validator.
+
+### Compilation as Validation
+
+Unlike Phases 1-2 (JSON schemas, text validation), Phase 3 has `lake build` as the ground truth:
+- **No sorry = proved.** The compiler guarantees correctness.
+- **sorry = placeholder.** Compiles but isn't done.
+- **admit = dangerous.** Never commit — only use in temporary Aristotle submission files.
+
+### Automated Status Tracking
+
+LeanArchitect's `extract_blueprint` automatically detects sorry status from compiled `.olean` files. No manual status tracking needed for formal declarations — just compile and extract.
+
+For non-formal items (discussion blobs, external dependencies), status is tracked manually in `progress/items.json`.
+
+### Validation Tooling for Stage 3.1 (Scaffolding)
+
+Before starting content work, create:
+1. **Compilation check script** — runs `lake build` and reports files with errors
+2. **Sorry counter** — counts remaining sorries across all item files
+3. **Dependency readiness checker** — given an item, checks if all dependencies are sorry-free
+
+### Review Patterns for Formalized Proofs
+
+When reviewing a formalization PR:
+1. **Does it compile?** (`lake env lean <file>` — the minimum bar)
+2. **Does the statement match the book?** Compare docstring against blob text
+3. **Is the proof reasonable?** Overly long proofs or `native_decide` on large terms may indicate wrong approach
+4. **Are imports minimal?** Unnecessary imports slow compilation
+5. **Any `sorry` or `admit` remaining?** Search the diff
+
 ## Planning Heuristic
 
 When a planner creates issues for a new stage:
