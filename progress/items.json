@@ -96,7 +96,8 @@
     "start_page": "6",
     "end_page": "6",
     "start_line": 18,
-    "end_line": 25
+    "end_line": 25,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
@@ -114,7 +115,8 @@
     "start_page": "7",
     "end_page": "8",
     "start_line": 5,
-    "end_line": 7
+    "end_line": 7,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.2",
@@ -159,7 +161,8 @@
     "start_page": "9",
     "end_page": "9",
     "start_line": 5,
-    "end_line": 8
+    "end_line": 8,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Discussion_after_Proposition2.2.3",
@@ -177,7 +180,8 @@
     "start_page": "9",
     "end_page": "9",
     "start_line": 11,
-    "end_line": 22
+    "end_line": 22,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Definition2.2.5",
@@ -240,7 +244,8 @@
     "start_page": "10",
     "end_page": "10",
     "start_line": 12,
-    "end_line": 20
+    "end_line": 20,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Definition2.3.4",
@@ -312,7 +317,8 @@
     "start_page": "12",
     "end_page": "12",
     "start_line": 3,
-    "end_line": 13
+    "end_line": 13,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Corollary2.3.10",
@@ -321,7 +327,8 @@
     "start_page": "12",
     "end_page": "12",
     "start_line": 14,
-    "end_line": 16
+    "end_line": 16,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Remark2.3.11",
@@ -348,7 +355,8 @@
     "start_page": "12",
     "end_page": "12",
     "start_line": 21,
-    "end_line": 21
+    "end_line": 21,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Remark2.3.13",
@@ -375,7 +383,8 @@
     "start_page": "13",
     "end_page": "13",
     "start_line": 9,
-    "end_line": 15
+    "end_line": 15,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Example2.3.14_continued",
@@ -384,7 +393,8 @@
     "start_page": "14",
     "end_page": "14",
     "start_line": 1,
-    "end_line": 2
+    "end_line": 2,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Problem2.3.15",
@@ -501,7 +511,8 @@
     "start_page": "17",
     "end_page": "18",
     "start_line": 13,
-    "end_line": 16
+    "end_line": 16,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Remark2.7.2",
@@ -564,7 +575,8 @@
     "start_page": "19",
     "end_page": "19",
     "start_line": 25,
-    "end_line": 30
+    "end_line": 30,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Discussion_quiver_notation",
@@ -708,7 +720,8 @@
     "start_page": "22",
     "end_page": "22",
     "start_line": 22,
-    "end_line": 35
+    "end_line": 35,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Example2.9.2_continued",
@@ -717,7 +730,8 @@
     "start_page": "23",
     "end_page": "23",
     "start_line": 1,
-    "end_line": 1
+    "end_line": 1,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Remark2.9.3",
@@ -789,7 +803,8 @@
     "start_page": "24",
     "end_page": "24",
     "start_line": 11,
-    "end_line": 20
+    "end_line": 20,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Definition2.9.9",
@@ -825,7 +840,8 @@
     "start_page": "25",
     "end_page": "25",
     "start_line": 3,
-    "end_line": 6
+    "end_line": 6,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Example2.9.13",
@@ -834,7 +850,8 @@
     "start_page": "25",
     "end_page": "25",
     "start_line": 7,
-    "end_line": 12
+    "end_line": 12,
+    "status": "scaffolded"
   },
   {
     "id": "Chapter2/Remark2.9.14",

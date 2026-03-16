@@ -1,8 +1,14 @@
+-- Section 2.1: Overview and Classification Theorems
+import EtingofRepresentationTheory.Chapter2.Theorem2_1_1
+import EtingofRepresentationTheory.Chapter2.Theorem2_1_2
+
 -- Section 2.2: Algebras
 import EtingofRepresentationTheory.Chapter2.Definition2_2_1
 import EtingofRepresentationTheory.Chapter2.Definition2_2_2
 import EtingofRepresentationTheory.Chapter2.Definition2_2_5
 import EtingofRepresentationTheory.Chapter2.Definition2_2_6
+import EtingofRepresentationTheory.Chapter2.Proposition2_2_3
+import EtingofRepresentationTheory.Chapter2.Example2_2_4
 
 -- Section 2.3: Representations
 import EtingofRepresentationTheory.Chapter2.Definition2_3_1
@@ -11,9 +17,16 @@ import EtingofRepresentationTheory.Chapter2.Definition2_3_5
 import EtingofRepresentationTheory.Chapter2.Definition2_3_6
 import EtingofRepresentationTheory.Chapter2.Definition2_3_7
 import EtingofRepresentationTheory.Chapter2.Definition2_3_8
+import EtingofRepresentationTheory.Chapter2.Example2_3_3
+import EtingofRepresentationTheory.Chapter2.Proposition2_3_9
+import EtingofRepresentationTheory.Chapter2.Corollary2_3_10
+import EtingofRepresentationTheory.Chapter2.Corollary2_3_12
+import EtingofRepresentationTheory.Chapter2.Example2_3_14
+import EtingofRepresentationTheory.Chapter2.Example2_3_14_continued
 
--- Section 2.7: Characters
+-- Section 2.7: Characters and the Weyl Algebra
 import EtingofRepresentationTheory.Chapter2.Definition2_7_3
+import EtingofRepresentationTheory.Chapter2.Proposition2_7_1
 
 -- Section 2.8: Quivers
 import EtingofRepresentationTheory.Chapter2.Definition2_8_1
@@ -22,12 +35,18 @@ import EtingofRepresentationTheory.Chapter2.Definition2_8_4
 import EtingofRepresentationTheory.Chapter2.Definition2_8_8
 import EtingofRepresentationTheory.Chapter2.Definition2_8_9
 import EtingofRepresentationTheory.Chapter2.Definition2_8_10
+import EtingofRepresentationTheory.Chapter2.Example2_8_2
 
 -- Section 2.9: Lie Algebras
 import EtingofRepresentationTheory.Chapter2.Definition2_9_1
 import EtingofRepresentationTheory.Chapter2.Definition2_9_6
 import EtingofRepresentationTheory.Chapter2.Definition2_9_7
 import EtingofRepresentationTheory.Chapter2.Definition2_9_9
+import EtingofRepresentationTheory.Chapter2.Example2_9_2
+import EtingofRepresentationTheory.Chapter2.Example2_9_2_continued
+import EtingofRepresentationTheory.Chapter2.Example2_9_8
+import EtingofRepresentationTheory.Chapter2.Example2_9_12
+import EtingofRepresentationTheory.Chapter2.Example2_9_13
 
 -- Section 2.11-2.12: Tensor Products, Symmetric/Exterior Algebras
 import EtingofRepresentationTheory.Chapter2.Definition2_11_1
