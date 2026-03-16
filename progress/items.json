@@ -1,4 +1,3 @@
-Updated: Chapter5/Theorem5.4.6
 [
   {
     "id": "Frontmatter/TitlePage",
@@ -1813,7 +1812,7 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "64",
     "start_line": 15,
     "end_line": 16,
-    "status": "scaffolded"
+    "status": "proof_formalized"
   },
   {
     "id": "Chapter4/Introduction_4.3",
@@ -2584,7 +2583,7 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "101",
     "start_line": 25,
     "end_line": 2,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.4.4",
