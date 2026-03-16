@@ -1,3 +1,4 @@
+Updated: Chapter5/Theorem5.4.6
 [
   {
     "id": "Frontmatter/TitlePage",
@@ -2602,7 +2603,8 @@
     "end_page": "101",
     "start_line": 9,
     "end_line": 22,
-    "status": "scaffolded"
+    "status": "attention_needed",
+    "notes": "Proof requires column orthogonality (not in Mathlib). Structure established, core sorry remains. See issue #633."
   },
   {
     "id": "Chapter5/Lemma5.4.7",
