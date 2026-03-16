@@ -1248,7 +1248,9 @@
     "start_page": "46",
     "end_page": "46",
     "start_line": 5,
-    "end_line": 13
+    "end_line": 13,
+    "status": "proof_formalized",
+    "notes": "Part (i) sorry-free; Part (ii) statement formalized but proof sorry'd"
   },
   {
     "id": "Chapter3/Introduction_to_3.3",
