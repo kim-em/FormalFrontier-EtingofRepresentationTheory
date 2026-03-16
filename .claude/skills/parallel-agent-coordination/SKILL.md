@@ -187,3 +187,46 @@ In formalization, merge order affects what's available to downstream agents:
 3. **Large PRs touching many items** — high conflict risk with parallel agents
 4. **Changing definition signatures after dependents exist** — cascading breakage across all agents
 5. **Not checking `.refs.md` before starting** — may miss that Mathlib already has the result
+
+## Lessons from Stage 3.2 Proof Wave (30 PRs)
+
+### Cross-Validation Must Be Planned Upfront
+
+Chapter 5 had 9 missing pages (pp. 111-114, 116-118, 120, 134) discovered only during cross-chapter validation, not during original structure analysis. This cascaded to block items.json assembly and all of Phase 2.
+
+**Rule:** Plan cross-validation as a dedicated issue *before* finishing a stage, not as an afterthought. Each stage's planner should create a cross-validation issue that runs after all chapter-level work is done but before the stage is declared complete.
+
+### READINESS.md Must Incorporate Review Findings
+
+The Phase 2 readiness report missed findings from 6 completed reviews: 50% external dep attribution errors, ~6% Mathlib naming errors, fabricated sources, and 9 excluded external deps. The report was accurate about what it *counted* but silent about known *quality issues*.
+
+**Rule:** Readiness/summary reports must explicitly list open review findings and their severity. A report that omits known issues is worse than no report — it creates false confidence.
+
+### Stale Label Cleanup Protocol
+
+11 stale claims and 3 stale `has-pr` labels accumulated during the proof wave, silently blocking work items. Causes: agent crashes, PRs closed without merging, branches abandoned.
+
+**Rule:** Planners must run this pre-flight at the start of every planning cycle:
+```bash
+# Release stale claims (no PR after 4h)
+coordination release-stale-claims
+
+# Check for has-pr labels on closed/merged PRs
+gh issue list --state open --label has-pr \
+  --json number --jq '.[].number' | while read n; do
+  pr_state=$(gh pr list --search "closes #$n" --json state --jq '.[0].state // "NONE"')
+  if [[ "$pr_state" == "CLOSED" || "$pr_state" == "NONE" ]]; then
+    echo "Issue #$n has stale has-pr label"
+    gh issue edit "$n" --remove-label has-pr --add-label replan
+  fi
+done
+```
+
+### Proof Batch Sizing
+
+From 30 PRs across 4 concurrent agents:
+- **Optimal:** 1-3 items per proof PR (fast review, low conflict risk)
+- **Definitions/aliases:** 3-8 per PR (mechanical, rarely conflict)
+- **Infrastructure items:** 1 per PR (high complexity, needs careful review)
+
+Mixing difficulty levels in one issue causes the hard item to block all easy ones. Never combine a "may need Aristotle" theorem with straightforward proofs.
