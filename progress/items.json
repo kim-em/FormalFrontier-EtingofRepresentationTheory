@@ -1494,8 +1494,8 @@
     "end_page": "53",
     "start_line": 13,
     "end_line": 2,
-    "status": "proof_formalized",
-    "notes": "Part (i) fully proved. Part (ii) structure proved modulo 2 helper lemmas (tracial_of_end_eq_scalar_trace, rep_map_injective_of_semisimple)."
+    "status": "sorry_free",
+    "notes": "All parts proved sorry-free: (i) linear independence of characters, (ii) characters span tracial functionals for semisimple algebras. Helper lemmas tracial_of_end_eq_scalar_trace and rep_map_injective_of_semisimple also proved."
   },
   {
     "id": "Chapter3/Introduction_to_3.7",
