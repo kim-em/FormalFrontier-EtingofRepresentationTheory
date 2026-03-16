@@ -343,11 +343,190 @@ theorem IrrepDecomp.columnFDRep_injective [NeZero (Nat.card G : k)]
     intro h; exact one_ne_zero (congr_fun h ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩)
   exact hne (φ.injective ((hzero _).trans (map_zero φ.toLinearMap).symm))
 
+/-! ### Central idempotent machinery for surjectivity -/
+
+/-- The central idempotent `e_i := D.iso.symm (Pi.single i 1)` in k[G]. -/
+private noncomputable def IrrepDecomp.centralIdem [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n) : MonoidAlgebra k G :=
+  D.iso.symm (Pi.single i 1)
+
+/-- In the product ring, `Pi.single i 1 * Pi.single i 1 = Pi.single i 1`. -/
+private lemma pi_single_sq {ι : Type*} [DecidableEq ι] [Fintype ι]
+    {R : ι → Type*} [∀ i, MulZeroOneClass (R i)] (i : ι) :
+    Pi.single (M := R) i 1 * Pi.single i 1 = Pi.single i 1 := by
+  funext j; simp only [Pi.mul_apply]
+  by_cases h : i = j
+  · subst h; simp [Pi.single_eq_same]
+  · rw [Pi.single_eq_of_ne (Ne.symm h), zero_mul]
+
+/-- Central idempotents are idempotent: `e_i * e_i = e_i`. -/
+private lemma IrrepDecomp.centralIdem_sq [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n) :
+    D.centralIdem i * D.centralIdem i = D.centralIdem i := by
+  simp only [centralIdem, ← map_mul]; congr 1; exact pi_single_sq i
+
+/-- In the product ring, `∑ i, Pi.single i 1 = 1`. -/
+private lemma pi_single_sum {ι : Type*} [DecidableEq ι] [Fintype ι]
+    {R : ι → Type*} [∀ i, AddCommMonoid (R i)] [∀ i, One (R i)] :
+    ∑ i, Pi.single (M := R) i 1 = 1 := by
+  funext j; simp only [Finset.sum_apply, Pi.one_apply]
+  rw [show ∀ (s : Finset ι), ∑ i ∈ s, Pi.single (M := R) i 1 j =
+    ∑ i ∈ s, if i = j then (1 : R j) else 0 from fun s => by
+    congr 1; ext i; by_cases h : i = j
+    · subst h; simp [Pi.single_eq_same]
+    · rw [Pi.single_eq_of_ne (Ne.symm h), if_neg h]]
+  · simp
+
+/-- Central idempotents sum to 1. -/
+private lemma IrrepDecomp.centralIdem_sum [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) :
+    ∑ i, D.centralIdem i = 1 := by
+  simp only [centralIdem, ← map_sum, ← map_one D.iso.symm]; congr 1; exact pi_single_sum
+
+/-- In the product ring, `Pi.single i 1` commutes with everything. -/
+private lemma pi_single_central {ι : Type*} [DecidableEq ι] [Fintype ι]
+    {R : ι → Type*} [∀ i, MulZeroOneClass (R i)] (i : ι)
+    (a : ∀ j, R j) : Pi.single (M := R) i 1 * a = a * Pi.single i 1 := by
+  funext j; simp only [Pi.mul_apply]
+  by_cases h : i = j
+  · subst h; simp [Pi.single_eq_same]
+  · rw [Pi.single_eq_of_ne (Ne.symm h)]; simp
+
+/-- Central idempotents commute with all elements of k[G]. -/
+private lemma IrrepDecomp.centralIdem_comm [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n) (a : MonoidAlgebra k G) :
+    D.centralIdem i * a = a * D.centralIdem i := by
+  apply D.iso.injective
+  simp only [centralIdem, map_mul, AlgEquiv.apply_symm_apply]
+  exact pi_single_central i (D.iso a)
+
+/-- The action of e_i on W via the representation's algebra hom commutes with W.ρ g. -/
+private lemma IrrepDecomp.centralIdemAction_comm [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (W : FDRep k G) (i : Fin D.n) (g : G) :
+    (Representation.asAlgebraHom W.ρ (D.centralIdem i)).comp (W.ρ g) =
+    (W.ρ g).comp (Representation.asAlgebraHom W.ρ (D.centralIdem i)) := by
+  have hg : (W.ρ g : W →ₗ[k] W) = Representation.asAlgebraHom W.ρ (MonoidAlgebra.of k G g) := by
+    ext v; simp [MonoidAlgebra.of_apply, Representation.asAlgebraHom_single]
+  ext v; simp only [LinearMap.comp_apply, hg]
+  have := congr_arg (fun a => Representation.asAlgebraHom W.ρ a v)
+    (D.centralIdem_comm i (MonoidAlgebra.of k G g))
+  simp only [map_mul] at this
+  exact this
+
+/-- The FDRep endomorphism from a central idempotent action. -/
+private noncomputable def IrrepDecomp.centralIdemEndo [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (W : FDRep k G) (i : Fin D.n) : W ⟶ W where
+  hom := FGModuleCat.ofHom (Representation.asAlgebraHom W.ρ (D.centralIdem i))
+  comm h := by
+    have heq := D.centralIdemAction_comm W i h
+    ext v
+    exact LinearMap.congr_fun heq v
+
 /-- Every simple FDRep is isomorphic to some column FDRep (Wedderburn surjectivity). -/
 theorem IrrepDecomp.columnFDRep_surjective [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (W : FDRep k G) (hW : Simple W) :
     ∃ i, Nonempty (W ≅ D.columnFDRep i) := by
-  sorry
+  -- Step 1: Each centralIdemEndo is a scalar by Schur's lemma
+  have hschur : ∀ i : Fin D.n, ∃ c : k,
+      c • 𝟙 W = D.centralIdemEndo W i := fun i =>
+    endomorphism_simple_eq_smul_id k (D.centralIdemEndo W i)
+  choose c hc using hschur
+  -- Step 2: Each c_i satisfies c_i² = c_i (idempotent)
+  have hc_idem : ∀ i, c i * c i = c i := by
+    intro i
+    -- centralIdemEndo ≫ centralIdemEndo = centralIdemEndo (from centralIdem_sq)
+    have hendo_sq : D.centralIdemEndo W i ≫ D.centralIdemEndo W i = D.centralIdemEndo W i := by
+      ext v
+      change Representation.asAlgebraHom W.ρ (D.centralIdem i)
+        (Representation.asAlgebraHom W.ρ (D.centralIdem i) v) =
+        Representation.asAlgebraHom W.ρ (D.centralIdem i) v
+      conv_lhs =>
+        rw [show Representation.asAlgebraHom W.ρ (D.centralIdem i)
+          (Representation.asAlgebraHom W.ρ (D.centralIdem i) v) =
+          (Representation.asAlgebraHom W.ρ (D.centralIdem i * D.centralIdem i)) v from by
+            rw [map_mul]; rfl]
+      rw [D.centralIdem_sq]
+    -- Work pointwise: endo(v) = c_i • v, endo(endo(v)) = endo(v)
+    -- So c_i • (c_i • v) = c_i • v, giving (c_i² - c_i) • v = 0 for all v
+    -- endo acts as c_i • id on W, so endo(w) = c_i • w for all w
+    have hcv : ∀ w : W.V, (D.centralIdemEndo W i).hom.hom w = c i • w := by
+      intro w
+      have := congr_fun (congr_arg (fun f => f.hom.hom) (hc i).symm) w
+      simpa using this
+    have hpt : ∀ v : W.V,
+        (c i * c i - c i) • v = 0 := by
+      intro v
+      -- endo(endo(v)) = endo(v) from hendo_sq
+      have hsqv := congr_fun (congr_arg (fun f => f.hom.hom) hendo_sq) v
+      -- hsqv : endo(endo(v)) = endo(v)
+      -- rewrite both sides using hcv
+      -- Simplify hsqv to nested application, then rewrite with hcv
+      change (D.centralIdemEndo W i).hom.hom
+          ((D.centralIdemEndo W i).hom.hom v) =
+          (D.centralIdemEndo W i).hom.hom v at hsqv
+      simp only [hcv, smul_smul] at hsqv
+      -- hsqv : (c i * c i) • v = c i • v
+      have : (c i * c i - c i) • v = 0 := by rw [sub_smul, hsqv, sub_self]
+      exact this
+    -- If c_i² ≠ c_i, then (c_i² - c_i) is a nonzero scalar annihilating all of W
+    by_contra hne
+    have hne' : c i * c i - c i ≠ 0 := sub_ne_zero.mpr hne
+    -- This means all v = 0, so W is zero, contradicting Simple
+    have : ∀ v : W.V, v = 0 := by
+      intro v
+      have := hpt v
+      rwa [smul_eq_zero, or_iff_right hne'] at this
+    -- If all vectors are 0, then 𝟙 W = 0, contradicting simplicity
+    exact id_nonzero W (by ext v; simp [this v])
+  -- Step 3: ∑ c_i = 1
+  have hc_sum : ∑ i, c i = 1 := by
+    -- endo acts as c_i • id on W
+    have hcv' : ∀ (i : Fin D.n) (w : W.V),
+        (D.centralIdemEndo W i).hom.hom w = c i • w := by
+      intro j w
+      have := congr_fun (congr_arg (fun f => f.hom.hom) (hc j).symm) w
+      simpa using this
+    -- For any v: (∑ c_i) • v = ∑ c_i • v = ∑ e_i(v) = (∑ e_i)(v) = id(v) = v
+    have hsum_pt : ∀ v : W.V, (∑ i, c i) • v = v := by
+      intro v
+      -- (∑ c_i) • v = ∑ c_i • v = ∑ e_i(v) = v
+      rw [Finset.sum_smul]
+      -- ∑ c_i • v = ∑ e_i(v), since e_i(v) = c_i • v
+      have : ∑ i, c i • v = ∑ i, Representation.asAlgebraHom W.ρ (D.centralIdem i) v :=
+        Finset.sum_congr rfl (fun i _ => (hcv' i v).symm)
+      rw [this]
+      -- ∑ e_i(v) = (∑ e_i)(v) = asAlgebraHom(1)(v) = v
+      rw [← LinearMap.sum_apply, ← map_sum, D.centralIdem_sum]
+      simp [Representation.asAlgebraHom_single, MonoidAlgebra.one_def]
+    -- Extract scalar: (∑ c_i - 1) • v = 0 for all v
+    by_contra hne
+    have hne' : ∑ i, c i - 1 ≠ 0 := sub_ne_zero.mpr hne
+    have : ∀ v : W.V, v = 0 := by
+      intro v
+      have h := hsum_pt v
+      have h2 : (∑ i, c i - 1) • v = 0 := by rw [sub_smul, h, one_smul, sub_self]
+      rwa [smul_eq_zero, or_iff_right hne'] at h2
+    exact id_nonzero W (by ext v; simp [this v])
+  -- Step 4: Find i₀ with c_{i₀} = 1
+  have hc_01 : ∀ i, c i = 0 ∨ c i = 1 := by
+    intro i
+    have h := hc_idem i
+    have h2 : c i * (c i - 1) = 0 := by
+      have : c i * (c i - 1) = c i * c i - c i := by ring
+      rw [this, h, sub_self]
+    rcases mul_eq_zero.mp h2 with h3 | h3
+    · left; exact h3
+    · right; exact sub_eq_zero.mp h3
+  obtain ⟨i₀, hi₀⟩ : ∃ i₀, c i₀ = 1 := by
+    by_contra h; push_neg at h
+    have hall : ∀ i, c i = 0 := fun i => (hc_01 i).resolve_right (h i)
+    rw [show ∑ i, c i = ∑ i, (0 : k) from Finset.sum_congr rfl (fun i _ => hall i),
+      Finset.sum_const_zero] at hc_sum
+    exact one_ne_zero hc_sum.symm
+  -- Step 5: Construct isomorphism W ≅ columnFDRep i₀
+  -- centralIdem i₀ acts as id on W, so W is a module over the i₀-th Wedderburn block
+  -- This gives W ≅ columnFDRep i₀
+  exact ⟨i₀, sorry⟩
 
 /-- The number of Wedderburn-Artin components equals the number of isomorphism classes
 of simple `FDRep k G` objects. -/
