@@ -16,5 +16,5 @@ Etingof Proposition 3.1.4. -/
 theorem Etingof.subrepresentation_of_semisimple (A : Type*) (V : Type*)
     [Ring A] [AddCommGroup V] [Module A V]
     [IsSemisimpleModule A V] (W : Submodule A V) :
-    IsSemisimpleModule A W := by
-  sorry
+    IsSemisimpleModule A W :=
+  inferInstance
