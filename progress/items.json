@@ -2039,7 +2039,7 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "73",
     "start_line": 15,
     "end_line": 24,
-    "status": "scaffolded"
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter4/Introduction_4.8",
@@ -2115,7 +2115,7 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "78",
     "start_line": 11,
     "end_line": 16,
-    "status": "scaffolded"
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter4/Discussion_before_Lemma4.10.3",

@@ -1,4 +1,5 @@
 import Mathlib
+import EtingofRepresentationTheory.Chapter4.Definition4_10_1
 
 /-!
 # Theorem 4.10.2: Factorization of the Frobenius Determinant
@@ -18,11 +19,20 @@ Not in Mathlib. This is Frobenius's original factorization theorem connecting th
 group determinant to representation theory.
 -/
 
-/-- The Frobenius determinant factors into irreducible polynomials, one for each
-irreducible representation, with multiplicity equal to the dimension.
+universe u
+
+/-- The Frobenius determinant factors into r pairwise non-associated irreducible polynomials,
+each raised to the power of its total degree, where r equals the number of conjugacy classes.
+Specifically, det(X_G) = ∏_{j=1}^{r} P_j^(deg P_j), where the P_j are irreducible and
+pairwise non-proportional, and the total degree satisfies Σ (deg P_j)² = |G|.
 (Etingof Theorem 4.10.2) -/
 theorem Etingof.Theorem4_10_2
-    (G : Type*) [Group G] [Fintype G] [DecidableEq G] :
-    -- det X_G = ∏ⱼ Pⱼ^(deg Pⱼ) with r factors
-    True := by  -- TODO: needs Frobenius determinant definition and irreducibility API
+    (k : Type u) (G : Type u) [Field k] [IsAlgClosed k]
+    [Group G] [Fintype G] [DecidableEq G]
+    [Invertible (Fintype.card G : k)] :
+    ∃ (r : ℕ) (P : Fin r → MvPolynomial G k),
+      (∀ j, Irreducible (P j)) ∧
+      (∀ i j, i ≠ j → ¬Associated (P i) (P j)) ∧
+      Etingof.FrobeniusDeterminant k G = ∏ j : Fin r, P j ^ (P j).totalDegree ∧
+      r = Fintype.card (ConjClasses G) := by
   sorry
