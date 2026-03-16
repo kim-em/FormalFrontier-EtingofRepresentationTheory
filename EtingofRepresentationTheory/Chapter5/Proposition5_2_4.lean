@@ -19,7 +19,8 @@ theorem Etingof.Proposition5_2_4_ring :
     -- The algebraic integers form a subring of ℂ
     ∀ x y : ℂ, IsIntegral ℤ x → IsIntegral ℤ y →
       IsIntegral ℤ (x + y) ∧ IsIntegral ℤ (x * y) := by
-  sorry
+  intro x y hx hy
+  exact ⟨hx.add hy, hx.mul hy⟩
 
 /-- The set of algebraic numbers forms a subfield of ℂ (the algebraic closure of ℚ).
 (Etingof Proposition 5.2.4(ii)) -/
@@ -27,4 +28,5 @@ theorem Etingof.Proposition5_2_4_field :
     -- The algebraic numbers form a subfield of ℂ
     ∀ x y : ℂ, IsAlgebraic ℚ x → IsAlgebraic ℚ y →
       IsAlgebraic ℚ (x + y) ∧ IsAlgebraic ℚ (x * y) := by
-  sorry
+  intro x y hx hy
+  exact ⟨hx.add hy, hx.mul hy⟩

@@ -17,4 +17,11 @@ This is `isIntegral_iff` or related results in `Mathlib.RingTheory.Algebraic`.
 Equivalently, Ā ∩ ℚ = ℤ. (Etingof Proposition 5.2.5) -/
 theorem Etingof.Proposition5_2_5 (q : ℚ) :
     IsIntegral ℤ (algebraMap ℚ ℂ q) ↔ ∃ n : ℤ, q = n := by
-  sorry
+  rw [isIntegral_algebraMap_iff (algebraMap ℚ ℂ).injective]
+  constructor
+  · intro hq
+    have := IsIntegrallyClosed.isIntegral_iff.mp hq
+    obtain ⟨r, hr⟩ := this
+    exact ⟨r, by exact_mod_cast hr.symm⟩
+  · rintro ⟨n, rfl⟩
+    exact isIntegral_algebraMap
