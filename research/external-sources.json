@@ -1,0 +1,889 @@
+{
+  "metadata": {
+    "generated": "2026-03-16",
+    "stage": "2.5",
+    "description": "External sources for Mathlib coverage gaps — other Lean libraries, other formal systems, and natural language references",
+    "inputs": [
+      "research/mathlib-coverage-external.json",
+      "research/mathlib-coverage-definitions.json (from PR #486)"
+    ],
+    "total_gap_items": 16,
+    "total_partial_items": 36,
+    "total_items_researched": 52
+  },
+  "definition_gaps": [
+    {
+      "id": "Chapter2/Definition2.3.8",
+      "title": "Indecomposable representation",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Etingof et al., 'Introduction to Representation Theory' — Definition 2.3.8 and surrounding discussion",
+          "relevance": "The book itself provides the definition; formalization requires defining indecomposability for modules as non-existence of complementary submodule decomposition",
+          "usefulness": "medium"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — mathcomp-analysis and mathcomp-ssreflect have module decomposition infrastructure",
+          "relevance": "Coq's approach to direct sum decomposition may guide the Lean formalization of indecomposable modules",
+          "usefulness": "low"
+        }
+      ]
+    },
+    {
+      "id": "Chapter2/Definition2.8.3",
+      "title": "Representation of a quiver",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' (Springer, 2014) — Chapter 2",
+          "relevance": "Comprehensive treatment of quiver representations as functors from path categories to vector spaces; detailed constructions suitable for formalization",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, 'Elements of the Representation Theory of Associative Algebras, Vol. 1' — Chapter III",
+          "relevance": "Detailed development of quiver representations with explicit constructions",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "Coq UniMath — CategoryTheory library has functor categories that model quiver representations",
+          "relevance": "Demonstrates how to model quiver representations via functors in a proof assistant",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter2/Definition2.8.4",
+      "title": "Path algebra of a quiver",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 2.3",
+          "relevance": "Explicit construction of path algebra as free k-algebra on paths with concatenation; basis theorem",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section III.1",
+          "relevance": "Path algebra construction with detailed proofs of algebra properties",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter2/Definition2.8.8",
+      "title": "Subrepresentation of a quiver representation",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 2.4",
+          "relevance": "Subrepresentations defined as subfunctors; explicit vector subspace conditions at each vertex",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter2/Definition2.8.9",
+      "title": "Direct sum of quiver representations",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 2.4",
+          "relevance": "Direct sum constructed vertex-wise and arrow-wise",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter2/Definition2.8.10",
+      "title": "Homomorphism of quiver representations",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 2.5",
+          "relevance": "Morphisms as families of linear maps commuting with edge maps; kernel/cokernel/image constructions",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter3/Definition3.4.1",
+      "title": "Filtration of a representation",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.4 (composition series and filtrations)",
+          "relevance": "Filtrations as ascending chains of submodules; connection to composition series and Jordan-Hölder",
+          "usefulness": "medium"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Lang, 'Algebra' — Chapter III, Section 4",
+          "relevance": "Standard treatment of module filtrations in a graduate algebra textbook",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter4/Definition4.6.1",
+      "title": "Unitary representation",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 1.3",
+          "relevance": "Unitary representations for finite groups; averaging inner product construction; detailed proof of complete reducibility via unitarizability",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton & Harris, 'Representation Theory: A First Course' — Section 1.1",
+          "relevance": "Introductory treatment of unitary representations with explicit constructions",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter4/Definition4.10.1",
+      "title": "Frobenius determinant (group determinant)",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Curtis, 'Pioneers of Representation Theory' — Chapter 1",
+          "relevance": "Historical development of the group determinant; Frobenius's original factorization theorem",
+          "usefulness": "medium"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Johnson, 'The Group Determinant' (LMS Lecture Notes) — Chapters 1-3",
+          "relevance": "Dedicated monograph on group determinants; detailed proofs of factorization over characters",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.1.1",
+      "title": "Complex, real, and quaternionic type of irreducible representations",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 13.2",
+          "relevance": "Classification of irreducible representations into real/complex/quaternionic types via Frobenius-Schur indicator; complete proofs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton & Harris, 'Representation Theory' — Section 3.5",
+          "relevance": "Real and quaternionic structures on complex representations",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — character.v has Frobenius-Schur indicator and real/complex classification",
+          "relevance": "Complete formalization in Coq; can guide Lean approach to Frobenius-Schur classification",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.1.4",
+      "title": "Frobenius-Schur indicator",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 13.2",
+          "relevance": "Definition and computation of ν(χ) = (1/|G|) Σ χ(g²); characterization as 0, 1, or -1",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — character.v, cfun_indicator",
+          "relevance": "Frobenius-Schur indicator formalized in Coq's character theory library",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.2.2",
+      "title": "Algebraic number and algebraic integer via eigenvalues",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 6.4",
+          "relevance": "Characters take values in algebraic integers; eigenvalue characterization",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.7.1",
+      "title": "Virtual representation and its character",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 9.1",
+          "relevance": "Representation ring (Grothendieck group of finite-dimensional representations); virtual characters as integer combinations of irreducible characters",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — vcharacter.v",
+          "relevance": "Virtual characters formalized as Z-linear combinations of irreducible characters",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.14.2",
+      "title": "Kostka numbers K_{mu,lambda}",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton, 'Young Tableaux' (LMS Student Texts) — Chapter 1-2",
+          "relevance": "Comprehensive development of Young tableaux, semistandard tableaux, and Kostka numbers with combinatorial proofs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Stanley, 'Enumerative Combinatorics Vol. 2' — Section 7.10",
+          "relevance": "Kostka numbers, Schur polynomials, and their combinatorial properties",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Sagan, 'The Symmetric Group' — Chapter 2",
+          "relevance": "Young tableaux and Kostka numbers in context of symmetric group representations",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter5/Definition5.23.1",
+      "title": "Algebraic (rational, polynomial) representation of GL(V)",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Green, 'Polynomial Representations of GL_n' (Springer LNM 830) — Chapters 1-3",
+          "relevance": "Foundational text on polynomial representations; Schur algebras and Schur-Weyl duality",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton & Harris, 'Representation Theory' — Part II, Chapters 15 and 23",
+          "relevance": "Polynomial representations of GL(n) and Schur-Weyl duality with detailed proofs",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.1.4",
+      "title": "Dynkin diagram",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Chapter 4",
+          "relevance": "Dynkin diagrams in context of Gabriel's theorem; classification of positive-definite graphs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Humphreys, 'Introduction to Lie Algebras and Representation Theory' — Section 11",
+          "relevance": "Classification of Dynkin diagrams via Cartan matrices",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.4.3",
+      "title": "Root",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.3",
+          "relevance": "Roots of quivers defined via the Tits quadratic form; real and imaginary roots",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.4.5",
+      "title": "Simple roots",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.3",
+          "relevance": "Simple roots as standard basis vectors corresponding to quiver vertices",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.4.7",
+      "title": "Positive and negative roots",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.3",
+          "relevance": "Positive roots as dimension vectors of indecomposable representations (Gabriel's theorem)",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.5.1",
+      "title": "Dimension vector",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 2.2",
+          "relevance": "Dimension vector as function assigning dim(V_i) to each vertex; straightforward definition",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.6.1",
+      "title": "Sink and source",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.5",
+          "relevance": "Sinks and sources defined; used in BGP reflection functors",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section VII.5",
+          "relevance": "BGP reflection functors at sinks and sources",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.6.2",
+      "title": "Reversed quiver at a vertex",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.5",
+          "relevance": "Local reversal of arrows at a sink/source vertex",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.6.3",
+      "title": "Reflection functor F_i^+",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.5",
+          "relevance": "BGP reflection functors: explicit construction via kernel/cokernel at sink vertices; proof that they preserve indecomposables",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section VII.5",
+          "relevance": "Detailed construction with full proofs of functoriality and exactness properties",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Bernstein, Gelfand, Ponomarev, 'Coxeter functors and Gabriel's theorem' (1973)",
+          "relevance": "Original paper; freely available; foundational proofs",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.6.4",
+      "title": "Reflection functor F_i^-",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.5",
+          "relevance": "Dual construction at source vertices; same references as F_i^+",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter6/Definition6.7.1",
+      "title": "Coxeter element",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Schiffler, 'Quiver Representations' — Section 4.6",
+          "relevance": "Coxeter element as product of simple reflections; Coxeter functors as composition of reflection functors",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Humphreys, 'Reflection Groups and Coxeter Groups' — Chapter 3",
+          "relevance": "General theory of Coxeter elements in Coxeter groups",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter7/Definition7.9.4",
+      "title": "Semisimple abelian category",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Etingof et al., 'Tensor Categories' (AMS Mathematical Surveys, 2015) — Chapter 1",
+          "relevance": "Semisimple categories defined; relationship to semisimple algebras and module categories",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter8/Definition8.2.3",
+      "title": "Tor functors",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Weibel, 'An Introduction to Homological Algebra' — Chapter 3",
+          "relevance": "Tor as derived functor of tensor product; long exact sequences; explicit computations",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Rotman, 'An Introduction to Homological Algebra' — Chapter 7",
+          "relevance": "Accessible treatment with detailed proofs of Tor properties",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.1.2",
+      "title": "Complete system of orthogonal idempotents",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.4",
+          "relevance": "Orthogonal idempotent decompositions; primitive idempotents; connection to indecomposable projectives",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.2.2",
+      "title": "Projective cover",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.5",
+          "relevance": "Projective covers: existence for finitely generated modules over artinian algebras; uniqueness proof",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Anderson & Fuller, 'Rings and Categories of Modules' — Chapter 5",
+          "relevance": "Comprehensive treatment of projective covers and essential epimorphisms",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.3.1",
+      "title": "Cartan matrix (of a finite dimensional algebra)",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.4",
+          "relevance": "Cartan matrix C_A where c_{ij} = multiplicity of S_j in composition series of P_i; properties and examples",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Auslander, Reiten, Smalø, 'Representation Theory of Artin Algebras' — Chapter II",
+          "relevance": "Cartan matrix in context of Artin algebras; relationship to projective-injective duality",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.4.1",
+      "title": "Projective dimension",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Weibel, 'An Introduction to Homological Algebra' — Section 4.1",
+          "relevance": "Projective dimension as length of minimal projective resolution; characterization via Ext vanishing",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Rotman, 'An Introduction to Homological Algebra' — Chapter 8",
+          "relevance": "Projective dimension with detailed proofs and examples",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.4.3",
+      "title": "Homological dimension of a ring",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Weibel, 'An Introduction to Homological Algebra' — Section 4.1",
+          "relevance": "Global dimension as supremum of projective dimensions; finitistic dimension",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Auslander, Reiten, Smalø, 'Representation Theory of Artin Algebras' — Chapter IV",
+          "relevance": "Homological dimension in context of representation theory",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.5.1",
+      "title": "Linked simple modules and blocks",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.6",
+          "relevance": "Block decomposition of module categories; linkage via Ext; complete proofs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Benson, 'Representations and Cohomology, Vol. 1' — Chapter 1",
+          "relevance": "Blocks of group algebras with detailed treatment",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.6.1",
+      "title": "Finite abelian category",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Etingof et al., 'Tensor Categories' — Section 1.8",
+          "relevance": "Finite abelian categories defined with all required finiteness conditions; examples",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.6.2",
+      "title": "Projective generator (progenerator)",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Anderson & Fuller, 'Rings and Categories of Modules' — Chapter 6",
+          "relevance": "Progenerators and Morita theory; detailed proofs of equivalence criteria",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.7.1",
+      "title": "Morita equivalence",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Anderson & Fuller, 'Rings and Categories of Modules' — Chapter 6",
+          "relevance": "Complete development of Morita theory: equivalences of module categories, progenerators, bimodule characterization",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Lam, 'A First Course in Noncommutative Rings' — Chapter 18",
+          "relevance": "Accessible introduction to Morita equivalence with examples",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "id": "Chapter9/Definition9.7.2",
+      "title": "Basic algebra",
+      "coverage_status": "gap",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.6",
+          "relevance": "Basic algebras defined; every finite-dimensional algebra is Morita equivalent to a basic algebra; proof via idempotent reduction",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Auslander, Reiten, Smalø, 'Representation Theory of Artin Algebras' — Chapter I",
+          "relevance": "Basic algebras and their quiver descriptions",
+          "usefulness": "high"
+        }
+      ]
+    }
+  ],
+  "external_dependency_gaps": [
+    {
+      "description": "Finite abelian groups: classification by elementary divisors",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Lang, 'Algebra' — Chapter I, Section 10",
+          "relevance": "Structure theorem for finitely generated abelian groups with full proof",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Combinatorics of partitions and Young diagrams",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton, 'Young Tableaux' — Chapters 1-4",
+          "relevance": "Comprehensive development: partitions, Young diagrams, standard/semistandard tableaux, hook lengths, Robinson-Schensted correspondence",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Sagan, 'The Symmetric Group' — Chapter 2",
+          "relevance": "Young tableaux and their combinatorics in context of symmetric group representations",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "lean_library",
+          "reference": "Mathlib Nat.Partition and YoungDiagram — partial coverage",
+          "relevance": "Partitions and Young diagrams exist; tableaux, hook lengths, content need to be built on top",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Topological groups and Lie groups",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Bröcker & tom Dieck, 'Representations of Compact Lie Groups' — Chapter I",
+          "relevance": "Topological groups and compact groups; the book's needs are mostly topological, not smooth manifold structure",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Symmetric polynomials and power sums",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Macdonald, 'Symmetric Functions and Hall Polynomials' — Chapter I",
+          "relevance": "Definitive reference for symmetric polynomials, Schur functions, Newton's identities, Kostka numbers",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Stanley, 'Enumerative Combinatorics Vol. 2' — Chapter 7",
+          "relevance": "Comprehensive treatment of symmetric functions with combinatorial proofs",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "Jordan-Hölder theorem",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Lang, 'Algebra' — Chapter III, Section 3",
+          "relevance": "Standard proof of Jordan-Hölder for modules; the lattice-theoretic approach in Mathlib needs to be connected to modules",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Wedderburn-Artin theorem",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Lam, 'A First Course in Noncommutative Rings' — Chapter 1",
+          "relevance": "Complete proof of Wedderburn-Artin with matrix ring decomposition; very detailed",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — mxalgebra.v has some Wedderburn-type decompositions for matrix algebras",
+          "relevance": "Partial formal coverage in Coq",
+          "usefulness": "low"
+        }
+      ]
+    },
+    {
+      "description": "Classification of irreducible representations of sl(2)",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Humphreys, 'Introduction to Lie Algebras and Representation Theory' — Section 7",
+          "relevance": "Complete classification with highest weight theory; detailed proofs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Fulton & Harris, 'Representation Theory' — Chapter 11",
+          "relevance": "sl(2) representation theory with explicit constructions",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "Algebraic conjugates of roots of unity are roots of unity",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Washington, 'Introduction to Cyclotomic Fields' — Chapter 1",
+          "relevance": "Galois theory of cyclotomic fields; conjugates of roots of unity are roots of unity via minimal polynomial",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Every module is a quotient of a free module",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Rotman, 'An Introduction to Homological Algebra' — Section 3.1",
+          "relevance": "Standard construction; surjection from free module on generators",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Characters of representations are class functions",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 2.1",
+          "relevance": "Character theory foundations; class functions; orthogonality relations; complete proofs",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "other_formal",
+          "reference": "MathComp (Coq) — character.v, classfun.v",
+          "relevance": "Complete formalization of character theory: class functions, orthogonality, character tables",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "Nilpotent ideals and nilpotency",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Lam, 'A First Course in Noncommutative Rings' — Chapter 2",
+          "relevance": "Nilpotent ideals, Jacobson radical, Nakayama lemma; detailed treatment",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "Idempotents in algebras",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Assem, Simson, Skowroński, Vol. 1 — Section I.4",
+          "relevance": "Orthogonal idempotent decomposition, primitive idempotents, lifting modulo radical",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "Averaging (Reynolds) operator",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Serre, 'Linear Representations of Finite Groups' — Section 1.3",
+          "relevance": "Averaging operator and proof of Maschke's theorem via invariant inner product",
+          "usefulness": "high"
+        }
+      ]
+    },
+    {
+      "description": "PBW theorem",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Humphreys, 'Introduction to Lie Algebras and Representation Theory' — Section 17",
+          "relevance": "PBW theorem with full proof; ordered monomial basis for U(g)",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Dixmier, 'Enveloping Algebras' — Chapter 2",
+          "relevance": "Multiple proofs of PBW including filtration approach",
+          "usefulness": "medium"
+        }
+      ]
+    },
+    {
+      "description": "Ext functors",
+      "coverage_status": "partial",
+      "sources": [
+        {
+          "source_type": "natural_language",
+          "reference": "Weibel, 'An Introduction to Homological Algebra' — Chapter 3",
+          "relevance": "Complete development of Ext: derived functors, long exact sequences, Yoneda's interpretation",
+          "usefulness": "high"
+        },
+        {
+          "source_type": "natural_language",
+          "reference": "Rotman, 'An Introduction to Homological Algebra' — Chapters 6-7",
+          "relevance": "Accessible treatment with many examples",
+          "usefulness": "high"
+        }
+      ]
+    }
+  ]
+}
