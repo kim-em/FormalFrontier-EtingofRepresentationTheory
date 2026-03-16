@@ -4931,9 +4931,9 @@
     "end_page": "195",
     "start_line": 13,
     "end_line": 24,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "hom_left_exact formalized and proved; tensor_right_exact still sorry"
+    "notes": "hom_left_exact via inferInstance (coyoneda); tensor_right_exact via inferInstance (MonoidalClosed left adjoint)"
   },
   {
     "id": "Chapter7/Exercise7.9.7",

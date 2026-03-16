@@ -1,5 +1,6 @@
 import Mathlib.CategoryTheory.Limits.Yoneda
 import Mathlib.CategoryTheory.Limits.Preserves.Finite
+import Mathlib.Algebra.Category.ModuleCat.Monoidal.Closed
 
 /-!
 # Example 7.9.6: Exactness Properties of Standard Functors
@@ -27,8 +28,12 @@ instance Etingof.hom_left_exact {C : Type*} [Category C] (X : C) :
     PreservesFiniteLimits (coyoneda.obj (Opposite.op X)) :=
   inferInstance
 
-/-- The tensor product functor is right exact but not necessarily left exact.
-(Etingof Example 7.9.6(iii)) -/
--- TODO: Statement formalization requires choosing a concrete category setting
--- (e.g., ModuleCat R) and expressing right exactness via PreservesFiniteColimits
-theorem Etingof.tensor_right_exact : (sorry : Prop) := by sorry
+/-- The tensor product functor `X ⊗ -` is right exact: it preserves finite colimits.
+(Etingof Example 7.9.6(iii))
+
+In Mathlib, `ModuleCat R` is a monoidal closed category, so `tensorLeft X` (the functor
+`X ⊗ -`) is a left adjoint of the internal hom functor. Left adjoints preserve all
+colimits, hence in particular finite colimits, making the tensor functor right exact. -/
+instance Etingof.tensor_right_exact {R : Type*} [CommRing R] (X : ModuleCat R) :
+    PreservesFiniteColimits (MonoidalCategory.tensorLeft X) :=
+  inferInstance
