@@ -2566,7 +2566,7 @@
     "end_page": "100",
     "start_line": 21,
     "end_line": 22,
-    "status": "proof_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter5/Discussion_before_Lemma5.4.5",
