@@ -15,15 +15,15 @@ The proof uses Lemma 5.4.5 (roots of unity average) and the fact that
 Uses `IsIntegral`, `IsPrimitiveRoot`, character theory.
 -/
 
-/-- If gcd(|C|, dim V) = 1 for an irreducible V and conjugacy class C, then for g ∈ C
-either χ_V(g) = 0 or g acts as a scalar. (Etingof Theorem 5.4.4) -/
+open CategoryTheory in
+/-- If gcd(|C|, dim V) = 1 for an irreducible V and conjugacy class C containing g, then
+either χ_V(g) = 0 or g acts as a scalar on V. (Etingof Theorem 5.4.4) -/
 theorem Etingof.Theorem5_4_4
     (G : Type) [Group G] [Fintype G] [DecidableEq G]
-    (V : FDRep ℂ G)
-    -- TODO: irreducibility hypothesis
-    -- TODO: conjugacy class C with gcd(|C|, dim V) = 1
+    (V : FDRep ℂ G) [Simple V]
     (g : G)
-    (h_coprime : True) :  -- placeholder for gcd condition
-    -- Either χ_V(g) = 0 or g acts as a scalar on V
-    True := by
-  trivial
+    (h_coprime : Nat.Coprime
+      (Fintype.card { h : G // IsConj g h })
+      (Module.finrank ℂ V)) :
+    V.character g = 0 ∨ ∃ (c : ℂ), V.ρ g = c • LinearMap.id := by
+  sorry
