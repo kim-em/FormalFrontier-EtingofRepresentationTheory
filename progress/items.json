@@ -1250,8 +1250,8 @@
     "end_page": "46",
     "start_line": 5,
     "end_line": 13,
-    "status": "proof_formalized",
-    "notes": "Part (i) sorry-free; Part (ii) requires IsSimpleRing/TwoSidedIdeal infrastructure \u2014 needs dedicated session"
+    "status": "sorry_free",
+    "notes": "Both parts proved. Part (i) uses Jacobson density theorem for simple modules. Part (ii) applies density theorem to the product module via Schur's lemma decomposition."
   },
   {
     "id": "Chapter3/Introduction_to_3.3",
