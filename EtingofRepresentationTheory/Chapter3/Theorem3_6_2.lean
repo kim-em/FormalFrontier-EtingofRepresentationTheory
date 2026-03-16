@@ -2,7 +2,10 @@ import Mathlib.RingTheory.SimpleModule.Basic
 import Mathlib.LinearAlgebra.FiniteDimensional.Defs
 import Mathlib.LinearAlgebra.Trace
 import Mathlib.LinearAlgebra.LinearIndependent.Defs
+import Mathlib.LinearAlgebra.LinearIndependent.Lemmas
 import Mathlib.FieldTheory.IsAlgClosed.Basic
+import Mathlib.LinearAlgebra.TensorProduct.Basic
+import EtingofRepresentationTheory.Chapter3.Theorem3_2_2
 
 /-!
 # Theorem 3.6.2: Linear Independence of Characters
@@ -42,7 +45,64 @@ theorem Etingof.characters_linearly_independent (k : Type*) (A : Type*)
     [∀ i, FiniteDimensional k (V i)] [∀ i, IsSimpleModule A (V i)]
     (h_noniso : ∀ i j, i ≠ j → IsEmpty (V i ≃ₗ[A] V j)) :
     LinearIndependent k (fun i => Etingof.character k A (V i)) := by
-  sorry
+  rw [Fintype.linearIndependent_iff]
+  intro g hg i
+  -- hg : ∑ j, g j • character k A (V j) = 0
+  -- The hypothesis evaluated at any a ∈ A gives ∑ j, g j * χⱼ(a) = 0
+  have hga : ∀ a : A, ∑ j, g j * Etingof.character k A (V j) a = 0 := by
+    intro a
+    have := LinearMap.congr_fun hg a
+    simp only [LinearMap.sum_apply, LinearMap.smul_apply, smul_eq_mul, LinearMap.zero_apply] at this
+    exact this
+  -- By density theorem part 2, the map A → ∏ End(Vᵢ) is surjective
+  have hsurj := Etingof.density_theorem_part2 k A ι V h_noniso
+  -- For V i, construct an endomorphism with trace 1 using a basis
+  classical
+  haveI : Nontrivial (V i) := IsSimpleModule.nontrivial A (V i)
+  let b := Module.Free.chooseBasis k (V i)
+  have hne_idx : Nonempty (Module.Free.ChooseBasisIndex k (V i)) := by
+    rw [← not_isEmpty_iff]
+    intro h
+    have : finrank k (V i) = 0 := by simp [finrank_eq_card_chooseBasisIndex, Fintype.card_eq_zero]
+    have : 0 < finrank k (V i) := Module.finrank_pos
+    omega
+  let idx := hne_idx.some
+  -- The rank-1 endomorphism b.coord idx ⊗ b idx has trace 1
+  -- Use density to find a : A mapping to this on V i and 0 on V j for j ≠ i
+  let target : ∀ j, Module.End k (V j) := fun j =>
+    if h : j = i then h ▸ (dualTensorHom k (V i) (V i) (b.coord idx ⊗ₜ[k] b idx)) else 0
+  obtain ⟨a, ha⟩ := hsurj target
+  -- Evaluate at a: only the i-th term survives with trace 1
+  have h0 := hga a
+  -- Rewrite using ha: ρⱼ(a) = target j
+  have hρ : ∀ j, (Algebra.lsmul k k (V j) : A →ₐ[k] Module.End k (V j)) a = target j := by
+    intro j; exact congr_fun ha j
+  -- Unfold character and rewrite ρⱼ(a) = target j
+  simp only [Etingof.character, LinearMap.comp_apply, AlgHom.toLinearMap_apply] at h0
+  -- Rewrite each ρⱼ(a) to target j, then the sum simplifies:
+  -- target j = 0 for j ≠ i (trace 0), target i has trace 1
+  have htarget_ne : ∀ j, j ≠ i → target j = 0 := by
+    intro j hj; simp [target, hj]
+  have htarget_eq : target i = dualTensorHom k (V i) (V i) (b.coord idx ⊗ₜ[k] b idx) := by
+    simp [target]
+  have htr_target_i : LinearMap.trace k (V i) (target i) = 1 := by
+    rw [htarget_eq, LinearMap.trace_eq_contract_apply]
+    simp [contractLeft, Basis.coord]
+  have htr_ne : ∀ j, j ≠ i → LinearMap.trace k (V j) (target j) = 0 := by
+    intro j hj; rw [htarget_ne j hj, map_zero]
+  -- Rewrite the sum: separate i-th term, zero out the rest
+  have hsum : ∑ j, g j * LinearMap.trace k (V j) (target j) =
+      g i * LinearMap.trace k (V i) (target i) := by
+    rw [← Finset.add_sum_erase _ _ (Finset.mem_univ i)]
+    rw [Finset.sum_eq_zero (fun j hj => by rw [htr_ne j (Finset.ne_of_mem_erase hj), mul_zero])]
+    ring
+  -- Now use hρ to rewrite h0 term by term
+  have h0' : ∑ j, g j * LinearMap.trace k (V j) (target j) = 0 := by
+    have : ∀ j, LinearMap.trace k (V j) ((Algebra.lsmul k k (V j) : A →ₐ[k] _) a) =
+        LinearMap.trace k (V j) (target j) := fun j => congrArg _ (hρ j)
+    simp only [this] at h0; exact h0
+  rw [hsum, htr_target_i, mul_one] at h0'
+  exact h0'
 
 open Module in
 /-- For a semisimple algebra, characters of irreducibles span the space of tracial
