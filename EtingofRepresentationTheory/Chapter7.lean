@@ -1,5 +1,32 @@
 import Mathlib
 
+import EtingofRepresentationTheory.Chapter7.Definition7_1_1
+import EtingofRepresentationTheory.Chapter7.Definition7_1_4
+import EtingofRepresentationTheory.Chapter7.Definition7_2_1
+import EtingofRepresentationTheory.Chapter7.Definition7_3_1
+import EtingofRepresentationTheory.Chapter7.Definition7_4_1
+import EtingofRepresentationTheory.Chapter7.Definition7_6_1
+import EtingofRepresentationTheory.Chapter7.Definition7_7_1
+import EtingofRepresentationTheory.Chapter7.Definition7_8_1
+import EtingofRepresentationTheory.Chapter7.Definition7_8_2
+import EtingofRepresentationTheory.Chapter7.Definition7_8_6
+import EtingofRepresentationTheory.Chapter7.Definition7_9_1
+import EtingofRepresentationTheory.Chapter7.Definition7_9_3
+import EtingofRepresentationTheory.Chapter7.Definition7_9_4
+import EtingofRepresentationTheory.Chapter7.Lemma7_5_1
+import EtingofRepresentationTheory.Chapter7.Example7_1_3
+import EtingofRepresentationTheory.Chapter7.Example7_1_5
+import EtingofRepresentationTheory.Chapter7.Example7_1_6
+import EtingofRepresentationTheory.Chapter7.Example7_2_2
+import EtingofRepresentationTheory.Chapter7.Example7_3_2
+import EtingofRepresentationTheory.Chapter7.Example7_5_3
+import EtingofRepresentationTheory.Chapter7.Example7_6_3
+import EtingofRepresentationTheory.Chapter7.Example7_7_2
+import EtingofRepresentationTheory.Chapter7.Example7_8_3
+import EtingofRepresentationTheory.Chapter7.Example7_9_2
+import EtingofRepresentationTheory.Chapter7.Example7_9_5
+import EtingofRepresentationTheory.Chapter7.Example7_9_6
+
 /-!
 # Chapter 7: Introduction to Categories
 -/
