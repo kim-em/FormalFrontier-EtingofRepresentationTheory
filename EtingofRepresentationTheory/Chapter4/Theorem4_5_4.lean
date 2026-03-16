@@ -161,6 +161,24 @@ open Classical
 
 variable [NeZero (Nat.card G : k)]
 
+/-! ### Helper lemmas for the trace decomposition -/
+
+/-- The stdBasis repr of a matrix is just coordinate extraction. -/
+private lemma matrix_stdBasis_repr {n : ℕ} (M : Matrix (Fin n) (Fin n) k)
+    (p q : Fin n) :
+    (Matrix.stdBasis k (Fin n) (Fin n)).repr M (p, q) = M p q := by
+  -- stdBasis is reindex + map, Pi.basis_repr gives the key
+  simp [Matrix.stdBasis, Pi.basis_repr, Pi.basisFun_repr]
+
+/-- The (p,q) entry of the matrix product `M * single i j 1 * N` is `M p i * N j q`. -/
+private lemma matrix_single_mul_entry {n : ℕ} (M N : Matrix (Fin n) (Fin n) k) (i j p q : Fin n) :
+    (M * Matrix.single i j (1 : k) * N) p q = M p i * N j q := by
+  rw [Matrix.mul_assoc]
+  rw [show Matrix.single i j (1 : k) * N = fun r c => if r = i then N j c else 0 from by
+    ext r c; simp [Matrix.mul_apply, Matrix.single_apply, Finset.sum_ite_eq',
+      Finset.mem_univ, ite_and, ite_mul, one_mul, zero_mul, eq_comm]]
+  simp [Matrix.mul_apply, Finset.sum_ite_eq, Finset.mem_univ, mul_comm]
+
 /-- The character of `D.columnFDRep i` at `g` equals the matrix trace of the
 i-th Wedderburn-Artin block evaluated at `MonoidAlgebra.of k G g`.
 
@@ -175,23 +193,48 @@ lemma IrrepDecomp.columnFDRep_character
   rw [Matrix.trace_toLin'_eq]
   rfl
 
+set_option maxHeartbeats 800000 in
 /-- The trace of `x ↦ a * x * b` on `MonoidAlgebra k G`, transported via
 the Wedderburn-Artin isomorphism, equals the sum of products of matrix
-traces on each block.
-
-**Key ideas:**
-- `LinearMap.trace_conj'` + `AlgEquiv.linearEquivConj_mulLeftRight`:
-  trace is invariant under algebra isomorphism
-- `mulLeftRight` on a pi ring acts componentwise
-- Trace of `A ↦ M * A * N` on `Mat_n(k)` equals `tr(M) * tr(N)`
-  (from `LinearMap.trace_tensorProduct'` via `Mat_n ≅ k^n ⊗ (k^n)*`) -/
+traces on each block. -/
 lemma trace_mulLeftRight_eq_sum_matrix_traces
     (D : IrrepDecomp k G) (a b : MonoidAlgebra k G) :
     LinearMap.trace k (MonoidAlgebra k G)
       (LinearMap.mulLeftRight k (a, b)) =
     ∑ i : Fin D.n,
       Matrix.trace (D.iso a i) * Matrix.trace (D.iso b i) := by
-  sorry
+  -- Step 1: Transport to the pi type via the Wedderburn-Artin isomorphism
+  rw [← LinearMap.trace_conj' _ D.iso.toLinearEquiv,
+      AlgEquiv.linearEquivConj_mulLeftRight D.iso (a, b)]
+  -- Step 2: Compute using the pi basis
+  let s := fun i => Matrix.stdBasis k (Fin (D.d i)) (Fin (D.d i))
+  let bPi := Pi.basis s
+  rw [LinearMap.trace_eq_matrix_trace k bPi]
+  -- Each diagonal entry (j,p,q) = (D.iso a j)_{p,p} * (D.iso b j)_{q,q}
+  suffices diag_entry : ∀ x : (j : Fin D.n) × Fin (D.d j) × Fin (D.d j),
+      (LinearMap.toMatrix bPi bPi
+        (LinearMap.mulLeftRight k (Prod.map (⇑D.iso) (⇑D.iso) (a, b)))) x x =
+      D.iso a x.1 x.2.1 x.2.1 * D.iso b x.1 x.2.2 x.2.2 by
+    simp only [Matrix.trace, Matrix.diag_apply, diag_entry]
+    simp_rw [← Finset.univ_sigma_univ, Finset.sum_sigma]
+    congr 1; ext j
+    rw [Fintype.sum_prod_type]
+    simp only [Finset.sum_mul, Finset.mul_sum]
+    rw [Finset.sum_comm]
+  intro ⟨j, p, q⟩
+  -- toMatrix_apply: entry = bPi.repr (f (bPi x)) x
+  simp only [LinearMap.toMatrix_apply, LinearMap.mulLeftRight_apply, Prod.map_apply]
+  -- Pi.basis_repr: bPi.repr y ⟨j, idx⟩ = (s j).repr (y j) idx
+  rw [Pi.basis_repr]
+  -- bPi ⟨j, (p,q)⟩ = Pi.single j (single p q 1) by basis_apply + stdBasis_eq_single
+  rw [show bPi ⟨j, (p, q)⟩ = Pi.single j (Matrix.single p q 1)
+    from by rw [Pi.basis_apply, Matrix.stdBasis_eq_single]]
+  -- Pi multiplication is componentwise: (X * Pi.single j M * Y) j = X j * M * Y j
+  -- while for i ≠ j it's X i * 0 * Y i = 0
+  -- Evaluate the Pi multiplication at j: (X * Pi.single j M * Y) j = X j * M * Y j
+  simp only [Pi.mul_apply, Pi.single_eq_same]
+  rw [matrix_stdBasis_repr (k := k)]
+  exact matrix_single_mul_entry (k := k) _ _ _ _ _ _
 
 /-- The trace of `x ↦ g * x * h⁻¹` on `MonoidAlgebra k G` equals the
 conjugator count: `|Z_G(g)|` if `g ~ h`, else `0`.
