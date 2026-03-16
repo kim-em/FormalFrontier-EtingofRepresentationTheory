@@ -2565,8 +2565,7 @@ Updated: Chapter5/Theorem5.4.6
     "end_page": "100",
     "start_line": 21,
     "end_line": 22,
-    "status": "sorry_free",
-    "has_true_hypothesis": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter5/Discussion_before_Lemma5.4.5",
