@@ -27,49 +27,33 @@ theorem Etingof.radical_truncated_polynomial (k : Type*) [Field k] (n : ℕ) (hn
   set f := (X ^ n : k[X])
   set A := AdjoinRoot f
   set r := AdjoinRoot.root f
-  -- root is nilpotent: r^n = mk(X^n) = 0
+  -- Define the evaluation-at-zero map
+  have heval : f.eval₂ (RingHom.id k) 0 = 0 := by simp [f, eval₂_pow, eval₂_X, zero_pow hn.ne']
+  set ev₀ : A →+* k := AdjoinRoot.lift (RingHom.id k) 0 heval
+  -- Direction ≥: root is nilpotent → root ∈ nilradical ≤ jacobson
   have hr_nil : IsNilpotent r := ⟨n, by
     change (AdjoinRoot.mk f X) ^ n = 0
     rw [← map_pow, AdjoinRoot.mk_self]⟩
-  -- Direction ≥: Ideal.span {r} ≤ Ring.jacobson
-  -- root is nilpotent → root ∈ nilradical ≤ jacobson
   have h_ge : Ideal.span {r} ≤ Ring.jacobson A := by
     rw [Ideal.span_le]
     intro x hx
     simp only [Set.mem_singleton_iff] at hx
     subst hx
     exact nilradical_le_jacobson A (mem_nilradical.mpr hr_nil)
-  -- Direction ≤: Ring.jacobson ≤ Ideal.span {r}
-  -- Show Ideal.span {r} is maximal, then jacobson ≤ any maximal ideal
+  -- Direction ≤: Ideal.span {r} is maximal, so jacobson ≤ it
   have hmax : (Ideal.span {r}).IsMaximal := by
-    -- The evaluation map ev₀ : A →+* k (sending root ↦ 0) is surjective
-    -- with kernel Ideal.span {r}
-    -- ev₀ = AdjoinRoot.lift (RingHom.id k) 0 = Quotient.lift (evalRingHom 0)
-    have heval : f.eval₂ (RingHom.id k) 0 = 0 := by
-      simp [f, eval₂_pow, eval₂_X, zero_pow hn.ne']
-    set ev₀ : A →+* k := AdjoinRoot.lift (RingHom.id k) 0 heval
-    -- ev₀ is surjective (it's a section of algebraMap)
     have hev_surj : Function.Surjective ev₀ := by
       intro c; exact ⟨AdjoinRoot.of f c, AdjoinRoot.lift_of heval⟩
-    -- ker ev₀ = Ideal.span {r}
     suffices hker : RingHom.ker ev₀ = Ideal.span {r} from
       hker ▸ RingHom.ker_isMaximal_of_surjective ev₀ hev_surj
-    -- ev₀ = Quotient.lift _ (eval₂RingHom (RingHom.id k) 0) _
-    -- So ker ev₀ = (ker (eval₂RingHom (RingHom.id k) 0)).map (mk f)
-    -- = (ker (evalRingHom 0)).map (mk f)
-    -- = Ideal.span {X - C 0}.map (mk f)
-    -- = Ideal.span {X}.map (mk f) = Ideal.span {r}
     change RingHom.ker (Ideal.Quotient.lift _ _ _) = _
     rw [Ideal.ker_quotient_lift]
-    -- Now need: (ker (eval₂RingHom (RingHom.id k) 0)).map (AdjoinRoot.mk f) = Ideal.span {r}
-    -- ker (eval₂RingHom (RingHom.id k) 0) = ker (evalRingHom 0) = Ideal.span {X - C 0}
     have hker_eval : RingHom.ker (Polynomial.eval₂RingHom (RingHom.id k) (0 : k)) =
         Ideal.span {X - C 0} := by
       change RingHom.ker (evalRingHom 0) = _
       exact ker_evalRingHom 0
     rw [hker_eval]
     simp only [map_zero, sub_zero]
-    -- Ideal.span {X}.map (mk f) = Ideal.span {mk f X} = Ideal.span {r}
     rw [Ideal.map_span, Set.image_singleton]
     rfl
   exact le_antisymm (Ring.jacobson_le_of_isMaximal (Ideal.span {r})) h_ge
@@ -104,50 +88,42 @@ def Etingof.strictlyUpperTriangularIdeal (k : Type*) [Field k] (n : ℕ) :
   add_mem' {a b} ha hb i j hij := by simp [ha i j hij, hb i j hij]
   zero_mem' _ _ _ := by simp
   smul_mem' c x hx i j hij := by
-    -- smul for subalgebra is multiplication: c • x = c * x
-    -- Need: (c * x).val i j = 0
-    have : (c • x).val = (c : Matrix (Fin n) (Fin n) k) * (x : Matrix (Fin n) (Fin n) k) := by
-      rfl
+    have : (c • x).val = (c : Matrix (Fin n) (Fin n) k) * (x : Matrix (Fin n) (Fin n) k) := rfl
     rw [this, Matrix.mul_apply]
     apply Finset.sum_eq_zero
     intro l _
     by_cases hli : i ≤ l
-    · -- i ≤ l, so j ≤ i ≤ l, hence x l j = 0 (strictly upper triangular)
-      simp [hx l j (le_trans hij hli)]
-    · -- l < i, so c i l = 0 (c is upper triangular)
-      push_neg at hli
+    · simp [hx l j (le_trans hij hli)]
+    · push_neg at hli
       simp [c.2 i l hli]
 
-/-- The radical of the algebra of upper triangular n × n matrices is the ideal of strictly
-upper triangular matrices. Etingof Example 3.5.6(2). -/
 instance Etingof.strictlyUpperTriangularIdeal.isTwoSided (k : Type*) [Field k] (n : ℕ) :
     (Etingof.strictlyUpperTriangularIdeal k n).IsTwoSided where
-  -- mul_mem_of_left {a} (b) : a ∈ I → a * b ∈ I
-  -- 'ha' is the proof that the implicit element (in I) is strictly upper triangular
-  -- We prove (element_in_I * b) is strictly upper triangular
   mul_mem_of_left b ha i j hij := by
     have hmul : ∀ (a b : ↥(Etingof.upperTriangularSubalgebra k n)),
-        (a * b).val = (a : Matrix (Fin n) (Fin n) k) * (b : Matrix (Fin n) (Fin n) k) := fun _ _ => rfl
+        (a * b).val = (a : Matrix (Fin n) (Fin n) k) * (b : Matrix (Fin n) (Fin n) k) :=
+      fun _ _ => rfl
     rw [hmul]
     simp only [Matrix.mul_apply]
     apply Finset.sum_eq_zero
     intro l _
     by_cases hli : l ≤ i
-    · -- l ≤ i: the I-element has zero at (i, l) since l ≤ i
-      simp [ha i l hli]
-    · -- l > i ≥ j, so j < l: b has zero at (l, j) since b is upper triangular
-      push_neg at hli
+    · simp [ha i l hli]
+    · push_neg at hli
       simp [b.2 l j (lt_of_le_of_lt hij hli)]
 
+/-- The radical of the algebra of upper triangular n × n matrices is the ideal of strictly
+upper triangular matrices. Etingof Example 3.5.6(2). -/
 theorem Etingof.radical_upper_triangular (k : Type*) [Field k] (n : ℕ) :
     Ring.jacobson (↥(Etingof.upperTriangularSubalgebra k n)) =
       Etingof.strictlyUpperTriangularIdeal k n := by
-  -- Proof sketch:
-  -- ≤: For each i : Fin n, the diagonal extraction map M ↦ M_{ii} is a surjective
-  --    ring homomorphism to k, so its kernel is maximal. The intersection of these
-  --    kernels is the strictly upper triangular ideal. Since jacobson ≤ each maximal
-  --    ideal, jacobson ≤ their intersection.
-  -- ≥: The strictly upper triangular ideal I is nilpotent (I^n = 0). For x ∈ I and
-  --    any y, xy ∈ I (two-sided), so xy is nilpotent, hence 1 + xy is a unit.
-  --    By mem_jacobson_bot characterization, x ∈ jacobson.
+  -- Proof strategy:
+  -- ≤: For each i : Fin n, define diagExtract_i : R →+* k by M ↦ M_{ii}.
+  --    This is surjective, so ker(diagExtract_i) is maximal.
+  --    jacobson ≤ ker(diagExtract_i) for each i.
+  --    ∩_i ker(diagExtract_i) = {M | M_{ii} = 0 ∀i} ∩ upper_tri = strictly upper triangular.
+  -- ≥: I is nilpotent (I^n = 0, since multiplying n strictly upper triangular matrices
+  --    shifts entries up by n rows, yielding 0). For x ∈ I and any y, x*y ∈ I (left ideal),
+  --    so x*y is nilpotent, hence 1 + x*y is a unit (IsNilpotent.isUnit_one_sub applied
+  --    to -(x*y)). By Ideal.mem_jacobson_iff, x ∈ jacobson.
   sorry
