@@ -22,4 +22,4 @@ This is the determinant of the matrix X_G with entries x_{gᵢgⱼ⁻¹}.
 noncomputable def Etingof.FrobeniusDeterminant
     (k : Type*) (G : Type*) [CommRing k] [Group G] [Fintype G] [DecidableEq G] :
     MvPolynomial G k :=
-  sorry
+  Matrix.det (Matrix.of fun (g h : G) => (MvPolynomial.X (g * h⁻¹) : MvPolynomial G k))

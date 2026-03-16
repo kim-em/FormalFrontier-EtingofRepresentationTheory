@@ -2057,7 +2057,7 @@
     "end_page": "77",
     "start_line": 28,
     "end_line": 2,
-    "status": "scaffolded"
+    "status": "proof_formalized"
   },
   {
     "id": "Chapter4/Introduction_4.9",
@@ -2095,7 +2095,7 @@
     "end_page": "78",
     "start_line": 7,
     "end_line": 8,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter4/Discussion_before_Theorem4.10.2",

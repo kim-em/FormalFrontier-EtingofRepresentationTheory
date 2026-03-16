@@ -28,7 +28,8 @@ theorem Etingof.Example4_8_1_Q8_char_id :
     True := by  -- TODO: needs explicit Q₈ representation construction
   sorry
 
+set_option linter.style.nativeDecide false in
 /-- A₅ has exactly 5 conjugacy classes. (Etingof Example 4.8.1) -/
 theorem Etingof.Example4_8_1_A5_conj_classes :
     Fintype.card (ConjClasses (alternatingGroup (Fin 5))) = 5 := by
-  sorry
+  native_decide
