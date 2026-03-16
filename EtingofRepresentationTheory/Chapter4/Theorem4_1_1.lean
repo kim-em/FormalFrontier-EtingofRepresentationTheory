@@ -25,7 +25,11 @@ theorem Etingof.Theorem4_1_1_semisimple
     [DecidableEq G]
     (h : IsUnit (Fintype.card G : k)) :
     IsSemisimpleRing (MonoidAlgebra k G) := by
-  sorry
+  haveI : NeZero (Nat.card G : k) := by
+    rw [neZero_iff]
+    rw [Fintype.card_eq_nat_card] at h
+    exact h.ne_zero
+  infer_instance
 
 /-- Maschke's theorem, part (ii): The sum-of-squares formula |G| = Σᵢ (dim Vᵢ)².
 (Etingof Theorem 4.1.1) -/
