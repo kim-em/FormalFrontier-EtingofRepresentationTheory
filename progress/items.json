@@ -5241,8 +5241,8 @@
     "end_page": "214",
     "start_line": 7,
     "end_line": 10,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false
   },
   {
     "id": "Chapter9/Introduction_9.2",
