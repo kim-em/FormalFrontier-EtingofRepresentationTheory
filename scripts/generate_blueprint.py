@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
-"""Generate leanblueprint LaTeX chapter files from items.json and dependency data.
+"""Generate leanblueprint LaTeX content from items.json and dependency data.
 
 Reads progress/items.json, dependencies/internal.json, and dependencies/external.json,
-then generates LaTeX chapter files under lean/blueprint/src/chapters/ and updates
-lean/blueprint/src/content.tex to \\input them all.
+then generates blueprint/src/content.tex with all chapter content inline.
 
 Each item becomes a leanblueprint environment with \\label and \\uses annotations.
 """
@@ -18,8 +17,7 @@ ITEMS_PATH = REPO_ROOT / "progress" / "items.json"
 INTERNAL_DEPS_PATH = REPO_ROOT / "dependencies" / "internal.json"
 EXTERNAL_DEPS_PATH = REPO_ROOT / "dependencies" / "external.json"
 BLOBS_DIR = REPO_ROOT / "blobs"
-CHAPTERS_DIR = REPO_ROOT / "lean" / "blueprint" / "src" / "chapters"
-CONTENT_TEX = REPO_ROOT / "lean" / "blueprint" / "src" / "content.tex"
+CONTENT_TEX = REPO_ROOT / "blueprint" / "src" / "content.tex"
 
 CHAPTER_ORDER = [
     "Frontmatter",

@@ -2,5 +2,5 @@
 lake-packages/
 build/
 .DS_Store
-lean/blueprint/web/
-lean/blueprint/print/
+blueprint/web/
+blueprint/print/
