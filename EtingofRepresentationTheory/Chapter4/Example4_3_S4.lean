@@ -24,9 +24,9 @@ Uses `Equiv.Perm (Fin 4)` for S₄.
 /-- S₄ has exactly 5 conjugacy classes. (Etingof Example 4.3) -/
 theorem Etingof.Example4_3_S4_conj_classes :
     Fintype.card (ConjClasses (Equiv.Perm (Fin 4))) = 5 := by
-  sorry
+  native_decide
 
 /-- The sum-of-squares formula for S₄: 1² + 1² + 2² + 3² + 3² = 24 = |S₄|. -/
 theorem Etingof.Example4_3_S4_sum_of_squares :
     1 ^ 2 + 1 ^ 2 + 2 ^ 2 + 3 ^ 2 + 3 ^ 2 = Fintype.card (Equiv.Perm (Fin 4)) := by
-  sorry
+  decide
