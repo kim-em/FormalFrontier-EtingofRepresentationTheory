@@ -1542,7 +1542,8 @@
     "end_page": "54",
     "start_line": 11,
     "end_line": 14,
-    "status": "scaffolded"
+    "status": "proof_formalized",
+    "note": "Existence proved (sorry-free). Uniqueness has sorry, escalated to #676."
   },
   {
     "id": "Chapter3/Lemma3.8.2",
