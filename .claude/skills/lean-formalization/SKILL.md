@@ -222,6 +222,105 @@ Based on Phase 2 experience with issue sizing:
 - **Hard theorems** (may need Aristotle): 1 per issue
 - **Never mix difficulty levels** in one issue — a hard theorem blocks the easy ones
 
+## Proven Proof Strategies
+
+Patterns that have succeeded in this project, derived from 30+ merged proof PRs.
+
+### Mathlib Alias Pattern (Chapter 2)
+
+When a book definition matches a Mathlib concept exactly, use a simple alias:
+
+```lean
+/-- Definition 2.1.1: An associative algebra over k. -/
+abbrev Etingof.Algebra (k : Type*) [CommRing k] (A : Type*) := Algebra k A
+```
+
+This pattern covered 19/25 Chapter 2 definitions. Check `.refs.md` — if coverage is "exact match", alias first, prove later. Don't build custom definitions when Mathlib already has the concept.
+
+### Type Class Instance Examples
+
+For "example" items that demonstrate a type satisfies a definition, use `inferInstance`:
+
+```lean
+/-- Example 2.2.1: M_n(k) is an algebra. -/
+instance : Algebra k (Matrix (Fin n) (Fin n) k) := inferInstance
+```
+
+This compiles cleanly when Mathlib already provides the instance. Check with `#check` first.
+
+### Norm-Based Contradiction (Analysis Proofs)
+
+For proofs requiring algebraic integer arguments (e.g., Lemma 5.4.5):
+1. Use `Algebra.norm` to map from the algebraic number to a rational integer
+2. Establish `|Norm(α)| ≥ 1` (since α is a nonzero algebraic integer, its norm is a nonzero integer)
+3. Establish `|Norm(α)| < 1` via triangle inequality and `norm_sum_lt_of_strictConvexSpace`
+4. Derive contradiction
+
+This two-step norm approach works whenever you need to show an algebraic quantity equals zero or a root of unity.
+
+### `sorry : Prop` for Unprovable Statements
+
+When Mathlib lacks the types to express a theorem's statement at all (not just the proof), use:
+
+```lean
+/-- Theorem X.Y.Z: [natural language statement].
+    Statement requires infrastructure not yet in Mathlib. -/
+theorem theorem_X_Y_Z : (sorry : Prop) := sorry
+```
+
+This is sanctioned for items where the *statement itself* cannot be formalized (e.g., Gabriel's theorem needing quiver representation types, sl(2) classification). These items cannot be proved until infrastructure is built. Track them with status `needs_infrastructure` in items.json.
+
+**Never use `True` as a placeholder** — it compiles silently and hides the gap.
+
+## Mathlib Gap Handling
+
+When you discover a Mathlib API gap during formalization, follow this escalation ladder:
+
+### Level 1: Local Workaround (< 30 min)
+If you can define the missing concept locally in ≤ 20 lines and it unblocks the proof:
+```lean
+-- Local definition until Mathlib adds IsIndecomposable
+def IsIndecomposable (M : Type*) [AddCommMonoid M] [Module R M] : Prop :=
+  ¬IsZero M ∧ ∀ N₁ N₂ : Submodule R M, N₁ ⊓ N₂ = ⊥ → N₁ ⊔ N₂ = ⊤ → N₁ = ⊥ ∨ N₂ = ⊥
+```
+
+### Level 2: `sorry` the Gap, File an Issue (> 30 min)
+If building the infrastructure would take > 30 min:
+1. Use `sorry` for the missing fact
+2. Add a comment: `-- Requires [description], not in Mathlib as of v4.28`
+3. File a GitHub issue with label `needs-mathlib-api` describing exactly what's needed
+4. Move on to the next item
+
+### Level 3: Infrastructure Issue (Blocks Multiple Items)
+If the same gap blocks 3+ items (e.g., column orthogonality blocking all character theory):
+1. File a detailed GitHub issue documenting:
+   - What's missing (with mathematical description)
+   - Which items are blocked
+   - Whether Mathlib has partial coverage (e.g., row orthogonality exists but not column)
+   - Estimated effort to build locally
+2. Mark all blocked items as `needs_infrastructure` in items.json
+3. Don't attempt to build major infrastructure during a proof session — that's a separate planned issue
+
+### Known Gaps in This Project
+
+| Gap | What Exists | What's Missing | Blocks |
+|-----|------------|----------------|--------|
+| Column orthogonality | `FDRep.char_orthonormal` (row) | `∑_V χ_V(g) · χ_V(h⁻¹) = \|C_G(g)\| · δ` | Thm 5.4.6, Burnside |
+| Regular rep decomposition | `FDRep`, `Simple` | `k[G] ≅ ⊕ dim(V_i) · V_i` | Thm 5.4.6 |
+| Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch7 items |
+| Finite simple object enumeration | `Simple` predicate | Enumerating all simples in `FDRep` | Character table results |
+
+## When Aristotle Is Unavailable
+
+If `aristotle` is not on PATH or fails to connect, don't waste time debugging it. Instead:
+
+1. Attempt the proof yourself (2-3 serious tries)
+2. If stuck, `sorry` the proof with a comment: `-- Escalate to Aristotle when available`
+3. Set items.json status to `attention_needed` (not `sent_to_aristotle`)
+4. Move on to the next item — don't block your entire session on one proof
+
+Aristotle availability varies by machine. Recording the need for escalation ensures a future session on a properly configured machine can pick it up.
+
 ## Common Failure Modes
 
 From Phase 2 review patterns (50% attribution error rate in Stage 2.4 Part 1):
