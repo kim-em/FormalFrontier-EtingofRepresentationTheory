@@ -191,16 +191,133 @@ lemma IrrepDecomp.finrank_columnFDRep [NeZero (Nat.card G : k)]
     Module.finrank k (D.columnFDRep i) = D.d i := by
   simp [columnFDRep, FDRep.of]
 
+/-! ### Bridge: IsSimpleModule → Simple (FDRep) -/
+
+/-- A full faithful functor preserving monomorphisms reflects Simple objects. -/
+private lemma Simple.of_full_faithful_preservesMono {C D : Type*} [Category C] [Category D]
+    [Limits.HasZeroMorphisms C] [Limits.HasZeroMorphisms D]
+    (F : C ⥤ D) [F.Full] [F.Faithful] [F.PreservesMonomorphisms] (X : C)
+    [Simple (F.obj X)] : Simple X where
+  mono_isIso_iff_nonzero {Y} f := by
+    intro
+    constructor
+    · intro hiso
+      haveI : IsIso (F.map f) := Functor.map_isIso F f
+      exact fun h => (Simple.mono_isIso_iff_nonzero (F.map f)).mp inferInstance
+        (by rw [h]; simp)
+    · intro hne
+      haveI : Mono (F.map f) := inferInstance
+      haveI : IsIso (F.map f) := (Simple.mono_isIso_iff_nonzero (F.map f)).mpr
+        (fun h => hne (F.map_injective (by rwa [F.map_zero])))
+      exact isIso_of_fully_faithful F f
+
+/-- The projection ring homomorphism commutes with scalar multiplication. -/
+private lemma IrrepDecomp.projRingHom_smul [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n)
+    (r : k) (a : MonoidAlgebra k G) :
+    D.projRingHom i (r • a) = r • D.projRingHom i a := by
+  simp [IrrepDecomp.projRingHom]
+
+/-- The k[G]-module action on column vectors factors through the matrix ring. -/
+private lemma IrrepDecomp.asModule_smul_eq_mulVec [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n)
+    (a : MonoidAlgebra k G) (v : (D.columnRep i).asModule) :
+    (D.columnRep i).asModuleEquiv (a • v) =
+      (D.projRingHom i a).mulVec ((D.columnRep i).asModuleEquiv v) := by
+  simp only [Representation.asModuleEquiv_map_smul]
+  induction a using MonoidAlgebra.induction_on with
+  | hM g =>
+    simp [Representation.asAlgebraHom, MonoidAlgebra.lift_apply,
+          Finsupp.sum_single_index, IrrepDecomp.columnRep]
+  | hadd a b ha hb =>
+    simp only [map_add, LinearMap.add_apply, Matrix.add_mulVec, ha, hb]
+  | hsmul r a ha =>
+    simp only [map_smul, LinearMap.smul_apply, ha]
+    rw [D.projRingHom_smul i r a, Matrix.smul_mulVec r]
+
+/-- The column vector representation's asModule is a simple k[G]-module. -/
+noncomputable instance IrrepDecomp.isSimpleModule_columnRep_asModule [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n) :
+    IsSimpleModule (MonoidAlgebra k G) (D.columnRep i).asModule := by
+  haveI := D.d_pos i
+  haveI : Nontrivial (D.columnRep i).asModule := by
+    change Nontrivial (Fin (D.d i) → k); infer_instance
+  rw [isSimpleModule_iff]
+  exact IsSimpleOrder.mk fun m => by
+    let m' : Submodule (Matrix (Fin (D.d i)) (Fin (D.d i)) k) (Fin (D.d i) → k) :=
+      { carrier := { w | (D.columnRep i).asModuleEquiv.symm w ∈ m }
+        add_mem' := fun {a b} ha hb => by
+          simp only [Set.mem_setOf_eq, map_add] at *; exact m.add_mem ha hb
+        zero_mem' := by simp [m.zero_mem]
+        smul_mem' := fun M w hw => by
+          simp only [Set.mem_setOf_eq] at *
+          change (D.columnRep i).asModuleEquiv.symm (M.mulVec w) ∈ m
+          obtain ⟨a, ha⟩ := D.projRingHom_surjective i M
+          have heq : M.mulVec w = (D.columnRep i).asModuleEquiv
+              (a • (D.columnRep i).asModuleEquiv.symm w) := by
+            rw [D.asModule_smul_eq_mulVec, ha]; simp
+          rw [heq, LinearEquiv.symm_apply_apply]
+          exact m.smul_mem a hw }
+    cases (Matrix.instIsSimpleModule (D.d i)).eq_bot_or_eq_top m' with
+    | inl h =>
+      left; ext x
+      simp only [Submodule.mem_bot]
+      constructor
+      · intro hx
+        have : (D.columnRep i).asModuleEquiv x ∈ m'.carrier := by simpa using hx
+        rw [h] at this; simp at this
+        exact (D.columnRep i).asModuleEquiv.injective this
+      · intro hx; rw [hx]; exact m.zero_mem
+    | inr h =>
+      right; ext x
+      simp only [Submodule.mem_top, iff_true]
+      have : (D.columnRep i).asModuleEquiv x ∈ m'.carrier := by rw [h]; exact Submodule.mem_top
+      simpa using this
+
+/-- If `ρ.asModule` is simple over k[G], then `FDRep.of ρ` is Simple in FDRep k G. -/
+private noncomputable instance FDRep.simple_of_isSimpleModule_asModule [NeZero (Nat.card G : k)]
+    {V : Type u} [AddCommGroup V] [Module k V] [Module.Finite k V]
+    (ρ : Representation k G V) [IsSimpleModule (MonoidAlgebra k G) ρ.asModule] :
+    Simple (FDRep.of ρ) := by
+  let E := Rep.equivalenceModuleMonoidAlgebra (k := k) (G := G)
+  haveI : Simple (E.functor.obj ((forget₂ (FDRep k G) (Rep k G)).obj (FDRep.of ρ))) := by
+    change Simple (ModuleCat.of (MonoidAlgebra k G) ρ.asModule)
+    exact simple_of_isSimpleModule
+  haveI : Simple ((forget₂ (FDRep k G) (Rep k G)).obj (FDRep.of ρ)) :=
+    Simple.of_full_faithful_preservesMono E.functor _
+  exact Simple.of_full_faithful_preservesMono (forget₂ (FDRep k G) (Rep k G)) _
+
+/-! ### Equivariance and central idempotent machinery -/
+
+/-- G-equivariance of a k-linear map extends to k[G]-equivariance for the projRingHom action. -/
+private lemma equivariant_ext [NeZero (Nat.card G : k)] (D : IrrepDecomp k G) (i j : Fin D.n)
+    (f : (Fin (D.d i) → k) →ₗ[k] (Fin (D.d j) → k))
+    (hf : ∀ g : G, ∀ v, f ((D.projRingHom i (MonoidAlgebra.of k G g)).mulVec v) =
+      (D.projRingHom j (MonoidAlgebra.of k G g)).mulVec (f v))
+    (a : MonoidAlgebra k G) (v : Fin (D.d i) → k) :
+    f ((D.projRingHom i a).mulVec v) = (D.projRingHom j a).mulVec (f v) := by
+  induction a using MonoidAlgebra.induction_on with
+  | hM g => exact hf g v
+  | hadd a b ha hb =>
+    simp only [map_add, Matrix.add_mulVec, f.map_add, ha, hb]
+  | hsmul r a ha =>
+    rw [D.projRingHom_smul i, D.projRingHom_smul j,
+        Matrix.smul_mulVec r, f.map_smul, ha, Matrix.smul_mulVec r]
+
+/-- The linear equiv from an FDRep iso is G-equivariant w.r.t. the projRingHom action. -/
+private lemma IrrepDecomp.isoToLinearEquiv_equivariant [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i j : Fin D.n)
+    (f : D.columnFDRep i ≅ D.columnFDRep j) (g : G) (v : Fin (D.d i) → k) :
+    FDRep.isoToLinearEquiv f ((D.projRingHom i (MonoidAlgebra.of k G g)).mulVec v) =
+      (D.projRingHom j (MonoidAlgebra.of k G g)).mulVec (FDRep.isoToLinearEquiv f v) := by
+  have key := LinearMap.ext_iff.mp (FDRep.Iso.conj_ρ f g) (FDRep.isoToLinearEquiv f v)
+  simp [LinearEquiv.conj_apply] at key
+  exact key.symm
+
 /-! ### Connection to FDRep -/
 
 /-- The number of Wedderburn-Artin components equals the number of isomorphism classes
-of simple `FDRep k G` objects. This is a key structural result connecting the algebraic
-decomposition to the representation-theoretic classification.
-
-The proof requires establishing that simple `MonoidAlgebra k G`-modules correspond
-bijectively to simple objects in `FDRep k G`. Mathlib provides the equivalence
-`Rep.equivalenceModuleMonoidAlgebra : Rep k G ≌ ModuleCat k[G]` but the finite-dimensional
-restriction `FDRep k G ≌ FGModuleCat k[G]` is not yet formalized. -/
+of simple `FDRep k G` objects. -/
 theorem IrrepDecomp.n_eq_card_simples [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) :
     ∃ (V : Fin D.n → FDRep k G),
@@ -208,17 +325,26 @@ theorem IrrepDecomp.n_eq_card_simples [NeZero (Nat.card G : k)]
       (∀ i j, Nonempty ((V i) ≅ (V j)) → i = j) ∧
       (∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) := by
   refine ⟨D.columnFDRep, ?_, ?_, ?_⟩
-  -- Simplicity: each columnFDRep is simple
-  -- Proved helpers: Matrix.instIsSimpleModule, IsSimpleModule.compHom, projRingHom_surjective
-  -- Missing link: connecting IsSimpleModule k[G] to Simple (FDRep k G)
-  · intro i; sorry
-  -- Injectivity: non-isomorphic for distinct indices
-  -- Key idea: if V_i ≅ V_j then dim(V_i) = dim(V_j) AND the k[G]-module structures
-  -- factor through different matrix blocks, so annihilator ideals differ
-  · intro i j hij; sorry
-  -- Surjectivity: every simple FDRep is isomorphic to some columnFDRep
-  -- Key idea: a simple FDRep gives a simple k[G]-module, which must be one of the
-  -- column vector modules (classification of simples over semisimple algebras)
+  · intro i
+    exact FDRep.simple_of_isSimpleModule_asModule (D.columnRep i)
+  · -- Injectivity: central idempotent argument
+    intro i j ⟨f⟩
+    by_contra hij
+    let φ := FDRep.isoToLinearEquiv f
+    have hext := equivariant_ext D i j φ.toLinearMap
+      (D.isoToLinearEquiv_equivariant i j f)
+    let e := D.iso.symm (Pi.single i (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k))
+    have h_ei : D.projRingHom i e = 1 := by
+      simp [e, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update]
+    have h_ej : D.projRingHom j e = 0 := by
+      simp [e, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update, Ne.symm hij]
+    have hzero : ∀ v : Fin (D.d i) → k, φ.toLinearMap v = 0 := by
+      intro v; have := hext e v; rw [h_ei, h_ej] at this
+      simp [Matrix.one_mulVec, Matrix.zero_mulVec] at this; exact this
+    haveI := D.d_pos i
+    have hne : (fun (_ : Fin (D.d i)) => (1 : k)) ≠ 0 := by
+      intro h; exact one_ne_zero (congr_fun h ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩)
+    exact hne (φ.injective ((hzero _).trans (map_zero φ.toLinearMap).symm))
   · intro W hW; sorry
 
 /-- Each dimension `d i` in the Wedderburn-Artin decomposition equals the
