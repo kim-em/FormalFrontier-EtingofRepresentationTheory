@@ -747,6 +747,42 @@
     "end_line": 24
   },
   {
+    "id": "Chapter2/Exercise2.9.11",
+    "type": "exercise",
+    "title": "Representation of a Lie algebra via its universal enveloping algebra",
+    "start_page": "25",
+    "end_page": "25",
+    "start_line": 1,
+    "end_line": 2
+  },
+  {
+    "id": "Chapter2/Example2.9.12",
+    "type": "example",
+    "title": "Universal enveloping algebra of sl(2)",
+    "start_page": "25",
+    "end_page": "25",
+    "start_line": 3,
+    "end_line": 6
+  },
+  {
+    "id": "Chapter2/Example2.9.13",
+    "type": "example",
+    "title": "Universal enveloping algebra of the Heisenberg Lie algebra",
+    "start_page": "25",
+    "end_page": "25",
+    "start_line": 7,
+    "end_line": 12
+  },
+  {
+    "id": "Chapter2/Remark2.9.14",
+    "type": "remark",
+    "title": "Lie algebras as infinitesimal Lie groups and Lie's correspondence",
+    "start_page": "25",
+    "end_page": "25",
+    "start_line": 13,
+    "end_line": 15
+  },
+  {
     "id": "Chapter2/Discussion_2.9_Lie_groups",
     "type": "discussion",
     "title": "Linear algebraic groups, Lie groups, and Lie's correspondence",

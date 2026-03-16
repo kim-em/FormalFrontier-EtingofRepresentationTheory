@@ -211,11 +211,23 @@ def validate(items_path):
                 coverage[pl] = item_id
 
     # --- Gap check: every line of every page file must be covered ---
-    pages_referenced = {item.get("start_page") for item in items if isinstance(item, dict)}
-    pages_referenced |= {item.get("end_page") for item in items if isinstance(item, dict)}
-    pages_referenced.discard(None)
+    pages_referenced = set()
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        sp = item.get("start_page")
+        ep = item.get("end_page")
+        if sp and ep and sp in page_order_set and ep in page_order_set:
+            si = page_order.index(sp)
+            ei = page_order.index(ep)
+            for pi in range(si, ei + 1):
+                pages_referenced.add(page_order[pi])
 
-    uncovered_pages = page_files - pages_referenced
+    # Exclude empty (0-line) pages — they have no content to cover
+    uncovered_pages = {
+        p for p in page_files - pages_referenced
+        if (page_line_count(p) or 0) > 0
+    }
     if uncovered_pages:
         # Sort for readable output
         sorted_uncovered = sorted(uncovered_pages, key=lambda p: (
