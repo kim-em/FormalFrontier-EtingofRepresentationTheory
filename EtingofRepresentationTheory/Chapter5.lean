@@ -72,4 +72,33 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_18_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_18_3
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
 
+-- Section 5.19: Schur-Weyl Duality and Schur Functors
+import EtingofRepresentationTheory.Chapter5.Proposition5_19_1
+import EtingofRepresentationTheory.Chapter5.Corollary5_19_2
+import EtingofRepresentationTheory.Chapter5.Example5_19_3
+
+-- Section 5.21: Schur Polynomials
+import EtingofRepresentationTheory.Chapter5.Proposition5_21_1
+import EtingofRepresentationTheory.Chapter5.Proposition5_21_2
+
+-- Section 5.22: Weyl Character Formula
+import EtingofRepresentationTheory.Chapter5.Theorem5_22_1
+import EtingofRepresentationTheory.Chapter5.Proposition5_22_2
+
+-- Section 5.23: Algebraic Representations of GL(V)
+import EtingofRepresentationTheory.Chapter5.Definition5_23_1
+import EtingofRepresentationTheory.Chapter5.Theorem5_23_2
+
+-- Section 5.25: Representations of GL₂(𝔽_q)
+import EtingofRepresentationTheory.Chapter5.Proposition5_25_1
+import EtingofRepresentationTheory.Chapter5.Theorem5_25_2
+import EtingofRepresentationTheory.Chapter5.Lemma5_25_3
+
+-- Section 5.26: Artin's Theorem
+import EtingofRepresentationTheory.Chapter5.Theorem5_26_1
+import EtingofRepresentationTheory.Chapter5.Corollary5_26_3
+
+-- Section 5.27: Representations of Semidirect Products
+import EtingofRepresentationTheory.Chapter5.Theorem5_27_1
+
 /-! # Chapter 5: Representations of the Symmetric Group -/
