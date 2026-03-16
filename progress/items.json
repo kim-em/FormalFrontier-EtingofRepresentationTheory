@@ -4680,8 +4680,7 @@
     "end_page": "190",
     "start_line": 1,
     "end_line": 10,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free"
   },
   {
     "id": "Chapter7/Discussion_after_Example7.6.3",
@@ -4831,8 +4830,7 @@
     "end_page": "193",
     "start_line": 21,
     "end_line": 22,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free"
   },
   {
     "id": "Chapter7/Problem7.8.7",
@@ -4879,8 +4877,7 @@
     "end_page": "194",
     "start_line": 25,
     "end_line": 26,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free"
   },
   {
     "id": "Chapter7/Definition7.9.3",
