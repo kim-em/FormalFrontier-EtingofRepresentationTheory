@@ -3880,8 +3880,8 @@
     "end_page": "150",
     "start_line": 7,
     "end_line": 27,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter6/Problem6.1.3_continued_E7_E8",
@@ -3918,8 +3918,8 @@
     "end_page": "153",
     "start_line": 1,
     "end_line": 4,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter6/Problem6.1.5_parts",
@@ -4121,8 +4121,8 @@
     "end_page": "167",
     "start_line": 19,
     "end_line": 21,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter6/Definition6.4.10",
