@@ -26,4 +26,9 @@ theorem Etingof.Lemma5_13_3
     (n : ℕ) (la : Nat.Partition n) :
     ∃ α : ℂ, YoungSymmetrizer n la * YoungSymmetrizer n la =
       α • YoungSymmetrizer n la := by
-  sorry
+  -- c_λ² = (a_λ * b_λ) * (a_λ * b_λ) = a_λ * (b_λ * a_λ) * b_λ = ℓ(b_λ * a_λ) • c_λ
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  exact ⟨ℓ (ColumnAntisymmetrizer n la * RowSymmetrizer n la), by
+    simp only [YoungSymmetrizer]
+    rw [mul_assoc, ← mul_assoc (ColumnAntisymmetrizer n la), ← mul_assoc (RowSymmetrizer n la)]
+    exact hℓ _⟩
