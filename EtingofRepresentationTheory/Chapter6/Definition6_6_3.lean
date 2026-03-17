@@ -50,19 +50,53 @@ noncomputable def Etingof.reflectionFunctorPlus
   -- φ : ⊕_{j→i} ρ_j → ρ_i, the sum of representation maps for arrows into i
   let φ : DirectSum (Etingof.ArrowsInto V i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i :=
     DirectSum.toModule k (Etingof.ArrowsInto V i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
-  -- The obj field: ker φ at vertex i, ρ.obj v elsewhere.
-  -- The Module instance and mapLinear involve type-level if/else causing
-  -- Lean's typeclass diamond issues with AddCommMonoid/Module.
-  -- These are sorry'd; the mathematical structure is captured by obj.
+  -- Shared Decidable instance ensures type-level match reduction aligns
+  -- between obj, instAddCommMonoid, instModule, and mapLinear.
+  let dec : (v : V) → Decidable (v = i) := fun v => Classical.propDecidable _
+  -- All type-level branching uses Decidable.rec with explicit motives to ensure
+  -- obj, AddCommMonoid, and Module reduce in lockstep
+  let branch (v : V) (d : Decidable (v = i)) : Type _ :=
+    d.rec (fun _ => ρ.obj v) (fun _ => ↥(LinearMap.ker φ))
   refine @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
-    (fun v => if v = i then ↥(LinearMap.ker φ) else ρ.obj v)
-    (fun v => by dsimp only; split <;> infer_instance)
-    (fun v => by exact sorry)
-    (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
-      dsimp only
-      -- Case split on whether a and b equal i:
-      -- Case a ≠ i, b ≠ i: arrow is (a ⟶ b) in Q, map is ρ.mapLinear e
-      -- Case a = i, b ≠ i: reversed arrow (b ⟶ i), map is ker φ ↪ ⊕ →ₗ proj_b
-      -- Case a ≠ i, b = i: arrow is (i ⟶ a) in Q; i is a sink, so vacuous
-      -- Case a = i, b = i: arrow is (i ⟶ i) in Q; i is a sink, so vacuous
-      exact sorry)
+    (fun v => branch v (dec v))
+    (fun v => @Decidable.rec (v = i) (fun d => AddCommMonoid (branch v d))
+      (fun _ => inferInstance) (fun _ => inferInstance) (dec v))
+    (fun v => @Decidable.rec (v = i)
+      (fun d => @Module k (branch v d) _
+        (@Decidable.rec (v = i) (fun d => AddCommMonoid (branch v d))
+          (fun _ => inferInstance) (fun _ => inferInstance) d))
+      (fun _ => inferInstance) (fun _ => inferInstance) (dec v))
+    (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => ?_)
+  -- mapLinear: dispatch on dec a and dec b
+  -- After dsimp, the goal type exposes the Decidable.rec which the match can reduce
+  dsimp only [branch]
+  match ha : dec a, hb : dec b with
+  | .isTrue ha', .isTrue hb' =>
+    -- a = i, b = i: self-loop at sink, vacuous
+    exfalso
+    have hempty : IsEmpty (Etingof.ReversedAtVertexHom V i a b) := by
+      unfold Etingof.ReversedAtVertexHom
+      rw [if_pos ha', if_pos hb', ha', hb']
+      exact hi i
+    exact hempty.false e
+  | .isTrue ha', .isFalse hb' =>
+    -- a = i, b ≠ i: reversed arrow (was b → i in Q, now i → b in Q̄ᵢ)
+    have he : (Etingof.ReversedAtVertexHom V i a b) = (b ⟶ i) := by
+      unfold Etingof.ReversedAtVertexHom; rw [if_pos ha', if_neg hb']
+    -- Goal: ↥(ker φ) →ₗ[k] ρ.obj b
+    exact (DirectSum.component k (Etingof.ArrowsInto V i) (fun x => ρ.obj x.1)
+      ⟨b, cast he e⟩).comp (LinearMap.ker φ).subtype
+  | .isFalse ha', .isTrue hb' =>
+    -- a ≠ i, b = i: arrow from a to sink, vacuous (i is a sink)
+    exfalso
+    have hempty : IsEmpty (Etingof.ReversedAtVertexHom V i a b) := by
+      unfold Etingof.ReversedAtVertexHom
+      rw [if_neg ha', if_pos hb']
+      exact hi a
+    exact hempty.false e
+  | .isFalse ha', .isFalse hb' =>
+    -- a ≠ i, b ≠ i: unchanged arrow in Q
+    have he : (Etingof.ReversedAtVertexHom V i a b) = (a ⟶ b) := by
+      unfold Etingof.ReversedAtVertexHom; rw [if_neg ha', if_neg hb']
+    -- Goal: ρ.obj a →ₗ[k] ρ.obj b
+    exact ρ.mapLinear (cast he e)
