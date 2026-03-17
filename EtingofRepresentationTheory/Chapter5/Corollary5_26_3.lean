@@ -1,4 +1,5 @@
 import Mathlib
+import EtingofRepresentationTheory.Chapter5.Theorem5_26_1
 
 /-!
 # Corollary 5.26.3: Characters from Cyclic Subgroups
@@ -40,4 +41,17 @@ theorem Etingof.Corollary5_26_3
     V.character ∈ Submodule.span ℚ
       {f : G → ℂ | ∃ (g : G) (W : FDRep ℂ ↥(Subgroup.zpowers g)),
         f = Etingof.inducedCharacter' (Subgroup.zpowers g) W.character} := by
-  sorry
+  -- Apply Artin's theorem with X = set of all cyclic subgroups
+  have hX_conj : ∀ H ∈ ({H : Subgroup G | ∃ g : G, H = Subgroup.zpowers g} : Set (Subgroup G)),
+      ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈
+        ({H : Subgroup G | ∃ g : G, H = Subgroup.zpowers g} : Set (Subgroup G)) := by
+    rintro H ⟨a, rfl⟩ g
+    exact ⟨g * a * g⁻¹, by rw [MonoidHom.map_zpowers]; rfl⟩
+  have hcover : ∀ g : G, ∃ H ∈ ({H : Subgroup G | ∃ g : G, H = Subgroup.zpowers g} :
+      Set (Subgroup G)), g ∈ H :=
+    fun g => ⟨Subgroup.zpowers g, ⟨g, rfl⟩, Subgroup.mem_zpowers g⟩
+  have artin := (Etingof.Theorem5_26_1 G _ hX_conj).mp hcover V ‹_›
+  -- Convert span sets: theorem uses inducedCharacter, corollary uses inducedCharacter'
+  apply Submodule.span_mono _ artin
+  rintro f ⟨H, ⟨g, rfl⟩, W, rfl⟩
+  exact ⟨g, W, by unfold Etingof.inducedCharacter Etingof.inducedCharacter'; rfl⟩

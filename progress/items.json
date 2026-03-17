@@ -65,7 +65,7 @@
   {
     "id": "Chapter2/Introduction",
     "type": "introduction",
-    "title": "Chapter 2: Basic notions of representation theory — chapter heading and Section 2.1 heading",
+    "title": "Chapter 2: Basic notions of representation theory \u2014 chapter heading and Section 2.1 heading",
     "start_page": "5",
     "end_page": "5",
     "start_line": 1,
@@ -449,7 +449,7 @@
   {
     "id": "Chapter2/Discussion_2.4_heading",
     "type": "discussion",
-    "title": "Section 2.4 Ideals — heading and definitions",
+    "title": "Section 2.4 Ideals \u2014 heading and definitions",
     "start_page": "15",
     "end_page": "15",
     "start_line": 2,
@@ -467,7 +467,7 @@
   {
     "id": "Chapter2/Discussion_2.5_heading",
     "type": "discussion",
-    "title": "Section 2.5 Quotients — heading and definition of quotient algebra",
+    "title": "Section 2.5 Quotients \u2014 heading and definition of quotient algebra",
     "start_page": "15",
     "end_page": "15",
     "start_line": 16,
@@ -512,7 +512,7 @@
   {
     "id": "Chapter2/Discussion_2.7_intro",
     "type": "discussion",
-    "title": "Section 2.7: Examples of algebras — Weyl algebra and q-Weyl algebra",
+    "title": "Section 2.7: Examples of algebras \u2014 Weyl algebra and q-Weyl algebra",
     "start_page": "17",
     "end_page": "17",
     "start_line": 5,
@@ -721,7 +721,7 @@
   {
     "id": "Chapter2/Discussion_2.9_heading",
     "type": "discussion",
-    "title": "Section 2.9: Lie algebras — heading and skew-symmetric bilinear map",
+    "title": "Section 2.9: Lie algebras \u2014 heading and skew-symmetric bilinear map",
     "start_page": "22",
     "end_page": "22",
     "start_line": 12,
@@ -901,7 +901,7 @@
   {
     "id": "Chapter2/Discussion_2.10_heading",
     "type": "discussion",
-    "title": "Section 2.10: Historical interlude — Sophus Lie's trials and transformations",
+    "title": "Section 2.10: Historical interlude \u2014 Sophus Lie's trials and transformations",
     "start_page": "26",
     "end_page": "30",
     "start_line": 7,
@@ -919,7 +919,7 @@
   {
     "id": "Chapter2/Discussion_2.11_heading",
     "type": "discussion",
-    "title": "Section 2.11: Tensor products — heading and introduction",
+    "title": "Section 2.11: Tensor products \u2014 heading and introduction",
     "start_page": "31",
     "end_page": "31",
     "start_line": 3,
@@ -1019,7 +1019,7 @@
   {
     "id": "Chapter2/Discussion_2.12_heading",
     "type": "discussion",
-    "title": "Section 2.12: The tensor algebra — heading and introduction",
+    "title": "Section 2.12: The tensor algebra \u2014 heading and introduction",
     "start_page": "35",
     "end_page": "35",
     "start_line": 27,
@@ -1038,7 +1038,7 @@
   {
     "id": "Chapter2/Discussion_2.13_heading",
     "type": "discussion",
-    "title": "Section 2.13: Hilbert's third problem — heading",
+    "title": "Section 2.13: Hilbert's third problem \u2014 heading",
     "start_page": "36",
     "end_page": "36",
     "start_line": 17,
@@ -1056,7 +1056,7 @@
   {
     "id": "Chapter2/Discussion_2.14_heading",
     "type": "discussion",
-    "title": "Section 2.14: Tensor products and duals of representations of Lie algebras — heading",
+    "title": "Section 2.14: Tensor products and duals of representations of Lie algebras \u2014 heading",
     "start_page": "37",
     "end_page": "37",
     "start_line": 9,
@@ -1094,7 +1094,7 @@
   {
     "id": "Chapter2/Discussion_2.15_heading",
     "type": "discussion",
-    "title": "Section 2.15: Representations of sl(2) — heading and introduction",
+    "title": "Section 2.15: Representations of sl(2) \u2014 heading and introduction",
     "start_page": "37",
     "end_page": "37",
     "start_line": 21,
@@ -1112,7 +1112,7 @@
   {
     "id": "Chapter2/Discussion_2.16_heading",
     "type": "discussion",
-    "title": "Section 2.16: Problems on Lie algebras — heading",
+    "title": "Section 2.16: Problems on Lie algebras \u2014 heading",
     "start_page": "39",
     "end_page": "39",
     "start_line": 17,
@@ -1166,7 +1166,7 @@
   {
     "id": "Chapter3/Introduction",
     "type": "introduction",
-    "title": "Chapter 3: General results of representation theory — introduction and Section 3.1 heading",
+    "title": "Chapter 3: General results of representation theory \u2014 introduction and Section 3.1 heading",
     "start_page": "43",
     "end_page": "43",
     "start_line": 1,
@@ -1260,7 +1260,7 @@
   {
     "id": "Chapter3/Introduction_to_3.2",
     "type": "introduction",
-    "title": "Section 3.2: The density theorem — heading and setup",
+    "title": "Section 3.2: The density theorem \u2014 heading and setup",
     "start_page": "45",
     "end_page": "45",
     "start_line": 23,
@@ -1290,7 +1290,7 @@
   {
     "id": "Chapter3/Introduction_to_3.3",
     "type": "introduction",
-    "title": "Section 3.3: Representations of direct sums of matrix algebras — heading and setup",
+    "title": "Section 3.3: Representations of direct sums of matrix algebras \u2014 heading and setup",
     "start_page": "47",
     "end_page": "47",
     "start_line": 1,
@@ -1355,7 +1355,7 @@
   {
     "id": "Chapter3/Introduction_to_3.4",
     "type": "introduction",
-    "title": "Section 3.4: Filtrations — heading and setup",
+    "title": "Section 3.4: Filtrations \u2014 heading and setup",
     "start_page": "49",
     "end_page": "49",
     "start_line": 3,
@@ -1384,7 +1384,7 @@
   {
     "id": "Chapter3/Introduction_to_3.5",
     "type": "introduction",
-    "title": "Section 3.5: Finite dimensional algebras — heading",
+    "title": "Section 3.5: Finite dimensional algebras \u2014 heading",
     "start_page": "49",
     "end_page": "49",
     "start_line": 13,
@@ -1473,7 +1473,7 @@
   {
     "id": "Chapter3/Introduction_to_3.6",
     "type": "introduction",
-    "title": "Section 3.6: Characters of representations — heading and character definition",
+    "title": "Section 3.6: Characters of representations \u2014 heading and character definition",
     "start_page": "52",
     "end_page": "52",
     "start_line": 3,
@@ -1502,7 +1502,7 @@
   {
     "id": "Chapter3/Introduction_to_3.7",
     "type": "introduction",
-    "title": "Section 3.7: The Jordan-Holder theorem — heading and overview",
+    "title": "Section 3.7: The Jordan-Holder theorem \u2014 heading and overview",
     "start_page": "53",
     "end_page": "53",
     "start_line": 3,
@@ -1530,7 +1530,7 @@
   {
     "id": "Chapter3/Introduction_to_3.8",
     "type": "introduction",
-    "title": "Section 3.8: The Krull-Schmidt theorem — heading",
+    "title": "Section 3.8: The Krull-Schmidt theorem \u2014 heading",
     "start_page": "54",
     "end_page": "54",
     "start_line": 9,
@@ -1605,7 +1605,7 @@
   {
     "id": "Chapter3/Introduction_to_3.9",
     "type": "introduction",
-    "title": "Section 3.9: Problems — heading",
+    "title": "Section 3.9: Problems \u2014 heading",
     "start_page": "56",
     "end_page": "56",
     "start_line": 13,
@@ -1659,7 +1659,7 @@
   {
     "id": "Chapter3/Introduction_to_3.10",
     "type": "introduction",
-    "title": "Section 3.10: Representations of tensor products — heading and setup",
+    "title": "Section 3.10: Representations of tensor products \u2014 heading and setup",
     "start_page": "59",
     "end_page": "59",
     "start_line": 5,
@@ -1715,7 +1715,7 @@
   {
     "id": "Chapter4/Introduction",
     "type": "introduction",
-    "title": "Chapter 4: Representations of finite groups: Basic results — introduction and Section 4.1 heading",
+    "title": "Chapter 4: Representations of finite groups: Basic results \u2014 introduction and Section 4.1 heading",
     "start_page": "61",
     "end_page": "61",
     "start_line": 1,
@@ -1889,7 +1889,7 @@
   {
     "id": "Chapter4/Introduction_4.5",
     "type": "introduction",
-    "title": "Section 4.5: Orthogonality of characters — Hermitian inner product on class functions",
+    "title": "Section 4.5: Orthogonality of characters \u2014 Hermitian inner product on class functions",
     "start_page": "67",
     "end_page": "68",
     "start_line": 25,
@@ -2048,7 +2048,7 @@
   {
     "id": "Chapter4/Introduction_4.8",
     "type": "introduction",
-    "title": "Section 4.8: Character tables — definition and examples of S_3, A_4",
+    "title": "Section 4.8: Character tables \u2014 definition and examples of S_3, A_4",
     "start_page": "73",
     "end_page": "74",
     "start_line": 25,
@@ -2086,7 +2086,7 @@
   {
     "id": "Chapter4/Introduction_4.10",
     "type": "introduction",
-    "title": "Section 4.10: Frobenius determinant — group determinant setup",
+    "title": "Section 4.10: Frobenius determinant \u2014 group determinant setup",
     "start_page": "78",
     "end_page": "78",
     "start_line": 1,
@@ -2153,7 +2153,7 @@
   {
     "id": "Chapter4/Discussion_4.11",
     "type": "discussion",
-    "title": "Section 4.11: Historical interlude — Georg Frobenius's Principle of Horse Trade",
+    "title": "Section 4.11: Historical interlude \u2014 Georg Frobenius's Principle of Horse Trade",
     "start_page": "79",
     "end_page": "83",
     "start_line": 21,
@@ -2270,7 +2270,7 @@
   {
     "id": "Chapter4/Discussion_4.13",
     "type": "discussion",
-    "title": "Section 4.13: Historical interlude — William Rowan Hamilton's quaternion of geometry, algebra, metaphysics, and poetry",
+    "title": "Section 4.13: Historical interlude \u2014 William Rowan Hamilton's quaternion of geometry, algebra, metaphysics, and poetry",
     "start_page": "88",
     "end_page": "92",
     "start_line": 13,
@@ -2279,7 +2279,7 @@
   {
     "id": "Chapter5/Introduction",
     "type": "introduction",
-    "title": "Chapter 5: Representations of finite groups: Further results — introduction and Section 5.1 heading",
+    "title": "Chapter 5: Representations of finite groups: Further results \u2014 introduction and Section 5.1 heading",
     "start_page": "93",
     "end_page": "93",
     "start_line": 1,
@@ -2642,7 +2642,7 @@
   {
     "id": "Chapter5/Introduction_5.5",
     "type": "introduction",
-    "title": "Section 5.5: Historical interlude — William Burnside",
+    "title": "Section 5.5: Historical interlude \u2014 William Burnside",
     "start_page": "102",
     "end_page": "102",
     "start_line": 19,
@@ -2669,7 +2669,7 @@
   {
     "id": "Chapter5/Theorem5.6.1",
     "type": "theorem",
-    "title": "Irreducible representations of G x H are tensor products V_i ⊗ W_j",
+    "title": "Irreducible representations of G x H are tensor products V_i \u2297 W_j",
     "start_page": "107",
     "end_page": "107",
     "start_line": 3,
@@ -2717,7 +2717,7 @@
   {
     "id": "Chapter5/Introduction_5.8",
     "type": "introduction",
-    "title": "Section 5.8: Induced representations — restriction and induction",
+    "title": "Section 5.8: Induced representations \u2014 restriction and induction",
     "start_page": "107",
     "end_page": "107",
     "start_line": 17,
@@ -2763,7 +2763,7 @@
   {
     "id": "Chapter5/Problem5.8.4",
     "type": "exercise",
-    "title": "Transitivity of induction: Ind_H^G Ind_K^H V ≅ Ind_K^G V",
+    "title": "Transitivity of induction: Ind_H^G Ind_K^H V \u2245 Ind_K^G V",
     "start_page": "108",
     "end_page": "108",
     "start_line": 27,
@@ -2827,7 +2827,7 @@
   {
     "id": "Chapter5/Theorem5.10.1",
     "type": "theorem",
-    "title": "Frobenius reciprocity: Hom_G(V, Ind W) ≅ Hom_H(Res V, W)",
+    "title": "Frobenius reciprocity: Hom_G(V, Ind W) \u2245 Hom_H(Res V, W)",
     "start_page": "110",
     "end_page": "110",
     "start_line": 7,
@@ -3015,7 +3015,7 @@
   {
     "id": "Chapter5/Lemma5.13.4",
     "type": "lemma",
-    "title": "Hom_A(Ae, M) ≅ eM for idempotent e (continues to missing page)",
+    "title": "Hom_A(Ae, M) \u2245 eM for idempotent e (continues to missing page)",
     "start_page": "115",
     "end_page": "115",
     "start_line": 13,
@@ -3266,7 +3266,7 @@
   {
     "id": "Chapter5/Introduction_5.18",
     "type": "introduction",
-    "title": "Section 5.18: Schur-Weyl duality for gl(V) — Double Centralizer Theorem",
+    "title": "Section 5.18: Schur-Weyl duality for gl(V) \u2014 Double Centralizer Theorem",
     "start_page": "122",
     "end_page": "122",
     "start_line": 17,
@@ -3287,7 +3287,7 @@
   {
     "id": "Chapter5/Discussion_before_Theorem5.18.2",
     "type": "discussion",
-    "title": "Application of Double Centralizer Theorem to V^{⊗n}",
+    "title": "Application of Double Centralizer Theorem to V^{\u2297n}",
     "start_page": "123",
     "end_page": "123",
     "start_line": 3,
@@ -3296,7 +3296,7 @@
   {
     "id": "Chapter5/Theorem5.18.2",
     "type": "theorem",
-    "title": "B is the image of U(gl(V)) acting on V^{⊗n}",
+    "title": "B is the image of U(gl(V)) acting on V^{\u2297n}",
     "start_page": "123",
     "end_page": "123",
     "start_line": 5,
@@ -3307,7 +3307,7 @@
   {
     "id": "Chapter5/Lemma5.18.3",
     "type": "lemma",
-    "title": "S^n U is spanned by u⊗...⊗u; S^n A is generated by Delta_n(a)",
+    "title": "S^n U is spanned by u\u2297...\u2297u; S^n A is generated by Delta_n(a)",
     "start_page": "123",
     "end_page": "123",
     "start_line": 15,
@@ -3336,7 +3336,7 @@
   {
     "id": "Chapter5/Theorem5.18.4",
     "type": "theorem",
-    "title": "Schur-Weyl duality: V^{⊗n} = ⊕ V_lambda ⊗ L_lambda",
+    "title": "Schur-Weyl duality: V^{\u2297n} = \u2295 V_lambda \u2297 L_lambda",
     "start_page": "124",
     "end_page": "124",
     "start_line": 5,
@@ -3357,7 +3357,7 @@
   {
     "id": "Chapter5/Proposition5.19.1",
     "type": "proposition",
-    "title": "Image of GL(V) in End(V^{⊗n}) spans B",
+    "title": "Image of GL(V) in End(V^{\u2297n}) spans B",
     "start_page": "124",
     "end_page": "124",
     "start_line": 21,
@@ -3379,7 +3379,7 @@
   {
     "id": "Chapter5/Example5.19.3",
     "type": "example",
-    "title": "L_lambda for partitions (n) and (1^n): S^nV and Λ^nV",
+    "title": "L_lambda for partitions (n) and (1^n): S^nV and \u039b^nV",
     "start_page": "125",
     "end_page": "125",
     "start_line": 3,
@@ -3391,7 +3391,7 @@
   {
     "id": "Chapter5/Introduction_5.20",
     "type": "introduction",
-    "title": "Section 5.20: Historical interlude — Hermann Weyl",
+    "title": "Section 5.20: Historical interlude \u2014 Hermann Weyl",
     "start_page": "125",
     "end_page": "125",
     "start_line": 5,
@@ -3495,7 +3495,7 @@
   {
     "id": "Chapter5/Proposition5.22.2",
     "type": "proposition",
-    "title": "L_{lambda+1^N} ≅ L_lambda ⊗ Λ^N V",
+    "title": "L_{lambda+1^N} \u2245 L_lambda \u2297 \u039b^N V",
     "start_page": "133",
     "end_page": "133",
     "start_line": 3,
@@ -3573,7 +3573,7 @@
   {
     "id": "Chapter5/Problem5.24.1",
     "type": "exercise",
-    "title": "V'_lambda ≅ V_lambda and V_lambda ⊗ C_- = V_{lambda*}",
+    "title": "V'_lambda \u2245 V_lambda and V_lambda \u2297 C_- = V_{lambda*}",
     "start_page": "135",
     "end_page": "135",
     "start_line": 3,
@@ -3629,7 +3629,7 @@
   {
     "id": "Chapter5/Discussion_1dim_reps",
     "type": "discussion",
-    "title": "G/[G,G] ≅ F_q^× and description of 1-dimensional representations C_xi",
+    "title": "G/[G,G] \u2245 F_q^\u00d7 and description of 1-dimensional representations C_xi",
     "start_page": "138",
     "end_page": "138",
     "start_line": 21,
@@ -3638,7 +3638,7 @@
   {
     "id": "Chapter5/Discussion_5.25.3",
     "type": "discussion",
-    "title": "Section 5.25.3: Principal series representations — setup of B, V_{lambda_1,lambda_2}",
+    "title": "Section 5.25.3: Principal series representations \u2014 setup of B, V_{lambda_1,lambda_2}",
     "start_page": "138",
     "end_page": "139",
     "start_line": 41,
@@ -3667,7 +3667,7 @@
   {
     "id": "Chapter5/Discussion_5.25.4",
     "type": "discussion",
-    "title": "Section 5.25.4: Complementary series representations — setup and character computation",
+    "title": "Section 5.25.4: Complementary series representations \u2014 setup and character computation",
     "start_page": "141",
     "end_page": "143",
     "start_line": 37,
@@ -3738,7 +3738,8 @@
     "end_page": "145",
     "start_line": 7,
     "end_line": 8,
-    "status": "statement_formalized"
+    "status": "statement_formalized",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.27",
@@ -3761,7 +3762,7 @@
   {
     "id": "Chapter5/Theorem5.27.1",
     "type": "theorem",
-    "title": "Classification of irreducible representations of semidirect products G ⋉ A",
+    "title": "Classification of irreducible representations of semidirect products G \u22c9 A",
     "start_page": "146",
     "end_page": "147",
     "start_line": 11,
@@ -4847,7 +4848,7 @@
   {
     "id": "Chapter7/Problem7.8.7",
     "type": "exercise",
-    "title": "Tensor product of complexes and Künneth formula",
+    "title": "Tensor product of complexes and K\u00fcnneth formula",
     "start_page": "193",
     "end_page": "194",
     "start_line": 23,
