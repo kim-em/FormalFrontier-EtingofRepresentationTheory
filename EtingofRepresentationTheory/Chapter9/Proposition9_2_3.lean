@@ -103,10 +103,11 @@ theorem Etingof.compositionFactorMultiplicity_eraseLast
       @ite ℕ (Nonempty ((↥(s.last) ⧸
           (s.eraseLast.last).comap (s.last).subtype) ≃ₗ[A] S))
         (Classical.dec _) 1 0 := by
-  -- The multiplicity counts over Fin s.length. Decompose into Fin (s.length - 1) + last.
-  -- The factors at indices < s.length - 1 are the same as in s.eraseLast.
-  -- The factor at the last index is the last composition factor.
-  sorry
+  -- Proof by Aristotle (Harmonic)
+  unfold Etingof.compositionFactorMultiplicity;
+  rw [ Finset.card_filter, Finset.card_filter ];
+  rcases s with ⟨ ⟨ l, hl ⟩ ⟩ ; aesop;
+  erw [ Fin.sum_univ_castSucc ] ; aesop;
 
 /-- The dimension of Hom from a module into `↥(⊤ : Submodule R N)` equals the dimension
 of Hom into `N` itself, via the canonical equivalence `↥⊤ ≃ N`. -/
