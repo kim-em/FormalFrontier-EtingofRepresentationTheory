@@ -59,24 +59,101 @@ instance Etingof.IsProgenerator.faithful_preadditiveCoyonedaObj
     Etingof.IsProgenerator.isSeparator
 
 -- Fullness of Hom(P, -) when P is a projective separator in an abelian category
--- and every object is a quotient of P (not just biproduct of copies)
+-- Escalated to Aristotle: project 111e10f2-88cc-4569-af7a-6105308e2cf1
+set_option synthInstance.maxHeartbeats 40000 in
+-- IsFiniteAbelianCategory provides Preadditive indirectly; extra heartbeats for Projective resolution
 instance Etingof.IsProgenerator.full_preadditiveCoyonedaObj
-    {C : Type u} [Category.{v} C] [Preadditive C]
+    {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
-    {P : C} [Etingof.IsProgenerator P] :
+    {P : C} [hp : Etingof.IsProgenerator P] :
     (preadditiveCoyonedaObj P).Full := by
-  sorry
+  haveI : Projective P := hp.toProjective
+  constructor
+  intro X Y f
+  obtain ⟨n, hbp, π, hπ⟩ := hp.epiFromBiproduct X
+  haveI : HasBiproduct (fun _ : Fin n => P) := hbp
+  let F := fun _ : Fin n => P
+  -- Linearity lemma: f is End(P)^op-linear, so f(s ≫ g) = s ≫ f(g)
+  have hlin : ∀ (s : P ⟶ P) (g : P ⟶ X),
+      (f : (P ⟶ X) → (P ⟶ Y)) (s ≫ g) = s ≫ (f : (P ⟶ X) → (P ⟶ Y)) g := by
+    intro s g
+    have := f.hom.map_smul (MulOpposite.op s) g
+    -- this : f.hom (op s • g) = op s • f.hom g
+    -- op s • g = s ≫ g (module action of End(P)^op on Hom(P,X))
+    exact this
+  -- Build h : ⨁ P → Y by applying f to each ι_i ≫ π
+  let h : ⨁ F ⟶ Y :=
+    biproduct.desc (fun i => (f : (P ⟶ X) → (P ⟶ Y)) (biproduct.ι F i ≫ π))
+  -- kernel.ι π ≫ h = 0 using separator + linearity of f
+  have h_kernel : kernel.ι π ≫ h = 0 := by
+    have hSep := Etingof.IsProgenerator.isSeparator (P := P)
+    rw [Preadditive.isSeparator_iff] at hSep
+    apply hSep
+    intro φ
+    rw [← Category.assoc]
+    show (φ ≫ kernel.ι π) ≫ h = 0
+    change (φ ≫ kernel.ι π) ≫
+      biproduct.desc (fun i => (f : (P ⟶ X) → (P ⟶ Y)) (biproduct.ι F i ≫ π)) = 0
+    rw [biproduct.desc_eq, Preadditive.comp_sum]
+    simp_rw [← Category.assoc _ (biproduct.π _ _), ← hlin]
+    -- Now goal is: ∑ j, f((φ ≫ kernel.ι π ≫ π_j) ≫ (ι_j ≫ π)) = 0
+    rw [← map_sum f.hom]
+    -- Goal: f(∑ j, (φ ≫ kernel.ι π ≫ π_j) ≫ (ι_j ≫ π)) = 0
+    -- Factor out common terms from the sum
+    simp_rw [Category.assoc]
+    -- f(φ ≫ ∑ j, (kernel.ι π ≫ π_j ≫ ι_j ≫ π)) = 0
+    -- Goal: f(∑ j, (φ ≫ kernel.ι π ≫ π_j) ≫ (ι_j ≫ π)) = 0
+    -- after simp_rw [Category.assoc]:
+    -- f(φ ≫ ∑ j, kernel.ι π ≫ π_j ≫ ι_j ≫ π) = 0
+    -- But ← Preadditive.comp_sum only pulled out φ.
+    -- The sum under f is ∑ x, φ ≫ kernel.ι π ≫ π_x ≫ ι_x ≫ π
+    -- Use a direct have for the whole argument
+    have key : (∑ x, φ ≫ kernel.ι π ≫ biproduct.π (fun _ : Fin n => P) x ≫
+        biproduct.ι F x ≫ π : P ⟶ X) = 0 := by
+      rw [← Preadditive.comp_sum, ← Preadditive.comp_sum]
+      have : ∑ j : Fin n, biproduct.π F j ≫ biproduct.ι F j ≫ π = π := by
+        simp_rw [← Category.assoc]
+        rw [← Preadditive.sum_comp, biproduct.total, Category.id_comp]
+      rw [this, kernel.condition, comp_zero]
+    rw [key, map_zero]
+  -- Factor h through π to get g : X → Y with π ≫ g = h
+  refine ⟨Abelian.epiDesc π h h_kernel, ?_⟩
+  -- Show (preadditiveCoyonedaObj P).map g = f, i.e., ∀ α : P → X, α ≫ g = f(α)
+  have hcomp : π ≫ Abelian.epiDesc π h h_kernel = h := Abelian.comp_epiDesc π h h_kernel
+  -- Use ModuleCat extensionality
+  ext α
+  -- α : P → X. Since P is projective, lift α through π
+  have hβ : Projective.factorThru α π ≫ π = α := Projective.factorThru_comp α π
+  -- (preadditiveCoyonedaObj P).map g sends α to α ≫ g
+  -- We show α ≫ g = f(α) by lifting α = β ≫ π
+  change α ≫ Abelian.epiDesc π h h_kernel =
+    (f : (P ⟶ X) → (P ⟶ Y)) α
+  rw [← hβ, Category.assoc, hcomp]
+  -- Now: (Projective.factorThru α π) ≫ h = f(Projective.factorThru α π ≫ π)
+  change Projective.factorThru α π ≫
+    biproduct.desc (fun i => (f : (P ⟶ X) → (P ⟶ Y)) (biproduct.ι F i ≫ π)) = _
+  rw [biproduct.desc_eq, Preadditive.comp_sum]
+  simp_rw [← Category.assoc _ (biproduct.π _ _), ← hlin]
+  rw [← map_sum f.hom]
+  simp_rw [Category.assoc]
+  rw [← Preadditive.comp_sum]
+  have : ∑ j : Fin n, biproduct.π F j ≫ biproduct.ι F j ≫ π = π := by
+    simp_rw [← Category.assoc]
+    rw [← Preadditive.sum_comp, biproduct.total, Category.id_comp]
+  rw [this]
 
 -- Essential surjectivity of Hom(P, -): every End(P)^op-module arises as Hom(P, X)
+-- Essential surjectivity of Hom(P, -): every End(P)^op-module arises as Hom(P, X)
+-- Escalated to Aristotle: project 2fb64b51-4528-4419-9c64-e0c4685881bf
 instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObj
-    {C : Type u} [Category.{v} C] [Preadditive C]
+    {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
     {P : C} [Etingof.IsProgenerator P] :
     (preadditiveCoyonedaObj P).EssSurj := by
   sorry
 
 theorem Etingof.Theorem_9_6_4
-    (C : Type u) [Category.{v} C] [Preadditive C]
+    (C : Type u) [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
     (P : C) [Etingof.IsProgenerator P] :
     (preadditiveCoyonedaObj P).IsEquivalence where
@@ -86,7 +163,7 @@ modules over some ring. Specifically, if P is a projective generator (which exis
 by the enough-projectives and finiteness conditions), then C ≌ (End P)ᵒᵖ-Mod.
 (Etingof Theorem 9.6.4, corollary) -/
 theorem Etingof.Theorem_9_6_4_corollary
-    (C : Type u) [Category.{v} C] [Preadditive C]
+    (C : Type u) [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
     (P : C) [Etingof.IsProgenerator P] :
     Nonempty (C ≌ ModuleCat.{v} (End P)ᵐᵒᵖ) := by

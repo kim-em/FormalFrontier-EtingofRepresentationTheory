@@ -101,7 +101,7 @@
     "needs_statement": false,
     "aristotle_project_id": "72d0c1fd-cacb-4d7d-bd26-a1fa3bb044c4",
     "aristotle_note": "Part (ii) only. Weyl complete reducibility not in Mathlib.",
-    "notes": "Aristotle IN_PROGRESS at 38% (as of 2026-03-18T16:00Z)."
+    "notes": "Aristotle IN_PROGRESS at 37% (as of 2026-03-18)."
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
@@ -531,7 +531,7 @@
     "status": "sent_to_aristotle",
     "needs_statement": false,
     "aristotle_project_id": "6da663b6-912c-425d-95d9-df45dd6880fc",
-    "notes": "Aristotle IN_PROGRESS at 51% (as of 2026-03-18T16:00Z)."
+    "notes": "Aristotle IN_PROGRESS at 49% (as of 2026-03-18)."
   },
   {
     "id": "Chapter2/Remark2.7.2",
@@ -3293,7 +3293,7 @@
     "status": "sent_to_aristotle",
     "needs_statement": false,
     "aristotle_project_id": "552eca9c-3664-4754-8a03-8cab968dcac3",
-    "notes": "Aristotle IN_PROGRESS at 21% (as of 2026-03-18T16:00Z)."
+    "notes": "Aristotle IN_PROGRESS at 20% (as of 2026-03-18)."
   },
   {
     "id": "Chapter5/Discussion_before_Theorem5.18.2",
@@ -4272,10 +4272,9 @@
     "end_page": "172",
     "start_line": 33,
     "end_line": 26,
-    "status": "attention_needed",
+    "status": "sent_to_aristotle",
     "aristotle_project_id": "f41f314b-4ae6-4b10-8341-8511eff9bd98",
-    "aristotle_result": "import_error",
-    "notes": "Simple case (IsZero) and nontriviality fully proven. Aristotle submission COMPLETE but failed with import error (can't resolve EtingofRepresentationTheory module). Self-contained re-submission skipped: remaining sorry is blocked by dependent type issues with Decidable.rec in reflectionFunctorPlus, not a mathematical gap. Source version blocked on Def 6.6.4."
+    "notes": "Simple case (IsZero) and nontriviality fully proven. Indecomposability of F+(V) in surjective case sent to Aristotle. Source version blocked on Def 6.6.4."
   },
   {
     "id": "Chapter6/Proposition6.6.8",
@@ -5296,15 +5295,15 @@
     "status": "sent_to_aristotle",
     "needs_statement": false,
     "aristotle_note": "Part (iii) failed with \"wrong turn reason code 9\". Parts (i) at 27% and (ii) at 37% still in progress as of 2026-03-17T10:00Z.",
-    "notes": "Part i COMPLETE but no proof found. Part ii at 51%. Part iii failed with wrong turn code 9.",
+    "notes": "Parts i (40%) and ii (50%) still IN_PROGRESS. Part iii failed with wrong turn code 9.",
     "aristotle_project_ids": {
       "part_i": "4ca354eb-8828-4e3b-871f-5ff9c4b1ec9c",
       "part_ii": "0dcd9bcc-422d-4791-941b-ef05e1ddb1e7",
       "part_iii": "a9dfc163-a81b-4849-8ffc-680ab90bae4f"
     },
     "aristotle_results": {
-      "part_i": "COMPLETE - no proof found",
-      "part_ii": "in_progress (51%)",
+      "part_i": "in_progress (40%)",
+      "part_ii": "in_progress (50%)",
       "part_iii": "failed - wrong turn (reason code 9)"
     }
   },
@@ -5333,9 +5332,9 @@
       "c85faf0e-cf25-4c97-a416-8498d2f2e256",
       "61b8d35b-75ea-4643-b996-ff86195ab1e5"
     ],
-    "notes": "compositionFactorMultiplicity_eraseLast proved by Aristotle (project 61b8d35b). Main theorem and finrank_hom_additive_of_projective still have sorry. proj1 (c85faf0e) IN_PROGRESS at 29%.",
+    "notes": "compositionFactorMultiplicity_eraseLast proved by Aristotle (project 61b8d35b). Main theorem and finrank_hom_additive_of_projective still have sorry. proj1 (c85faf0e) still IN_PROGRESS at 24%.",
     "aristotle_results": {
-      "proj1_c85faf0e": "in_progress (29%)",
+      "proj1_c85faf0e": "in_progress (24%)",
       "proj2_61b8d35b": "complete - proof integrated"
     }
   },
@@ -5536,19 +5535,11 @@
     "end_line": 10,
     "status": "sent_to_aristotle",
     "needs_statement": true,
-    "aristotle_project_ids": {
-      "full_v1": "c88818b9-b6ce-4326-8fa9-d7e0b81690f6",
-      "esssurj_v1": "2eca2f74-e8df-4c39-9f82-48c238632b10",
-      "full_v2_selfcontained": "dad78a22-da0d-4c49-8669-81b93246aadd",
-      "esssurj_v2_selfcontained": "c779aad5-c79b-4fc9-a65b-293427fab4fd"
-    },
-    "aristotle_results": {
-      "full_v1": "COMPLETE - import error",
-      "esssurj_v1": "COMPLETE - import error",
-      "full_v2_selfcontained": "submitted 2026-03-18",
-      "esssurj_v2_selfcontained": "submitted 2026-03-18"
-    },
-    "notes": "Faithful proved. v1 submissions failed with import error. Re-submitted with self-contained files (v2): fullness (dad78a22) and essSurj (c779aad5) inlining IsFiniteAbelianCategory + IsProgenerator definitions."
+    "aristotle_project_ids": [
+      "111e10f2-88cc-4569-af7a-6105308e2cf1",
+      "2fb64b51-4528-4419-9c64-e0c4685881bf"
+    ],
+    "notes": "Faithful proved. Full (111e10f2) and EssSurj (2fb64b51) submitted to Aristotle with self-contained files (inlined IsFiniteAbelianCategory and IsProgenerator definitions)."
   },
   {
     "id": "Chapter9/Problem9.6.5",
@@ -5605,23 +5596,13 @@
     "end_page": "220",
     "start_line": 17,
     "end_line": 19,
-    "status": "sent_to_aristotle",
+    "status": "attention_needed",
     "needs_statement": true,
     "aristotle_projects": {
-      "existence_v1": "cab9a52c-0010-419a-9e17-d795ef5117e1",
-      "uniqueness_v1": "9ef767fa-bd2d-4ffc-ad36-7f977d14527c",
-      "existence_v2_selfcontained": "0c7fa0d6-765d-48d5-9f4f-67e3211086d1",
-      "uniqueness_v2_selfcontained": "b9acac92-2b62-4c81-b4b8-421fa2fbd7a1",
-      "dimbound_v1": "1ea8ee45-733d-469c-8dde-ca2621875b6a"
+      "Corollary_9_7_3_i": "cab9a52c-0010-419a-9e17-d795ef5117e1",
+      "Corollary_9_7_3_i_unique": "9ef767fa-bd2d-4ffc-ad36-7f977d14527c"
     },
-    "aristotle_results": {
-      "existence_v1": "COMPLETE - import error (no proof found)",
-      "uniqueness_v1": "COMPLETE - import error (no proof found)",
-      "existence_v2_selfcontained": "submitted 2026-03-18",
-      "uniqueness_v2_selfcontained": "submitted 2026-03-18",
-      "dimbound_v1": "submitted 2026-03-18"
-    },
-    "notes": "v1 submissions failed with import errors (confirmed COMPLETE with no proof). v2 self-contained submissions for existence (0c7fa0d6) and uniqueness (b9acac92) still IN_PROGRESS at 1%. New submission for dimension bound (1ea8ee45) QUEUED. All three theorems require deep Morita theory infrastructure (idempotent subalgebras, corner algebras eAe) not yet available in Mathlib."
+    "notes": "Both Aristotle submissions (cab9a52c, 9ef767fa) COMPLETE but failed with import error: cannot resolve EtingofRepresentationTheory module. Need self-contained re-submission or manual proof."
   },
   {
     "id": "Backmatter/ReferencesHistorical",
