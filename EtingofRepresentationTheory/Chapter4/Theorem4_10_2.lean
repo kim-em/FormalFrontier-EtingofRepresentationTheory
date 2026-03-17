@@ -37,18 +37,176 @@ noncomputable def IrrepDecomp.blockPoly [NeZero (Nat.card G : k)]
   det (of fun (a b : Fin (D.d i)) =>
     ∑ g : G, C (D.projRingHom i (MonoidAlgebra.of k G g) a b) * X g)
 
-/-! ### Helper lemmas (sorry'd — these are the core mathematical content) -/
+/-! ### Helper lemmas for the factorization proof -/
+
+section NormHelpers
+
+variable (R : Type*) [CommRing R]
+
+/-- The algebra norm of an element in a product of algebras equals the product of
+the norms of the components. Uses the fact that left multiplication is block diagonal
+in the product basis. -/
+private lemma Algebra.norm_pi {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {A : ι → Type*} [∀ i, Ring (A i)] [∀ i, Algebra R (A i)]
+    [∀ i, Module.Free R (A i)] [∀ i, Module.Finite R (A i)]
+    (x : ∀ i, A i) :
+    Algebra.norm R x = ∏ i, Algebra.norm R (x i) := by
+  -- Induction on ι via Fintype.induction_empty_option
+  apply Fintype.induction_empty_option
+    (P := fun (ι : Type _) [Fintype ι] => ∀ (A : ι → Type _) [∀ i, Ring (A i)] [∀ i, Algebra R (A i)]
+        [∀ i, Module.Free R (A i)] [∀ i, Module.Finite R (A i)] (x : ∀ i, A i),
+        Algebra.norm R x = ∏ i, Algebra.norm R (x i))
+  · -- of_equiv case
+    intro α β hβ e IH A hRingA hAlgA hFreeA hFiniteA x
+    let eA : (∀ i : α, A (e i)) ≃ₐ[R] (∀ i : β, A i) := AlgEquiv.piCongrLeft R A e
+    have hkey : Algebra.norm R (eA.symm x) = Algebra.norm R x :=
+      Algebra.norm_eq_of_algEquiv eA.symm x
+    have hval : eA.symm x = fun i => x (e i) := by
+      ext i
+      rw [show (eA.symm x) i = ((Equiv.piCongrLeft (fun j => A j) e).symm x) i from rfl]
+      rw [Equiv.piCongrLeft_symm_apply]
+    rw [← hkey, hval]
+    letI : Fintype α := Fintype.ofEquiv β e.symm
+    rw [IH (A := fun i => A (e i)) (x := fun i => x (e i))]
+    exact Fintype.prod_equiv e (fun i => Algebra.norm R (x (e i)))
+      (fun i => Algebra.norm R (x i)) (fun i => rfl)
+  · -- h_empty case: PEmpty
+    intro A _ _ _ _ x
+    simp only [Fintype.prod_empty]
+    have hx : x = 1 := by ext i; exact PEmpty.elim i
+    rw [hx, map_one]
+  · -- h_option case: Option ι'
+    intro ι' _ IH A _ _ _ _ x
+    haveI : DecidableEq ι' := Classical.decEq ι'
+    -- Build AlgEquiv for (∀ i : Option ι', A i) ≃ₐ[R] A none × (∀ i, A (some i))
+    let e : (∀ i : Option ι', A i) ≃ₐ[R] A none × (∀ i, A (some i)) :=
+      { RingEquiv.piOptionEquivProd with
+        commutes' := fun r => by
+          ext i
+          · simp [RingEquiv.piOptionEquivProd, Equiv.piOptionEquivProd]
+          · simp [RingEquiv.piOptionEquivProd, Equiv.piOptionEquivProd] }
+    have hstep : Algebra.norm R (e x) = Algebra.norm R x := Algebra.norm_eq_of_algEquiv e x
+    have IHsome := IH (A := fun i => A (some i))
+    -- norm of a product ring is the product of norms (for specific pair type)
+    have norm_pair : Algebra.norm R (e x) = Algebra.norm R (e x).1 * Algebra.norm R (e x).2 := by
+      simp only [Algebra.norm_apply]
+      rw [show Algebra.lmul R (A none × (∀ i, A (some i))) (e x) =
+          LinearMap.prodMap (Algebra.lmul R (A none) (e x).1)
+            (Algebra.lmul R (∀ i, A (some i)) (e x).2) from ?hlmul]
+      · exact LinearMap.det_prodMap _ _
+      case hlmul =>
+        apply LinearMap.ext; intro ⟨a, b⟩
+        simp only [Algebra.coe_lmul_eq_mul, LinearMap.prodMap_apply]; rfl
+    rw [← hstep]
+    rw [norm_pair]
+    simp only [show (e x).1 = x none from rfl, show (e x).2 = fun i => x (some i) from rfl]
+    rw [IHsome, Fintype.prod_option]
+
+/-- The algebra norm of a matrix `M : Matrix (Fin n) (Fin n) R` (viewed as an element
+of the matrix algebra over R) equals `det(M) ^ n`. Left multiplication by M on Mat(n,R)
+acts as M on each column independently, giving `M ⊗ₖ 1` whose determinant is `det(M)^n`. -/
+private lemma Algebra.norm_matrix {n : ℕ} [NeZero n]
+    (M : Matrix (Fin n) (Fin n) R) :
+    Algebra.norm R M = M.det ^ n := by
+  open Kronecker in
+  rw [Algebra.norm_eq_matrix_det (Matrix.stdBasis R (Fin n) (Fin n))]
+  have hkron : Algebra.leftMulMatrix (Matrix.stdBasis R (Fin n) (Fin n)) M =
+      M ⊗ₖ (1 : Matrix (Fin n) (Fin n) R) := by
+    ext ⟨i₁, j₁⟩ ⟨i₂, j₂⟩
+    simp only [Algebra.leftMulMatrix_eq_repr_mul, Matrix.kroneckerMap_apply, Matrix.one_apply,
+               Matrix.stdBasis_eq_single]
+    have hmul : M * Matrix.single i₂ j₂ (1 : R) =
+        Matrix.of (fun r c => M r i₂ * if c = j₂ then 1 else 0) := by
+      ext r c
+      simp only [Matrix.mul_apply, Matrix.single_apply, Matrix.of_apply, mul_ite, mul_one, mul_zero]
+      rw [Finset.sum_eq_single i₂]
+      · simp [eq_comm]
+      · intro k _ hk; simp [Ne.symm hk]
+      · simp
+    rw [hmul]
+    simp [Matrix.stdBasis, Equiv.sigmaEquivProd_symm_apply, Pi.basis_repr, Pi.basisFun_repr,
+          Matrix.ofLinearEquiv]
+  open Kronecker in
+  rw [hkron, Matrix.det_kronecker, Matrix.det_one, Fintype.card_fin, one_pow, mul_one]
+
+end NormHelpers
+
+/-! ### Helper lemmas for factorization proof -/
+
+/-- The left multiplication matrix of `a : MonoidAlgebra k G` in the Finsupp basis
+has `(g, h)` entry `a (g * h⁻¹)`. -/
+private lemma leftMulMatrix_monoidAlgebra_entry
+    (a : MonoidAlgebra k G) (g h : G) :
+    Algebra.leftMulMatrix (Finsupp.basisSingleOne (R := k)) a g h =
+      a (g * h⁻¹) := by
+  simp only [Algebra.leftMulMatrix_eq_repr_mul, Finsupp.basisSingleOne_repr,
+    Finsupp.coe_basisSingleOne]
+  exact (a.mul_single_apply_aux
+    (fun m' _ => eq_mul_inv_iff_mul_eq.symm)).trans (mul_one _)
+
+/-- The projection ring homomorphism commutes with scalar multiplication. -/
+private lemma IrrepDecomp.projRingHom_smul' [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n)
+    (r : k) (a : MonoidAlgebra k G) :
+    D.projRingHom i (r • a) = r • D.projRingHom i a := by
+  simp [IrrepDecomp.projRingHom]
 
 /-- The Frobenius determinant equals the product of block polynomials raised to their
-respective dimensions. This follows from the Wedderburn decomposition: the matrix
-(x_{gh⁻¹}) represents left multiplication by ∑ x_g · g on k[G], which under the
-Wedderburn iso becomes block diagonal with blocks ∑ x_g · ρ_i(g), each appearing
-d_i times. The determinant of a block diagonal matrix is the product of block
-determinants. -/
+respective dimensions. -/
 private lemma IrrepDecomp.frobeniusDet_eq_prod [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) :
     Etingof.FrobeniusDeterminant k G = ∏ i : Fin D.n, D.blockPoly i ^ D.d i := by
-  sorry
+  -- Use funext: reduce to showing equality for all evaluations σ : G → k
+  haveI : Infinite k := IsAlgClosed.instInfinite
+  apply MvPolynomial.funext
+  intro σ
+  -- Define the group algebra element corresponding to σ
+  set a : MonoidAlgebra k G := ∑ s : G, σ s • MonoidAlgebra.of k G s with ha_def
+  -- Evaluate LHS: det of group matrix
+  have hLHS : MvPolynomial.eval σ (Etingof.FrobeniusDeterminant k G) =
+      (Matrix.of fun g h : G => σ (g * h⁻¹)).det := by
+    unfold Etingof.FrobeniusDeterminant
+    rw [RingHom.map_det]
+    congr 1; ext g h; simp [Matrix.map, Matrix.of_apply, MvPolynomial.eval_X]
+  -- Evaluate RHS: product of block determinants
+  have hRHS : MvPolynomial.eval σ (∏ i : Fin D.n, D.blockPoly i ^ D.d i) =
+      ∏ i : Fin D.n, (MvPolynomial.eval σ (D.blockPoly i)) ^ D.d i := by
+    rw [map_prod]; congr 1; ext i; rw [map_pow]
+  -- Each blockPoly evaluates to det of projRingHom i a
+  have hblock_eq : ∀ i : Fin D.n, MvPolynomial.eval σ (D.blockPoly i) =
+      (D.projRingHom i a).det := by
+    intro i
+    unfold IrrepDecomp.blockPoly
+    rw [RingHom.map_det]
+    congr 1
+    funext r c
+    simp only [RingHom.mapMatrix_apply, Matrix.map_apply, of_apply, map_sum, map_mul,
+      MvPolynomial.eval_C, MvPolynomial.eval_X]
+    rw [ha_def, map_sum]
+    simp only [D.projRingHom_smul' i, Matrix.sum_apply, Matrix.smul_apply, smul_eq_mul]
+    apply Finset.sum_congr rfl; intro g _; ring
+  -- The LHS matrix det equals Algebra.norm k a
+  have hLHS_eq : (Matrix.of fun g h : G => σ (g * h⁻¹)).det = Algebra.norm k a := by
+    rw [Algebra.norm_eq_matrix_det (Finsupp.basisSingleOne (R := k))]
+    congr 1
+    funext g h
+    rw [of_apply, leftMulMatrix_monoidAlgebra_entry]
+    change σ (g * h⁻¹) = (∑ s : G, σ s • MonoidAlgebra.of k G s : MonoidAlgebra k G) (g * h⁻¹)
+    rw [Finsupp.finset_sum_apply]
+    simp [MonoidAlgebra.of_apply, Finsupp.smul_apply, Finsupp.single_apply]
+  -- Chain the equalities
+  rw [hLHS, hRHS]
+  simp_rw [hblock_eq]
+  rw [hLHS_eq]
+  -- Now: Algebra.norm k a = ∏ i, (projRingHom i a).det ^ d i
+  rw [show Algebra.norm k a = Algebra.norm k (D.iso a) from
+    (Algebra.norm_eq_of_algEquiv D.iso a).symm]
+  rw [Algebra.norm_pi k]
+  congr 1; ext i
+  haveI := D.d_pos i
+  rw [Algebra.norm_matrix k]
+  -- D.iso a i = projRingHom i a: handled by congr
+  congr 2
 
 /-- Each block polynomial is irreducible. The proof uses Lemma 4.10.3 (the generic
 determinant is irreducible) combined with surjectivity of the Wedderburn projection
