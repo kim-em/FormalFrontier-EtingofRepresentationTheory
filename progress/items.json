@@ -2918,7 +2918,7 @@
     "status": "attention_needed",
     "needs_statement": false,
     "aristotle_target": "young_symmetrizer_sq_ne_zero",
-    "aristotle_note": "Aristotle failed: couldn't load file due to namespace/axiom issues. The proof that c_λ² ≠ 0 requires showing the identity permutation has nonzero coefficient in c_λ. Previous submissions: 366668f8 (import error), 9ebaca73 (load error).",
+    "aristotle_note": "Aristotle failed: couldn't load file due to namespace/axiom issues. The proof that c_\u03bb\u00b2 \u2260 0 requires showing the identity permutation has nonzero coefficient in c_\u03bb. Previous submissions: 366668f8 (import error), 9ebaca73 (load error).",
     "aristotle_project_id": "9ebaca73-b917-472d-89bd-23a45fe94a69"
   },
   {
@@ -3098,7 +3098,7 @@
     "end_page": "118",
     "start_line": 1,
     "end_line": 9,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -3118,7 +3118,7 @@
     "end_page": "118",
     "start_line": 15,
     "end_line": 18,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -3990,7 +3990,7 @@
     "end_line": 74,
     "status": "attention_needed",
     "needs_statement": false,
-    "aristotle_note": "All Aristotle submissions failed: (1) original 3 submissions failed with import error, (2) re-submissions with self-contained files failed because Aristotle can't load files with Unicode identifiers (D₄Rep) or axiom declarations. 2 sorries remain: decomp_dim_ge_three, classification_injective_dim_bound.",
+    "aristotle_note": "All Aristotle submissions failed: (1) original 3 submissions failed with import error, (2) re-submissions with self-contained files failed because Aristotle can't load files with Unicode identifiers (D\u2084Rep) or axiom declarations. 2 sorries remain: decomp_dim_ge_three, classification_injective_dim_bound.",
     "aristotle_project_ids": {
       "decomp_dim_ge_three": "d5097338-6b3b-4178-80c6-1a9ecc60ee8b",
       "classification_injective_dim_bound": "a028e123-075f-41f9-bfcb-44430f40dba7"
