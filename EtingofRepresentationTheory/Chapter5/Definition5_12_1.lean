@@ -27,13 +27,13 @@ namespace Etingof
 
 /-- Given a list of row lengths and a position k, return the row index
 in the canonical (left-to-right, top-to-bottom) filling of the Young diagram. -/
-private def rowOfPos : List ℕ → ℕ → ℕ
+def rowOfPos : List ℕ → ℕ → ℕ
   | [], _ => 0
   | p :: ps, k => if k < p then 0 else 1 + rowOfPos ps (k - p)
 
 /-- Given a list of row lengths and a position k, return the column index
 in the canonical (left-to-right, top-to-bottom) filling of the Young diagram. -/
-private def colOfPos : List ℕ → ℕ → ℕ
+def colOfPos : List ℕ → ℕ → ℕ
   | [], _ => 0
   | p :: ps, k => if k < p then k else colOfPos ps (k - p)
 
