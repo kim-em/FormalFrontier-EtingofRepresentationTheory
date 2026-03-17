@@ -230,3 +230,19 @@ From 30 PRs across 4 concurrent agents:
 - **Infrastructure items:** 1 per PR (high complexity, needs careful review)
 
 Mixing difficulty levels in one issue causes the hard item to block all easy ones. Never combine a "may need Aristotle" theorem with straightforward proofs.
+
+### Housekeeping Cadence
+
+Regular housekeeping prevents accumulation of stale state. Planners should create review-type issues for these tasks periodically:
+
+**Every 10-15 merged PRs:**
+- **Aristotle result polling**: Check all `sent_to_aristotle` items for completed results. Incorporate successes, mark failures as `attention_needed`.
+- **items.json staleness audit**: Compare items.json status with actual sorry counts in Lean files. Fix any discrepancies.
+- **Stale PR triage**: Review open PRs with failing CI or merge conflicts. Close dead PRs, replan if needed.
+
+**Every 25 merged PRs (meditate trigger):**
+- **Skill and command refresh**: The meditate session handles this automatically.
+
+**Why this matters:** In Wave 5-6, stale Aristotle submissions and items.json drift caused agents to skip ready work or duplicate effort. PR #817 (Aristotle polling audit) and PR #824 (stale PR triage) were reactive fixes. Proactive housekeeping prevents these issues.
+
+**Planner implementation:** When the planner sees that 10+ PRs have merged since the last review issue, create a review issue with deliverables covering the three housekeeping tasks above. This is separate from the summarize trigger (which focuses on progress reporting, not cleanup).
