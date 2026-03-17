@@ -3500,7 +3500,8 @@
     "end_page": "133",
     "start_line": 3,
     "end_line": 6,
-    "status": "statement_formalized"
+    "status": "attention_needed",
+    "attention_note": "detRep defined sorry-free. Theorem blocked: SchurModule is opaque sorry placeholder."
   },
   {
     "id": "Chapter5/Introduction_5.23",
