@@ -42,18 +42,31 @@ The linear maps in the reversed quiver Q̄ᵢ are:
 (Etingof Definition 6.6.3) -/
 noncomputable def Etingof.reflectionFunctorPlus
     {k : Type*} [CommSemiring k]
-    (V : Type*) [DecidableEq V] [Quiver V]
+    (V : Type*) [inst : DecidableEq V] [Quiver V]
     (i : V) (hi : Etingof.IsSink V i)
     (ρ : Etingof.QuiverRepresentation k V) :
     @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
   classical
+  exact
   -- φ : ⊕_{j→i} ρ_j → ρ_i, the sum of representation maps for arrows into i
   let φ : DirectSum (Etingof.ArrowsInto V i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i :=
     DirectSum.toModule k (Etingof.ArrowsInto V i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
-  refine @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
-    (fun v => if v = i then ↥(LinearMap.ker φ) else ρ.obj v)
-    (fun v => by dsimp only; split <;> infer_instance)
-    (fun v => by exact sorry)
+  -- Use Decidable.casesOn with the [DecidableEq V] instance to construct
+  -- obj, AddCommMonoid, and Module coherently. All three fields share the same
+  -- Decidable instance, so the type-level case-split computes correctly.
+  let dp : ∀ v, Decidable (v = i) := fun v => inst v i
+  let objAt : ∀ v, Decidable (v = i) → Type _ :=
+    fun v d => @Decidable.casesOn _ (fun _ => Type _) d (fun _ => ρ.obj v) (fun _ => ↥φ.ker)
+  let acmAt : ∀ v d, AddCommMonoid (objAt v d) :=
+    fun v d => @Decidable.casesOn _ (fun d => AddCommMonoid (objAt v d)) d
+      (fun _ => ρ.instAddCommMonoid v) (fun _ => Submodule.addCommMonoid φ.ker)
+  let modAt : ∀ v d, @Module k (objAt v d) _ (acmAt v d) :=
+    fun v d => @Decidable.casesOn _ (fun d => @Module k (objAt v d) _ (acmAt v d)) d
+      (fun _ => ρ.instModule v) (fun _ => Submodule.module φ.ker)
+  @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
+    (fun v => objAt v (dp v))
+    (fun v => acmAt v (dp v))
+    (fun v => modAt v (dp v))
     (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
       change Etingof.ReversedAtVertexHom V i a b at e
       unfold Etingof.ReversedAtVertexHom at e
