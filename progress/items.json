@@ -3959,7 +3959,7 @@
     "end_page": "158",
     "start_line": 21,
     "end_line": 10,
-    "status": "proof_formalized",
+    "status": "sorry_free",
     "needs_statement": true
   },
   {
