@@ -48,7 +48,9 @@ noncomputable abbrev PermutationModule (n : ℕ) (la : Nat.Partition n) :=
 /-- The ℂ[S_n]-module structure on the permutation module U_λ, where σ ∈ S_n acts
 by left multiplication on cosets: σ · (gS_λ) = (σg)S_λ, extended linearly. -/
 noncomputable instance PermutationModule.instModule (n : ℕ) (la : Nat.Partition n) :
-    Module (SymGroupAlgebra n) (PermutationModule n la) := sorry
+    Module (SymGroupAlgebra n) (PermutationModule n la) :=
+  Module.compHom _ (Representation.ofMulAction ℂ (Equiv.Perm (Fin n))
+    (Equiv.Perm (Fin n) ⧸ RowSubgroup n la)).asAlgebraHom.toRingHom
 
 /-! ## Proposition 5.14.1 -/
 
