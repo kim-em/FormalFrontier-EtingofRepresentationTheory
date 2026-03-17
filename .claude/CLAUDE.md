@@ -26,44 +26,12 @@ Store only **direct** dependencies. The conservative default is a linear chain: 
 
 ## When Stuck
 
-- **3 failed proof attempts**: escalate the proof to Aristotle (see below), then if that also fails, document in a GitHub issue and move on
-- **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on (Aristotle only handles proofs)
+- **3 failed proof attempts**: document in a GitHub issue and move on
+- **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on
 - **Dependency blocked:** Post an issue with `- [ ] depends on #X` and add the `blocked` label
 - **Definition seems wrong:** Post an issue describing the problem — don't silently work around bad definitions
 - **Missing Mathlib API:** Post an issue describing what's needed; another agent or human can add it
 - **Ordering mistake in the plan:** Report it — request a replan rather than hacking around it
-
-## Aristotle Escalation
-
-Aristotle is an automated theorem prover. Escalate to it when Claude can't prove a theorem after 2-3 serious attempts.
-
-### When to use Aristotle
-
-- A proof is beyond Claude's ability after multiple attempts
-- Standard mathematical proofs (calculus, algebra, analysis) that follow well-known patterns
-- Batch proving: after Stage 3.1 scaffolding, submit all sorry'd theorems
-
-### When NOT to use Aristotle
-
-- Statement formalization (translating definitions/theorem statements from natural language) — Claude handles this
-- When the formalized statement might be wrong — fix the statement first
-- For discussion blobs or non-theorem items
-
-### Handoff protocol
-
-1. Create a temporary copy of the item's Lean file (preserving all imports, namespaces, notation). Keep exactly one `sorry` (the target proof); change all others to `admit`.
-2. Gather context files: sorry-free local Lean files from the import chain (skip Mathlib imports). If no local files are sorry-free yet, submit with no context files.
-3. Submit: `aristotle prove-from-file item_pending.lean --no-wait --no-auto-add-imports --context-files ...`
-4. Record the project ID in `progress/items.json` with status `sent_to_aristotle`
-5. Delete the temp file — never commit `admit`
-
-**Deduplication:** Before submitting, check that the item is not already in `sent_to_aristotle` status. Only one submission per item at a time.
-
-### After Aristotle returns
-
-- **Success:** Verify the proof compiles (`lake env lean`), copy into the item's Lean file, update status to `sorry_free` (if all sorries resolved) or `proof_formalized`
-- **False statement:** Mark `attention_needed`, post a GitHub issue with the counterexample — the formalized statement needs fixing
-- **Failure/timeout/version mismatch:** Mark `attention_needed`, move on
 
 ## PR Workflow
 
@@ -133,3 +101,32 @@ At the start of every turn, read the most recent file in `progress/` (sorted alp
 lake exe cache get
 ```
 This downloads pre-built Mathlib oleans and avoids a full rebuild (1800+ jobs). Skipping this wastes significant time and compute.
+
+
+# Pod Agent Session
+
+You are running as an autonomous agent launched by `pod`. This is a
+non-interactive session via `claude -p` — there is no human to answer
+questions. Never ask for confirmation or approval. Just do the work.
+
+Each agent runs in its own git worktree on its own branch, coordinating
+via GitHub issues, labels, and PRs. The `coordination` script is already
+on your PATH — just run it directly (e.g. `coordination orient`,
+`coordination claim 42`). Do NOT search for it or try to locate it.
+
+Session UUID is available as `$POD_SESSION_ID`.
+
+## Agent Types
+
+- **Planners** (`/plan`): create work items as GitHub issues, then exit
+- **Workers** (`/feature`, `/review`, `/summarize`, `/meditate`): claim
+  and execute issues using the `agent-worker-flow` skill
+
+See your `/command` file and the `agent-worker-flow` skill for the full
+workflow.
+
+## Off-limits Files
+
+Agents must not modify the project's top-level CLAUDE.md (`.claude/CLAUDE.md`)
+or roadmap file (`PLAN.md`). PRs touching these files are rejected by
+`coordination create-pr`. Update skills and commands instead.
