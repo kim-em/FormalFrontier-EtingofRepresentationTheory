@@ -62,6 +62,18 @@ This is a formal power series identity in `2N` variables `x₁,...,x_N, y₁,...
 theorem Corollary5_15_4
     (N : ℕ) :
     (cauchyMatrix N k).det = cauchyRHS N k := by
-  sorry
+  simp only [Matrix.det_apply', cauchyRHS, cauchyMatrix, Matrix.of_apply, cauchyMatrixEntry]
+  -- LHS: ∑ σ, ↑↑(sign σ) * ∏ i, invOfUnit(1 - x_{σ i} y_i) 1
+  -- RHS: ∑ σ, C ↑↑(sign σ) * ∏ j, invOfUnit(1 - x_j y_{σ j}) 1
+  -- Reindex the sum by σ ↦ σ⁻¹
+  apply Fintype.sum_equiv (Equiv.inv (Equiv.Perm (Fin N)))
+  intro σ
+  simp only [Equiv.inv_apply, Equiv.Perm.sign_inv]
+  congr 1
+  · -- ↑↑(sign σ) = C ↑↑(sign σ) : intCast factors through C
+    exact (map_intCast (MvPowerSeries.C (σ := CauchyVars N) (R := k)) _).symm
+  · -- ∏ i, invOfUnit(1 - x_{σ i} y_i) = ∏ j, invOfUnit(1 - x_j y_{σ⁻¹ j})
+    -- Reindex product by j = σ i
+    exact Fintype.prod_equiv σ _ _ (fun i => by simp)
 
 end Etingof
