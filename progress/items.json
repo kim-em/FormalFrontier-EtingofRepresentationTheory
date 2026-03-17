@@ -396,8 +396,8 @@
     "end_page": "13",
     "start_line": 9,
     "end_line": 15,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false
   },
   {
     "id": "Chapter2/Example2.3.14_continued",
