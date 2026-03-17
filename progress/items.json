@@ -3057,8 +3057,8 @@
     "end_page": "116",
     "start_line": 13,
     "end_line": 14,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Definition5.14.2",
