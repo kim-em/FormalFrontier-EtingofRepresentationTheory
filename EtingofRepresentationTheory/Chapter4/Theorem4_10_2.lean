@@ -208,13 +208,280 @@ private lemma IrrepDecomp.frobeniusDet_eq_prod [NeZero (Nat.card G : k)]
   -- D.iso a i = projRingHom i a: handled by congr
   congr 2
 
-/-- Each block polynomial is irreducible. The proof uses Lemma 4.10.3 (the generic
-determinant is irreducible) combined with surjectivity of the Wedderburn projection
-(which ensures the linear substitution defining the block polynomial is surjective,
-preserving irreducibility). -/
+/-! ### Generic determinant irreducibility over k -/
+
+section GenericDet
+
+variable {k' : Type*} [Field k'] {σ : Type*} [DecidableEq σ]
+
+/-- vars(a) ⊆ vars(a * b) when both nonzero, in a polynomial ring over a domain. -/
+private lemma vars_sub_mul_left {a b : MvPolynomial σ k'} (ha : a ≠ 0) (hb : b ≠ 0) :
+    a.vars ⊆ (a * b).vars := by
+  intro x hx
+  simp only [MvPolynomial.vars_def] at hx ⊢
+  rw [Multiset.mem_toFinset] at hx ⊢
+  rw [← Multiset.count_pos] at hx ⊢
+  rw [← MvPolynomial.degreeOf_def] at hx ⊢
+  have := MvPolynomial.degreeOf_mul_eq ha hb (n := x)
+  omega
+
+/-- Injective rename preserves irreducibility over any field. -/
+private lemma rename_irred {τ : Type*} [DecidableEq τ]
+    {f : σ → τ} (hf : Function.Injective f)
+    {p : MvPolynomial σ k'} (hp : Irreducible p) :
+    Irreducible (MvPolynomial.rename f p) := by
+  constructor
+  · intro h
+    exact hp.1 ((MvPolynomial.killCompl_rename_app hf p) ▸
+      h.map (MvPolynomial.killCompl hf).toRingHom)
+  · intro a b hab
+    have hne : MvPolynomial.rename f p ≠ 0 :=
+      (MvPolynomial.rename_injective f hf).ne hp.ne_zero
+    have ha : a ≠ 0 := left_ne_zero_of_mul (hab ▸ hne)
+    have hb : b ≠ 0 := right_ne_zero_of_mul (hab ▸ hne)
+    have hvars_rfp : ∀ x ∈ (MvPolynomial.rename f p).vars, x ∈ Set.range f := by
+      intro x hx; obtain ⟨y, _, rfl⟩ := MvPolynomial.mem_vars_rename f p hx
+      exact Set.mem_range_self y
+    have hvars_a : ↑a.vars ⊆ Set.range f := by
+      intro x hx; exact hvars_rfp x (hab ▸ vars_sub_mul_left ha hb hx)
+    have hvars_b : ↑b.vars ⊆ Set.range f := by
+      intro x hx; exact hvars_rfp x (hab ▸ mul_comm a b ▸ vars_sub_mul_left hb ha hx)
+    obtain ⟨a', rfl⟩ := MvPolynomial.exists_rename_eq_of_vars_subset_range a f hf hvars_a
+    obtain ⟨b', rfl⟩ := MvPolynomial.exists_rename_eq_of_vars_subset_range b f hf hvars_b
+    rw [← map_mul] at hab
+    have hab' : p = a' * b' := (MvPolynomial.rename_injective f hf) hab
+    exact (hp.isUnit_or_isUnit hab').imp
+      (·.map (MvPolynomial.rename f).toRingHom) (·.map (MvPolynomial.rename f).toRingHom)
+
+end GenericDet
+
+/-- The generic determinant is irreducible over any field.
+This is a generalization of `Etingof.Lemma4_10_3` from ℂ to an arbitrary field. -/
+private lemma genDet_irreducible (k' : Type*) [Field k'] (n : ℕ) (hn : 0 < n) :
+    Irreducible (det (mvPolynomialX (Fin n) (Fin n) k')) := by
+  induction n with
+  | zero => omega
+  | succ n ih =>
+    cases n with
+    | zero =>
+      have hdet : det (mvPolynomialX (Fin 1) (Fin 1) k') = MvPolynomial.X ((0 : Fin 1), (0 : Fin 1)) := by
+        rw [det_fin_one]; rfl
+      rw [hdet]
+      exact MvPolynomial.irreducible_of_totalDegree_eq_one
+        (MvPolynomial.totalDegree_X _)
+        (fun x hx => isUnit_of_dvd_one (by
+          have := hx (Finsupp.single ((0 : Fin 1), (0 : Fin 1)) 1)
+          rwa [MvPolynomial.coeff_X] at this))
+    | succ n =>
+      have ih' := ih (by omega)
+      -- Abbreviations for the generic matrix and its submatrices
+      set M := mvPolynomialX (Fin (n + 2)) (Fin (n + 2)) k' with hM_def
+      -- Submatrix identities: minor_{0,c} = rename of smaller det
+      have hsub_rename : ∀ c : Fin (n + 2),
+          det (M.submatrix Fin.succ (Fin.succAbove c)) =
+          MvPolynomial.rename (Prod.map Fin.succ (Fin.succAbove c))
+            (det (mvPolynomialX (Fin (n + 1)) (Fin (n + 1)) k')) := by
+        intro c; rw [AlgHom.map_det]; congr 1; funext i j
+        simp only [submatrix_apply, AlgHom.mapMatrix_apply, Matrix.map_apply,
+          mvPolynomialX, of_apply, MvPolynomial.rename_X, Prod.map]
+      -- Variables in submatrix minors have first component ≥ 1
+      have hsub_vars : ∀ c : Fin (n + 2), ∀ v ∈
+          (det (M.submatrix Fin.succ (Fin.succAbove c))).vars, v.1 ≠ 0 := by
+        intro c v hv; rw [hsub_rename c] at hv
+        obtain ⟨⟨a, b⟩, _, hab⟩ := MvPolynomial.mem_vars_rename _ _ hv
+        exact hab ▸ Fin.succ_ne_zero a
+      -- Minor_{0,0} ≠ 0
+      have hf_ne : det (M.submatrix Fin.succ (Fin.succAbove 0)) ≠ 0 := by
+        rw [hsub_rename 0]
+        exact (MvPolynomial.rename_injective _
+          (Prod.map_injective.mpr ⟨Fin.succ_injective _, Fin.succAbove_right_injective⟩)).ne
+          (det_mvPolynomialX_ne_zero (Fin (n + 1)) k')
+      -- (0,0) ∉ vars(minor_{0,0})
+      have hf_vars : ((0 : Fin (n + 2)), (0 : Fin (n + 2))) ∉
+          (det (M.submatrix Fin.succ (Fin.succAbove 0))).vars := by
+        intro h; exact absurd rfl (hsub_vars 0 _ h)
+      -- (0,0) ∉ vars(rest of cofactor expansion)
+      have hg_vars : ((0 : Fin (n + 2)), (0 : Fin (n + 2))) ∉
+          (∑ j : Fin (n + 1),
+            (-1 : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') ^ ((j : ℕ) + 1) *
+            MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
+            det (M.submatrix Fin.succ (Fin.succAbove j.succ))).vars := by
+        intro h
+        have h' := MvPolynomial.vars_sum_subset (Finset.univ) _ h
+        simp only [Finset.mem_biUnion, Finset.mem_univ, true_and] at h'
+        obtain ⟨j, hj⟩ := h'
+        have hj' := MvPolynomial.vars_mul _ _ hj
+        simp only [Finset.mem_union] at hj'
+        rcases hj' with hj' | hj'
+        · have hj'' := MvPolynomial.vars_mul _ _ hj'
+          simp only [Finset.mem_union] at hj''
+          rcases hj'' with hj'' | hj''
+          · exact absurd (MvPolynomial.vars_pow _ _ hj'') (by simp)
+          · rw [MvPolynomial.vars_X] at hj''
+            simp only [Finset.mem_singleton] at hj''
+            exact absurd (congr_arg Prod.snd hj'').symm (Fin.succ_ne_zero j)
+        · exact absurd rfl (hsub_vars j.succ _ hj')
+      -- Minor_{0,0} is irreducible
+      have hf_irr : Irreducible (det (M.submatrix Fin.succ (Fin.succAbove 0))) := by
+        rw [hsub_rename 0]; simp only [Fin.succAbove_zero]
+        exact rename_irred (Prod.map_injective.mpr
+          ⟨Fin.succ_injective _, Fin.succ_injective _⟩) ih'
+      -- Minor_{0,1} is irreducible
+      have hf1_irr : Irreducible (det (M.submatrix Fin.succ
+          (Fin.succAbove (1 : Fin (n + 2))))) := by
+        rw [hsub_rename 1]
+        exact rename_irred (Prod.map_injective.mpr
+          ⟨Fin.succ_injective _, Fin.succAbove_right_injective⟩) ih'
+      -- IsRelPrime(minor_{0,0}, rest) via evaluation argument
+      have hrel : IsRelPrime
+          (det (M.submatrix Fin.succ (Fin.succAbove 0)))
+          (∑ j : Fin (n + 1),
+            (-1 : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') ^ ((j : ℕ) + 1) *
+            MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
+            det (M.submatrix Fin.succ (Fin.succAbove j.succ))) := by
+        rw [hf_irr.isRelPrime_iff_not_dvd]
+        -- Define evaluation: X(0,1)→1, X(0,j)→0 for j≠1, X(i,j)→X(i,j) for i≥1
+        let φ : (Fin (n + 2) × Fin (n + 2)) → MvPolynomial (Fin (n + 2) × Fin (n + 2)) k' :=
+          fun v => if v.1 = 0 then (if v.2 = 1 then 1 else 0) else MvPolynomial.X v
+        have aeval_X_id : ∀ (p : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k'),
+            MvPolynomial.aeval (MvPolynomial.X : _ → MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') p = p := by
+          have : MvPolynomial.aeval (MvPolynomial.X : _ → MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') =
+              AlgHom.id k' _ := by ext i; simp
+          intro p; rw [this]; simp
+        -- φ fixes any submatrix minor (no row-0 variables)
+        have hφ_fix : ∀ (c : Fin (n + 2)),
+            MvPolynomial.aeval φ (det (M.submatrix Fin.succ (Fin.succAbove c))) =
+            det (M.submatrix Fin.succ (Fin.succAbove c)) := by
+          intro c
+          have hφ_eq : ∀ v ∈ (det (M.submatrix Fin.succ (Fin.succAbove c))).vars,
+              φ v = MvPolynomial.X v := by
+            intro v hv; simp only [φ, if_neg (hsub_vars c v hv)]
+          rw [show MvPolynomial.aeval φ (det (M.submatrix Fin.succ (Fin.succAbove c))) =
+            MvPolynomial.aeval MvPolynomial.X (det (M.submatrix Fin.succ (Fin.succAbove c))) from
+            MvPolynomial.eval₂Hom_congr' rfl (fun i hi _ => hφ_eq i hi) rfl]
+          exact aeval_X_id _
+        -- φ(X(0, j.succ)) = 1 if j = 0, else 0
+        have hφ_X : ∀ j : Fin (n + 1),
+            φ ((0 : Fin (n + 2)), j.succ) = if j = 0 then 1 else 0 := by
+          intro j; simp only [φ, ite_true]
+          rcases Decidable.eq_or_ne j 0 with rfl | hj
+          · simp [show Fin.succ (0 : Fin (n + 1)) = (1 : Fin (n + 2)) from rfl]
+          · simp [show Fin.succ j ≠ (1 : Fin (n + 2)) from by
+              rwa [show (1 : Fin (n + 2)) = Fin.succ 0 from rfl, Ne, Fin.succ_inj], hj]
+        -- Suppose minor_{0,0} | rest
+        intro ⟨q, hq⟩
+        -- Apply aeval φ: φ(rest) = -minor_{0,1}
+        have hφ_rest : MvPolynomial.aeval φ (∑ j : Fin (n + 1),
+            (-1 : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') ^ ((j : ℕ) + 1) *
+            MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
+            det (M.submatrix Fin.succ (Fin.succAbove j.succ))) =
+            -det (M.submatrix Fin.succ (Fin.succAbove (1 : Fin (n + 2)))) := by
+          simp only [map_sum, map_mul, map_pow, map_neg, map_one, MvPolynomial.aeval_X,
+            hφ_fix, hφ_X]; rw [Fin.sum_univ_succ]; simp
+        -- So minor_{0,0} | minor_{0,1}
+        have hdvd : det (M.submatrix Fin.succ (Fin.succAbove 0)) ∣
+            det (M.submatrix Fin.succ (Fin.succAbove 1)) := by
+          have h1 : MvPolynomial.aeval φ (det (M.submatrix Fin.succ (Fin.succAbove 0))) ∣
+              MvPolynomial.aeval φ (∑ j : Fin (n + 1),
+                (-1 : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') ^ ((j : ℕ) + 1) *
+                MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
+                det (M.submatrix Fin.succ (Fin.succAbove j.succ))) :=
+            (MvPolynomial.aeval φ).toRingHom.map_dvd ⟨q, hq⟩
+          rw [hφ_fix 0, hφ_rest] at h1; exact dvd_neg.mp h1
+        -- Both irreducible, so associated
+        have hassoc := hf_irr.associated_of_dvd hf1_irr hdvd
+        obtain ⟨u, hu⟩ := hassoc
+        -- Variable (1,1) is in vars(minor_{0,0}) but not vars(minor_{0,1})
+        have hmem : ((1 : Fin (n + 2)), (1 : Fin (n + 2))) ∈
+            (det (M.submatrix Fin.succ (Fin.succAbove 0))).vars := by
+          by_contra habs
+          let g₁ : Fin (n + 2) × Fin (n + 2) → k' := fun ⟨i, j⟩ => if i = j then 1 else 0
+          let g₂ : Fin (n + 2) × Fin (n + 2) → k' := Function.update g₁ (1, 1) 0
+          have hag : ∀ i ∈ (det (M.submatrix Fin.succ (Fin.succAbove 0))).vars,
+              g₁ i = g₂ i := by
+            intro i hi; exact (Function.update_of_ne (ne_of_mem_of_not_mem hi habs) _ _).symm
+          have heq : MvPolynomial.eval g₁ (det (M.submatrix Fin.succ (Fin.succAbove 0))) =
+              MvPolynomial.eval g₂ (det (M.submatrix Fin.succ (Fin.succAbove 0))) :=
+            MvPolynomial.eval₂Hom_congr' rfl (fun i hi _ => hag i hi) rfl
+          have hev1 : MvPolynomial.eval g₁
+              (det (M.submatrix Fin.succ (Fin.succAbove 0))) = 1 := by
+            rw [show MvPolynomial.eval g₁ (det (M.submatrix Fin.succ (Fin.succAbove 0))) =
+              det ((MvPolynomial.eval g₁).mapMatrix
+                (M.submatrix Fin.succ (Fin.succAbove 0))) from RingHom.map_det _ _]
+            have : (MvPolynomial.eval g₁).mapMatrix
+                (M.submatrix Fin.succ (Fin.succAbove 0)) =
+                (1 : Matrix (Fin (n + 1)) (Fin (n + 1)) k') := by
+              ext1 i; ext1 j
+              simp only [RingHom.mapMatrix_apply, Matrix.map_apply, submatrix_apply,
+                mvPolynomialX, of_apply, MvPolynomial.eval_X, Fin.succAbove_zero, one_apply]
+              simp only [g₁, Fin.succ_inj]
+            rw [this, det_one]
+          have hev0 : MvPolynomial.eval g₂
+              (det (M.submatrix Fin.succ (Fin.succAbove 0))) = 0 := by
+            rw [show MvPolynomial.eval g₂ (det (M.submatrix Fin.succ (Fin.succAbove 0))) =
+              det ((MvPolynomial.eval g₂).mapMatrix
+                (M.submatrix Fin.succ (Fin.succAbove 0))) from RingHom.map_det _ _]
+            apply det_eq_zero_of_row_eq_zero (0 : Fin (n + 1))
+            intro j
+            simp only [RingHom.mapMatrix_apply, Matrix.map_apply, submatrix_apply,
+              mvPolynomialX, of_apply, MvPolynomial.eval_X, Fin.succAbove_zero]
+            simp only [g₂, g₁, Function.update_apply, Prod.mk.injEq]
+            by_cases hj : j = 0
+            · subst hj; simp
+            · simp only [show ¬((0 : Fin (n + 1)).succ = (0 : Fin (n + 2)).succ ∧ j.succ = (0 : Fin (n + 2)).succ) from by
+                intro ⟨_, h⟩; exact absurd (Fin.succ_injective _ h) hj]
+              simp only [show ¬(Fin.succ (0 : Fin (n + 1)) = Fin.succ j) from by
+                intro h; exact hj (Fin.succ_injective _ h).symm]
+          exact absurd (hev1.symm.trans (heq.trans hev0)) one_ne_zero
+        have hnotmem : ((1 : Fin (n + 2)), (1 : Fin (n + 2))) ∉
+            (det (M.submatrix Fin.succ (Fin.succAbove (1 : Fin (n + 2))))).vars := by
+          rw [hsub_rename 1]; intro h
+          obtain ⟨⟨a, b⟩, _, hab⟩ := MvPolynomial.mem_vars_rename _ _ h
+          simp only [Prod.map, Prod.mk.injEq] at hab
+          exact absurd hab.2 (Fin.succAbove_ne 1 b)
+        exact hnotmem (hu ▸ vars_sub_mul_left hf_irr.ne_zero (Units.ne_zero u) hmem)
+      -- Cofactor expansion: det = minor_{0,0} * X(0,0) + rest
+      have heq : det M =
+          det (M.submatrix Fin.succ (Fin.succAbove 0)) *
+          MvPolynomial.X ((0 : Fin (n + 2)), (0 : Fin (n + 2))) +
+          (∑ j : Fin (n + 1),
+            (-1 : MvPolynomial (Fin (n + 2) × Fin (n + 2)) k') ^ ((j : ℕ) + 1) *
+            MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
+            det (M.submatrix Fin.succ (Fin.succAbove j.succ))) := by
+        rw [det_succ_row_zero, Fin.sum_univ_succ]
+        simp only [hM_def, mvPolynomialX, of_apply, Fin.val_zero, pow_zero, one_mul]
+        ring
+      rw [heq]
+      exact MvPolynomial.irreducible_mul_X_add _ _ _ hf_ne hf_vars hg_vars hrel
+
+/-- Each block polynomial is irreducible. The proof uses the fact that the generic
+determinant is irreducible over k, and the block polynomial is obtained from it
+via a surjective linear substitution (from the Wedderburn projection). -/
 private lemma IrrepDecomp.blockPoly_irreducible [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (i : Fin D.n) :
     Irreducible (D.blockPoly i) := by
+  haveI := D.d_pos i
+  -- The block polynomial equals aeval φ (det(generic matrix)) where φ substitutes
+  -- matrix variables with linear forms from the representation
+  set d := D.d i
+  -- Define the substitution: (a,b) ↦ ∑_g c_{g,a,b} · X_g
+  set φ : Fin d × Fin d → MvPolynomial G k :=
+    fun ab => ∑ g : G, MvPolynomial.C (D.projRingHom i (MonoidAlgebra.of k G g) ab.1 ab.2) *
+      MvPolynomial.X g with hφ_def
+  -- blockPoly = aeval φ (det(generic matrix))
+  have hbp : D.blockPoly i = MvPolynomial.aeval φ (det (mvPolynomialX (Fin d) (Fin d) k)) := by
+    unfold IrrepDecomp.blockPoly
+    rw [AlgHom.map_det]; congr 1; ext a b
+    simp [AlgHom.mapMatrix_apply, mvPolynomialX, of_apply, MvPolynomial.aeval_X, φ]
+  -- The generic determinant is irreducible
+  have hirr := genDet_irreducible k d (Nat.pos_of_ne_zero (NeZero.ne d))
+  -- Strategy: show aeval φ preserves irreducibility by factoring through an AlgEquiv
+  -- The linear forms φ(a,b) are linearly independent (from surjectivity of projRingHom)
+  -- Step 1: aeval φ maps the generic det to blockPoly
+  rw [hbp]
+  -- Step 2: Show aeval φ preserves irreducibility
+  -- We use the fact that aeval φ is injective (the linear forms are linearly independent,
+  -- hence algebraically independent) and preserves non-units
   sorry
 
 /-- Block polynomials for different Wedderburn components are not associated.
@@ -223,7 +490,52 @@ different linear combinations of variables (by the injectivity of column FDReps)
 private lemma IrrepDecomp.blockPoly_not_associated [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (i j : Fin D.n) (hij : i ≠ j) :
     ¬Associated (D.blockPoly i) (D.blockPoly j) := by
-  sorry
+  intro ⟨u, hu⟩
+  -- Define the central idempotent e_i and evaluate blockPolys at its coefficients
+  set e := D.iso.symm (Pi.single i (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k)) with he_def
+  set σ : G → k := fun g => e g with hσ_def
+  -- The group algebra element reconstructed from σ equals e
+  have ha_eq : ∑ g : G, σ g • MonoidAlgebra.of k G g = e := by
+    ext h
+    simp only [hσ_def, Finsupp.smul_apply, MonoidAlgebra.of_apply,
+      Finsupp.single_apply, mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  -- Evaluate blockPoly at σ: eval σ (blockPoly l) = det(projRingHom l (e))
+  have heval_eq : ∀ l : Fin D.n, MvPolynomial.eval σ (D.blockPoly l) =
+      (D.projRingHom l e).det := by
+    intro l
+    unfold IrrepDecomp.blockPoly
+    rw [RingHom.map_det]
+    congr 1; ext r c
+    simp only [RingHom.mapMatrix_apply, Matrix.map_apply, of_apply, map_sum, map_mul,
+      MvPolynomial.eval_C, MvPolynomial.eval_X]
+    rw [show σ = fun g => (∑ s : G, σ s • MonoidAlgebra.of k G s : MonoidAlgebra k G) g from by
+      rw [ha_eq]]
+    simp only [map_sum, D.projRingHom_smul' l, Matrix.sum_apply, Matrix.smul_apply, smul_eq_mul,
+      Finsupp.finset_sum_apply, MonoidAlgebra.of_apply, Finsupp.single_apply]
+    apply Finset.sum_congr rfl; intro g _; ring
+  -- projRingHom i e = 1 (identity matrix)
+  have hei : D.projRingHom i e = 1 := by
+    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update]
+  -- projRingHom j e = 0 (zero matrix, since j ≠ i)
+  have hej : D.projRingHom j e = 0 := by
+    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update,
+      Ne.symm hij]
+  -- eval σ (blockPoly i) = 1
+  have heval_i : MvPolynomial.eval σ (D.blockPoly i) = 1 := by
+    rw [heval_eq, hei, det_one]
+  -- eval σ (blockPoly j) = 0
+  have heval_j : MvPolynomial.eval σ (D.blockPoly j) = 0 := by
+    rw [heval_eq, hej]
+    haveI : Nonempty (Fin (D.d j)) := ⟨⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩⟩
+    exact Matrix.det_zero (Fin (D.d j)) k
+  -- From hu: blockPoly i * ↑u = blockPoly j, apply eval σ
+  have heval_u : MvPolynomial.eval σ (↑u : MvPolynomial G k) = 0 := by
+    have h := congr_arg (MvPolynomial.eval σ) hu
+    simp only [map_mul, heval_i, heval_j, one_mul] at h
+    exact h
+  -- But u is a unit, so eval σ maps it to a unit in k, which can't be zero
+  exact (u.isUnit.map (MvPolynomial.eval σ).toRingHom.toMonoidHom).ne_zero heval_u
 
 /-- The total degree of the i-th block polynomial equals d_i. Each entry of the
 representation matrix is a linear polynomial in the x_g, so det has degree ≤ d_i.
