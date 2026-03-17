@@ -4175,7 +4175,7 @@
     "end_page": "168",
     "start_line": 1,
     "end_line": 2,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -4321,7 +4321,7 @@
     "end_page": "174",
     "start_line": 21,
     "end_line": 26,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -4392,7 +4392,7 @@
     "end_page": "177",
     "start_line": 33,
     "end_line": 14,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
