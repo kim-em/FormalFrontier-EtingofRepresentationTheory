@@ -5439,8 +5439,9 @@
     "end_page": "218",
     "start_line": 17,
     "end_line": 20,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false,
+    "notes": "IsFiniteAbelianCategory class: extends Abelian + EnoughProjectives, with finite indexing type for simple objects"
   },
   {
     "id": "Chapter9/Definition9.6.2",
@@ -5450,8 +5451,9 @@
     "end_page": "219",
     "start_line": 21,
     "end_line": 2,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false,
+    "notes": "IsProgenerator class: extends Projective, requires epi from finite biproduct of copies"
   },
   {
     "id": "Chapter9/Exercise9.6.3",
