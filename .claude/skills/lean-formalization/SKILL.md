@@ -132,14 +132,22 @@ resolve `import EtingofRepresentationTheory.*` statements — Aristotle still fa
   keep the file flat without namespace blocks
 
 **Checking Aristotle status** (no CLI command exists):
-```python
-# Use the Python SDK directly
-from aristotlelib import Project
-import asyncio
-p = asyncio.run(Project.from_id("project-uuid"))
-print(p.status, p.percent_complete)
-solution = asyncio.run(p.get_solution(output_path="out.lean"))
+```bash
+python3 -c "
+import sys; sys.path.insert(0, '$(dirname $(which aristotle))/../pipx/venvs/aristotlelib/lib/python3.14/site-packages')
+import os, asyncio
+from aristotlelib.project import Project
+from aristotlelib.api_request import set_api_key
+set_api_key(os.environ['ARISTOTLE_API_KEY'])
+async def check():
+    p = await Project.from_id('PROJECT-UUID')
+    print(f'status={p.status.name}, pct={p.percent_complete}')
+    if p.status.name == 'COMPLETE':
+        await p.get_solution('output.lean')
+asyncio.run(check())
+"
 ```
+Note: `aristotlelib` is installed in a pipx venv, not on the system Python path.
 
 ### After Aristotle Returns
 
