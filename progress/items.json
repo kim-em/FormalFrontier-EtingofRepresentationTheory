@@ -97,8 +97,8 @@
     "end_page": "6",
     "start_line": 18,
     "end_line": 25,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
