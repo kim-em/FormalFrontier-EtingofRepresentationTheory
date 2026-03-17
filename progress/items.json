@@ -2938,8 +2938,8 @@
     "end_page": "114",
     "start_line": 7,
     "end_line": 8,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Problem5.12.5",
