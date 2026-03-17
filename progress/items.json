@@ -5522,8 +5522,13 @@
     "end_page": "219",
     "start_line": 7,
     "end_line": 10,
-    "status": "statement_formalized",
-    "needs_statement": true
+    "status": "sent_to_aristotle",
+    "needs_statement": true,
+    "aristotle_project_ids": [
+      "c88818b9-b6ce-4326-8fa9-d7e0b81690f6",
+      "2eca2f74-e8df-4c39-9f82-48c238632b10"
+    ],
+    "notes": "Faithful proved. Full and EssSurj sent to Aristotle separately. Mathlib TODO: Morita equiv from projective generators not yet available."
   },
   {
     "id": "Chapter9/Problem9.6.5",
