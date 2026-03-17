@@ -124,6 +124,41 @@ resolve `import EtingofRepresentationTheory.*` statements — Aristotle still fa
 3. Inline the content of local dependency files directly into the submission file
 4. Use `--no-auto-add-imports --no-validate-lean-project`
 
+**Self-contained file preparation checklist** (follow exactly — most Aristotle failures
+are file preparation errors, not proof difficulty):
+
+1. **Copy the target file** to `/tmp/item_pending.lean`
+2. **List all local imports:** `grep 'import Etingof' OriginalFile.lean`
+3. **For each local import:**
+   a. Open the imported file
+   b. Copy its Mathlib `import` lines into the submission file header
+   c. Copy its declarations (defs, theorems, instances) into the submission file body
+   d. Delete the `import EtingofRepresentationTheory.*` line
+4. **Replace all `sorry` except the target with `admit`**
+5. **Remove or rename Unicode identifiers** (e.g., `D₄Rep` → `D4Rep`)
+6. **Remove `namespace` blocks** — keep the file flat with fully qualified names
+7. **Test compilation:** `lake env lean /tmp/item_pending.lean` — must compile with only the target sorry
+8. **Submit:** `aristotle prove-from-file /tmp/item_pending.lean --no-wait --no-auto-add-imports --no-validate-lean-project`
+9. **Delete the temp file** — never commit files with `admit`
+
+**Example transformation:**
+```lean
+-- BEFORE (won't work with Aristotle)
+import EtingofRepresentationTheory.Chapter9.Theorem9_2_1
+import Mathlib.Order.JordanHolder
+
+theorem Etingof.Proposition9_2_3 : statement := sorry
+
+-- AFTER (self-contained for Aristotle)
+import Mathlib.Order.JordanHolder
+import Mathlib.RingTheory.SimpleModule  -- was needed by Theorem9_2_1
+
+-- Inlined from Theorem9_2_1.lean:
+theorem Etingof.Theorem9_2_1 : ... := admit
+
+theorem Etingof.Proposition9_2_3 : statement := sorry
+```
+
 **Known Aristotle limitations** (as of 2026-03):
 - **Unicode identifiers** in types/structures (e.g., `D₄Rep`) cause load failures
 - **`axiom` declarations** trigger "unexpected axioms" warnings and may prevent loading
@@ -620,3 +655,22 @@ From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
 6. **Status tracking lag.** After proving a theorem, update `items.json` immediately in the same commit. Audits have found items marked `scaffolded` that were actually `sorry_free`. Automated sorry detection (via LeanArchitect) is more reliable than manual tracking, but agents should still update proactively.
 7. **FDRep abstraction fighting.** If your proof requires distributing `.hom.hom` over sums or otherwise unwrapping 3+ layers of categorical abstraction, you're fighting the wrong abstraction. See the FDRep Categorical Plumbing patterns above for alternatives.
 8. **Universe level mismatches.** Representation theory proofs sometimes need explicit universe annotations (`.{v}`) especially when working with Jacobson radical or maximal ideal APIs. If type unification fails mysteriously, try adding explicit universe parameters.
+
+## Breadth-vs-Depth Phase Awareness
+
+The project alternates between **breadth phases** (statement formalization) and **depth phases** (proof completion). Recognizing which phase you're in prevents misallocating effort.
+
+### Breadth Phase (Statement Formalization)
+- **Trigger:** Proof backlog < 30 items, or agents are running out of proof targets
+- **Focus:** Formalize new theorem/definition statements across multiple chapters
+- **Expected metrics:** Low items/PR ratio, sorry count may increase (new sorry'd statements added)
+- **This is not a failure mode** — it's strategic investment in the proof pipeline
+
+### Depth Phase (Proof Completion)
+- **Trigger:** Proof backlog > 40 items, or enough targets exist across 3+ chapters
+- **Focus:** Prove sorry'd items, prioritizing chain completion and chapter closures
+- **Expected metrics:** Higher items/PR ratio, sorry count declining
+- **Planners should create 80%+ proof issues** during this phase
+
+### Current Status (as of Wave 8)
+The project has 46 items in the formalized-but-not-proved backlog. This is sufficient to support a depth phase. **Wave 9 should be proof-heavy.**

@@ -57,6 +57,17 @@ When a PR has merge conflicts, salvage the content rather than redoing the work:
 3. Apply them to a fresh branch from `main`
 4. Close the old PR, create a new one
 
+**Prefer rebasing over creating duplicate PRs.** When the conflict is simple (< 5 files
+changed, conflicts in non-overlapping sections), rebase the existing branch:
+```bash
+git fetch origin main
+git rebase origin/main
+# resolve conflicts
+git push --force-with-lease
+```
+Creating a new PR for a simple rebase wastes CI cycles and adds noise to the PR history.
+Only create a new PR when the conflicts are extensive or the original branch is badly diverged.
+
 ## Progress File Protocol
 
 ### Always Write a Progress File
@@ -246,3 +257,24 @@ Regular housekeeping prevents accumulation of stale state. Planners should creat
 **Why this matters:** In Wave 5-6, stale Aristotle submissions and items.json drift caused agents to skip ready work or duplicate effort. PR #817 (Aristotle polling audit) and PR #824 (stale PR triage) were reactive fixes. Proactive housekeeping prevents these issues.
 
 **Planner implementation:** When the planner sees that 10+ PRs have merged since the last review issue, create a review issue with deliverables covering the three housekeeping tasks above. This is separate from the summarize trigger (which focuses on progress reporting, not cleanup).
+
+### Breadth-Depth Phase Balancing for Planners
+
+The project alternates between statement formalization (breadth) and proof completion (depth). Planners should monitor the backlog size to decide which type of issues to create:
+
+- **Backlog < 30 items:** Create more statement formalization issues (breadth phase)
+- **Backlog 30-40 items:** Balanced mix of statement and proof issues
+- **Backlog > 40 items:** Create 80%+ proof issues (depth phase)
+
+Check the backlog with:
+```bash
+python3 -c "
+import json
+with open('progress/items.json') as f:
+    items = json.load(f)
+backlog = sum(1 for i in items if i.get('status') in ['statement_formalized', 'scaffolded', 'proof_formalized'])
+print(f'Proof backlog: {backlog} items')
+"
+```
+
+**As of Wave 8:** Backlog is 46 items — planners should create mostly proof issues.
