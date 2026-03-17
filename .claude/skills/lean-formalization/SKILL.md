@@ -559,6 +559,28 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
+## Type-Level If/Else Diamond Issue
+
+When defining a structure whose `obj` field branches on vertex equality (e.g., `if v = i then T₁ else T₂`), Lean's typeclass system creates a diamond:
+
+**The problem:** Structure fields like `[instAddCommMonoid : ∀ v, AddCommMonoid (obj v)]` and `[instModule : ∀ v, Module k (obj v)]` are filled sequentially. After `instAddCommMonoid` is filled (e.g., via `split; infer_instance`), it becomes opaque. The `instModule` field's type depends on `instAddCommMonoid`, but the opaque term prevents `split` from decomposing the `if` inside it.
+
+**What doesn't work:**
+- `split <;> infer_instance` for the Module field (can't split opaque match)
+- `by_cases h; subst h; simp; infer_instance` (simp can't reduce `if` with opaque Decidable)
+- `convert inferInstance` (leaves unsolvable HEq goals between opaque and concrete instances)
+- Helper instances `iteAddCommMonoid`/`iteModule` (Module's AddCommMonoid dependency doesn't match)
+- Sharing a `let`-bound `Decidable` value (doesn't reduce at type level)
+
+**Current workaround:** Sorry the `instModule` field and the `mapLinear` field. The `obj` field (the mathematical content) and `instAddCommMonoid` can be concrete. This is acceptable per issue guidelines ("specific field obligations sorry'd").
+
+**Potential solutions for a future refactor:**
+1. Change `QuiverRepresentation` to not use `[...]` instance fields — use explicit bundled instances instead
+2. Use `@[reducible]` on the obj definition so the `if` reduces
+3. Define the representation for each case separately and combine using `Sigma`/`Sum`
+
+This affects: Definition 6.6.3 (F⁺ᵢ), Definition 6.6.4 (F⁻ᵢ), and any future definition that branches `obj` on a proposition.
+
 ## Common Failure Modes
 
 From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
