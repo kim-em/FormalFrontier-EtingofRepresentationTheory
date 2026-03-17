@@ -13,14 +13,55 @@ right-hand side equals 1.
 
 ## Mathlib correspondence
 
-This is a classical identity in combinatorial algebra. Requires multivariate
-formal power series infrastructure.
+This is a classical identity in combinatorial algebra. Uses multivariate
+formal power series (`MvPowerSeries`) and `Matrix.det`.
 -/
 
-/-- The Cauchy identity for formal power series.
+open Finset Equiv.Perm MvPowerSeries
+
+noncomputable section
+
+namespace Etingof
+
+variable (N : ℕ) (k : Type*) [Field k]
+
+/-- The variables for the Cauchy identity: `N` x-variables and `N` y-variables,
+indexed by `Fin N ⊕ Fin N` (left = x, right = y). -/
+abbrev CauchyVars (N : ℕ) := Fin N ⊕ Fin N
+
+/-- The `(i,j)`-th entry of the Cauchy matrix: the formal power series `1/(1 - xᵢ yⱼ)`
+in `2N` variables. This is the geometric series `∑_{n≥0} (xᵢ yⱼ)^n`. -/
+noncomputable def cauchyMatrixEntry (i j : Fin N) :
+    MvPowerSeries (CauchyVars N) k :=
+  MvPowerSeries.invOfUnit
+    (1 - MvPowerSeries.X (Sum.inl i) * MvPowerSeries.X (Sum.inr j))
+    1  -- invertible as a power series since constant term is 1
+
+/-- The Cauchy matrix: the `N × N` matrix whose `(i,j)`-th entry is `1/(1 - xᵢ yⱼ)`.
+-/
+noncomputable def cauchyMatrix :
+    Matrix (Fin N) (Fin N) (MvPowerSeries (CauchyVars N) k) :=
+  Matrix.of (fun i j => cauchyMatrixEntry N k i j)
+
+/-- The right-hand side of the Cauchy identity:
+`Σ_{σ ∈ S_N} (-1)^σ / ∏_j (1 - xⱼ · y_{σ(j)})`. -/
+noncomputable def cauchyRHS :
+    MvPowerSeries (CauchyVars N) k :=
+  ∑ σ : Equiv.Perm (Fin N),
+    (MvPowerSeries.C (Int.cast (Equiv.Perm.sign σ : ℤ) : k)) *
+      ∏ j : Fin N,
+        MvPowerSeries.invOfUnit
+          (1 - MvPowerSeries.X (Sum.inl j) * MvPowerSeries.X (Sum.inr (σ j)))
+          1
+
+/-- **Corollary 5.15.4** (Cauchy identity): The determinant of the matrix
+`(1/(1 - xᵢ yⱼ))_{i,j}` equals `Σ_{σ ∈ S_N} (-1)^σ / ∏_j (1 - xⱼ · y_{σ(j)})`.
+
+This is a formal power series identity in `2N` variables `x₁,...,x_N, y₁,...,y_N`.
 (Etingof Corollary 5.15.4) -/
-theorem Etingof.Corollary5_15_4
+theorem Corollary5_15_4
     (N : ℕ) :
-    -- det(1/(1 - x_i y_j)) = Σ_σ (-1)^σ / ∏_j (1 - x_j y_{σ(j)})
-    (sorry : Prop) := by
+    (cauchyMatrix N k).det = cauchyRHS N k := by
   sorry
+
+end Etingof

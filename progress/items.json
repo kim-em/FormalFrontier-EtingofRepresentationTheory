@@ -3197,8 +3197,8 @@
     "end_page": "120",
     "start_line": 5,
     "end_line": 10,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Remark5.15.5",
@@ -3558,8 +3558,8 @@
     "end_page": "133",
     "start_line": 13,
     "end_line": 21,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.23.2",
