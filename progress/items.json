@@ -4257,8 +4257,7 @@
     "end_page": "171",
     "start_line": 19,
     "end_line": 32,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter6/Proposition6.6.7",
@@ -4268,8 +4267,7 @@
     "end_page": "172",
     "start_line": 33,
     "end_line": 26,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter6/Proposition6.6.8",
