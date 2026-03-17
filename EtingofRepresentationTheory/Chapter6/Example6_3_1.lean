@@ -463,6 +463,92 @@ private lemma comap_isCompl_of_surj_inj {k : Type*} [Field k]
     exact ⟨x₁, by change A x₁ ∈ p; rw [hx₁]; exact hyp,
            x₂, by change A x₂ ∈ q; rw [hx₂]; exact hyq, this.symm⟩
 
+-- Two distinct 1-dim submodules in a 2-dim space are complementary.
+private lemma isCompl_of_finrank_one_ne {k : Type*} [Field k]
+    {V : Type*} [AddCommGroup V] [Module k V] [FiniteDimensional k V]
+    (hV : Module.finrank k V = 2)
+    (p q : Submodule k V) (hp : Module.finrank k p = 1) (hq : Module.finrank k q = 1)
+    (hne : p ≠ q) : IsCompl p q := by
+  -- Key fact: finrank(p ⊓ q) ≤ 1 (since p ⊓ q ≤ p)
+  have hpq_le : Module.finrank k (p ⊓ q : Submodule k V) ≤ 1 :=
+    (Submodule.finrank_mono (inf_le_left (a := p) (b := q))).trans hp.le
+  -- If finrank(p ⊓ q) = 1, then p ⊓ q = p = q, contradiction
+  have hpq_zero : Module.finrank k (p ⊓ q : Submodule k V) = 0 := by
+    by_contra h; push_neg at h
+    have hpq_eq : Module.finrank k (p ⊓ q : Submodule k V) = 1 := by omega
+    have h1 : (p ⊓ q : Submodule k V) = p :=
+      Submodule.eq_of_le_of_finrank_le (inf_le_left (a := p) (b := q)) (by omega)
+    have h2 : (p ⊓ q : Submodule k V) = q :=
+      Submodule.eq_of_le_of_finrank_le (inf_le_right (a := p) (b := q)) (by omega)
+    exact hne (h1.symm.trans h2)
+  -- finrank(p ⊔ q) = 1 + 1 - 0 = 2
+  have hpq_sup : Module.finrank k (p ⊔ q : Submodule k V) = 2 := by
+    have := Submodule.finrank_sup_add_finrank_inf_eq p q; omega
+  constructor
+  · -- Disjoint: finrank(p ⊓ q) = 0 → p ⊓ q = ⊥
+    rw [disjoint_iff]
+    exact Submodule.finrank_eq_zero.mp hpq_zero
+  · -- Codisjoint: finrank(p ⊔ q) = finrank V → p ⊔ q = ⊤
+    rw [codisjoint_iff]
+    exact Submodule.eq_top_of_finrank_eq (by omega)
+
+-- General decomposition: for each arm, either its range fits in a summand (use ⊤/⊥),
+-- or it is bijective (use comap). In either case, indecomposability forces p = ⊥ or q = ⊥.
+private lemma decomp_general {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (p q : Submodule k ρ.V) (hpq : IsCompl p q)
+    (h₁ : (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+           (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤))
+    (h₂ : (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+           (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤))
+    (h₃ : (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+           (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤)) :
+    p = ⊥ ∨ q = ⊥ := by
+  -- Construct compatible arm decomposition for each arm
+  have arm₁ : ∃ (p₁ q₁ : Submodule k ρ.V₁), IsCompl p₁ q₁ ∧
+      (∀ x ∈ p₁, ρ.A₁ x ∈ p) ∧ (∀ x ∈ q₁, ρ.A₁ x ∈ q) := by
+    rcases h₁ with (h | h) | ⟨hinj, hsurj⟩
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+    · exact ⟨Submodule.comap ρ.A₁ p, Submodule.comap ρ.A₁ q,
+        comap_isCompl_of_surj_inj ρ.A₁ hinj hsurj p q hpq,
+        fun x hx => hx, fun x hx => hx⟩
+  have arm₂ : ∃ (p₂ q₂ : Submodule k ρ.V₂), IsCompl p₂ q₂ ∧
+      (∀ x ∈ p₂, ρ.A₂ x ∈ p) ∧ (∀ x ∈ q₂, ρ.A₂ x ∈ q) := by
+    rcases h₂ with (h | h) | ⟨hinj, hsurj⟩
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+    · exact ⟨Submodule.comap ρ.A₂ p, Submodule.comap ρ.A₂ q,
+        comap_isCompl_of_surj_inj ρ.A₂ hinj hsurj p q hpq,
+        fun x hx => hx, fun x hx => hx⟩
+  have arm₃ : ∃ (p₃ q₃ : Submodule k ρ.V₃), IsCompl p₃ q₃ ∧
+      (∀ x ∈ p₃, ρ.A₃ x ∈ p) ∧ (∀ x ∈ q₃, ρ.A₃ x ∈ q) := by
+    rcases h₃ with (h | h) | ⟨hinj, hsurj⟩
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+    · exact ⟨Submodule.comap ρ.A₃ p, Submodule.comap ρ.A₃ q,
+        comap_isCompl_of_surj_inj ρ.A₃ hinj hsurj p q hpq,
+        fun x hx => hx, fun x hx => hx⟩
+  obtain ⟨p₁, q₁, hc₁, hp₁, hq₁⟩ := arm₁
+  obtain ⟨p₂, q₂, hc₂, hp₂, hq₂⟩ := arm₂
+  obtain ⟨p₃, q₃, hc₃, hp₃, hq₃⟩ := arm₃
+  have := hind.2 p q p₁ q₁ p₂ q₂ p₃ q₃ hpq hc₁ hc₂ hc₃ hp₁ hq₁ hp₂ hq₂ hp₃ hq₃
+  rcases this with ⟨hp, _, _, _⟩ | ⟨hq, _, _, _⟩
+  · left; exact hp
+  · right; exact hq
+
 -- dim V ≥ 3, all injective, range sum = ⊤ → decomposable
 private lemma decomp_dim_ge_three {k : Type*} [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable)
@@ -532,10 +618,265 @@ private lemma classification_injective_dim_bound {k : Type*} [Field k] (ρ : D�
     by_contra h; push_neg at h
     exact decomp_dim_ge_three ρ hind hA₁ hA₂ hA₃ hR (by omega)
   have hV_eq : Module.finrank k ρ.V = 2 := by omega
-  -- All arm dims are between 0 and 2 (by injectivity into dim-2 V).
-  -- We show each = 1 by eliminating 0 and 2.
-  -- Proving all three at once since the arguments are symmetric.
-  sorry
+  -- Arm-specific range = ⊤ / range = ⊥ lemmas
+  have rt₁ : Module.finrank k ρ.V₁ = 2 → LinearMap.range ρ.A₁ = ⊤ :=
+    fun h => (LinearMap.ker_eq_bot_iff_range_eq_top_of_finrank_eq_finrank (by omega)).mp hA₁
+  have rt₂ : Module.finrank k ρ.V₂ = 2 → LinearMap.range ρ.A₂ = ⊤ :=
+    fun h => (LinearMap.ker_eq_bot_iff_range_eq_top_of_finrank_eq_finrank (by omega)).mp hA₂
+  have rt₃ : Module.finrank k ρ.V₃ = 2 → LinearMap.range ρ.A₃ = ⊤ :=
+    fun h => (LinearMap.ker_eq_bot_iff_range_eq_top_of_finrank_eq_finrank (by omega)).mp hA₃
+  -- Helper: finrank of range (by injectivity)
+  have fr₁ := LinearMap.finrank_range_of_inj hinj₁
+  have fr₂ := LinearMap.finrank_range_of_inj hinj₂
+  have fr₃ := LinearMap.finrank_range_of_inj hinj₃
+  have rb₁ : Module.finrank k ρ.V₁ = 0 → LinearMap.range ρ.A₁ = ⊥ :=
+    fun h => Submodule.finrank_eq_zero.mp (by rw [fr₁]; exact h)
+  have rb₂ : Module.finrank k ρ.V₂ = 0 → LinearMap.range ρ.A₂ = ⊥ :=
+    fun h => Submodule.finrank_eq_zero.mp (by rw [fr₂]; exact h)
+  have rb₃ : Module.finrank k ρ.V₃ = 0 → LinearMap.range ρ.A₃ = ⊥ :=
+    fun h => Submodule.finrank_eq_zero.mp (by rw [fr₃]; exact h)
+  haveI : Nontrivial ρ.V := Module.nontrivial_of_finrank_eq_succ (n := 1) (by omega)
+  -- Contradiction helper: given 1-dim p, q, decomp_general gives False
+  have absurd_pq : ∀ (p q : Submodule k ρ.V), IsCompl p q →
+      Module.finrank k p = 1 → Module.finrank k q = 1 →
+      (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+        (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) →
+      (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+        (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) →
+      (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+        (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) →
+      False := by
+    intro p q hpq hp hq h₁ h₂ h₃
+    rcases decomp_general ρ hind p q hpq h₁ h₂ h₃ with hp_bot | hq_bot
+    · rw [hp_bot, finrank_bot] at hp; omega
+    · rw [hq_bot, finrank_bot] at hq; omega
+  -- Prove all dims = 1. Strategy: for each arm with dim ≠ 1, find nontrivial
+  -- complement pair accommodating all arm ranges, get contradiction via absurd_pq.
+  refine ⟨hV_eq, ?_, ?_, ?_⟩
+  all_goals by_contra hdim
+  -- For dim V₁ = 1:
+  · have hd₁ : Module.finrank k ρ.V₁ = 0 ∨ Module.finrank k ρ.V₁ = 2 := by omega
+    -- Arm 1 has range ⊥ (dim 0) or is bijective (dim 2).
+    -- Collect "constraining" ranges from arms 2, 3 (those with dim = 1).
+    -- At most 2 such ranges. We can accommodate them in a complement pair.
+    -- First, get a 1-dim subspace p in V.
+    -- Choose p to contain a constraining range if one exists.
+    have get_line : ∃ (p : Submodule k ρ.V), Module.finrank k p = 1 := by
+      obtain ⟨v, hv⟩ := exists_ne (0 : ρ.V)
+      exact ⟨Submodule.span k {v}, finrank_span_singleton hv⟩
+    -- Build arm conditions for decomp_general based on arm dimensions
+    have h₁_cond : ∀ (p q : Submodule k ρ.V), IsCompl p q →
+        (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+        (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) := by
+      intro p q _
+      rcases hd₁ with h | h
+      · exact Or.inl (Or.inl ((rb₁ h).symm ▸ bot_le))
+      · exact Or.inr ⟨hinj₁, rt₁ h⟩
+    -- For arms 2 and 3: if dim = 0 or 2, easy. If dim = 1, need range ≤ p or ≤ q.
+    -- The 1-dim ranges are the "constraints" on our choice of p.
+    -- Strategy: if a 1-dim range exists, make it = p (or q).
+    -- We pick p = the first 1-dim range we find among arms 2, 3.
+    -- If both are 1-dim and different, use isCompl_of_finrank_one_ne to make them (p, q).
+    -- dim_range_i = finrank of range Aᵢ (= dim Vᵢ by injectivity)
+    by_cases hd₂ : Module.finrank k ρ.V₂ = 1
+    · -- range A₂ is a 1-dim line. Use it as p.
+      set p := LinearMap.range ρ.A₂
+      have hp : Module.finrank k p = 1 := by rw [fr₂, hd₂]
+      by_cases hd₃ : Module.finrank k ρ.V₃ = 1
+      · -- range A₃ is also 1-dim.
+        by_cases heq : p = LinearMap.range ρ.A₃
+        · -- Same line. Both ≤ p. Pick any complement q.
+          obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+          have hq : Module.finrank k q = 1 := by
+            have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+          exact absurd_pq p q hpq hp hq (h₁_cond p q hpq)
+            (Or.inl (Or.inl le_rfl))
+            (Or.inl (Or.inl (heq ▸ le_rfl)))
+        · -- Different lines. IsCompl. Use p = range A₂, q = range A₃.
+          have hq : Module.finrank k (LinearMap.range ρ.A₃) = 1 := by rw [fr₃, hd₃]
+          have hpq := isCompl_of_finrank_one_ne hV_eq p (LinearMap.range ρ.A₃) hp hq heq
+          exact absurd_pq p (LinearMap.range ρ.A₃) hpq hp hq (h₁_cond p _ hpq)
+            (Or.inl (Or.inl le_rfl))
+            (Or.inl (Or.inr le_rfl))
+      · -- dim V₃ ≠ 1, so dim V₃ = 0 or 2. range A₃ fits easily.
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₃_cond : (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+            (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) := by
+          have : Module.finrank k ρ.V₃ = 0 ∨ Module.finrank k ρ.V₃ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₃ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₃, rt₃ h⟩
+        exact absurd_pq p q hpq hp hq (h₁_cond p q hpq)
+          (Or.inl (Or.inl le_rfl)) h₃_cond
+    · -- dim V₂ ≠ 1. Check dim V₃.
+      by_cases hd₃ : Module.finrank k ρ.V₃ = 1
+      · -- range A₃ is 1-dim. Use it as p.
+        set p := LinearMap.range ρ.A₃
+        have hp : Module.finrank k p = 1 := by rw [fr₃, hd₃]
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₂_cond : (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+            (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) := by
+          have : Module.finrank k ρ.V₂ = 0 ∨ Module.finrank k ρ.V₂ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₂ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₂, rt₂ h⟩
+        exact absurd_pq p q hpq hp hq (h₁_cond p q hpq) h₂_cond
+          (Or.inl (Or.inl le_rfl))
+      · -- Neither arm 2 nor arm 3 has dim 1. Both have dim 0 or 2.
+        -- No constraining ranges. Pick any 1-dim p.
+        obtain ⟨p, hp⟩ := get_line
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₂_cond : (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+            (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) := by
+          have : Module.finrank k ρ.V₂ = 0 ∨ Module.finrank k ρ.V₂ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₂ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₂, rt₂ h⟩
+        have h₃_cond : (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+            (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) := by
+          have : Module.finrank k ρ.V₃ = 0 ∨ Module.finrank k ρ.V₃ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₃ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₃, rt₃ h⟩
+        exact absurd_pq p q hpq hp hq (h₁_cond p q hpq) h₂_cond h₃_cond
+  -- For dim V₂ = 1: symmetric argument with arms relabeled
+  · have hd₂ : Module.finrank k ρ.V₂ = 0 ∨ Module.finrank k ρ.V₂ = 2 := by omega
+    have h₂_cond : ∀ (p q : Submodule k ρ.V), IsCompl p q →
+        (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+        (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) := by
+      intro p q _
+      rcases hd₂ with h | h
+      · exact Or.inl (Or.inl ((rb₂ h).symm ▸ bot_le))
+      · exact Or.inr ⟨hinj₂, rt₂ h⟩
+    have get_line : ∃ (p : Submodule k ρ.V), Module.finrank k p = 1 := by
+      obtain ⟨v, hv⟩ := exists_ne (0 : ρ.V)
+      exact ⟨Submodule.span k {v}, finrank_span_singleton hv⟩
+    by_cases hd₁ : Module.finrank k ρ.V₁ = 1
+    · set p := LinearMap.range ρ.A₁
+      have hp : Module.finrank k p = 1 := by rw [fr₁, hd₁]
+      by_cases hd₃ : Module.finrank k ρ.V₃ = 1
+      · by_cases heq : p = LinearMap.range ρ.A₃
+        · obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+          have hq : Module.finrank k q = 1 := by
+            have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+          exact absurd_pq p q hpq hp hq (Or.inl (Or.inl le_rfl)) (h₂_cond p q hpq)
+            (Or.inl (Or.inl (heq ▸ le_rfl)))
+        · have hq : Module.finrank k (LinearMap.range ρ.A₃) = 1 := by rw [fr₃, hd₃]
+          have hpq := isCompl_of_finrank_one_ne hV_eq p (LinearMap.range ρ.A₃) hp hq heq
+          exact absurd_pq p (LinearMap.range ρ.A₃) hpq hp hq
+            (Or.inl (Or.inl le_rfl)) (h₂_cond p _ hpq) (Or.inl (Or.inr le_rfl))
+      · obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₃_cond : (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+            (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) := by
+          have : Module.finrank k ρ.V₃ = 0 ∨ Module.finrank k ρ.V₃ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₃ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₃, rt₃ h⟩
+        exact absurd_pq p q hpq hp hq (Or.inl (Or.inl le_rfl)) (h₂_cond p q hpq) h₃_cond
+    · by_cases hd₃ : Module.finrank k ρ.V₃ = 1
+      · set p := LinearMap.range ρ.A₃
+        have hp : Module.finrank k p = 1 := by rw [fr₃, hd₃]
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₁_cond : (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+            (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) := by
+          have : Module.finrank k ρ.V₁ = 0 ∨ Module.finrank k ρ.V₁ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₁ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₁, rt₁ h⟩
+        exact absurd_pq p q hpq hp hq h₁_cond (h₂_cond p q hpq) (Or.inl (Or.inl le_rfl))
+      · obtain ⟨p, hp⟩ := get_line
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₁_cond : (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+            (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) := by
+          have : Module.finrank k ρ.V₁ = 0 ∨ Module.finrank k ρ.V₁ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₁ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₁, rt₁ h⟩
+        have h₃_cond : (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+            (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) := by
+          have : Module.finrank k ρ.V₃ = 0 ∨ Module.finrank k ρ.V₃ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₃ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₃, rt₃ h⟩
+        exact absurd_pq p q hpq hp hq h₁_cond (h₂_cond p q hpq) h₃_cond
+  -- For dim V₃ = 1: symmetric argument
+  · have hd₃ : Module.finrank k ρ.V₃ = 0 ∨ Module.finrank k ρ.V₃ = 2 := by omega
+    have h₃_cond : ∀ (p q : Submodule k ρ.V), IsCompl p q →
+        (LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) ∨
+        (Function.Injective ρ.A₃ ∧ LinearMap.range ρ.A₃ = ⊤) := by
+      intro p q _
+      rcases hd₃ with h | h
+      · exact Or.inl (Or.inl ((rb₃ h).symm ▸ bot_le))
+      · exact Or.inr ⟨hinj₃, rt₃ h⟩
+    have get_line : ∃ (p : Submodule k ρ.V), Module.finrank k p = 1 := by
+      obtain ⟨v, hv⟩ := exists_ne (0 : ρ.V)
+      exact ⟨Submodule.span k {v}, finrank_span_singleton hv⟩
+    by_cases hd₁ : Module.finrank k ρ.V₁ = 1
+    · set p := LinearMap.range ρ.A₁
+      have hp : Module.finrank k p = 1 := by rw [fr₁, hd₁]
+      by_cases hd₂ : Module.finrank k ρ.V₂ = 1
+      · by_cases heq : p = LinearMap.range ρ.A₂
+        · obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+          have hq : Module.finrank k q = 1 := by
+            have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+          exact absurd_pq p q hpq hp hq (Or.inl (Or.inl le_rfl))
+            (Or.inl (Or.inl (heq ▸ le_rfl))) (h₃_cond p q hpq)
+        · have hq : Module.finrank k (LinearMap.range ρ.A₂) = 1 := by rw [fr₂, hd₂]
+          have hpq := isCompl_of_finrank_one_ne hV_eq p (LinearMap.range ρ.A₂) hp hq heq
+          exact absurd_pq p (LinearMap.range ρ.A₂) hpq hp hq
+            (Or.inl (Or.inl le_rfl)) (Or.inl (Or.inr le_rfl)) (h₃_cond p _ hpq)
+      · obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₂_cond : (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+            (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) := by
+          have : Module.finrank k ρ.V₂ = 0 ∨ Module.finrank k ρ.V₂ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₂ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₂, rt₂ h⟩
+        exact absurd_pq p q hpq hp hq (Or.inl (Or.inl le_rfl)) h₂_cond (h₃_cond p q hpq)
+    · by_cases hd₂ : Module.finrank k ρ.V₂ = 1
+      · set p := LinearMap.range ρ.A₂
+        have hp : Module.finrank k p = 1 := by rw [fr₂, hd₂]
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₁_cond : (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+            (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) := by
+          have : Module.finrank k ρ.V₁ = 0 ∨ Module.finrank k ρ.V₁ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₁ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₁, rt₁ h⟩
+        exact absurd_pq p q hpq hp hq h₁_cond (Or.inl (Or.inl le_rfl)) (h₃_cond p q hpq)
+      · obtain ⟨p, hp⟩ := get_line
+        obtain ⟨q, hpq⟩ := Submodule.exists_isCompl p
+        have hq : Module.finrank k q = 1 := by
+          have := Submodule.finrank_add_eq_of_isCompl hpq; omega
+        have h₁_cond : (LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q) ∨
+            (Function.Injective ρ.A₁ ∧ LinearMap.range ρ.A₁ = ⊤) := by
+          have : Module.finrank k ρ.V₁ = 0 ∨ Module.finrank k ρ.V₁ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₁ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₁, rt₁ h⟩
+        have h₂_cond : (LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q) ∨
+            (Function.Injective ρ.A₂ ∧ LinearMap.range ρ.A₂ = ⊤) := by
+          have : Module.finrank k ρ.V₂ = 0 ∨ Module.finrank k ρ.V₂ = 2 := by omega
+          rcases this with h | h
+          · exact Or.inl (Or.inl ((rb₂ h).symm ▸ bot_le))
+          · exact Or.inr ⟨hinj₂, rt₂ h⟩
+        exact absurd_pq p q hpq hp hq h₁_cond h₂_cond (h₃_cond p q hpq)
 
 -- The main classification for the all-injective case
 private lemma classification_injective {k : Type*} [Field k] (ρ : D₄Rep k)
