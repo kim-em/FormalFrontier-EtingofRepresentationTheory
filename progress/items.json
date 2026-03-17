@@ -4278,8 +4278,9 @@
     "end_page": "173",
     "start_line": 27,
     "end_line": 12,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "proof_formalized",
+    "needs_statement": false,
+    "notes": "Sink case (part 1) fully proved via rank-nullity. Source case (part 2) blocked by Definition 6.6.4 sorry (cokernel type needs AddCommGroup)."
   },
   {
     "id": "Chapter6/Section6.7_heading",
