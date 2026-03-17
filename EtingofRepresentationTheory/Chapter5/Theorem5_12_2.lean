@@ -1,5 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
+import EtingofRepresentationTheory.Chapter5.Lemma5_13_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_13_3
 
 /-!
@@ -123,12 +124,69 @@ theorem Theorem5_12_2_irreducible
       rw [show c = (f a)⁻¹ • (f a • c) from by rw [inv_smul_smul₀ hfa]]
       exact Submodule.smul_of_tower_mem N (f a)⁻¹ hcn₀_N
 
+/-- The Young symmetrizer c_λ annihilates V_μ when μ does not dominate λ:
+c_λ · (x · c_μ) = 0 for all x ∈ ℂ[S_n]. -/
+private lemma young_symmetrizer_annihilates_specht (n : ℕ) (la mu : Nat.Partition n)
+    (h : ¬ mu.Dominates la) (v : SpechtModule n mu) :
+    YoungSymmetrizer n la * (v : A' n) = 0 := by
+  obtain ⟨x, hx⟩ := Submodule.mem_span_singleton.mp v.2
+  rw [← hx]
+  change YoungSymmetrizer n la * (x * YoungSymmetrizer n mu) = 0
+  simp only [YoungSymmetrizer]
+  rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la *
+    (x * (RowSymmetrizer n mu * ColumnAntisymmetrizer n mu)) =
+    RowSymmetrizer n la * (ColumnAntisymmetrizer n la * x * RowSymmetrizer n mu) *
+    ColumnAntisymmetrizer n mu from by simp only [mul_assoc]]
+  exact Lemma5_13_2_general n la mu h _
+
 /-- For distinct partitions λ ≠ μ, the Specht modules V_λ and V_μ are not isomorphic
-as ℂ[S_n]-modules. (Etingof Theorem 5.12.2, part 2a) -/
+as ℂ[S_n]-modules. (Etingof Theorem 5.12.2, part 2a)
+
+The proof uses the generalized vanishing: for λ ≠ μ, either μ does not dominate λ
+(so c_λ annihilates V_μ) or λ does not dominate μ (so c_μ annihilates V_λ). In either case,
+an isomorphism V_λ ≅ V_μ leads to a contradiction with c_λ² ≠ 0 (resp. c_μ² ≠ 0). -/
 theorem Theorem5_12_2_distinct
     (n : ℕ) (la mu : Nat.Partition n) (h : la ≠ mu) :
     IsEmpty ((SpechtModule n la) ≃ₗ[SymGroupAlgebra n] (SpechtModule n mu)) := by
-  sorry
+  -- For la ≠ mu, either ¬ mu.Dominates la or ¬ la.Dominates mu
+  have hdom_or : ¬ mu.Dominates la ∨ ¬ la.Dominates mu := by
+    by_contra hall
+    push_neg at hall
+    exact h (hall.1.antisymm hall.2).symm
+  constructor
+  intro φ
+  set c_la := YoungSymmetrizer n la
+  set c_mu := YoungSymmetrizer n mu
+  have hc_la_mem : c_la ∈ SpechtModule n la := Submodule.subset_span rfl
+  have hc_mu_mem : c_mu ∈ SpechtModule n mu := Submodule.subset_span rfl
+  -- Helper: derive contradiction from vanishing + linearity
+  -- If c annihilates V (vanishing) but c² ≠ 0, then any iso ψ: V' ≅ V
+  -- with c ∈ V' and c • v = ψ(c • c) gives a contradiction
+  suffices ∀ (V V' : Submodule (A' n) (A' n))
+      (c : A' n) (hc_mem : c ∈ V') (hc_sq : c * c ≠ 0)
+      (hvanish : ∀ v : V, c * (v : A' n) = 0)
+      (ψ : V' ≃ₗ[A' n] V), False by
+    rcases hdom_or with h1 | h2
+    · exact this (SpechtModule n mu) (SpechtModule n la) c_la hc_la_mem
+        (young_symmetrizer_sq_ne_zero n la)
+        (fun v => young_symmetrizer_annihilates_specht n la mu h1 v) φ
+    · exact this (SpechtModule n la) (SpechtModule n mu) c_mu hc_mu_mem
+        (young_symmetrizer_sq_ne_zero n mu)
+        (fun v => young_symmetrizer_annihilates_specht n mu la h2 v) φ.symm
+  intro V V' c hc_mem hc_sq hvanish ψ
+  have hc_sq_mem : c * c ∈ V' := V'.smul_mem c hc_mem
+  -- ψ(c) ∈ V, so c * ψ(c) = 0 by vanishing
+  have h1 : c * (ψ ⟨c, hc_mem⟩ : A' n) = 0 := hvanish (ψ ⟨c, hc_mem⟩)
+  -- But c * ψ(c) = ψ(c * c) by linearity
+  have h2 : c * (ψ ⟨c, hc_mem⟩ : A' n) = (ψ ⟨c * c, hc_sq_mem⟩ : A' n) := by
+    show (c • ψ ⟨c, hc_mem⟩ : V).val = (ψ ⟨c * c, hc_sq_mem⟩ : V).val
+    congr 1
+    rw [← ψ.map_smul]; rfl
+  -- So ψ(c²) = 0, hence c² = 0 (ψ injective), contradiction
+  have h3 : (ψ ⟨c * c, hc_sq_mem⟩ : A' n) = 0 := h2 ▸ h1
+  have h4 : (⟨c * c, hc_sq_mem⟩ : V') = 0 :=
+    ψ.injective (Subtype.ext (by simp [h3, map_zero]))
+  exact hc_sq (congr_arg Subtype.val h4)
 
 /-- Every simple left ℂ[S_n]-module is isomorphic to the Specht module V_λ for some
 partition λ of n. (Etingof Theorem 5.12.2, part 2b) -/

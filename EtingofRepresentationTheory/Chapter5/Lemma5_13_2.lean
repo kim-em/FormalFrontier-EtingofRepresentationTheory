@@ -330,88 +330,85 @@ private theorem conj_swap_eq {n : ℕ} (σ : Equiv.Perm (Fin n)) (i j : Fin n) :
       simp [Equiv.swap_apply_of_ne_of_ne hσki hσkj,
             Equiv.swap_apply_of_ne_of_ne hki hkj]
 
+/-- If within each row of λ, the column-in-μ function under σ is injective
+(no pair in the same row maps to the same column), then μ dominates λ. -/
+private theorem counting_gives_dominates (n : ℕ) (la mu : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n))
+    (h_no : ∀ i j : Fin n, i ≠ j →
+      rowOfPos la.sortedParts i.val = rowOfPos la.sortedParts j.val →
+      colOfPos mu.sortedParts (σ⁻¹ i).val ≠ colOfPos mu.sortedParts (σ⁻¹ j).val) :
+    mu.Dominates la := by
+  intro k
+  rw [← sum_min_colHeight mu.sortedParts k (sortedParts_sorted mu)]
+  rw [← card_first_k_rows la k]
+  set g := fun (i : Fin n) => colOfPos mu.sortedParts (σ⁻¹ i).val
+  set S_k := (Finset.univ : Finset (Fin n)).filter (fun i =>
+    rowOfPos la.sortedParts i.val < k)
+  set T := Finset.range (mu.sortedParts.headD 0)
+  have hmaps : Set.MapsTo g ↑S_k ↑T := fun i hi => by
+    rw [Finset.mem_coe, Finset.mem_filter] at hi; rw [Finset.mem_coe, Finset.mem_range]
+    exact colOfPos_lt_headD mu.sortedParts _ (by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt)
+      (sortedParts_sorted mu)
+  rw [Finset.card_eq_sum_card_fiberwise hmaps]
+  apply Finset.sum_le_sum; intro c _
+  have hfilt_eq : S_k.filter (fun i => g i = c) =
+      Finset.univ.filter (fun i : Fin n =>
+        rowOfPos la.sortedParts i.val < k ∧
+        colOfPos mu.sortedParts (σ⁻¹ i).val = c) := by
+    ext i; simp [S_k, g, Finset.mem_filter]
+  rw [hfilt_eq]
+  set F := Finset.univ.filter (fun i : Fin n =>
+    rowOfPos la.sortedParts i.val < k ∧
+    colOfPos mu.sortedParts (σ⁻¹ i).val = c)
+  apply Nat.le_min.mpr; constructor
+  · have hmaps1 : Set.MapsTo (fun i : Fin n => rowOfPos la.sortedParts i.val)
+        ↑F ↑(Finset.range k) := by
+      intro i hi
+      rw [Finset.mem_coe, Finset.mem_filter] at hi
+      exact Finset.mem_range.mpr hi.2.1
+    have hinj1 : Set.InjOn (fun i : Fin n => rowOfPos la.sortedParts i.val) ↑F := by
+      intro i hi j hj heq
+      rw [Finset.mem_coe, Finset.mem_filter] at hi hj
+      by_contra hne; exact h_no i j hne heq (by rw [hi.2.2, hj.2.2])
+    have h1 := Finset.card_le_card_of_injOn _ hmaps1 hinj1
+    rw [Finset.card_range] at h1; exact h1
+  · have hmaps2 : Set.MapsTo (fun i : Fin n => rowOfPos mu.sortedParts (σ⁻¹ i).val)
+        ↑F ↑(Finset.range (colHeight mu.sortedParts c)) := by
+      intro i hi
+      rw [Finset.mem_coe, Finset.mem_filter] at hi
+      rw [Finset.mem_coe, Finset.mem_range]
+      have hv : (σ⁻¹ i).val < mu.sortedParts.sum := by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt
+      have hrow := rowOfPos_lt_length mu.sortedParts _ hv
+      have hcol := colOfPos_lt_getElem mu.sortedParts _ hv
+      rw [hi.2.2] at hcol
+      exact row_lt_colHeight_of_gt mu.sortedParts _ c (sortedParts_sorted mu) hrow (by omega)
+    have hinj2 : Set.InjOn (fun i : Fin n => rowOfPos mu.sortedParts (σ⁻¹ i).val) ↑F := by
+      intro i hi j hj heq
+      rw [Finset.mem_coe, Finset.mem_filter] at hi hj
+      have hcol_eq : colOfPos mu.sortedParts (σ⁻¹ i).val =
+          colOfPos mu.sortedParts (σ⁻¹ j).val := by rw [hi.2.2, hj.2.2]
+      have hval_eq := rowOfPos_colOfPos_injective mu.sortedParts _ _
+        (by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt)
+        (by rw [sortedParts_sum]; exact (σ⁻¹ j).isLt) heq hcol_eq
+      exact σ.symm.injective (Fin.ext hval_eq)
+    have h2 := Finset.card_le_card_of_injOn _ hmaps2 hinj2
+    rw [Finset.card_range] at h2; exact h2
+
 theorem pigeonhole_transposition (n : ℕ) (la mu : Nat.Partition n)
     (hdom : la.StrictDominates mu) (σ : Equiv.Perm (Fin n)) :
     ∃ (t : Equiv.Perm (Fin n)),
       t ∈ RowSubgroup n la ∧ σ⁻¹ * t * σ ∈ ColumnSubgroup n mu ∧
       Equiv.Perm.sign t = -1 := by
-  -- Step 1: Suffices to find i ≠ j in same row of la with σ⁻¹(i), σ⁻¹(j) in same column of mu
   suffices ∃ i j : Fin n, i ≠ j ∧
       rowOfPos la.sortedParts i.val = rowOfPos la.sortedParts j.val ∧
       colOfPos mu.sortedParts (σ⁻¹ i).val = colOfPos mu.sortedParts (σ⁻¹ j).val by
     obtain ⟨i, j, hij, hrow, hcol⟩ := this
     exact ⟨Equiv.swap i j, swap_mem_RowSubgroup hrow,
       conj_swap_eq σ i j ▸ swap_mem_ColumnSubgroup hcol, Equiv.Perm.sign_swap hij⟩
-  -- Step 2: Pigeonhole — by contradiction, derive la = mu from injectivity + dominance
   by_contra h_no
   push_neg at h_no
-  obtain ⟨hdom_ge, hne⟩ := hdom
-  apply hne
-  -- From h_no: within each row of la, the column-in-mu map is injective.
-  -- Combined with dominance, this forces equal partial sums, hence equal partitions.
-  apply partition_eq_of_partial_sums la mu
-  intro k
-  apply le_antisymm
-  · -- Reverse dominance: (la.take k).sum ≤ (mu.take k).sum via counting argument
-    rw [← sum_min_colHeight mu.sortedParts k (sortedParts_sorted mu)]
-    rw [← card_first_k_rows la k]
-    -- Decompose S_k by column value g(i) = colOfPos(mu, σ⁻¹(i))
-    set g := fun (i : Fin n) => colOfPos mu.sortedParts (σ⁻¹ i).val
-    set S_k := (Finset.univ : Finset (Fin n)).filter (fun i =>
-      rowOfPos la.sortedParts i.val < k)
-    set T := Finset.range (mu.sortedParts.headD 0)
-    have hmaps : Set.MapsTo g ↑S_k ↑T := fun i hi => by
-      rw [Finset.mem_coe, Finset.mem_filter] at hi; rw [Finset.mem_coe, Finset.mem_range]
-      exact colOfPos_lt_headD mu.sortedParts _ (by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt)
-        (sortedParts_sorted mu)
-    rw [Finset.card_eq_sum_card_fiberwise hmaps]
-    apply Finset.sum_le_sum; intro c _
-    -- Each fiber {i ∈ S_k : g(i) = c} has card ≤ min(k, colHeight(mu, c))
-    have hfilt_eq : S_k.filter (fun i => g i = c) =
-        Finset.univ.filter (fun i : Fin n =>
-          rowOfPos la.sortedParts i.val < k ∧
-          colOfPos mu.sortedParts (σ⁻¹ i).val = c) := by
-      ext i; simp [S_k, g, Finset.mem_filter]
-    rw [hfilt_eq]
-    set F := Finset.univ.filter (fun i : Fin n =>
-      rowOfPos la.sortedParts i.val < k ∧
-      colOfPos mu.sortedParts (σ⁻¹ i).val = c)
-    apply Nat.le_min.mpr; constructor
-    · -- Bound 1: ≤ k (distinct row values via injection into Finset.range k)
-      have hmaps1 : Set.MapsTo (fun i : Fin n => rowOfPos la.sortedParts i.val) ↑F ↑(Finset.range k) := by
-        intro i hi
-        rw [Finset.mem_coe, Finset.mem_filter] at hi
-        exact Finset.mem_range.mpr hi.2.1
-      have hinj1 : Set.InjOn (fun i : Fin n => rowOfPos la.sortedParts i.val) ↑F := by
-        intro i hi j hj heq
-        rw [Finset.mem_coe, Finset.mem_filter] at hi hj
-        by_contra hne; exact h_no i j hne heq (by rw [hi.2.2, hj.2.2])
-      have h1 := Finset.card_le_card_of_injOn _ hmaps1 hinj1
-      rw [Finset.card_range] at h1; exact h1
-    · -- Bound 2: ≤ colHeight(mu, c) (inject σ⁻¹ into column c of mu)
-      have hmaps2 : Set.MapsTo (fun i : Fin n => rowOfPos mu.sortedParts (σ⁻¹ i).val)
-          ↑F ↑(Finset.range (colHeight mu.sortedParts c)) := by
-        intro i hi
-        rw [Finset.mem_coe, Finset.mem_filter] at hi
-        rw [Finset.mem_coe, Finset.mem_range]
-        have hv : (σ⁻¹ i).val < mu.sortedParts.sum := by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt
-        have hrow := rowOfPos_lt_length mu.sortedParts _ hv
-        have hcol := colOfPos_lt_getElem mu.sortedParts _ hv
-        rw [hi.2.2] at hcol
-        exact row_lt_colHeight_of_gt mu.sortedParts _ c (sortedParts_sorted mu) hrow (by omega)
-      have hinj2 : Set.InjOn (fun i : Fin n => rowOfPos mu.sortedParts (σ⁻¹ i).val) ↑F := by
-        intro i hi j hj heq
-        rw [Finset.mem_coe, Finset.mem_filter] at hi hj
-        have hcol_eq : colOfPos mu.sortedParts (σ⁻¹ i).val =
-            colOfPos mu.sortedParts (σ⁻¹ j).val := by rw [hi.2.2, hj.2.2]
-        have hval_eq := rowOfPos_colOfPos_injective mu.sortedParts _ _
-          (by rw [sortedParts_sum]; exact (σ⁻¹ i).isLt)
-          (by rw [sortedParts_sum]; exact (σ⁻¹ j).isLt) heq hcol_eq
-        exact σ.symm.injective (Fin.ext hval_eq)
-      have h2 := Finset.card_le_card_of_injOn _ hmaps2 hinj2
-      rw [Finset.card_range] at h2; exact h2
-  · -- Forward dominance (given)
-    exact hdom_ge k
+  exact hdom.2 (partition_eq_of_partial_sums la mu (fun k =>
+    le_antisymm ((counting_gives_dominates n la mu σ h_no) k) (hdom.1 k)))
 
 /-- For a basis element of(σ): if λ strictly dominates μ, then a_λ · of(σ) · b_μ = 0. -/
 theorem basis_vanishing (n : ℕ) (la mu : Nat.Partition n)
@@ -472,4 +469,78 @@ theorem Lemma5_13_2
       simp [MonoidAlgebra.of_apply, mul_one]
     rw [h, mul_smul_comm, smul_mul_assoc, basis_vanishing n la mu hdom g, smul_zero]
 
+/-- Generalized pigeonhole: if μ does NOT dominate λ, then for any σ,
+there exists a transposition in Row(λ) that conjugated by σ lies in Col(μ).
+This strengthens `pigeonhole_transposition` which requires the stronger
+hypothesis `la.StrictDominates mu`. -/
+theorem pigeonhole_transposition_general (n : ℕ) (la mu : Nat.Partition n)
+    (h : ¬ mu.Dominates la) (σ : Equiv.Perm (Fin n)) :
+    ∃ (t : Equiv.Perm (Fin n)),
+      t ∈ RowSubgroup n la ∧ σ⁻¹ * t * σ ∈ ColumnSubgroup n mu ∧
+      Equiv.Perm.sign t = -1 := by
+  suffices ∃ i j : Fin n, i ≠ j ∧
+      rowOfPos la.sortedParts i.val = rowOfPos la.sortedParts j.val ∧
+      colOfPos mu.sortedParts (σ⁻¹ i).val = colOfPos mu.sortedParts (σ⁻¹ j).val by
+    obtain ⟨i, j, hij, hrow, hcol⟩ := this
+    exact ⟨Equiv.swap i j, swap_mem_RowSubgroup hrow,
+      conj_swap_eq σ i j ▸ swap_mem_ColumnSubgroup hcol, Equiv.Perm.sign_swap hij⟩
+  by_contra h_no
+  push_neg at h_no
+  exact h (counting_gives_dominates n la mu σ h_no)
+
+/-- Generalized basis vanishing: if μ does NOT dominate λ, then
+a_λ · of(σ) · b_μ = 0 for any basis element σ. -/
+theorem basis_vanishing_general (n : ℕ) (la mu : Nat.Partition n)
+    (h : ¬ mu.Dominates la)
+    (σ : Equiv.Perm (Fin n)) :
+    RowSymmetrizer n la * MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) σ *
+      ColumnAntisymmetrizer n mu = 0 := by
+  obtain ⟨t, ht_row, hconj_col, ht_sign⟩ := pigeonhole_transposition_general n la mu h σ
+  let of' := MonoidAlgebra.of ℂ (Equiv.Perm (Fin n))
+  set a := RowSymmetrizer n la
+  set b := ColumnAntisymmetrizer n mu
+  set val := a * of' σ * b
+  have hconj_sign : (↑(↑(Equiv.Perm.sign (σ⁻¹ * t * σ)) : ℤ) : ℂ) = -1 := by
+    simp [Equiv.Perm.sign_mul, ht_sign]
+  have hab : a * of' t = a := RowSymmetrizer_mul_of_row t ht_row
+  have hcol := of_col_mul_ColumnAntisymmetrizer (σ⁻¹ * t * σ) hconj_col
+  have hval_neg : val = (-1 : ℂ) • val := by
+    have step : a * of' σ = a * of' σ * of' (σ⁻¹ * t * σ) := by
+      conv_lhs => rw [show a = a * of' t from hab.symm]
+      rw [mul_assoc a (of' t) (of' σ), ← map_mul of' t σ,
+          show t * σ = σ * (σ⁻¹ * t * σ) from by group,
+          map_mul of' σ (σ⁻¹ * t * σ), ← mul_assoc]
+    change a * of' σ * b = (-1 : ℂ) • (a * of' σ * b)
+    conv_lhs => rw [step, mul_assoc (a * of' σ) (of' (σ⁻¹ * t * σ)) b, hcol]
+    rw [mul_smul_comm, hconj_sign]
+  rw [neg_one_smul] at hval_neg
+  have hadd : val + val = 0 := by nth_rw 1 [hval_neg]; exact neg_add_cancel val
+  have h2 : (2 : ℂ) • val = 0 := by rwa [two_smul]
+  exact (smul_eq_zero.mp h2).resolve_left (by norm_num)
+
+/-- Generalized vanishing: if μ does NOT dominate λ, then a_λ · x · b_μ = 0
+for all x ∈ ℂ[S_n]. This strengthens `Lemma5_13_2` which requires
+`la.StrictDominates mu`. -/
+theorem Lemma5_13_2_general
+    (n : ℕ) (la mu : Nat.Partition n)
+    (h : ¬ mu.Dominates la)
+    (x : MonoidAlgebra ℂ (Equiv.Perm (Fin n))) :
+    RowSymmetrizer n la * x * ColumnAntisymmetrizer n mu = 0 := by
+  induction x using Finsupp.induction_linear with
+  | zero => simp
+  | add x y hx hy =>
+    rw [mul_add, add_mul, hx, hy, add_zero]
+  | single g c =>
+    have hsg : (Finsupp.single g c : MonoidAlgebra ℂ (Equiv.Perm (Fin n))) =
+        c • MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) g := by
+      simp [MonoidAlgebra.of_apply, mul_one]
+    rw [hsg, mul_smul_comm, smul_mul_assoc,
+      basis_vanishing_general n la mu h g, smul_zero]
+
 end Etingof
+
+/-- Antisymmetry of the dominance order: if λ dominates μ and μ dominates λ,
+then λ = μ. -/
+theorem Nat.Partition.Dominates.antisymm {n : ℕ} {la mu : Nat.Partition n}
+    (h1 : la.Dominates mu) (h2 : mu.Dominates la) : la = mu :=
+  partition_eq_of_partial_sums la mu (fun k => le_antisymm (h2 k) (h1 k))
