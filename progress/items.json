@@ -3642,8 +3642,8 @@
     "end_page": "138",
     "start_line": 37,
     "end_line": 20,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Discussion_1dim_reps",
@@ -3671,8 +3671,8 @@
     "end_page": "141",
     "start_line": 15,
     "end_line": 34,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Discussion_principal_series_name",
@@ -3700,8 +3700,8 @@
     "end_page": "144",
     "start_line": 22,
     "end_line": 14,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Discussion_complementary_series_summary",
