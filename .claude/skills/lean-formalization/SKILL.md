@@ -116,6 +116,12 @@ Escalate after **2-3 serious attempts** (not 2-3 minor variations of the same ap
 4. **Record in items.json.** Set status to `sent_to_aristotle` with the project ID.
 5. **Delete temp file.** Never commit files with `admit`.
 
+**CRITICAL: `--context-files` is mandatory for this project.** Every Lean file imports
+`EtingofRepresentationTheory.*` modules, which Aristotle cannot resolve on its own.
+Without `--context-files`, Aristotle returns "unknown module prefix" and produces no proof.
+Step 2 is NOT optional — if no sorry-free context files exist yet, you must still provide
+the imported files (with their sorries changed to `admit`) as context.
+
 ### After Aristotle Returns
 
 - **Success:** Verify with `lake env lean`, copy proof, update status to `sorry_free`.
