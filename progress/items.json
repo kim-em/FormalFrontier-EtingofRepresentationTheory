@@ -5399,8 +5399,8 @@
     "end_page": "218",
     "start_line": 19,
     "end_line": 4,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": false
   },
   {
     "id": "Chapter9/Example9.5.2",
@@ -5410,8 +5410,8 @@
     "end_page": "218",
     "start_line": 5,
     "end_line": 6,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "proof_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter9/Problem9.5.3",
