@@ -5,7 +5,7 @@ import Mathlib
 
 The following identity holds for distinct variables z₁,...,zₙ and y₁,...,yₙ:
 
-  det(1/(zᵢ - yⱼ)) = ∏_{i<j}(zⱼ - zᵢ) · ∏_{i<j}(yⱼ - yᵢ) / ∏_{i,j}(zᵢ - yⱼ)
+  det(1/(zᵢ - yⱼ)) = ∏_{i<j}(zⱼ - zᵢ) · ∏_{i<j}(yᵢ - yⱼ) / ∏_{i,j}(zᵢ - yⱼ)
 
 This is the Cauchy determinant formula, used in the proof of the Frobenius
 character formula.
@@ -19,7 +19,7 @@ identity itself may need to be proved from scratch.
 open Matrix Finset
 
 /-- Cauchy determinant identity (multiplicative form): clearing denominators, the identity becomes
-  `∏_{i,j}(zᵢ - yⱼ) · det(1/(zᵢ - yⱼ)) = ∏_{i<j}(zⱼ - zᵢ) · ∏_{i<j}(yⱼ - yᵢ)`.
+  `∏_{i,j}(zᵢ - yⱼ) · det(1/(zᵢ - yⱼ)) = ∏_{i<j}(zⱼ - zᵢ) · ∏_{i<j}(yᵢ - yⱼ)`.
 (Etingof Lemma 5.15.3) -/
 theorem Etingof.Lemma5_15_3
     (N : ℕ) (z y : Fin N → ℂ)
@@ -27,5 +27,5 @@ theorem Etingof.Lemma5_15_3
     (∏ i : Fin N, ∏ j : Fin N, (z i - y j)) *
       (Matrix.of (fun i j : Fin N => (z i - y j)⁻¹)).det =
     (∏ i : Fin N, ∏ j ∈ Ioi i, (z j - z i)) *
-    (∏ i : Fin N, ∏ j ∈ Ioi i, (y j - y i)) := by
+    (∏ i : Fin N, ∏ j ∈ Ioi i, (y i - y j)) := by
   sorry
