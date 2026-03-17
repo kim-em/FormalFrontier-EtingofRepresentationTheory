@@ -3538,7 +3538,8 @@
     "end_page": "133",
     "start_line": 9,
     "end_line": 10,
-    "status": "scaffolded"
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Discussion_after_Definition5.23.1",
