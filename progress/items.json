@@ -4007,14 +4007,14 @@
     "end_page": "163",
     "start_line": 15,
     "end_line": 74,
-    "status": "attention_needed",
+    "status": "sent_to_aristotle",
     "needs_statement": false,
-    "aristotle_note": "Resubmitted 2026-03-17: 2 sorries remain (decomp_dim_ge_three, classification_injective_dim_bound). Added comap_isCompl_of_surj_inj helper. Previous submissions failed due to Unicode identifier issues.",
+    "aristotle_note": "Resubmitted 2026-03-18: decomp_dim_ge_three sent (14e2dca1), classification_injective_dim_bound rate-limited (5 projects max). Added decomp_bijective_and_split helper. Context files included to fix import errors.",
     "aristotle_projects": {
-      "decomp_dim_ge_three": "0fb12a95-9c8f-427d-b471-e7fb78c0e36a",
-      "classification_injective_dim_bound": "1130cfc3-52fe-42a5-8780-a1a5b80e8b92"
+      "decomp_dim_ge_three": "14e2dca1-92cd-4375-82ad-84ee8bc2cb5c",
+      "classification_injective_dim_bound": "pending_rate_limited"
     },
-    "notes": "Both Aristotle submissions (0fb12a95, 1130cfc3) COMPLETE but failed with import error: cannot resolve EtingofRepresentationTheory module. Need self-contained re-submission or manual proof."
+    "notes": "Previous Aristotle submissions (0fb12a95, 1130cfc3) failed with import errors. New submissions use --no-auto-add-imports with context files."
   },
   {
     "id": "Chapter6/Discussion_after_Example6.3.1",
