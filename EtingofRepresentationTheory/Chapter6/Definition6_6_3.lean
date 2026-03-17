@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter6.Definition6_6_1
 import EtingofRepresentationTheory.Chapter6.Definition6_6_2
+import Mathlib.Algebra.DirectSum.Module
 
 /-!
 # Definition 6.6.3: Reflection Functor F⁺ᵢ (at a Sink)
@@ -44,5 +45,24 @@ noncomputable def Etingof.reflectionFunctorPlus
     (V : Type*) [DecidableEq V] [Quiver V]
     (i : V) (hi : Etingof.IsSink V i)
     (ρ : Etingof.QuiverRepresentation k V) :
-    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) :=
-  sorry
+    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
+  classical
+  -- φ : ⊕_{j→i} ρ_j → ρ_i, the sum of representation maps for arrows into i
+  let φ : DirectSum (Etingof.ArrowsInto V i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i :=
+    DirectSum.toModule k (Etingof.ArrowsInto V i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
+  -- The obj field: ker φ at vertex i, ρ.obj v elsewhere.
+  -- The Module instance and mapLinear involve type-level if/else causing
+  -- Lean's typeclass diamond issues with AddCommMonoid/Module.
+  -- These are sorry'd; the mathematical structure is captured by obj.
+  refine @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
+    (fun v => if v = i then ↥(LinearMap.ker φ) else ρ.obj v)
+    (fun v => by dsimp only; split <;> infer_instance)
+    (fun v => by exact sorry)
+    (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
+      dsimp only
+      -- Case split on whether a and b equal i:
+      -- Case a ≠ i, b ≠ i: arrow is (a ⟶ b) in Q, map is ρ.mapLinear e
+      -- Case a = i, b ≠ i: reversed arrow (b ⟶ i), map is ker φ ↪ ⊕ →ₗ proj_b
+      -- Case a ≠ i, b = i: arrow is (i ⟶ a) in Q; i is a sink, so vacuous
+      -- Case a = i, b = i: arrow is (i ⟶ i) in Q; i is a sink, so vacuous
+      exact sorry)
