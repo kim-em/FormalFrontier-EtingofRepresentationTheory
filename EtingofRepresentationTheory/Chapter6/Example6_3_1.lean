@@ -292,23 +292,233 @@ private lemma dim_V₃_eq_one_of_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k
     · left; exact hp₃
     · right; exact hq₃
 
--- The main classification: all maps injective case requires the triple of subspaces
--- problem. This is the heart of Example 6.3.1 and requires substantial Lean machinery.
--- For now, we sorry this part and handle the kernel cases.
+-- Helper: injective linear map into a zero-dimensional space means the source is zero-dimensional
+private lemma finrank_eq_zero_of_injective_into_zero {k : Type*} [Field k]
+    {V₁ V : Type*} [AddCommGroup V₁] [Module k V₁] [FiniteDimensional k V₁]
+    [AddCommGroup V] [Module k V] [FiniteDimensional k V]
+    (f : V₁ →ₗ[k] V) (hf : LinearMap.ker f = ⊥) (hV : Module.finrank k V = 0) :
+    Module.finrank k V₁ = 0 := by
+  have hinj : Function.Injective f := LinearMap.ker_eq_bot.mp hf
+  have := LinearMap.finrank_le_finrank_of_injective hinj
+  omega
+
+-- Helper: if all arms are zero-dimensional and ρ is indecomposable, then dim V = 1
+private lemma dim_V_eq_one_of_arms_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (h₁ : Module.finrank k ρ.V₁ = 0) (h₂ : Module.finrank k ρ.V₂ = 0)
+    (h₃ : Module.finrank k ρ.V₃ = 0) :
+    Module.finrank k ρ.V = 1 := by
+  rw [← Etingof.Example_6_2_2]
+  obtain ⟨hnt, hind_cond⟩ := hind
+  refine ⟨?_, fun p q hpq => ?_⟩
+  · have : 0 < Module.finrank k ρ.V := by
+      rcases hnt with h | h | h | h <;> omega
+    exact Module.nontrivial_of_finrank_pos this
+  · have htop₁ : (⊤ : Submodule k ρ.V₁) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact h₁)
+    have htop₂ : (⊤ : Submodule k ρ.V₂) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact h₂)
+    have htop₃ : (⊤ : Submodule k ρ.V₃) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact h₃)
+    have hV₁_zero : ∀ (x : ρ.V₁), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V₁) := Submodule.mem_top
+      rwa [htop₁, Submodule.mem_bot] at this
+    have hV₂_zero : ∀ (x : ρ.V₂), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V₂) := Submodule.mem_top
+      rwa [htop₂, Submodule.mem_bot] at this
+    have hV₃_zero : ∀ (x : ρ.V₃), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V₃) := Submodule.mem_top
+      rwa [htop₃, Submodule.mem_bot] at this
+    specialize hind_cond p q ⊥ ⊤ ⊥ ⊤ ⊥ ⊤
+      hpq isCompl_bot_top isCompl_bot_top isCompl_bot_top
+      (fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun x _ => by rw [hV₁_zero x, map_zero]; exact Submodule.zero_mem _)
+      (fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun x _ => by rw [hV₂_zero x, map_zero]; exact Submodule.zero_mem _)
+      (fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun x _ => by rw [hV₃_zero x, map_zero]; exact Submodule.zero_mem _)
+    rcases hind_cond with ⟨hp, _, _, _⟩ | ⟨hq, _, _, _⟩
+    · left; exact hp
+    · right; exact hq
+
+-- Step 2: range sum = ⊤ or all arms are zero
+private lemma range_sum_eq_top_or_arms_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hA₁ : LinearMap.ker ρ.A₁ = ⊥) (hA₂ : LinearMap.ker ρ.A₂ = ⊥)
+    (hA₃ : LinearMap.ker ρ.A₃ = ⊥) :
+    LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂ ⊔ LinearMap.range ρ.A₃ = ⊤ ∨
+    (Module.finrank k ρ.V₁ = 0 ∧ Module.finrank k ρ.V₂ = 0 ∧
+     Module.finrank k ρ.V₃ = 0) := by
+  by_contra h
+  rw [not_or] at h
+  obtain ⟨hR, harms⟩ := h
+  set R := LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂ ⊔ LinearMap.range ρ.A₃ with hR_def
+  obtain ⟨S, hRS⟩ := Submodule.exists_isCompl R
+  -- Decompose: (R, V₁, V₂, V₃) ⊕ (S, 0, 0, 0)
+  have := hind.2 R S ⊤ ⊥ ⊤ ⊥ ⊤ ⊥
+    hRS isCompl_top_bot isCompl_top_bot isCompl_top_bot
+    (fun x _ => by
+      have h : ρ.A₁ x ∈ LinearMap.range ρ.A₁ := LinearMap.mem_range.mpr ⟨x, rfl⟩
+      exact Submodule.mem_sup_left (Submodule.mem_sup_left h))
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun x _ => by
+      have h : ρ.A₂ x ∈ LinearMap.range ρ.A₂ := LinearMap.mem_range.mpr ⟨x, rfl⟩
+      exact Submodule.mem_sup_left (Submodule.mem_sup_right h))
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun x _ => by
+      have h : ρ.A₃ x ∈ LinearMap.range ρ.A₃ := LinearMap.mem_range.mpr ⟨x, rfl⟩
+      exact Submodule.mem_sup_right h)
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+  rcases this with ⟨hRbot, htop₁, htop₂, htop₃⟩ | ⟨hSbot, _, _, _⟩
+  · -- R = ⊥ means all ranges are zero, so all arms are zero
+    apply harms
+    have hR₁ : LinearMap.range ρ.A₁ = ⊥ := by
+      have h : LinearMap.range ρ.A₁ ≤ R :=
+        le_sup_left.trans (le_sup_left (a := LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂))
+      rw [hRbot] at h; exact bot_unique h
+    have hR₂ : LinearMap.range ρ.A₂ = ⊥ := by
+      have h : LinearMap.range ρ.A₂ ≤ R :=
+        le_sup_right.trans (le_sup_left (a := LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂))
+      rw [hRbot] at h; exact bot_unique h
+    have hR₃ : LinearMap.range ρ.A₃ = ⊥ := by
+      have h : LinearMap.range ρ.A₃ ≤ R := le_sup_right
+      rw [hRbot] at h; exact bot_unique h
+    exact ⟨by rw [← LinearMap.finrank_range_of_inj (LinearMap.ker_eq_bot.mp hA₁)]; simp [hR₁],
+           by rw [← LinearMap.finrank_range_of_inj (LinearMap.ker_eq_bot.mp hA₂)]; simp [hR₂],
+           by rw [← LinearMap.finrank_range_of_inj (LinearMap.ker_eq_bot.mp hA₃)]; simp [hR₃]⟩
+  · have : R = ⊤ := by
+      have := hRS.sup_eq_top
+      rw [hSbot, sup_bot_eq] at this
+      exact this
+    exact hR this
+
+-- Helper: a "clean" decomposition where each range lies in one summand.
+-- If V = p ⊕ q and each range(Aᵢ) ≤ p or ≤ q, then p = ⊥ or q = ⊥.
+private lemma decomp_of_ranges_split {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (p q : Submodule k ρ.V) (hpq : IsCompl p q)
+    (h₁ : LinearMap.range ρ.A₁ ≤ p ∨ LinearMap.range ρ.A₁ ≤ q)
+    (h₂ : LinearMap.range ρ.A₂ ≤ p ∨ LinearMap.range ρ.A₂ ≤ q)
+    (h₃ : LinearMap.range ρ.A₃ ≤ p ∨ LinearMap.range ρ.A₃ ≤ q) :
+    p = ⊥ ∨ q = ⊥ := by
+  -- For each arm: if range ≤ p, use (⊤, ⊥); if range ≤ q, use (⊥, ⊤)
+  -- Construct compatible decomposition per arm
+  have arm₁ : ∃ (p₁ q₁ : Submodule k ρ.V₁), IsCompl p₁ q₁ ∧
+      (∀ x ∈ p₁, ρ.A₁ x ∈ p) ∧ (∀ x ∈ q₁, ρ.A₁ x ∈ q) := by
+    rcases h₁ with h | h
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+  have arm₂ : ∃ (p₂ q₂ : Submodule k ρ.V₂), IsCompl p₂ q₂ ∧
+      (∀ x ∈ p₂, ρ.A₂ x ∈ p) ∧ (∀ x ∈ q₂, ρ.A₂ x ∈ q) := by
+    rcases h₂ with h | h
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+  have arm₃ : ∃ (p₃ q₃ : Submodule k ρ.V₃), IsCompl p₃ q₃ ∧
+      (∀ x ∈ p₃, ρ.A₃ x ∈ p) ∧ (∀ x ∈ q₃, ρ.A₃ x ∈ q) := by
+    rcases h₃ with h | h
+    · exact ⟨⊤, ⊥, isCompl_top_bot,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩),
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _⟩
+    · exact ⟨⊥, ⊤, isCompl_bot_top,
+        fun x hx => by rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact zero_mem _,
+        fun x _ => h (LinearMap.mem_range.mpr ⟨x, rfl⟩)⟩
+  obtain ⟨p₁, q₁, hc₁, hp₁, hq₁⟩ := arm₁
+  obtain ⟨p₂, q₂, hc₂, hp₂, hq₂⟩ := arm₂
+  obtain ⟨p₃, q₃, hc₃, hp₃, hq₃⟩ := arm₃
+  have := hind.2 p q p₁ q₁ p₂ q₂ p₃ q₃ hpq hc₁ hc₂ hc₃ hp₁ hq₁ hp₂ hq₂ hp₃ hq₃
+  rcases this with ⟨hp, _, _, _⟩ | ⟨hq, _, _, _⟩
+  · left; exact hp
+  · right; exact hq
+
+-- dim V ≥ 3, all injective, range sum = ⊤ → decomposable
+private lemma decomp_dim_ge_three {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hA₁ : LinearMap.ker ρ.A₁ = ⊥) (hA₂ : LinearMap.ker ρ.A₂ = ⊥)
+    (hA₃ : LinearMap.ker ρ.A₃ = ⊥)
+    (hR : LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂ ⊔ LinearMap.range ρ.A₃ = ⊤)
+    (hV : Module.finrank k ρ.V ≥ 3) : False := by
+  sorry
+
+-- Helper: if dim V ≥ 2, all injective, range sum = ⊤, indecomposable,
+-- then dim V = 2 and all dim Vᵢ = 1.
+private lemma classification_injective_dim_bound {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hA₁ : LinearMap.ker ρ.A₁ = ⊥) (hA₂ : LinearMap.ker ρ.A₂ = ⊥)
+    (hA₃ : LinearMap.ker ρ.A₃ = ⊥)
+    (hR : LinearMap.range ρ.A₁ ⊔ LinearMap.range ρ.A₂ ⊔ LinearMap.range ρ.A₃ = ⊤)
+    (hV : Module.finrank k ρ.V ≥ 2) :
+    Module.finrank k ρ.V = 2 ∧ Module.finrank k ρ.V₁ = 1 ∧
+    Module.finrank k ρ.V₂ = 1 ∧ Module.finrank k ρ.V₃ = 1 := by
+  have hinj₁ := LinearMap.ker_eq_bot.mp hA₁
+  have hinj₂ := LinearMap.ker_eq_bot.mp hA₂
+  have hinj₃ := LinearMap.ker_eq_bot.mp hA₃
+  have hle₁ := LinearMap.finrank_le_finrank_of_injective hinj₁
+  have hle₂ := LinearMap.finrank_le_finrank_of_injective hinj₂
+  have hle₃ := LinearMap.finrank_le_finrank_of_injective hinj₃
+  -- dim V ≤ 2 (dim V ≥ 3 is impossible for indecomposable reps)
+  have hV_le : Module.finrank k ρ.V ≤ 2 := by
+    by_contra h; push_neg at h
+    exact decomp_dim_ge_three ρ hind hA₁ hA₂ hA₃ hR (by omega)
+  have hV_eq : Module.finrank k ρ.V = 2 := by omega
+  -- All arm dims ≤ 1 (arm dim ≥ 2 means Aᵢ surjective, leading to decomposable)
+  -- and ≥ 1 (arm dim = 0 with one of the other arms leads to decomposable)
+  -- Combined: all arm dims = 1
+  -- This uses decomp_of_ranges_split for various configurations
+  sorry
+
+-- The main classification for the all-injective case
 private lemma classification_injective {k : Type*} [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable)
     (hA₁ : LinearMap.ker ρ.A₁ = ⊥) (hA₂ : LinearMap.ker ρ.A₂ = ⊥)
     (hA₃ : LinearMap.ker ρ.A₃ = ⊥) :
     ρ.dimVector ∈ D₄_indecomposable_dimVectors := by
-  -- When all maps are injective, we identify V₁, V₂, V₃ with subspaces of V
-  -- and solve the triple of subspaces problem:
-  -- Step 2: Split off complement of range(A₁)+range(A₂)+range(A₃) → (1,0,0,0) or sum = V
-  -- Step 3: Split off triple intersection → (1,1,1,1) or triple intersection = 0
-  -- Step 4: Split off pairwise intersections → (1,1,*,0) types or pairwise disjoint
-  -- Step 5: Split off Vᵢ ∩ (Vⱼ⊕Vₖ) complements → (1,*,0,0) types or containment
-  -- Step 6: Remaining case → dim V = 2n, each Vᵢ has dim n → n copies of (2,1,1,1)
-  --         Indecomposability forces n = 1 → (2,1,1,1)
-  sorry
+  -- Get dimension bounds from injectivity
+  have hinj₁ := LinearMap.ker_eq_bot.mp hA₁
+  have hinj₂ := LinearMap.ker_eq_bot.mp hA₂
+  have hinj₃ := LinearMap.ker_eq_bot.mp hA₃
+  have hle₁ := LinearMap.finrank_le_finrank_of_injective hinj₁
+  have hle₂ := LinearMap.finrank_le_finrank_of_injective hinj₂
+  have hle₃ := LinearMap.finrank_le_finrank_of_injective hinj₃
+  -- Step 2: Either range sum = ⊤ or all arms zero
+  rcases range_sum_eq_top_or_arms_zero ρ hind hA₁ hA₂ hA₃ with hR | ⟨h₁, h₂, h₃⟩
+  · -- Range sum = ⊤ case
+    -- dim V ≥ 1 from nontriviality
+    have hV_pos : 0 < Module.finrank k ρ.V := by
+      rcases hind.1 with h | h | h | h
+      · exact h
+      · exact Nat.lt_of_lt_of_le h hle₁
+      · exact Nat.lt_of_lt_of_le h hle₂
+      · exact Nat.lt_of_lt_of_le h hle₃
+    by_cases hV2 : Module.finrank k ρ.V ≥ 2
+    · -- dim V ≥ 2: use the dimension bound lemma
+      obtain ⟨hd, hd₁, hd₂, hd₃⟩ := classification_injective_dim_bound ρ hind hA₁ hA₂ hA₃ hR hV2
+      unfold D₄Rep.dimVector D₄_indecomposable_dimVectors
+      rw [hd, hd₁, hd₂, hd₃]
+      simp [Finset.mem_insert]
+    · -- dim V = 1: all dᵢ ∈ {0, 1}, membership is trivial
+      push_neg at hV2
+      have hV1 : Module.finrank k ρ.V = 1 := by omega
+      have h₁ : Module.finrank k ρ.V₁ ≤ 1 := by omega
+      have h₂ : Module.finrank k ρ.V₂ ≤ 1 := by omega
+      have h₃ : Module.finrank k ρ.V₃ ≤ 1 := by omega
+      simp only [D₄Rep.dimVector, D₄_indecomposable_dimVectors, Finset.mem_insert, Prod.mk.injEq]
+      -- (1, d₁, d₂, d₃) with dᵢ ∈ {0, 1}: enumerate
+      interval_cases (Module.finrank k ρ.V₁) <;>
+        interval_cases (Module.finrank k ρ.V₂) <;>
+          interval_cases (Module.finrank k ρ.V₃) <;> simp_all
+  · -- All arms zero: dim V = 1, so dim vector is (1, 0, 0, 0)
+    have hV := dim_V_eq_one_of_arms_zero ρ hind h₁ h₂ h₃
+    simp only [D₄Rep.dimVector, D₄_indecomposable_dimVectors, Finset.mem_insert, Prod.mk.injEq]
+    right; right; right; left
+    exact ⟨hV, h₁, h₂, h₃⟩
 
 theorem Etingof.Example_6_3_1 (k : Type*) [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable) :
