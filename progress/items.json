@@ -525,8 +525,9 @@
     "end_page": "18",
     "start_line": 13,
     "end_line": 16,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_project_id": "6da663b6-912c-425d-95d9-df45dd6880fc"
   },
   {
     "id": "Chapter2/Remark2.7.2",
