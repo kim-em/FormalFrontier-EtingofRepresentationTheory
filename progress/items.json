@@ -3316,7 +3316,7 @@
     "end_page": "123",
     "start_line": 5,
     "end_line": 14,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -3327,7 +3327,7 @@
     "end_page": "123",
     "start_line": 15,
     "end_line": 35,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -3382,8 +3382,8 @@
     "end_page": "124",
     "start_line": 21,
     "end_line": 27,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Corollary5.19.2",
@@ -3393,8 +3393,8 @@
     "end_page": "125",
     "start_line": 1,
     "end_line": 2,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Example5.19.3",
@@ -3404,8 +3404,8 @@
     "end_page": "125",
     "start_line": 3,
     "end_line": 4,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Introduction_5.20",

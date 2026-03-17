@@ -1,4 +1,4 @@
-import Mathlib
+import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
 
 /-!
 # Corollary 5.19.2: Schur-Weyl Decomposition
@@ -13,13 +13,25 @@ Lλ = Hom_{Sₙ}(Vλ, V⊗ⁿ) are distinct irreducible GL(V)-representations (o
 Requires Schur-Weyl duality, which is not yet in Mathlib.
 -/
 
+open scoped TensorProduct
+open Etingof
+
 /-- Schur-Weyl decomposition: as an Sₙ × GL(V) representation,
-V⊗ⁿ ≅ ⊕_λ Vλ ⊗ Lλ where Lλ = Hom_{Sₙ}(Vλ, V⊗ⁿ).
+V⊗ⁿ ≅ ⊕_λ Vλ ⊗ Lλ where the sum ranges over partitions of n.
+Here Vλ are irreducible Sₙ-representations (Specht modules) and
+Lλ = Hom_{Sₙ}(Vλ, V⊗ⁿ) are distinct irreducible GL(V)-representations
+(or zero when the partition has more parts than dim V).
+
+This refines Theorem 5.18.4(iii) by identifying the indexing set
+as partitions of n.
 (Etingof Corollary 5.19.2) -/
 theorem Etingof.Corollary5_19_2
     {k : Type*} [Field k] [IsAlgClosed k]
     {V : Type*} [AddCommGroup V] [Module k V] [Module.Finite k V]
-    (n : ℕ) :
-    -- V⊗ⁿ ≅ ⊕_λ Vλ ⊗ Lλ as Sₙ × GL(V) representations
-    (sorry : Prop) := by
+    (n : ℕ) (hN : n ≤ Module.finrank k V) :
+    ∃ (S L : Nat.Partition n → Type)
+      (_ : ∀ p, AddCommGroup (S p)) (_ : ∀ p, Module k (S p))
+      (_ : ∀ p, AddCommGroup (L p)) (_ : ∀ p, Module k (L p)),
+      Nonempty (TensorPower k V n ≃ₗ[k]
+        DirectSum (Nat.Partition n) (fun p => S p ⊗[k] L p)) := by
   sorry
