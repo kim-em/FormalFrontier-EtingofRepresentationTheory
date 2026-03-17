@@ -1,6 +1,5 @@
 import Mathlib.Order.JordanHolder
 import Mathlib.RingTheory.SimpleModule.Basic
-import Mathlib.LinearAlgebra.Span.Basic
 
 /-!
 # Theorem 3.7.1: Jordan-Hölder Theorem
@@ -17,22 +16,25 @@ Two proofs are given:
 
 ## Mathlib correspondence
 
-`JordanHolderLattice` and `CompositionSeries` provide the framework. The connection to
-module composition series requires showing modules form a `JordanHolderLattice`.
+`JordanHolderLattice` and `CompositionSeries` provide the framework. Mathlib's
+`JordanHolderModule.instJordanHolderLattice` gives a `JordanHolderLattice` instance for
+`Submodule R M`, where `IsMaximal` is the covering relation `⋖` (equivalent to successive
+quotients being simple modules). The theorem `CompositionSeries.jordan_holder` then gives
+both equal lengths and a permutation of composition factors.
 -/
 
-/-- The Jordan-Hölder theorem for finite dimensional representations: any two composition
-series have the same length and the same composition factors up to permutation.
+/-- The Jordan-Hölder theorem for modules: any two composition series of the same module
+(from ⊥ to ⊤) have the same length and isomorphic composition factors up to permutation.
 Etingof Theorem 3.7.1.
 
-Note: The full statement requires a `JordanHolderLattice` instance for `Submodule A V`.
-Here we state the core content: equal lengths of composition series. -/
+A `CompositionSeries (Submodule A V)` is a `RelSeries` where consecutive submodules are
+related by `⋖` (the covering relation), which is equivalent to requiring successive
+quotients to be simple (irreducible) modules. -/
 theorem Etingof.jordan_holder (A : Type*) (V : Type*)
     [Ring A] [AddCommGroup V] [Module A V]
-    (s₁ s₂ : RelSeries {p : Submodule A V × Submodule A V | p.1 < p.2})
+    (s₁ s₂ : CompositionSeries (Submodule A V))
     (hs₁_bot : s₁.head = ⊥) (hs₁_top : s₁.last = ⊤)
     (hs₂_bot : s₂.head = ⊥) (hs₂_top : s₂.last = ⊤) :
-    -- Under the additional assumption that successive quotients are irreducible,
-    -- s₁.length = s₂.length and the composition factors are the same up to permutation.
-    s₁.length = s₂.length := by
-  sorry
+    s₁.length = s₂.length :=
+  (CompositionSeries.jordan_holder s₁ s₂
+    (by rw [hs₁_bot, hs₂_bot]) (by rw [hs₁_top, hs₂_top])).length_eq
