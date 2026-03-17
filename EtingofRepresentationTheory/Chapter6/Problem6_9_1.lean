@@ -112,4 +112,41 @@ theorem Etingof.Problem6_9_1c (ρ : Q₂Rep ℂ)
     (hAB : IsNilpotent (ρ.A.comp ρ.B)) :
     -- The operator X = (0, B; A, 0) on V × W is nilpotent
     IsNilpotent ((ρ.B.comp ρ.A).prodMap (ρ.A.comp ρ.B) : (ρ.V × ρ.W) →ₗ[ℂ] (ρ.V × ρ.W)) := by
-  sorry
+  -- Step 1: AB nilpotent implies BA nilpotent
+  -- If (AB)^n = 0, then (BA)^(n+1) = B(AB)^n A = 0
+  obtain ⟨n, hn⟩ := hAB
+  have hBA : IsNilpotent (ρ.B.comp ρ.A) := by
+    refine ⟨n + 1, ?_⟩
+    -- (BA)^(n+1) v = B((AB)^n(Av)) = B(0) = 0
+    -- Key shift lemma: ((BA)^m)(Bw) = B((AB)^m w)
+    have key : ∀ (m : ℕ) (w : ρ.W),
+        ((ρ.B.comp ρ.A) ^ m) (ρ.B w) = ρ.B (((ρ.A.comp ρ.B) ^ m) w) := by
+      intro m; induction m with
+      | zero => intro w; simp
+      | succ m ih =>
+        intro w
+        rw [pow_succ, pow_succ, Module.End.mul_apply, LinearMap.comp_apply, ih,
+            Module.End.mul_apply, ← LinearMap.comp_apply ρ.A ρ.B]
+    ext v
+    simp only [LinearMap.zero_apply]
+    rw [pow_succ, Module.End.mul_apply, LinearMap.comp_apply, key n (ρ.A v)]
+    have := LinearMap.congr_fun hn (ρ.A v)
+    simp only [LinearMap.zero_apply] at this
+    rw [this, map_zero]
+  -- Step 2: prodMap of nilpotent endomorphisms is nilpotent
+  -- (f.prodMap g)^k = (f^k).prodMap (g^k) via prodMap_mul
+  obtain ⟨m, hm⟩ := hBA
+  refine ⟨max n m, ?_⟩
+  have h1 : (ρ.A.comp ρ.B) ^ max n m = 0 := by
+    rw [← Nat.sub_add_cancel (Nat.le_max_left n m), pow_add, hn, mul_zero]
+  have h2 : (ρ.B.comp ρ.A) ^ max n m = 0 := by
+    rw [← Nat.sub_add_cancel (Nat.le_max_right n m), pow_add, hm, mul_zero]
+  -- Show (f.prodMap g)^k = (f^k).prodMap (g^k) by induction
+  have pow_prodMap : ∀ (k : ℕ) (f : ρ.V →ₗ[ℂ] ρ.V) (g : ρ.W →ₗ[ℂ] ρ.W),
+      (f.prodMap g) ^ k = (f ^ k).prodMap (g ^ k) := by
+    intro k; induction k with
+    | zero => intro f g; simp [LinearMap.prodMap_one]
+    | succ k ih =>
+      intro f g
+      rw [pow_succ, ih f g, LinearMap.prodMap_mul, pow_succ, pow_succ]
+  rw [pow_prodMap, h1, h2, LinearMap.prodMap_zero]
