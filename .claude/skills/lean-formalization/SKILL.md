@@ -643,6 +643,25 @@ When defining a structure whose `obj` field branches on vertex equality (e.g., `
 
 This affects: Definition 6.6.3 (F⁺ᵢ), Definition 6.6.4 (F⁻ᵢ), and any future definition that branches `obj` on a proposition.
 
+## Fintype Instance Mismatch in Sum Comparisons
+
+When comparing two `Finset.sum` expressions over `Finset.univ` for a subtype (e.g., `↑(RowSubgroup n la)`), the `Fintype` instances may differ if one comes from a local `haveI : DecidablePred ... := Classical.decPred _` at the proof level and the other from a `haveI` inside the original definition. This makes the two `Finset.univ` propositionally but not definitionally equal.
+
+**Symptoms:** `rfl` fails, `Finset.sum_congr rfl` fails, `congr 1; funext` fails, all with messages about `Finset.univ` not being definitionally equal.
+
+**Fix:** Use `convert rfl using N` (typically `N = 2`) to handle the instance mismatch automatically via `Subsingleton (Fintype α)`. Then close remaining subgoals (e.g., summand equality) with `ext` + `simp`/`rw`.
+
+```lean
+-- Two sums that are "the same" but have different Fintype instances
+-- ∑ x ∈ @Finset.univ _ inst₁, f x = ∑ x ∈ @Finset.univ _ inst₂, g x
+convert rfl using 2
+-- Remaining goal: f = g (pointwise)
+ext ⟨σ, hσ⟩
+simp [...]
+```
+
+**Alternative:** Prove equality via `Finsupp.ext` (coefficient-wise) to sidestep sum comparison entirely.
+
 ## Common Failure Modes
 
 From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
