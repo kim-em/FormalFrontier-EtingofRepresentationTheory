@@ -116,11 +116,30 @@ Escalate after **2-3 serious attempts** (not 2-3 minor variations of the same ap
 4. **Record in items.json.** Set status to `sent_to_aristotle` with the project ID.
 5. **Delete temp file.** Never commit files with `admit`.
 
-**CRITICAL: `--context-files` is mandatory for this project.** Every Lean file imports
-`EtingofRepresentationTheory.*` modules, which Aristotle cannot resolve on its own.
-Without `--context-files`, Aristotle returns "unknown module prefix" and produces no proof.
-Step 2 is NOT optional — if no sorry-free context files exist yet, you must still provide
-the imported files (with their sorries changed to `admit`) as context.
+**CRITICAL: Create self-contained files for Aristotle.** `--context-files` does NOT
+resolve `import EtingofRepresentationTheory.*` statements — Aristotle still fails with
+"unknown module prefix". Instead:
+1. Remove ALL local imports (`import EtingofRepresentationTheory.*`)
+2. Add the Mathlib imports that those local files needed
+3. Inline the content of local dependency files directly into the submission file
+4. Use `--no-auto-add-imports --no-validate-lean-project`
+
+**Known Aristotle limitations** (as of 2026-03):
+- **Unicode identifiers** in types/structures (e.g., `D₄Rep`) cause load failures
+- **`axiom` declarations** trigger "unexpected axioms" warnings and may prevent loading
+- **`namespace` blocks** after axioms can cause "Function expected" errors
+- Workaround: use ASCII names, avoid axioms (use `admit` in helper lemmas instead),
+  keep the file flat without namespace blocks
+
+**Checking Aristotle status** (no CLI command exists):
+```python
+# Use the Python SDK directly
+from aristotlelib import Project
+import asyncio
+p = asyncio.run(Project.from_id("project-uuid"))
+print(p.status, p.percent_complete)
+solution = asyncio.run(p.get_solution(output_path="out.lean"))
+```
 
 ### After Aristotle Returns
 
