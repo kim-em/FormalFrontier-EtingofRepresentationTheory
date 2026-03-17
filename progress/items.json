@@ -2913,8 +2913,8 @@
     "end_page": "113",
     "start_line": 19,
     "end_line": 25,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Example5.12.3",
