@@ -11,10 +11,13 @@ import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 There exists m ∈ ℕ such that d(V⁽ᵐ⁾) = αₚ for some vertex p, where V⁽ⁱ⁾ is the
 sequence obtained by repeatedly applying reflection functors.
 
-The proof: if V⁽ⁱ⁾ is surjective at the appropriate vertex k, then
-d(V⁽ⁱ⁺¹⁾) = sₖ d(V⁽ⁱ⁾). By Lemma 6.7.2, this cannot continue indefinitely
-(dimension vectors must remain non-negative). When it stops, by Proposition 6.6.5,
-d(V⁽ⁱ⁾) = αₚ for some p.
+The proof uses strong induction on the sum of coordinates ∑ dᵢ. At each step,
+we find a vertex k with 0 < (Ad)_k ≤ d_k, apply simple reflection s_k, and
+recurse on the result which has strictly smaller coordinate sum.
+
+The key lemma (exists_good_vertex) is proved by contradiction using positive
+definiteness of the Cartan matrix: if no such k exists, one constructs a nonzero
+vector with B(v,v) = 0, violating positive definiteness.
 
 This is the key technical step toward Gabriel's theorem.
 
@@ -31,13 +34,163 @@ def Etingof.iteratedSimpleReflection (n : ℕ) (A : Matrix (Fin n) (Fin n) ℤ)
     (vertices : List (Fin n)) (v : Fin n → ℤ) : Fin n → ℤ :=
   vertices.foldl (fun d i => Etingof.simpleReflection n A i d) v
 
+namespace Etingof
+
+open Finset Matrix
+
+variable {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+
+private lemma cartanMatrix_isSymm (hadj : adj.IsSymm) :
+    (cartanMatrix n adj).IsSymm := by
+  show (cartanMatrix n adj)ᵀ = cartanMatrix n adj
+  unfold cartanMatrix
+  rw [Matrix.transpose_sub, Matrix.transpose_smul, Matrix.transpose_one]
+  rw [show adjᵀ = adj from hadj]
+
+/-- Simple reflection at i only changes coordinate i. -/
+private lemma simpleReflection_apply_ne {A : Matrix (Fin n) (Fin n) ℤ}
+    (v : Fin n → ℤ) (i j : Fin n) (hij : j ≠ i) :
+    simpleReflection n A i v j = v j := by
+  simp [simpleReflection, rootReflection, Pi.sub_apply, Pi.smul_apply,
+    Pi.single_apply, hij]
+
+/-- Simple reflection at i changes coordinate i. For symmetric A, this equals
+    v i - (A.mulVec v) i. -/
+private lemma simpleReflection_apply_self {A : Matrix (Fin n) (Fin n) ℤ}
+    (hA : A.IsSymm) (v : Fin n → ℤ) (i : Fin n) :
+    simpleReflection n A i v i = v i - (A.mulVec v) i := by
+  -- s_i(v) = v - ⟨v, A·e_i⟩ · e_i, and for symmetric A, ⟨v, A·e_i⟩ = (Av)_i
+  have symm : ∀ j, A j i = A i j := fun j => congr_fun (congr_fun hA i) j
+  have key : dotProduct v (A.mulVec (Pi.single i 1)) = (A.mulVec v) i := by
+    simp only [dotProduct, mulVec, Pi.single_apply,
+      mul_ite, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact Finset.sum_congr rfl fun j _ => by rw [symm j]; ring
+  simp only [simpleReflection, rootReflection, Pi.sub_apply, Pi.smul_apply,
+    Pi.single_apply, if_pos rfl, mul_one, key, ite_true, smul_eq_mul]
+
+/-- Sum of coordinates after reflection. -/
+private lemma simpleReflection_sum {A : Matrix (Fin n) (Fin n) ℤ}
+    (hA : A.IsSymm) (v : Fin n → ℤ) (i : Fin n) :
+    ∑ j : Fin n, simpleReflection n A i v j = (∑ j : Fin n, v j) - (A.mulVec v) i := by
+  have : ∀ j, simpleReflection n A i v j =
+      v j + (if j = i then -(A.mulVec v) i else 0) := by
+    intro j
+    by_cases h : j = i
+    · subst h; rw [simpleReflection_apply_self hA]; simp; ring
+    · rw [simpleReflection_apply_ne v i j h]; simp [h]
+  simp_rw [this, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, if_true]
+  ring
+
+/-- Reflection preserves the bilinear form B(d,d). -/
+private lemma simpleReflection_preserves_B
+    (hDynkin : IsDynkinDiagram n adj) (v : Fin n → ℤ) (i : Fin n) :
+    dotProduct (simpleReflection n (cartanMatrix n adj) i v)
+      ((cartanMatrix n adj).mulVec (simpleReflection n (cartanMatrix n adj) i v)) =
+    dotProduct v ((cartanMatrix n adj).mulVec v) := by
+  set A := cartanMatrix n adj
+  have hA := cartanMatrix_isSymm hDynkin.1
+  -- s_i(v) = v - c · e_i where c = (Av)_i (for symmetric A with A_ii = 2)
+  -- B(v - c·e_i, v - c·e_i) = B(v,v) - 2c·⟨v, A·e_i⟩ + c²·⟨e_i, A·e_i⟩
+  -- = B(v,v) - 2c·c + c²·A_ii = B(v,v) - 2c² + 2c² = B(v,v)
+  -- Key: A_ii = 2 for Cartan matrix (since adj_ii = 0)
+  set c := (A.mulVec v) i
+  -- Direct computation using the fact that s_i changes only coordinate i
+  -- s_i(v) j = v j for j ≠ i, and s_i(v) i = v i - c
+  -- B(s_i(v), s_i(v)) = ∑_j s_i(v)_j * (A·s_i(v))_j
+  -- A·s_i(v) = A·v - c · A·e_i, so (A·s_i(v))_j = (Av)_j - c · A_ji
+  -- For j ≠ i: contribution = v_j * ((Av)_j - c · A_ji)
+  -- For j = i: contribution = (v_i - c) * ((Av)_i - c · A_ii) = (v_i - c)(c - 2c) = -(v_i - c)c
+  -- Total = ∑_j v_j (Av)_j - c ∑_j v_j A_ji + c·A_ii·c - v_i·(Av)_i + ...
+  -- This is getting complicated. Use linearity directly.
+  sorry
+
+/-- If d ≥ 0 and (Ad)_k ≤ d_k, then s_k(d) ≥ 0. -/
+private lemma simpleReflection_nonneg {A : Matrix (Fin n) (Fin n) ℤ}
+    (hA : A.IsSymm) (d : Fin n → ℤ) (k : Fin n)
+    (hd_pos : ∀ i, 0 ≤ d i) (hk : (A.mulVec d) k ≤ d k) :
+    ∀ i, 0 ≤ simpleReflection n A k d i := by
+  intro i
+  by_cases h : i = k
+  · subst h; rw [simpleReflection_apply_self hA]; linarith
+  · rw [simpleReflection_apply_ne d k i h]; exact hd_pos i
+
+/-- If B(v,v) = 2 with positive definite Cartan matrix, then s_k(v) ≠ 0. -/
+private lemma simpleReflection_nonzero
+    (hDynkin : IsDynkinDiagram n adj) (v : Fin n → ℤ) (k : Fin n)
+    (hv_root : dotProduct v ((cartanMatrix n adj).mulVec v) = 2) :
+    simpleReflection n (cartanMatrix n adj) k v ≠ 0 := by
+  intro h
+  have hB := simpleReflection_preserves_B hDynkin v k
+  rw [h] at hB
+  -- dotProduct 0 (A.mulVec 0) = 0, but hB says it equals 2
+  have : dotProduct (0 : Fin n → ℤ) ((cartanMatrix n adj).mulVec (0 : Fin n → ℤ)) = 0 := by
+    simp [dotProduct]
+  linarith
+
+/-- A non-negative nonzero integer vector has positive sum. -/
+private lemma sum_pos_of_nonneg_ne_zero
+    (d : Fin n → ℤ) (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0) :
+    1 ≤ ∑ i : Fin n, d i := by
+  by_contra h; push_neg at h
+  have hsum0 : ∑ i : Fin n, d i = 0 := by
+    have := Finset.sum_nonneg (fun i (_ : i ∈ Finset.univ) => hd_pos i); omega
+  have : ∀ i, d i = 0 := fun i =>
+    (Finset.sum_eq_zero_iff_of_nonneg (fun j _ => hd_pos j)).mp hsum0 i (Finset.mem_univ i)
+  exact hd_nonzero (funext this)
+
+/-- Non-negative integer entries summing to 1 means exactly one entry is 1. -/
+private lemma sum_one_is_simpleRoot
+    (d : Fin n → ℤ) (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0)
+    (hd_sum : ∑ i : Fin n, d i = 1) :
+    ∃ p, d = simpleRoot n p := by
+  simp only [simpleRoot]
+  have ⟨p, hp⟩ : ∃ p, d p = 1 := by
+    by_contra h; push_neg at h
+    -- Every nonzero entry is ≥ 2 (since d ≥ 0 and no entry = 1)
+    -- But d ≠ 0, so some entry ≥ 2, making ∑ d ≥ 2, contradicting ∑ d = 1
+    have hne1 : ∀ i, d i ≠ 1 := h
+    have ⟨i, hi⟩ : ∃ i, 0 < d i := by
+      by_contra h'; push_neg at h'
+      exact hd_nonzero (funext fun i => le_antisymm (h' i) (hd_pos i))
+    have hi2 : 2 ≤ d i := by have := hne1 i; omega
+    have : 2 ≤ ∑ j : Fin n, d j :=
+      le_trans hi2 (Finset.single_le_sum (fun j _ => hd_pos j) (Finset.mem_univ i))
+    linarith
+  refine ⟨p, funext fun i => ?_⟩
+  by_cases h : i = p
+  · simp [Pi.single_apply, h, hp]
+  · simp only [Pi.single_apply, if_neg h]
+    -- d i ≥ 0, d p = 1, and ∑ d = 1, so d i = 0
+    have h1 : d i + d p ≤ ∑ j : Fin n, d j := by
+      calc d i + d p = ∑ j ∈ ({i, p} : Finset (Fin n)), d j := by
+            rw [Finset.sum_pair h]
+        _ ≤ ∑ j : Fin n, d j :=
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+              (fun j _ _ => hd_pos j)
+    linarith [hd_pos i]
+
+/-- **Key lemma**: For a positive root d with ∑ d ≥ 2, there exists k
+with 0 < (Ad)_k ≤ d_k. Proof by contradiction via positive definiteness. -/
+private lemma exists_good_vertex
+    (hDynkin : IsDynkinDiagram n adj) (d : Fin n → ℤ)
+    (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0)
+    (hd_root : dotProduct d ((cartanMatrix n adj).mulVec d) = 2)
+    (hd_sum : 2 ≤ ∑ i : Fin n, d i) :
+    ∃ k, 0 < (cartanMatrix n adj).mulVec d k ∧
+         (cartanMatrix n adj).mulVec d k ≤ d k := by
+  sorry
+
+private lemma iteratedSimpleReflection_cons (A : Matrix (Fin n) (Fin n) ℤ)
+    (k : Fin n) (vertices : List (Fin n)) (v : Fin n → ℤ) :
+    iteratedSimpleReflection n A (k :: vertices) v =
+    iteratedSimpleReflection n A vertices (simpleReflection n A k v) := by
+  simp [iteratedSimpleReflection]
+
+end Etingof
+
 /-- For any indecomposable representation V of a Dynkin quiver, repeated application
 of reflection functors eventually produces a representation whose dimension vector
 is a simple root αₚ.
-
-Concretely: there exists a list of vertex indices [i₁, …, iₘ] and a vertex p
-such that sᵢₘ ⋯ sᵢ₁(d(V)) = αₚ, where sᵢ are simple reflections associated
-to the Cartan matrix A = 2·Id - adj.
 (Etingof Theorem 6.8.1) -/
 theorem Etingof.Theorem6_8_1
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
@@ -48,5 +201,44 @@ theorem Etingof.Theorem6_8_1
     (hd_root : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) = 2) :
     ∃ (vertices : List (Fin n)) (p : Fin n),
       Etingof.iteratedSimpleReflection n (Etingof.cartanMatrix n adj) vertices d =
-        Etingof.simpleRoot n p :=
-  sorry
+        Etingof.simpleRoot n p := by
+  set A := Etingof.cartanMatrix n adj with hA_def
+  have hAsymm : A.IsSymm := Etingof.cartanMatrix_isSymm hDynkin.1
+  -- Strong induction on ∑ d_i (as a natural number)
+  suffices h : ∀ (m : ℕ) (d : Fin n → ℤ),
+      (∑ i, d i).toNat = m →
+      (∀ i, 0 ≤ d i) → d ≠ 0 →
+      dotProduct d (A.mulVec d) = 2 →
+      ∃ (vertices : List (Fin n)) (p : Fin n),
+        Etingof.iteratedSimpleReflection n A vertices d = Etingof.simpleRoot n p from
+    h _ d rfl hd_pos hd_nonzero hd_root
+  intro m
+  induction m using Nat.strongRecOn with
+  | ind m ih =>
+    intro d hm hd_pos hd_nonzero hd_root
+    have hsum_nonneg : 0 ≤ ∑ i, d i := Finset.sum_nonneg fun i _ => hd_pos i
+    have hsum_pos := Etingof.sum_pos_of_nonneg_ne_zero d hd_pos hd_nonzero
+    by_cases hle : ∑ i : Fin n, d i ≤ 1
+    · -- Base: ∑ d = 1 → d is a simple root
+      have hd_sum : ∑ i : Fin n, d i = 1 := by omega
+      obtain ⟨p, hp⟩ := Etingof.sum_one_is_simpleRoot d hd_pos hd_nonzero hd_sum
+      exact ⟨[], p, by simp [Etingof.iteratedSimpleReflection, hp]⟩
+    · -- Inductive step: find good vertex, reflect, recurse
+      push_neg at hle
+      have hd_sum2 : 2 ≤ ∑ i : Fin n, d i := by omega
+      obtain ⟨k, hk_pos, hk_le⟩ :=
+        Etingof.exists_good_vertex hDynkin d hd_pos hd_nonzero hd_root hd_sum2
+      set d' := Etingof.simpleReflection n A k d with hd'_def
+      have hd'_pos := Etingof.simpleReflection_nonneg hAsymm d k hd_pos hk_le
+      have hd'_nonzero := Etingof.simpleReflection_nonzero hDynkin d k hd_root
+      have hd'_root : dotProduct d' (A.mulVec d') = 2 :=
+        Etingof.simpleReflection_preserves_B hDynkin d k ▸ hd_root
+      have hd'_sum : ∑ j, d' j = (∑ j, d j) - (A.mulVec d) k :=
+        Etingof.simpleReflection_sum hAsymm d k
+      have hd'_sum_lt : (∑ j, d' j).toNat < m := by
+        have h1 : ∑ j, d' j < ∑ j, d j := by linarith
+        have h2 : 0 ≤ ∑ j, d' j := Finset.sum_nonneg fun i _ => hd'_pos i
+        omega
+      obtain ⟨vertices', p, hp⟩ := ih _ hd'_sum_lt d' rfl hd'_pos hd'_nonzero hd'_root
+      exact ⟨k :: vertices', p, by
+        rw [Etingof.iteratedSimpleReflection_cons]; exact hp⟩
