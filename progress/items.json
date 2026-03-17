@@ -4247,7 +4247,7 @@
     "end_page": "169",
     "start_line": 3,
     "end_line": 26,
-    "status": "proof_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter6/Proposition6.6.5",
