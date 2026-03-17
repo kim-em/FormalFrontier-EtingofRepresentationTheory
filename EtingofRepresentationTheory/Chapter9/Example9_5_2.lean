@@ -1,4 +1,5 @@
-import Mathlib.RingTheory.SimpleModule.Basic
+import EtingofRepresentationTheory.Chapter9.Definition9_5_1
+import Mathlib.RingTheory.Artinian.Ring
 
 /-!
 # Example 9.5.2: Blocks of specific algebras
@@ -13,6 +14,27 @@ is only one simple module — the residue field).
 (iii) The algebra from Problem 9.3.2 has one block.
 -/
 
-/-- Blocks of specific algebras: semisimple, commutative local artinian, and the Problem 9.3.2
-algebra. (Etingof Example 9.5.2) -/
-theorem Etingof.Example_9_5_2 : (sorry : Prop) := sorry
+universe v u
+
+open CategoryTheory
+
+/-- For a semisimple ring, any two non-isomorphic simple modules have
+`Ext¹ = 0` in both directions, so each simple module forms its own block.
+(Etingof Example 9.5.2 (i)) -/
+theorem Etingof.semisimple_blocks_singleton
+    (R : Type u) [Ring R] [Small.{v} R] [IsSemisimpleRing R]
+    (X Y : ModuleCat.{v} R)
+    (hX : IsSimpleModule R X) (hY : IsSimpleModule R Y)
+    (hlinked : Etingof.AreLinked R X Y) :
+    Nonempty (X ≅ Y) := by
+  sorry
+
+/-- For a commutative local artinian ring, there is only one simple module (up to
+isomorphism), so all modules belong to a single block.
+(Etingof Example 9.5.2 (ii)) -/
+theorem Etingof.local_artinian_single_block
+    (R : Type u) [CommRing R] [Small.{v} R] [IsLocalRing R] [IsArtinianRing R]
+    (X Y : ModuleCat.{v} R)
+    (hX : IsSimpleModule R X) (hY : IsSimpleModule R Y) :
+    Etingof.AreLinked R X Y := by
+  sorry
