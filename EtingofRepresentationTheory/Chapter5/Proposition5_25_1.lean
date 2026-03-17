@@ -17,8 +17,6 @@ Uses `GaloisField`, `Matrix.SpecialLinearGroup`, `Matrix.GeneralLinearGroup`.
 (Etingof Proposition 5.25.1) -/
 theorem Etingof.Proposition5_25_1
     (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ) (hn : 0 < n) :
-    let q := p ^ n
-    let G := Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)
-    -- [G, G] = SL₂(𝔽_q)
-    (sorry : Prop) := by
+    commutator (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) =
+      (Matrix.SpecialLinearGroup.toGL (n := Fin 2) (R := GaloisField p n)).range := by
   sorry
