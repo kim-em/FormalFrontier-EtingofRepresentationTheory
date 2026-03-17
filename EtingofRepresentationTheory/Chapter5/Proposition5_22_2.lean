@@ -29,7 +29,9 @@ variable (k : Type*) [Field k] [IsAlgClosed k]
 given by `g ↦ det(g)`. This is isomorphic to the top exterior power `∧^N(k^N)` as
 a `GL_N`-representation. Not yet in Mathlib. -/
 noncomputable def detRep (N : ℕ) :
-    FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := sorry
+    FDRep k (Matrix.GeneralLinearGroup (Fin N) k) :=
+  FDRep.of (((Algebra.lsmul k k k).toMonoidHom.comp (Units.coeHom k)).comp
+    Matrix.GeneralLinearGroup.det)
 
 /-- **Determinant twist**: `L_{λ+(1,…,1)} ≅ L_λ ⊗ ∧^N V` as `GL_N(k)`-representations.
 
@@ -40,6 +42,10 @@ theorem Proposition5_22_2
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     Nonempty (SchurModule k N (fun i => lam i + 1) ≅
       SchurModule k N lam ⊗ detRep k N) := by
+  -- Blocked: SchurModule is an opaque sorry placeholder (Theorem5_22_1.lean:37).
+  -- No axioms about its internal structure are available, so the isomorphism
+  -- cannot be constructed. Needs SchurModule to be defined or to have
+  -- characteristic properties (e.g., universal property, character computation).
   sorry
 
 end Etingof
