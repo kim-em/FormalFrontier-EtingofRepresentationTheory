@@ -3005,8 +3005,8 @@
     "end_page": "115",
     "start_line": 9,
     "end_line": 12,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter5/Lemma5.13.4",
