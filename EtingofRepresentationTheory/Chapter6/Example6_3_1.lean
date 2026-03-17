@@ -196,22 +196,147 @@ private lemma ker_A₃_or_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
            by rw [← finrank_top (R := k) (M := ρ.V₁), htop₁, finrank_bot],
            by rw [← finrank_top (R := k) (M := ρ.V₂), htop₂, finrank_bot]⟩
 
--- Step 2: If all maps are injective but V₁+V₂+V₃ ≠ V, then V₁=V₂=V₃=0
--- (after splitting off the center complement).
--- The full proof requires working with subspaces after embedding via injective maps,
--- which involves significant Lean machinery for the triple of subspaces problem.
+-- Helper: if ρ is indecomposable and V = V₂ = V₃ = 0, then V₁ is indecomposable
+-- as a vector space, hence dim V₁ = 1.
+private lemma dim_V₁_eq_one_of_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hV : Module.finrank k ρ.V = 0) (hV₂ : Module.finrank k ρ.V₂ = 0)
+    (hV₃ : Module.finrank k ρ.V₃ = 0) :
+    Module.finrank k ρ.V₁ = 1 := by
+  rw [← Etingof.Example_6_2_2]
+  obtain ⟨hnt, hind_cond⟩ := hind
+  refine ⟨?_, fun p₁ q₁ hpq₁ => ?_⟩
+  · have : 0 < Module.finrank k ρ.V₁ := by
+      rcases hnt with h | h | h | h <;> omega
+    exact Module.nontrivial_of_finrank_pos this
+  · have htopV : (⊤ : Submodule k ρ.V) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact hV)
+    have htopV₂ : (⊤ : Submodule k ρ.V₂) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact hV₂)
+    have htopV₃ : (⊤ : Submodule k ρ.V₃) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact hV₃)
+    have hV_zero : ∀ (x : ρ.V), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V) := Submodule.mem_top
+      rwa [htopV, Submodule.mem_bot] at this
+    specialize hind_cond ⊥ ⊤ p₁ q₁ ⊥ ⊤ ⊥ ⊤
+      isCompl_bot_top hpq₁ isCompl_bot_top isCompl_bot_top
+      (fun x _ => by rw [hV_zero (ρ.A₁ x)]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+    rcases hind_cond with ⟨_, hp₁, _, _⟩ | ⟨_, hq₁, _, _⟩
+    · left; exact hp₁
+    · right; exact hq₁
+
+private lemma dim_V₂_eq_one_of_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hV : Module.finrank k ρ.V = 0) (hV₁ : Module.finrank k ρ.V₁ = 0)
+    (hV₃ : Module.finrank k ρ.V₃ = 0) :
+    Module.finrank k ρ.V₂ = 1 := by
+  rw [← Etingof.Example_6_2_2]
+  obtain ⟨hnt, hind_cond⟩ := hind
+  refine ⟨?_, fun p₂ q₂ hpq₂ => ?_⟩
+  · have : 0 < Module.finrank k ρ.V₂ := by
+      rcases hnt with h | h | h | h <;> omega
+    exact Module.nontrivial_of_finrank_pos this
+  · have htopV : (⊤ : Submodule k ρ.V) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact hV)
+    have hV_zero : ∀ (x : ρ.V), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V) := Submodule.mem_top
+      rwa [htopV, Submodule.mem_bot] at this
+    specialize hind_cond ⊥ ⊤ ⊥ ⊤ p₂ q₂ ⊥ ⊤
+      isCompl_bot_top isCompl_bot_top hpq₂ isCompl_bot_top
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x _ => by rw [hV_zero (ρ.A₂ x)]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+    rcases hind_cond with ⟨_, _, hp₂, _⟩ | ⟨_, _, hq₂, _⟩
+    · left; exact hp₂
+    · right; exact hq₂
+
+private lemma dim_V₃_eq_one_of_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hV : Module.finrank k ρ.V = 0) (hV₁ : Module.finrank k ρ.V₁ = 0)
+    (hV₂ : Module.finrank k ρ.V₂ = 0) :
+    Module.finrank k ρ.V₃ = 1 := by
+  rw [← Etingof.Example_6_2_2]
+  obtain ⟨hnt, hind_cond⟩ := hind
+  refine ⟨?_, fun p₃ q₃ hpq₃ => ?_⟩
+  · have : 0 < Module.finrank k ρ.V₃ := by
+      rcases hnt with h | h | h | h <;> omega
+    exact Module.nontrivial_of_finrank_pos this
+  · have htopV : (⊤ : Submodule k ρ.V) = ⊥ :=
+      Submodule.finrank_eq_zero.mp (by rw [finrank_top]; exact hV)
+    have hV_zero : ∀ (x : ρ.V), x = 0 := fun x => by
+      have : x ∈ (⊤ : Submodule k ρ.V) := Submodule.mem_top
+      rwa [htopV, Submodule.mem_bot] at this
+    specialize hind_cond ⊥ ⊤ ⊥ ⊤ ⊥ ⊤ p₃ q₃
+      isCompl_bot_top isCompl_bot_top isCompl_bot_top hpq₃
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x hx => by
+        rw [(Submodule.mem_bot (R := k)).mp hx, map_zero]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+      (fun x _ => by rw [hV_zero (ρ.A₃ x)]; exact Submodule.zero_mem _)
+      (fun _ _ => Submodule.mem_top)
+    rcases hind_cond with ⟨_, _, _, hp₃⟩ | ⟨_, _, _, hq₃⟩
+    · left; exact hp₃
+    · right; exact hq₃
+
+-- The main classification: all maps injective case requires the triple of subspaces
+-- problem. This is the heart of Example 6.3.1 and requires substantial Lean machinery.
+-- For now, we sorry this part and handle the kernel cases.
+private lemma classification_injective {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable)
+    (hA₁ : LinearMap.ker ρ.A₁ = ⊥) (hA₂ : LinearMap.ker ρ.A₂ = ⊥)
+    (hA₃ : LinearMap.ker ρ.A₃ = ⊥) :
+    ρ.dimVector ∈ D₄_indecomposable_dimVectors := by
+  -- When all maps are injective, we identify V₁, V₂, V₃ with subspaces of V
+  -- and solve the triple of subspaces problem:
+  -- Step 2: Split off complement of range(A₁)+range(A₂)+range(A₃) → (1,0,0,0) or sum = V
+  -- Step 3: Split off triple intersection → (1,1,1,1) or triple intersection = 0
+  -- Step 4: Split off pairwise intersections → (1,1,*,0) types or pairwise disjoint
+  -- Step 5: Split off Vᵢ ∩ (Vⱼ⊕Vₖ) complements → (1,*,0,0) types or containment
+  -- Step 6: Remaining case → dim V = 2n, each Vᵢ has dim n → n copies of (2,1,1,1)
+  --         Indecomposability forces n = 1 → (2,1,1,1)
+  sorry
 
 theorem Etingof.Example_6_3_1 (k : Type*) [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable) :
     ρ.dimVector ∈ D₄_indecomposable_dimVectors := by
-  -- The proof follows Etingof's iterative decomposition.
-  -- Step 1: Case split on kernels of A₁, A₂, A₃.
-  -- If any kernel is nontrivial, indecomposability forces all other components to 0,
-  -- giving dimension vectors (0,*,0,0), (0,0,*,0), (0,0,0,*) with * = dim Vᵢ.
-  -- Indecomposability of the kernel as a vector space forces dim = 1.
-  -- Steps 2-6: After all kernels are trivial (maps injective), the proof reduces to
-  -- the triple of subspaces problem via successive decomposition arguments.
-  sorry
+  -- Case split on whether each kernel is trivial
+  rcases ker_A₁_or_rest_zero ρ hind with hA₁ | ⟨hV, hV₂, hV₃⟩
+  · rcases ker_A₂_or_rest_zero ρ hind with hA₂ | ⟨hV, hV₁, hV₃⟩
+    · rcases ker_A₃_or_rest_zero ρ hind with hA₃ | ⟨hV, hV₁, hV₂⟩
+      · -- All kernels trivial: triple of subspaces problem
+        exact classification_injective ρ hind hA₁ hA₂ hA₃
+      · -- ker A₃ ≠ ⊥, V = V₁ = V₂ = 0: dim V₃ = 1
+        have hV₃ := dim_V₃_eq_one_of_rest_zero ρ hind hV hV₁ hV₂
+        simp only [D₄Rep.dimVector, D₄_indecomposable_dimVectors, Finset.mem_insert,
+          Prod.mk.injEq]
+        right; right; left
+        exact ⟨hV, hV₁, hV₂, hV₃⟩
+    · -- ker A₂ ≠ ⊥, V = V₁ = V₃ = 0: dim V₂ = 1
+      have hV₂ := dim_V₂_eq_one_of_rest_zero ρ hind hV hV₁ hV₃
+      simp only [D₄Rep.dimVector, D₄_indecomposable_dimVectors, Finset.mem_insert,
+        Prod.mk.injEq]
+      right; left
+      exact ⟨hV, hV₁, hV₂, hV₃⟩
+  · -- ker A₁ ≠ ⊥, V = V₂ = V₃ = 0: dim V₁ = 1
+    have hV₁ := dim_V₁_eq_one_of_rest_zero ρ hind hV hV₂ hV₃
+    simp only [D₄Rep.dimVector, D₄_indecomposable_dimVectors, Finset.mem_insert,
+      Prod.mk.injEq]
+    left
+    exact ⟨hV, hV₁, hV₂, hV₃⟩
 
 /-- The set of indecomposable dimension vectors has exactly 12 elements,
 corresponding to the 12 positive roots of D₄. -/
