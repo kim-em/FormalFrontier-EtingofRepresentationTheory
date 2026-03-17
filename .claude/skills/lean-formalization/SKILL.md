@@ -197,7 +197,7 @@ Based on Phase 2 experience with issue sizing:
 
 ## Proven Proof Strategies
 
-Patterns that have succeeded in this project, derived from 50+ merged proof PRs.
+Patterns that have succeeded in this project, derived from 70+ merged proof PRs (through wave 11).
 
 ### Mathlib Alias Pattern (Chapter 2)
 
@@ -555,9 +555,70 @@ simp [...]
 
 **Alternative:** Prove equality via `Finsupp.ext` (coefficient-wise) to sidestep sum comparison entirely.
 
+## Trace-Based Proof Pattern
+
+When a proof involves showing a group algebra element is nonzero, or bounding the dimension of a representation, try using traces of left-multiplication operators.
+
+**Pattern (Young symmetrizer squared nonzero, Theorem 5.12.2):**
+1. Prove `trace_lmul_monoidAlgebra`: `Tr(L_a) = |G| · a(1)` for any group algebra element `a`
+2. Show that if `c² = 0` then `L_c` is nilpotent, hence `Tr(L_c) = 0`
+3. But `Tr(L_c) = |G| · c(id) = n! ≠ 0` in characteristic zero
+4. Contradiction
+
+**When to use:** Whenever the mathematical argument involves "evaluate at the identity element" or "take the trace of left multiplication". This is cleaner than trying to work with the group algebra directly because traces are computed via `LinearMap.trace`.
+
+**Key Mathlib APIs:** `LinearMap.trace`, `MonoidAlgebra.lmul`, `IsNilpotent`, `LinearMap.trace_eq_zero_of_isNilpotent`
+
+## Reynolds Operator / Symmetrization Pattern
+
+For proofs involving invariant subspaces under group actions (e.g., `V^G ≅ Sym^n V`):
+
+1. Construct the symmetrization/averaging map: `symSum(x) = Σ_{σ ∈ G} σ · x`
+2. Show `symSum` factors through the quotient (e.g., `SymmetricPower.mk`) via `AddCon.addConGen_le`
+3. For injectivity on invariants: `symSum(x) = |G| · x` when `x` is invariant, so if images agree, `|G| · (a - b) = 0`, giving `a = b` by `CharZero`
+4. For surjectivity: use `(|G|)⁻¹ · symSum(lift(y))` as preimage
+
+**Key insight:** The Reynolds operator `R = (1/|G|) Σ_σ σ` is an idempotent projection onto invariants. Most invariant-subspace identifications reduce to showing `R` factors through the target construction.
+
+## `decide` for Concrete Finite Computations
+
+For theorems about specific small finite structures (e.g., D₄ quiver with 4 vertices):
+
+```lean
+-- Example 6.8.5: concrete D₄ reflection functor computations
+example : reflectionResult₁ = expected₁ := by decide
+```
+
+**When to use:** The statement involves only `Fin n` for small `n`, concrete matrices, or specific permutations. If `decide` doesn't terminate in reasonable time (< 30s), fall back to `native_decide` or manual proof.
+
+**Caution:** `decide` only works when all types are decidable and small. It won't work for general `n` or abstract algebraic structures.
+
+## Known Dead-Ends (Don't Waste Context Windows)
+
+These are proof approaches that multiple agents have attempted and failed. Don't retry them without new Mathlib infrastructure.
+
+### ExteriorAlgebra / PiTensorProduct Coercion Gap
+
+**Problem:** Proving `∧^n V ≅ (V⊗ⁿ)^{Alt}` (the alternating subspace of the tensor power is the exterior power) requires bridging two incompatible Mathlib constructions:
+- `exteriorPower n V` is a `Submodule` of `ExteriorAlgebra V` (built on `CliffordAlgebra`)
+- The alternating subspace lives in `PiTensorProduct` (or `TensorProduct`)
+
+**What fails:**
+- `exteriorPower.linearMap_ext` creates `compAlternatingMap` goals with `↑` coercions that `simp` cannot resolve
+- `Fintype.sum_equiv` gets type mismatches when goals are wrapped in `compMultilinearMap`
+- `congr 1` strips one coercion layer but leaves incompatible goal forms
+
+**Status:** 3+ agents have attempted this (Example 5.19.3 exterior part). All failed. **Sorry and move on.** This requires new Mathlib bridging infrastructure between `ExteriorAlgebra` and `PiTensorProduct`.
+
+### Dependent Type Issues with `if`-branching `obj` Fields
+
+**Problem:** When a `QuiverRepresentation`-like structure has `obj v := if v = i then T₁ else T₂`, filling `Module` instance fields fails because the `AddCommMonoid` instance becomes opaque after filling.
+
+**Status:** Documented in detail above (Type-Level If/Else Diamond Issue). The workaround is to sorry the `instModule` field. Don't attempt to solve the diamond — it requires a structural refactor.
+
 ## Common Failure Modes
 
-From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
+From Phase 2 review patterns and Stage 3.2 proof experience (70+ merged PRs through wave 11):
 
 1. **Wrong Mathlib declaration name.** Always `#check` the declaration before using it.
 2. **Fabricated references.** If `.refs.md` cites a Mathlib declaration, verify it exists.
@@ -567,6 +628,7 @@ From Phase 2 review patterns and Stage 3.2 proof experience (50+ merged PRs):
 6. **Status tracking lag.** After proving a theorem, update `items.json` immediately in the same commit. Audits have found items marked `scaffolded` that were actually `sorry_free`. Automated sorry detection (via LeanArchitect) is more reliable than manual tracking, but agents should still update proactively.
 7. **FDRep abstraction fighting.** If your proof requires distributing `.hom.hom` over sums or otherwise unwrapping 3+ layers of categorical abstraction, you're fighting the wrong abstraction. See the FDRep Categorical Plumbing patterns above for alternatives.
 8. **Universe level mismatches.** Representation theory proofs sometimes need explicit universe annotations (`.{v}`) especially when working with Jacobson radical or maximal ideal APIs. If type unification fails mysteriously, try adding explicit universe parameters.
+9. **Sinking entire context windows on known dead-ends.** Before starting a proof, check the "Known Dead-Ends" section above. If the proof requires bridging `ExteriorAlgebra` ↔ `PiTensorProduct` or resolving the `if`-branching diamond, sorry it immediately and move on. Multiple agents have confirmed these are blocked on missing infrastructure.
 
 ## Breadth-vs-Depth Phase Awareness
 
@@ -584,5 +646,7 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 8)
-The project has 46 items in the formalized-but-not-proved backlog. This is sufficient to support a depth phase. **Wave 9 should be proof-heavy.**
+### Current Status (as of Wave 11)
+The project has 188/583 items sorry-free (32.2%) with a proof backlog of 43 items. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
+
+**Key velocity insight from waves 9-11:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Plan accordingly — don't create more statement issues than the proof pipeline can absorb.

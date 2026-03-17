@@ -213,6 +213,30 @@ gh issue list --state open --label has-pr \
 done
 ```
 
+### Proof Difficulty Triage for Planners
+
+When creating proof issues, planners should classify items by expected tractability based on wave 9-11 experience:
+
+**High success rate (create these freely):**
+- Dimension counting / rank-nullity arguments
+- Concrete finite computations (`decide`-able)
+- Direct Mathlib API applications (alias + `inferInstance`)
+- Trace-based arguments (group algebra elements)
+- Symmetrization / Reynolds operator arguments in characteristic zero
+
+**Medium success rate (1 per issue, budget full context window):**
+- Multi-step algebraic proofs requiring 3+ Mathlib lemmas
+- Inductive arguments on natural numbers or partitions
+- Proofs requiring `Finset.sum` manipulation and reindexing
+
+**Low success rate (flag in issue, expect sorry):**
+- Anything involving `ExteriorAlgebra` ↔ `PiTensorProduct` bridging
+- Proofs requiring `QuiverRepresentation` infrastructure beyond concrete constructions
+- Deep symmetric function theory (hook length formula, RSK correspondence)
+- Dependent type issues with `if`-branching in structure fields
+
+**Planner action:** For low-success items, set difficulty to 3/3 and include an explicit note: "This may require sorry. Budget the full context window for a single attempt. If blocked after 2 serious attempts, sorry and move on."
+
 ### Proof Batch Sizing
 
 From 30 PRs across 4 concurrent agents:
@@ -256,4 +280,4 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 8:** Backlog is 46 items — planners should create mostly proof issues.
+**As of Wave 11:** Backlog is 43 items (188/583 sorry-free, 32.2%) — planners should create mostly proof issues. Statement formalization is largely complete for Chapters 5-6.
