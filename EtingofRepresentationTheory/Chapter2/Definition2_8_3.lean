@@ -20,8 +20,8 @@ structure Etingof.QuiverRepresentation (k : Type*) (Q : Type*) [CommSemiring k]
     [Quiver Q] where
   /-- The underlying type family -/
   obj : Q → Type*
-  [instAddCommMonoid : ∀ v, AddCommMonoid (obj v)]
-  [instModule : ∀ v, Module k (obj v)]
+  {instAddCommMonoid : ∀ v, AddCommMonoid (obj v)}
+  {instModule : ∀ v, Module k (obj v)}
   /-- The linear map assigned to each arrow -/
   mapLinear : ∀ {v w : Q}, (v ⟶ w) → obj v →ₗ[k] obj w
 

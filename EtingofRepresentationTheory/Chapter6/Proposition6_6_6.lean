@@ -86,20 +86,14 @@ private theorem Etingof.reversedAtVertex_twice
   intro a b
   change @Etingof.ReversedAtVertexHom Q _ (Etingof.reversedAtVertex Q i) i a b = (a ⟶ b)
   unfold Etingof.ReversedAtVertexHom
-  -- First level of split on a = i, b = i gives branches with @Hom Q (reversedAtVertex Q i) ...
   split_ifs with ha hb hb
   all_goals (simp only [Etingof.reversedAtVertex, Etingof.ReversedAtVertexHom])
-  -- Now each branch reduces to if-then-else on i,a,b equalities.
-  -- Some branches are impossible (¬True from i=i), others need subst before rfl.
   all_goals (split_ifs <;> first | rfl | subst_vars <;> rfl | exact absurd rfl ‹_›)
 
 /-- Transport a representation from the double-reversed quiver (Q̄ᵢ)̄ᵢ back to Q.
 
 Reversing all arrows at vertex i twice recovers the original quiver. Vertex spaces
-are unchanged; maps are transported through the canonical arrow identification.
-
-The definition preserves `obj` definitionally: `(transportReversedTwice ρ).obj v = ρ.obj v`
-by construction, which avoids `Eq.mpr` opacity when reasoning about vertex spaces. -/
+are unchanged; maps are transported through the canonical arrow identification. -/
 noncomputable def Etingof.QuiverRepresentation.transportReversedTwice
     {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
     {i : Q}
@@ -109,7 +103,7 @@ noncomputable def Etingof.QuiverRepresentation.transportReversedTwice
   Etingof.reversedAtVertex_twice Q i ▸ ρ
 
 /-- If we can construct a `QuiverRepresentation.Iso` between ρ₁ and ρ₂ on
-quiver instance `inst₁`, this gives an Iso between `(h ▸ ρ₁)` and `ρ₂` on `inst₂`.
+quiver instance `inst₁`, this gives an Iso between `(h ▸ ρ₁)` and `(h ▸ ρ₂)` on `inst₂`.
 This is the key lemma for handling the `Eq.mpr` from `transportReversedTwice`. -/
 private noncomputable def Etingof.QuiverRepresentation.transport_iso
     {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q]
@@ -131,7 +125,7 @@ the resulting representation is isomorphic to the original.
 (Etingof Proposition 6.6.6, part 1) -/
 theorem Etingof.Proposition6_6_6_sink
     {k : Type*} [Field k]
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
@@ -150,14 +144,13 @@ theorem Etingof.Proposition6_6_6_sink
   -- By the first isomorphism theorem: ⊕V_j / ker(φ) ≅ im(φ) = V_i (since φ surjective)
   --
   -- Technical blocker: `transportReversedTwice` uses `▸` (Eq.mpr) which creates opaque
-  -- terms that prevent reasoning about `.obj v` and `.mapLinear`. The Iso construction
-  -- requires mixing module instances from different Quiver instances, which triggers
-  -- Lean 4's "synthesized type class instance is not definitionally equal" check.
-  -- Infrastructure for resolving this (transport_iso, reversedAtVertex_twice) is in place.
-  -- Resolution requires either:
-  -- (a) Restructuring QuiverRepresentation to avoid instance fields for AddCommMonoid/Module
-  -- (b) Redefining transportReversedTwice to explicitly construct the representation
-  -- (c) Using a heterogeneous Iso that avoids the ▸ transport
+  -- terms. Building the Iso requires relating `(h ▸ ρ_dr).obj v` to `ρ.obj v`, but
+  -- the Eq.mpr prevents definitional reduction, and propositional transport triggers
+  -- Lean 4's synthesis check when two different Quiver instances are in scope.
+  -- Infrastructure for a potential resolution (transport_iso, reversedAtVertex_twice,
+  -- `{}` field annotations for instAddCommMonoid/instModule) is in place.
+  -- A full resolution likely requires making the Quiver parameter of
+  -- QuiverRepresentation explicit (not instance) to avoid the synthesis check.
   sorry
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
@@ -170,7 +163,7 @@ the resulting representation is isomorphic to the original.
 (Etingof Proposition 6.6.6, part 2) -/
 theorem Etingof.Proposition6_6_6_source
     {k : Type*} [Field k]
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
     {i : Q} (hi : Etingof.IsSource Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
@@ -189,6 +182,5 @@ theorem Etingof.Proposition6_6_6_source
   -- When ψ is injective: 0 → V_i →ψ ⊕V_j → coker(ψ) → 0 is exact
   -- So ker(⊕V_j → coker(ψ)) = im(ψ) ≅ V_i
   --
-  -- Same technical blocker as the sink case: transportReversedTwice creates Eq.mpr opacity.
-  -- See Proposition6_6_6_sink for details on the transport infrastructure.
+  -- Same technical blocker as the sink case.
   sorry
