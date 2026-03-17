@@ -2914,8 +2914,10 @@
     "end_page": "113",
     "start_line": 19,
     "end_line": 25,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "proof_formalized",
+    "needs_statement": false,
+    "aristotle_project_id": "366668f8-c485-4cf1-8cbf-7a989ba03b7c",
+    "aristotle_target": "young_symmetrizer_sq_ne_zero"
   },
   {
     "id": "Chapter5/Example5.12.3",

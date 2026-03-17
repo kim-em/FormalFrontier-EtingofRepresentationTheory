@@ -1,5 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
+import EtingofRepresentationTheory.Chapter5.Lemma5_13_3
 
 /-!
 # Theorem 5.12.2: Classification of Irreducible Representations of S_n (Specht Modules)
@@ -27,12 +28,100 @@ noncomputable def SpechtModule (n : ℕ) (la : Nat.Partition n) :
     Submodule (SymGroupAlgebra n) (SymGroupAlgebra n) :=
   Submodule.span (SymGroupAlgebra n) {YoungSymmetrizer n la}
 
+noncomputable section
+
+private abbrev G' (n : ℕ) := Equiv.Perm (Fin n)
+private abbrev A' (n : ℕ) := MonoidAlgebra ℂ (G' n)
+
+instance neZero_card_perm (n : ℕ) : NeZero (Nat.card (G' n) : ℂ) :=
+  ⟨by exact_mod_cast Nat.card_pos.ne'⟩
+
+/-- The sandwich property for the Young symmetrizer: c_λ * x * c_λ = f(x) • c_λ
+for a linear functional f. This follows from Lemma 5.13.1 (a_λ * x * b_λ = ℓ(x) • c_λ). -/
+private lemma sandwich_scalar (n : ℕ) (la : Nat.Partition n) :
+    ∃ f : A' n →ₗ[ℂ] ℂ, ∀ x,
+      YoungSymmetrizer n la * x * YoungSymmetrizer n la = f x • YoungSymmetrizer n la := by
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  refine ⟨ℓ.comp ((LinearMap.mulLeft ℂ (ColumnAntisymmetrizer n la)).comp
+    (LinearMap.mulRight ℂ (RowSymmetrizer n la))), fun x => ?_⟩
+  change YoungSymmetrizer n la * x * YoungSymmetrizer n la =
+    ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) • YoungSymmetrizer n la
+  simp only [YoungSymmetrizer]
+  have : RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+    (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
+    RowSymmetrizer n la * (ColumnAntisymmetrizer n la * x * RowSymmetrizer n la) *
+    ColumnAntisymmetrizer n la := by simp only [mul_assoc]
+  rw [this, hℓ]; simp only [YoungSymmetrizer, mul_assoc]
+
+/-- c_λ² ≠ 0. This is needed for the irreducibility proof: if c_λ² = 0 then
+the Specht module would be zero (since c_λ² = α • c_λ implies α = 0 implies c_λ = 0).
+The proof requires showing that the scalar α in Lemma 5.13.3 is nonzero. -/
+private lemma young_symmetrizer_sq_ne_zero (n : ℕ) (la : Nat.Partition n) :
+    YoungSymmetrizer n la * YoungSymmetrizer n la ≠ 0 := by sorry
+
 /-- The Specht module V_λ is an irreducible (simple) left ℂ[S_n]-module.
-(Etingof Theorem 5.12.2, part 1) -/
+(Etingof Theorem 5.12.2, part 1)
+
+The proof uses:
+- Lemma 5.13.3: c_λ² = α • c_λ for some scalar α
+- The sandwich property: c_λ * x * c_λ = f(x) • c_λ for a linear functional f
+- Maschke's theorem: ℂ[S_n] is semisimple, so any submodule has a complement
+- For any proper submodule N < V_λ, decompose c_λ = n₀ + p₀ with n₀ ∈ N, p₀ ∈ P
+  (complement). The sandwich property forces either c_λ ∈ N (contradiction with
+  N being proper) or n₀ = 0 and c_λ ∈ P (contradiction with N ≠ ⊥). -/
 theorem Theorem5_12_2_irreducible
     (n : ℕ) (la : Nat.Partition n) :
     IsSimpleModule (SymGroupAlgebra n) (SpechtModule n la) := by
-  sorry
+  rw [isSimpleModule_iff_isAtom]
+  obtain ⟨α, hα_eq⟩ := Etingof.Lemma5_13_3 n la
+  have hα_ne : α ≠ 0 := fun h => young_symmetrizer_sq_ne_zero n la (by rw [hα_eq, h, zero_smul])
+  obtain ⟨f, hf⟩ := sandwich_scalar n la
+  set c := YoungSymmetrizer n la with hc_def
+  refine ⟨?_, ?_⟩
+  · -- SpechtModule ≠ ⊥
+    intro h
+    have hc_zero : (c : A' n) = 0 :=
+      (Submodule.mem_bot (R := A' n)).mp (h ▸ Submodule.subset_span rfl)
+    exact young_symmetrizer_sq_ne_zero n la (show c * c = 0 by rw [hc_zero, mul_zero])
+  · -- ∀ N < SpechtModule, N = ⊥
+    intro N hN
+    by_contra hN_ne_bot
+    have hN_le := le_of_lt hN
+    suffices c ∈ N by
+      exact ne_of_lt hN
+        (le_antisymm hN_le (Submodule.span_le.mpr (Set.singleton_subset_iff.mpr this)))
+    obtain ⟨P, hP⟩ := (inferInstance : IsSemisimpleModule (A' n) (A' n)).exists_isCompl N
+    obtain ⟨n₀, hn₀, p₀, hp₀, hc_eq⟩ := Submodule.mem_sup.mp
+      (show c ∈ N ⊔ P from hP.sup_eq_top ▸ Submodule.mem_top)
+    obtain ⟨a, ha⟩ := Submodule.mem_span_singleton.mp
+      (show n₀ ∈ SpechtModule n la from hN_le hn₀)
+    have hcn₀ : c * n₀ = f a • c := by
+      rw [← ha]; change c * (a * c) = _; rw [← mul_assoc]; exact hf a
+    have hcn₀_N : c * n₀ ∈ N := N.smul_mem _ hn₀
+    by_cases hfa : f a = 0
+    · rw [hfa, zero_smul] at hcn₀
+      have hcc_cp₀ : c * c = c * p₀ := by
+        calc c * c = c * (n₀ + p₀) := by rw [hc_eq]
+          _ = c * n₀ + c * p₀ := mul_add _ _ _
+          _ = c * p₀ := by rw [hcn₀, zero_add]
+      have hαc_P : α • c ∈ P := by rw [← hα_eq, hcc_cp₀]; exact P.smul_mem _ hp₀
+      have h1 : α • n₀ ∈ N := Submodule.smul_of_tower_mem N α hn₀
+      have h2 : α • n₀ ∈ P := by
+        rw [show α • n₀ = α • c - α • p₀ from by rw [← hc_eq, smul_add, add_sub_cancel_right]]
+        exact P.sub_mem hαc_P (Submodule.smul_of_tower_mem P α hp₀)
+      have h3 : α • n₀ = 0 :=
+        (Submodule.mem_bot (R := A' n)).mp (hP.inf_eq_bot ▸ Submodule.mem_inf.mpr ⟨h1, h2⟩)
+      have hn₀_zero : n₀ = 0 := (smul_eq_zero.mp h3).resolve_left hα_ne
+      exfalso; apply hN_ne_bot; rw [eq_bot_iff]; intro x hx
+      have hc_P : c ∈ P := by rw [← hc_eq, hn₀_zero, zero_add]; exact hp₀
+      have hV_le_P : SpechtModule n la ≤ P :=
+        Submodule.span_le.mpr (Set.singleton_subset_iff.mpr hc_P)
+      exact (Submodule.mem_bot (R := A' n)).mpr
+        ((Submodule.mem_bot (R := A' n)).mp
+          (hP.inf_eq_bot ▸ Submodule.mem_inf.mpr ⟨hx, hV_le_P (hN_le hx)⟩))
+    · rw [hcn₀] at hcn₀_N
+      rw [show c = (f a)⁻¹ • (f a • c) from by rw [inv_smul_smul₀ hfa]]
+      exact Submodule.smul_of_tower_mem N (f a)⁻¹ hcn₀_N
 
 /-- For distinct partitions λ ≠ μ, the Specht modules V_λ and V_μ are not isomorphic
 as ℂ[S_n]-modules. (Etingof Theorem 5.12.2, part 2a) -/
@@ -49,5 +138,7 @@ theorem Theorem5_12_2_classification
     ∃ la : Nat.Partition n,
       Nonempty (M ≃ₗ[SymGroupAlgebra n] (SpechtModule n la)) := by
   sorry
+
+end
 
 end Etingof
