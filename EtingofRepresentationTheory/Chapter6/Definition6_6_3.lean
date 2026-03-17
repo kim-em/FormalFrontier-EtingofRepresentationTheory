@@ -83,13 +83,33 @@ noncomputable def Etingof.reflectionFunctorPlus
           simp only [ha, hb] at e; exact ((hi i).false e).elim
         · -- a = i, b ≠ i: reversed arrow, ker φ ↪ ⊕ → proj_b
           simp only [ha, hb, ite_true, ite_false] at e
-          exact Eq.mpr sorry
-            ((DirectSum.component k (Etingof.ArrowsInto V i)
-              (fun x => ρ.obj x.1) ⟨b, e⟩).comp
-              (LinearMap.ker φ).subtype)
+          -- Beta-reduce and generalize to make Decidable.casesOn reduce
+          change objAt a (dp a) →ₗ[k] objAt b (dp b)
+          revert e
+          generalize dp a = da; generalize dp b = db
+          cases da with
+          | isFalse h => exact absurd ha h
+          | isTrue _ =>
+            cases db with
+            | isTrue h => exact absurd h hb
+            | isFalse _ =>
+              intro e
+              exact (DirectSum.component k (Etingof.ArrowsInto V i)
+                (fun x => ρ.obj x.1) ⟨b, e⟩).comp
+                (LinearMap.ker φ).subtype
       · by_cases hb : b = i
         · -- a ≠ i, b = i: arrow i → a, vacuous since i is a sink
           simp only [ha, hb] at e; exact ((hi a).false e).elim
         · -- a ≠ i, b ≠ i: unchanged arrow
           simp only [ha, hb] at e
-          exact Eq.mpr sorry (ρ.mapLinear e))
+          change objAt a (dp a) →ₗ[k] objAt b (dp b)
+          revert e
+          generalize dp a = da; generalize dp b = db
+          cases da with
+          | isTrue h => exact absurd h ha
+          | isFalse _ =>
+            cases db with
+            | isTrue h => exact absurd h hb
+            | isFalse _ =>
+              intro e
+              exact ρ.mapLinear e)
