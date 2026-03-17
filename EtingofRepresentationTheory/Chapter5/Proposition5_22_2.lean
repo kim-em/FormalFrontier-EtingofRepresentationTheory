@@ -1,24 +1,45 @@
 import Mathlib
+import EtingofRepresentationTheory.Chapter5.Theorem5_22_1
 
 /-!
 # Proposition 5.22.2: Twisting by Determinant
 
-L_{λ + 1^N} ≅ Lλ ⊗ ∧^N V, where 1^N = (1, 1, …, 1) ∈ ℤ^N.
+`L_{λ + 1^N} ≅ L_λ ⊗ ∧^N V`, where `1^N = (1, 1, …, 1)`.
 
-This follows from the inclusion Lλ ⊗ ∧^N V ⊂ V^{⊗(n+N)} and the
+The top exterior power `∧^N V` is the one-dimensional determinant representation
+of `GL_N(k)`. Tensoring by it shifts every part of the highest weight by 1.
+This follows from the inclusion `L_λ ⊗ ∧^N V ⊂ V^{⊗(n+N)}` and the
 uniqueness of the component with the given character.
 
 ## Mathlib correspondence
 
-Requires exterior power and Schur functor infrastructure.
+Uses the Schur module from `Theorem5_22_1`. The tensor product of `FDRep` objects
+uses the monoidal category structure on `FDRep k G`.
 -/
 
-/-- Twisting by determinant: L_{λ+1^N} ≅ Lλ ⊗ ∧^N V.
+open CategoryTheory MonoidalCategory
+
+noncomputable section
+
+namespace Etingof
+
+variable (k : Type*) [Field k] [IsAlgClosed k]
+
+/-- The determinant representation of `GL_N(k)`: the one-dimensional representation
+given by `g ↦ det(g)`. This is isomorphic to the top exterior power `∧^N(k^N)` as
+a `GL_N`-representation. Not yet in Mathlib. -/
+noncomputable def detRep (N : ℕ) :
+    FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := sorry
+
+/-- **Determinant twist**: `L_{λ+(1,…,1)} ≅ L_λ ⊗ ∧^N V` as `GL_N(k)`-representations.
+
+Tensoring with the one-dimensional determinant representation shifts every part
+of the highest weight by 1.
 (Etingof Proposition 5.22.2) -/
-theorem Etingof.Proposition5_22_2
-    {k : Type*} [Field k] [IsAlgClosed k]
-    {V : Type*} [AddCommGroup V] [Module k V] [Module.Finite k V]
-    (N : ℕ) (lam : Fin N → ℕ) :
-    -- L_{λ + (1,1,...,1)} ≅ Lλ ⊗ ∧^N V as GL(V)-representations
-    (sorry : Prop) := by
+theorem Proposition5_22_2
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    Nonempty (SchurModule k N (fun i => lam i + 1) ≅
+      SchurModule k N lam ⊗ detRep k N) := by
   sorry
+
+end Etingof
