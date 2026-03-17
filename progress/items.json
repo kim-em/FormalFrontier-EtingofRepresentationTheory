@@ -3979,8 +3979,13 @@
     "end_page": "163",
     "start_line": 15,
     "end_line": 74,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_projects": [
+      "8cf7bd49-7d86-415a-a2ce-3088f36736b9",
+      "f2eb9bd1-b206-400f-8fcc-1734095d99f8",
+      "81494c44-faf9-456f-9cc6-9f6191c6ea0c"
+    ]
   },
   {
     "id": "Chapter6/Discussion_after_Example6.3.1",
