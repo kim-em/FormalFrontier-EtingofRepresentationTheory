@@ -397,8 +397,9 @@ If the same gap blocks 3+ items (e.g., column orthogonality blocking all charact
 | Column orthogonality | `FDRep.char_orthonormal` (row) | `∑_V χ_V(g) · χ_V(h⁻¹) = \|C_G(g)\| · δ` | Thm 5.4.6, Burnside | Issue #633 |
 | Regular rep decomposition | `FDRep`, `Simple` | `k[G] ≅ ⊕ dim(V_i) · V_i` | Thm 5.4.6 | Issue #643 |
 | Simple module classification | `Simple` predicate | Every simple FDRep ≅ some columnFDRep | IrrepEnum surjectivity | Issue #655 |
-| FDRep ↔ LinearMap plumbing | `.hom` unwrapping | Distributing `.hom.hom` over sums, Schur at LinearMap level | Prop 5.3.2, Thm 5.4.4 | See FDRep Plumbing pattern |
-| Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch7 items | Unchanged |
+| FDRep ↔ LinearMap plumbing | `.hom` unwrapping | Distributing `.hom.hom` over sums, Schur at LinearMap level | Prop 5.3.2 | Workaround: non-categorical pattern |
+| Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch6 items | Workaround: concrete constructions |
+| Pigeonhole transposition | `Finset` API | Row/column counting for Young tableaux | Lemmas 5.13.1, 5.13.2 | Issues #776, #777 |
 
 ## When Aristotle Is Unavailable
 
@@ -410,6 +411,97 @@ If `aristotle` is not on PATH or fails to connect, don't waste time debugging it
 4. Move on to the next item — don't block your entire session on one proof
 
 Aristotle availability varies by machine. Recording the need for escalation ensures a future session on a properly configured machine can pick it up.
+
+## Proof Chain Completion Strategy
+
+When multiple sorry'd items exist, **prioritize completing already-started chains** over beginning new proofs. A "chain" is a sequence of items where proving one unblocks the next.
+
+**Why this works:** Chain completion has the highest ROI per agent-hour. Completing one helper lemma can cascade to chapter-level completion. In Wave 4, focusing on the Theorem 4.10.2 chain (2 helper lemmas) completed all of Chapter 4.
+
+**How to identify chains:**
+1. Look for items whose dependencies are all sorry-free except one
+2. Look for chapters near 100% — one or two proofs may close them out
+3. Check if a sorry'd helper lemma is used by 2+ other proofs
+
+**Priority order for proof selection:**
+1. Chain-completing proofs (unblock downstream items)
+2. Chapter-completing proofs (achieve 100% for a chapter)
+3. Infrastructure proofs (unblock 3+ items across chapters)
+4. Standalone proofs (no downstream dependents)
+
+## Quiver Representation Patterns
+
+Chapter 6 quiver representations use concrete finite-dimensional constructions rather than abstract quiver theory. This approach was discovered in Wave 4 (Examples 6.2.2-6.2.4) after three waves of zero progress with abstract approaches.
+
+### Concrete Construction Pattern
+
+For quiver representations with vertices V₁, ..., Vₙ and arrows between them:
+
+```lean
+-- Represent each vertex space as Fin d →₀ k (or Fin d → k)
+-- Represent each arrow as a concrete LinearMap between vertex spaces
+structure D₄Rep (k : Type*) [Field k] where
+  V  : Type* -- central vertex
+  V₁ : Type* -- arm vertices
+  V₂ : Type*
+  V₃ : Type*
+  A₁ : V₁ →ₗ[k] V  -- arrow maps
+  A₂ : V₂ →ₗ[k] V
+  A₃ : V₃ →ₗ[k] V
+```
+
+**Key insight:** Work with explicit `LinearMap`s between finite-dimensional spaces, not abstract `QuiverRepresentation` types. Mathlib's quiver infrastructure is insufficient for the proofs we need, but the concrete linear algebra API is rich.
+
+### Indecomposability via Kernel Splitting
+
+For classifying indecomposable representations:
+1. Check kernels of arrow maps — if `ker Aᵢ ≠ ⊥`, split off the kernel as a direct summand
+2. This reduces to the "all injective" case, which is the hard subspace-configuration problem
+3. For the injective case, use `Submodule.IsCompl` and `Module.finrank` to classify
+
+### Dimension Vector Pattern
+
+Track dimension vectors `(dim V, dim V₁, ..., dim Vₙ)` as the primary classification tool. Indecomposability constraints on dimension vectors are often finite and enumerable.
+
+## Combinatorial Counting Arguments
+
+Pigeonhole-style counting arguments (e.g., "by counting, some row must have two elements mapping to the same column") are a persistent difficulty in Lean formalization. The mathematical intuition is simple but the formal proof requires careful API navigation.
+
+### Recommended Approach
+
+1. **State the counting lemma separately** — don't inline pigeonhole arguments in larger proofs
+2. **Use `Finset.exists_ne_map_eq_of_card_lt`** (pigeonhole principle) when available
+3. **For partition-based counting:** Express the constraint as a `Finpartition` or use `Finset.sum_card_fiberwise_eq_card` to relate partition sizes to totals
+4. **For injection-based arguments:** Use `Fintype.card_lt_of_injective_of_not_surjective` or `Function.Injective.card_le`
+
+### When Stuck on Combinatorial Proofs
+
+After 2 serious attempts:
+1. Sorry the combinatorial core with a precise comment describing the counting argument
+2. Complete the algebraic frame around it (this is valuable and independently reviewable)
+3. Escalate to Aristotle if available — combinatorial lemmas are good Aristotle candidates
+4. If Aristotle unavailable, file an issue with status `attention_needed`
+
+This "algebraic frame + combinatorial sorry" pattern was successfully used in Lemmas 5.13.1 and 5.13.2 (Young symmetrizer proofs).
+
+## Non-Categorical Workaround Pattern
+
+When a proof requires FDRep categorical machinery that's blocked by `.hom` plumbing, try reformulating the argument to avoid categories entirely.
+
+**Example (Theorem 5.4.4, PR #721):** Instead of using the categorical Schur's lemma via FDRep:
+- Used eigenvalues of central elements acting on simple modules
+- Proved `character_div_dim_isIntegral` via direct algebraic argument
+- Completely bypassed FDRep plumbing
+
+**When to try this:**
+- The proof fundamentally needs a fact about linear maps (traces, eigenvalues, determinants)
+- The categorical formulation adds structure you don't actually need
+- You've spent > 30 min fighting `.hom` unwrapping
+
+**How to find the workaround:**
+1. Write out the mathematical argument in terms of linear maps and matrices
+2. Check if Mathlib has the needed lemmas at the `LinearMap` / `Matrix` level
+3. If yes, build the proof there — it's usually cleaner than the categorical version
 
 ## Common Failure Modes
 

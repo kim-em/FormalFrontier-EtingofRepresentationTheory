@@ -78,6 +78,16 @@ Design work items, each scoped to complete well within a single context window.
 one's estimated difficulty (1=mechanical, 2=moderate, 3=requires exploration).
 If the product exceeds 5, split the issue.
 
+**Case-analysis proofs:** When a proof requires classifying N > 3 cases
+(e.g., "enumerate all indecomposable representations"), split into separate
+issues by case group. Each case is often a different difficulty level, and
+over-scoped case-analysis issues frequently require replans.
+
+**Chain-completion preference:** Prefer creating issues that complete an
+existing proof chain (e.g., proving the last helper lemma that closes a
+chapter) over starting new chains. Chain completion has the highest ROI
+per agent-hour.
+
 **When in doubt, split.** Two small issues that finish cleanly are always
 better than one large issue that triggers compaction and produces sloppy
 partial work.
