@@ -55,7 +55,8 @@ indecomposable. This family is parameterized by (n, λ) ∈ ℕ₊ × ℂ. -/
 noncomputable def Etingof.Q₂Rep_E (n : ℕ) (hn : 0 < n) (eigenval : ℂ) : Q₂Rep ℂ where
   V := EuclideanSpace ℂ (Fin n)
   W := EuclideanSpace ℂ (Fin n)
-  A := sorry -- Jordan block J_n(eigenval) as a linear map
+  A := Matrix.toEuclideanLin (Matrix.of fun (i j : Fin n) =>
+    if i = j then eigenval else if i.val = j.val + 1 then 1 else 0)
   B := LinearMap.id
 
 /-- **Problem 6.9.1(a), Family H_n (Etingof)**: For n ≥ 1, V = ℂⁿ with basis vᵢ,
@@ -64,8 +65,10 @@ B sends wᵢ ↦ v_{i+1}. This is an indecomposable representation with dim V �
 noncomputable def Etingof.Q₂Rep_H (n : ℕ) (hn : 0 < n) : Q₂Rep ℂ where
   V := EuclideanSpace ℂ (Fin n)
   W := EuclideanSpace ℂ (Fin (n - 1))
-  A := sorry -- vᵢ ↦ wᵢ for i < n-1, vₙ ↦ 0
-  B := sorry -- wᵢ ↦ v_{i+1}
+  A := Matrix.toEuclideanLin (Matrix.of fun (i : Fin (n - 1)) (j : Fin n) =>
+    if i.val = j.val then (1 : ℂ) else 0)
+  B := Matrix.toEuclideanLin (Matrix.of fun (i : Fin n) (j : Fin (n - 1)) =>
+    if i.val = j.val + 1 then (1 : ℂ) else 0)
 
 /-- **Problem 6.9.1(a) (Etingof)**: The four families E_{n,λ}, E_{n,∞}, H_n, K_n
 (as defined above) are indecomposable and pairwise nonisomorphic. Moreover, these
