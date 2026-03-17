@@ -4268,7 +4268,9 @@
     "end_page": "172",
     "start_line": 33,
     "end_line": 26,
-    "status": "statement_formalized"
+    "status": "sent_to_aristotle",
+    "aristotle_project_id": "f41f314b-4ae6-4b10-8341-8511eff9bd98",
+    "notes": "Simple case (IsZero) and nontriviality fully proven. Indecomposability of F+(V) in surjective case sent to Aristotle. Source version blocked on Def 6.6.4."
   },
   {
     "id": "Chapter6/Proposition6.6.8",

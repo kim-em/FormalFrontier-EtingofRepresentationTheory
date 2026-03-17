@@ -26,6 +26,34 @@ def Etingof.QuiverRepresentation.IsZero
     (ρ : Etingof.QuiverRepresentation k Q) : Prop :=
   ∀ v : Q, Subsingleton (ρ.obj v)
 
+/-- At a vertex v ≠ i, the reflection functor leaves the space unchanged:
+`F⁺ᵢ(ρ).obj v = ρ.obj v`. -/
+private theorem reflFunctorPlus_obj_ne
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) v = ρ.obj v := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
+/-- At vertex i, the reflection functor gives the kernel of the sink map:
+`F⁺ᵢ(ρ).obj i = ker(sinkMap i)`. -/
+private theorem reflFunctorPlus_obj_eq
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) i = ↥(ρ.sinkMap i).ker := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› i i) with
+  | .isTrue _ => rw [hd]
+  | .isFalse hii => exact absurd rfl hii
+
 /-- Reflection functors preserve indecomposability at a sink:
 F⁺ᵢ(V) is either indecomposable or zero.
 
@@ -153,7 +181,31 @@ theorem Etingof.Proposition6_6_7_sink
       match hd : (‹DecidableEq Q› j i) with
       | .isTrue hji => exact absurd hji hj
       | .isFalse _ => rw [hd]; dsimp only []; exact hjnt
-    · -- F⁺(V) is indecomposable: given complementary subreps W₁, W₂, show one is ⊥.
+    · -- F⁺(V) is indecomposable: given complementary subreps W₁, W₂ of F⁺(V),
+      -- construct complementary subreps of V, use V's indecomposability.
+      --
+      -- MATHEMATICAL ARGUMENT (not yet formalized):
+      -- Given complementary subreps W₁, W₂ of F⁺(V) on Q̄ᵢ, define subreps of V on Q:
+      --   U_k(v) = W_k(v) for v ≠ i  (since F⁺(V)_v = V_v)
+      --   U_k(i) = φ(⊕ W_k(j))      (image of "W_k-part" of direct sum under sinkMap φ)
+      --
+      -- The subrep conditions hold:
+      --   - Maps between v, w ≠ i: same as in Q̄ᵢ (unchanged maps)
+      --   - Maps into i: ρ(e)(x) = φ(lof(⟨a,e⟩)(x)) ∈ φ(⊕W_k(j)) when x ∈ W_k(a)
+      --   - Maps from i: impossible (sink)
+      --
+      -- Complementarity: at v ≠ i, from W₁(v) ⊕ W₂(v). At i, uses:
+      --   - φ surjective: U₁(i) + U₂(i) = φ(⊕W₁ + ⊕W₂) = φ(⊕V_j) = V_i
+      --   - ker(φ) decomposition: if y ∈ U₁(i) ∩ U₂(i), write y = φ(x₁) = φ(x₂) with
+      --     x_k ∈ ⊕W_k(j). Then x₁ - x₂ ∈ ker(φ) = W₁(i) ⊕ W₂(i) (embedded in ⊕V_j
+      --     via subrep condition for arrows from i in Q̄ᵢ). Unique decomposition gives
+      --     x₁ = w₁, x₂ + w₂ = 0 implying y = 0.
+      --
+      -- By V's indecomposability, W₁ or W₂ is ⊥ at all v ≠ i, and then also at i
+      -- (since W_k(i) ⊆ ker(φ) ⊆ ⊕V_j, and if ⊕W_k(j) = 0 then W_k(i) = 0).
+      --
+      -- BLOCKED: The dependent type issues with Decidable.rec in reflectionFunctorPlus
+      -- make the construction extremely painful to formalize. Escalated to Aristotle.
       sorry
 
 /-- Reflection functors preserve indecomposability at a source:
@@ -174,5 +226,9 @@ theorem Etingof.Proposition6_6_7_source
       (Etingof.reflectionFunctorMinus Q i hi ρ) ∨
     @Etingof.QuiverRepresentation.IsZero k _ Q
       (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorMinus Q i hi ρ) :=
+      (Etingof.reflectionFunctorMinus Q i hi ρ) := by
+  -- BLOCKED: Definition 6.6.4 (reflectionFunctorMinus) is mostly sorry'd.
+  -- The proof would be dual to the sink case:
+  -- By Prop 6.6.5_source: either V is simple at i (→ F⁻(V) = 0) or sourceMap injective
+  -- In the injective case: F⁻(V) is indecomposable by the dual construction.
   sorry
