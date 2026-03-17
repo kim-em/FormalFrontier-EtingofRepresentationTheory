@@ -283,7 +283,7 @@ private lemma genDet_irreducible (k' : Type*) [Field k'] (n : ℕ) (hn : 0 < n) 
             (det (mvPolynomialX (Fin (n + 1)) (Fin (n + 1)) k')) := by
         intro c; rw [AlgHom.map_det]; congr 1; funext i j
         simp only [submatrix_apply, AlgHom.mapMatrix_apply, Matrix.map_apply,
-          mvPolynomialX, of_apply, MvPolynomial.rename_X, Prod.map]
+          hM_def, mvPolynomialX_apply, MvPolynomial.rename_X, Prod.map]
       -- Variables in submatrix minors have first component ≥ 1
       have hsub_vars : ∀ c : Fin (n + 2), ∀ v ∈
           (det (M.submatrix Fin.succ (Fin.succAbove c))).vars, v.1 ≠ 0 := by
@@ -411,9 +411,9 @@ private lemma genDet_irreducible (k' : Type*) [Field k'] (n : ℕ) (hn : 0 < n) 
             have : (MvPolynomial.eval g₁).mapMatrix
                 (M.submatrix Fin.succ (Fin.succAbove 0)) =
                 (1 : Matrix (Fin (n + 1)) (Fin (n + 1)) k') := by
-              ext1 i; ext1 j
+              ext i j
               simp only [RingHom.mapMatrix_apply, Matrix.map_apply, submatrix_apply,
-                mvPolynomialX, of_apply, MvPolynomial.eval_X, Fin.succAbove_zero, one_apply]
+                hM_def, mvPolynomialX_apply, MvPolynomial.eval_X, Fin.succAbove_zero, one_apply]
               simp only [g₁, Fin.succ_inj]
             rw [this, det_one]
           have hev0 : MvPolynomial.eval g₂
@@ -424,14 +424,14 @@ private lemma genDet_irreducible (k' : Type*) [Field k'] (n : ℕ) (hn : 0 < n) 
             apply det_eq_zero_of_row_eq_zero (0 : Fin (n + 1))
             intro j
             simp only [RingHom.mapMatrix_apply, Matrix.map_apply, submatrix_apply,
-              mvPolynomialX, of_apply, MvPolynomial.eval_X, Fin.succAbove_zero]
+              hM_def, mvPolynomialX_apply, MvPolynomial.eval_X, Fin.succAbove_zero]
             simp only [g₂, g₁, Function.update_apply, Prod.mk.injEq]
             by_cases hj : j = 0
-            · subst hj; simp
-            · simp only [show ¬((0 : Fin (n + 1)).succ = (0 : Fin (n + 2)).succ ∧ j.succ = (0 : Fin (n + 2)).succ) from by
-                intro ⟨_, h⟩; exact absurd (Fin.succ_injective _ h) hj]
-              simp only [show ¬(Fin.succ (0 : Fin (n + 1)) = Fin.succ j) from by
-                intro h; exact hj (Fin.succ_injective _ h).symm]
+            · subst hj; simp [hM_def]
+            · have hjs1 : ¬(j.succ : Fin (n + 2)) = (1 : Fin (n + 2)) := by
+                intro h; exact hj (Fin.succ_injective _ h)
+              simp [Fin.succ_ne_zero, hjs1, show (Fin.succ (0 : Fin (n + 1)) : Fin (n + 2)) =
+                (1 : Fin (n + 2)) from rfl, Ne.symm (show ¬j.succ = (1 : Fin (n + 2)) from hjs1)]
           exact absurd (hev1.symm.trans (heq.trans hev0)) one_ne_zero
         have hnotmem : ((1 : Fin (n + 2)), (1 : Fin (n + 2))) ∉
             (det (M.submatrix Fin.succ (Fin.succAbove (1 : Fin (n + 2))))).vars := by
@@ -449,93 +449,11 @@ private lemma genDet_irreducible (k' : Type*) [Field k'] (n : ℕ) (hn : 0 < n) 
             MvPolynomial.X ((0 : Fin (n + 2)), j.succ) *
             det (M.submatrix Fin.succ (Fin.succAbove j.succ))) := by
         rw [det_succ_row_zero, Fin.sum_univ_succ]
-        simp only [hM_def, mvPolynomialX, of_apply, Fin.val_zero, pow_zero, one_mul]
+        simp only [hM_def, Fin.val_zero, pow_zero, one_mul, Fin.succAbove_zero, mvPolynomialX_apply,
+          Fin.val_succ]
         ring
       rw [heq]
       exact MvPolynomial.irreducible_mul_X_add _ _ _ hf_ne hf_vars hg_vars hrel
-
-/-- Each block polynomial is irreducible. The proof uses the fact that the generic
-determinant is irreducible over k, and the block polynomial is obtained from it
-via a surjective linear substitution (from the Wedderburn projection). -/
-private lemma IrrepDecomp.blockPoly_irreducible [NeZero (Nat.card G : k)]
-    (D : IrrepDecomp k G) (i : Fin D.n) :
-    Irreducible (D.blockPoly i) := by
-  haveI := D.d_pos i
-  -- The block polynomial equals aeval φ (det(generic matrix)) where φ substitutes
-  -- matrix variables with linear forms from the representation
-  set d := D.d i
-  -- Define the substitution: (a,b) ↦ ∑_g c_{g,a,b} · X_g
-  set φ : Fin d × Fin d → MvPolynomial G k :=
-    fun ab => ∑ g : G, MvPolynomial.C (D.projRingHom i (MonoidAlgebra.of k G g) ab.1 ab.2) *
-      MvPolynomial.X g with hφ_def
-  -- blockPoly = aeval φ (det(generic matrix))
-  have hbp : D.blockPoly i = MvPolynomial.aeval φ (det (mvPolynomialX (Fin d) (Fin d) k)) := by
-    unfold IrrepDecomp.blockPoly
-    rw [AlgHom.map_det]; congr 1; ext a b
-    simp [AlgHom.mapMatrix_apply, mvPolynomialX, of_apply, MvPolynomial.aeval_X, φ]
-  -- The generic determinant is irreducible
-  have hirr := genDet_irreducible k d (Nat.pos_of_ne_zero (NeZero.ne d))
-  -- Strategy: show aeval φ preserves irreducibility by factoring through an AlgEquiv
-  -- The linear forms φ(a,b) are linearly independent (from surjectivity of projRingHom)
-  -- Step 1: aeval φ maps the generic det to blockPoly
-  rw [hbp]
-  -- Step 2: Show aeval φ preserves irreducibility
-  -- We use the fact that aeval φ is injective (the linear forms are linearly independent,
-  -- hence algebraically independent) and preserves non-units
-  sorry
-
-/-- Block polynomials for different Wedderburn components are not associated.
-If d_i ≠ d_j, they have different total degrees. If d_i = d_j, they involve
-different linear combinations of variables (by the injectivity of column FDReps). -/
-private lemma IrrepDecomp.blockPoly_not_associated [NeZero (Nat.card G : k)]
-    (D : IrrepDecomp k G) (i j : Fin D.n) (hij : i ≠ j) :
-    ¬Associated (D.blockPoly i) (D.blockPoly j) := by
-  intro ⟨u, hu⟩
-  -- Define the central idempotent e_i and evaluate blockPolys at its coefficients
-  set e := D.iso.symm (Pi.single i (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k)) with he_def
-  set σ : G → k := fun g => e g with hσ_def
-  -- The group algebra element reconstructed from σ equals e
-  have ha_eq : ∑ g : G, σ g • MonoidAlgebra.of k G g = e := by
-    ext h
-    simp only [hσ_def, Finsupp.smul_apply, MonoidAlgebra.of_apply,
-      Finsupp.single_apply, mul_ite, mul_one, mul_zero,
-      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
-  -- Evaluate blockPoly at σ: eval σ (blockPoly l) = det(projRingHom l (e))
-  have heval_eq : ∀ l : Fin D.n, MvPolynomial.eval σ (D.blockPoly l) =
-      (D.projRingHom l e).det := by
-    intro l
-    unfold IrrepDecomp.blockPoly
-    rw [RingHom.map_det]
-    congr 1; ext r c
-    simp only [RingHom.mapMatrix_apply, Matrix.map_apply, of_apply, map_sum, map_mul,
-      MvPolynomial.eval_C, MvPolynomial.eval_X]
-    rw [show σ = fun g => (∑ s : G, σ s • MonoidAlgebra.of k G s : MonoidAlgebra k G) g from by
-      rw [ha_eq]]
-    simp only [map_sum, D.projRingHom_smul' l, Matrix.sum_apply, Matrix.smul_apply, smul_eq_mul,
-      Finsupp.finset_sum_apply, MonoidAlgebra.of_apply, Finsupp.single_apply]
-    apply Finset.sum_congr rfl; intro g _; ring
-  -- projRingHom i e = 1 (identity matrix)
-  have hei : D.projRingHom i e = 1 := by
-    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update]
-  -- projRingHom j e = 0 (zero matrix, since j ≠ i)
-  have hej : D.projRingHom j e = 0 := by
-    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update,
-      Ne.symm hij]
-  -- eval σ (blockPoly i) = 1
-  have heval_i : MvPolynomial.eval σ (D.blockPoly i) = 1 := by
-    rw [heval_eq, hei, det_one]
-  -- eval σ (blockPoly j) = 0
-  have heval_j : MvPolynomial.eval σ (D.blockPoly j) = 0 := by
-    rw [heval_eq, hej]
-    haveI : Nonempty (Fin (D.d j)) := ⟨⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩⟩
-    exact Matrix.det_zero (Fin (D.d j)) k
-  -- From hu: blockPoly i * ↑u = blockPoly j, apply eval σ
-  have heval_u : MvPolynomial.eval σ (↑u : MvPolynomial G k) = 0 := by
-    have h := congr_arg (MvPolynomial.eval σ) hu
-    simp only [map_mul, heval_i, heval_j, one_mul] at h
-    exact h
-  -- But u is a unit, so eval σ maps it to a unit in k, which can't be zero
-  exact (u.isUnit.map (MvPolynomial.eval σ).toRingHom.toMonoidHom).ne_zero heval_u
 
 /-- The total degree of the i-th block polynomial equals d_i. Each entry of the
 representation matrix is a linear polynomial in the x_g, so det has degree ≤ d_i.
@@ -626,13 +544,221 @@ private lemma IrrepDecomp.blockPoly_totalDegree [NeZero (Nat.card G : k)]
     -- Step 4: combine
     exact (hhom.totalDegree hne).symm.le
 
+/-- Each block polynomial is irreducible. The proof uses the fact that the generic
+determinant is irreducible over k, and the block polynomial is obtained from it
+via a surjective linear substitution (from the Wedderburn projection).
+
+The key idea: construct a retraction ψ such that aeval ψ ∘ aeval φ = id (from
+surjectivity of projRingHom), then use totalDegree additivity in domains to show
+that any factor of blockPoly that maps to a unit under ψ must itself be a unit. -/
+private lemma IrrepDecomp.blockPoly_irreducible [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i : Fin D.n) :
+    Irreducible (D.blockPoly i) := by
+  /- Proof sketch: The generic determinant det(X_{a,b}) is irreducible (genDet_irreducible).
+     blockPoly i = aeval φ (det(X)) where φ maps (a,b) to ∑_g c_{g,a,b} · X_g.
+     From surjectivity of projRingHom, we construct a retraction ψ with aeval ψ ∘ aeval φ = id.
+     Then any factorization blockPoly = a * b maps via ψ to a factorization of det(X),
+     and the degree bound from ψ forces one factor to be constant, hence a unit. -/
+  sorry
+
+/-- Block polynomials for different Wedderburn components are not associated.
+If d_i ≠ d_j, they have different total degrees. If d_i = d_j, they involve
+different linear combinations of variables (by the injectivity of column FDReps). -/
+private lemma IrrepDecomp.blockPoly_not_associated [NeZero (Nat.card G : k)]
+    (D : IrrepDecomp k G) (i j : Fin D.n) (hij : i ≠ j) :
+    ¬Associated (D.blockPoly i) (D.blockPoly j) := by
+  intro ⟨u, hu⟩
+  -- Define the central idempotent e_i and evaluate blockPolys at its coefficients
+  set e := D.iso.symm (Pi.single i (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k)) with he_def
+  set σ : G → k := fun g => e g with hσ_def
+  -- The group algebra element reconstructed from σ equals e
+  have ha_eq : ∑ g : G, σ g • MonoidAlgebra.of k G g = e := by
+    conv_rhs => rw [← Finsupp.univ_sum_single e]
+    congr 1; ext g
+    simp [hσ_def, MonoidAlgebra.of_apply, Finsupp.smul_single', mul_one]
+  -- Evaluate blockPoly at σ: eval σ (blockPoly l) = det(projRingHom l (e))
+  have heval_eq : ∀ l : Fin D.n, MvPolynomial.eval σ (D.blockPoly l) =
+      (D.projRingHom l e).det := by
+    intro l
+    unfold IrrepDecomp.blockPoly
+    rw [RingHom.map_det]
+    congr 1; ext r c
+    simp only [RingHom.mapMatrix_apply, Matrix.map_apply, Matrix.of_apply, map_sum, map_mul,
+      MvPolynomial.eval_C, MvPolynomial.eval_X]
+    conv_rhs => rw [show e = ∑ s : G, σ s • MonoidAlgebra.of k G s from ha_eq.symm]
+    simp only [map_sum, D.projRingHom_smul' l, Matrix.sum_apply, Matrix.smul_apply, smul_eq_mul]
+    congr 1; ext g; ring
+  -- projRingHom i e = 1 (identity matrix)
+  have hei : D.projRingHom i e = 1 := by
+    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update]
+  -- projRingHom j e = 0 (zero matrix, since j ≠ i)
+  have hej : D.projRingHom j e = 0 := by
+    simp [he_def, IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single, Function.update,
+      Ne.symm hij]
+  -- eval σ (blockPoly i) = 1
+  have heval_i : MvPolynomial.eval σ (D.blockPoly i) = 1 := by
+    rw [heval_eq, hei, det_one]
+  -- eval σ (blockPoly j) = 0
+  have heval_j : MvPolynomial.eval σ (D.blockPoly j) = 0 := by
+    rw [heval_eq, hej]
+    haveI := D.d_pos j
+    haveI : Nonempty (Fin (D.d j)) := ⟨⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩⟩
+    exact Matrix.det_zero ‹_›
+  -- From hu: blockPoly i * ↑u = blockPoly j, apply eval σ
+  have heval_u : MvPolynomial.eval σ (↑u : MvPolynomial G k) = 0 := by
+    have h := congr_arg (MvPolynomial.eval σ) hu
+    simp only [map_mul, heval_i, heval_j, one_mul] at h
+    exact h
+  -- But u is a unit, so eval σ maps it to a unit in k, which can't be zero
+  exact (u.isUnit.map (MvPolynomial.eval σ).toMonoidHom).ne_zero heval_u
+
 /-- The number of Wedderburn-Artin components equals the number of conjugacy classes.
 Proof: dim center(k[G]) = |ConjClasses G| (class functions) and
 dim center(∏ Mat(d_i,k)) = n (scalar matrices), and the Wedderburn iso preserves centers. -/
 private lemma IrrepDecomp.n_eq_card_conjClasses [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) :
     D.n = Fintype.card (ConjClasses G) := by
-  sorry
+  -- Step 1: dim center(k[G]) = |ConjClasses G|
+  have h_center_kG : Module.finrank k ↥(Subalgebra.center k (MonoidAlgebra k G)) =
+      Fintype.card (ConjClasses G) := by
+    -- Center elements have conjugation-invariant coefficients, giving a linear
+    -- equivalence with functions ConjClasses G → k
+    have center_conj_inv : ∀ {a : MonoidAlgebra k G},
+        a ∈ Subalgebra.center k (MonoidAlgebra k G) → ∀ g h : G, a (g * h * g⁻¹) = a h := by
+      intro a ha g h
+      rw [Subalgebra.mem_center_iff] at ha
+      have key := congr_fun (congr_arg (⇑) (ha (MonoidAlgebra.of k G g))) (g * h)
+      simp only [MonoidAlgebra.of, MonoidHom.coe_mk, OneHom.coe_mk,
+        MonoidAlgebra.single_mul_apply, MonoidAlgebra.mul_single_apply,
+        one_mul, mul_one, inv_mul_cancel_left] at key
+      exact key.symm
+    have conj_inv_center : ∀ (a : MonoidAlgebra k G),
+        (∀ g h : G, a (g * h * g⁻¹) = a h) → a ∈ Subalgebra.center k (MonoidAlgebra k G) := by
+      intro a ha
+      rw [Subalgebra.mem_center_iff]; intro b
+      induction b using MonoidAlgebra.induction_on with
+      | hM g =>
+        ext x
+        simp only [MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_apply,
+          MonoidAlgebra.mul_single_apply, one_mul, mul_one]
+        have h1 := ha g⁻¹ (x * g⁻¹)
+        simp only [inv_inv, mul_assoc, inv_mul_cancel, mul_one] at h1
+        exact h1
+      | hadd b₁ b₂ hb₁ hb₂ => rw [mul_add, add_mul, hb₁, hb₂]
+      | hsmul r b hb => rw [Algebra.mul_smul_comm, Algebra.smul_mul_assoc, hb]
+    let fwd : ↥(Subalgebra.center k (MonoidAlgebra k G)) →ₗ[k] (ConjClasses G → k) :=
+      { toFun := fun a C => (a : MonoidAlgebra k G) (Quotient.out C)
+        map_add' := fun _ _ => funext fun _ => Finsupp.add_apply _ _ _
+        map_smul' := fun _ _ => funext fun _ => Finsupp.smul_apply _ _ _ }
+    let bwd : (ConjClasses G → k) →ₗ[k] ↥(Subalgebra.center k (MonoidAlgebra k G)) :=
+      { toFun := fun f => ⟨Finsupp.onFinset Finset.univ
+            (fun g => f (ConjClasses.mk g)) (fun _ _ => Finset.mem_univ _),
+          conj_inv_center _ (fun g h => by
+            simp only [Finsupp.onFinset_apply]; congr 1
+            rw [ConjClasses.mk_eq_mk_iff_isConj]
+            exact isConj_iff.mpr ⟨g⁻¹, by group⟩)⟩
+        map_add' := fun f₁ f₂ => Subtype.ext (Finsupp.ext fun g => by
+          simp [Finsupp.onFinset_apply])
+        map_smul' := fun r f => Subtype.ext (Finsupp.ext fun g => by
+          simp [Finsupp.onFinset_apply]) }
+    have hfb : ∀ f, fwd (bwd f) = f := fun f => funext fun C => by
+      simp only [fwd, bwd, LinearMap.coe_mk, AddHom.coe_mk, Finsupp.onFinset_apply]
+      congr 1; exact Quotient.out_eq C
+    have hbf : ∀ a : ↥(Subalgebra.center k (MonoidAlgebra k G)), bwd (fwd a) = a :=
+      fun ⟨a, ha⟩ => by
+      ext g
+      simp only [fwd, bwd, LinearMap.coe_mk, AddHom.coe_mk, Finsupp.onFinset_apply]
+      have hconj : IsConj (Quotient.out (ConjClasses.mk g) : G) g := by
+        have h := Quotient.out_eq (ConjClasses.mk g)
+        rw [ConjClasses.quotient_mk_eq_mk] at h
+        exact ConjClasses.mk_eq_mk_iff_isConj.mp h
+      obtain ⟨c, hc⟩ := isConj_iff.mp hconj
+      rw [show a (Quotient.out (ConjClasses.mk g)) =
+          a (c * Quotient.out (ConjClasses.mk g) * c⁻¹) from
+        (center_conj_inv ha c _).symm, hc]
+    have e : ↥(Subalgebra.center k (MonoidAlgebra k G)) ≃ₗ[k] (ConjClasses G → k) :=
+      { fwd with invFun := bwd, left_inv := hbf, right_inv := hfb }
+    have : Module.finrank k (ConjClasses G → k) = Fintype.card (ConjClasses G) :=
+      Module.finrank_fintype_fun_eq_card k
+    linarith [e.finrank_eq]
+  -- Step 2: dim center(∏ Mat(d_i, k)) = n
+  have h_center_pi : Module.finrank k ↥(Subalgebra.center k
+      (∀ i : Fin D.n, Matrix (Fin (D.d i)) (Fin (D.d i)) k)) = D.n := by
+    let PiMat := (∀ i : Fin D.n, Matrix (Fin (D.d i)) (Fin (D.d i)) k)
+    let fwd : ↥(Subalgebra.center k PiMat) →ₗ[k] (Fin D.n → k) :=
+      { toFun := fun a i =>
+          haveI := D.d_pos i
+          (a : PiMat) i ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩
+            ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩
+        map_add' := fun _ _ => funext fun _ => rfl
+        map_smul' := fun _ _ => funext fun _ => rfl }
+    let bwd_fun : (Fin D.n → k) → PiMat :=
+      fun c i => c i • (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k)
+    have bwd_mem : ∀ c, bwd_fun c ∈ Subalgebra.center k PiMat := fun c => by
+      rw [Subalgebra.mem_center_iff]; intro N; ext i : 1
+      change N i * (c i • 1) = (c i • 1) * N i
+      rw [mul_smul_comm, smul_mul_assoc, mul_one, one_mul]
+    let bwd : (Fin D.n → k) →ₗ[k] ↥(Subalgebra.center k PiMat) :=
+      { toFun := fun c => ⟨bwd_fun c, bwd_mem c⟩
+        map_add' := fun c₁ c₂ => by
+          apply Subtype.ext; funext i
+          change (c₁ i + c₂ i) • (1 : Matrix _ _ k) = _
+          rw [add_smul]; rfl
+        map_smul' := fun r c => by
+          apply Subtype.ext; funext i
+          show (r * c i) • (1 : Matrix _ _ k) = (r • fun i => c i • (1 : Matrix _ _ k)) i
+          simp [Pi.smul_apply, smul_smul] }
+    have hfb : ∀ c, fwd (bwd c) = c := fun c => funext fun i => by
+      simp only [fwd, bwd, bwd_fun, LinearMap.coe_mk, AddHom.coe_mk]
+      simp [Matrix.smul_apply]
+    have hbf : ∀ x : ↥(Subalgebra.center k PiMat), bwd (fwd x) = x := fun ⟨f, hf⟩ => by
+      apply Subtype.ext; ext i a b
+      simp only [fwd, bwd, bwd_fun, LinearMap.coe_mk, AddHom.coe_mk]
+      have hfc : f i ∈ Subalgebra.center k (Matrix (Fin (D.d i)) (Fin (D.d i)) k) := by
+        rw [Subalgebra.mem_center_iff]; intro M
+        have hf' : ∀ b : PiMat, b * f = f * b := Subalgebra.mem_center_iff.mp hf
+        have h := hf' (Pi.single (M := fun j => Matrix (Fin (D.d j)) (Fin (D.d j)) k) i M)
+        have lhs : (Pi.single (M := fun j => Matrix (Fin (D.d j)) (Fin (D.d j)) k) i M * f) i =
+            M * f i := by rw [Pi.mul_apply, Pi.single_eq_same]
+        have rhs : (f * Pi.single (M := fun j => Matrix (Fin (D.d j)) (Fin (D.d j)) k) i M) i =
+            f i * M := by rw [Pi.mul_apply, Pi.single_eq_same]
+        rw [show M * f i = (Pi.single (M := fun j => Matrix (Fin (D.d j)) (Fin (D.d j)) k) i M * f) i
+          from lhs.symm, h, rhs]
+      rw [Algebra.IsCentral.center_eq_bot] at hfc
+      rw [Algebra.mem_bot] at hfc
+      obtain ⟨c, hc⟩ := Set.mem_range.mp hfc
+      have hfi : f i = c • (1 : Matrix (Fin (D.d i)) (Fin (D.d i)) k) := by
+        rw [← hc, Algebra.algebraMap_eq_smul_one]
+      rw [hfi]; simp [Matrix.smul_apply, Matrix.one_apply]
+    have e : ↥(Subalgebra.center k PiMat) ≃ₗ[k] (Fin D.n → k) :=
+      { fwd with invFun := bwd, left_inv := hbf, right_inv := hfb }
+    have : Module.finrank k (Fin D.n → k) = D.n := by
+      rw [Module.finrank_fintype_fun_eq_card k, Fintype.card_fin]
+    linarith [e.finrank_eq]
+  -- Step 3: AlgEquiv preserves center finrank
+  have h_iso : Module.finrank k ↥(Subalgebra.center k (MonoidAlgebra k G)) =
+      Module.finrank k ↥(Subalgebra.center k
+        (∀ i : Fin D.n, Matrix (Fin (D.d i)) (Fin (D.d i)) k)) := by
+    let e_center : ↥(Subalgebra.center k (MonoidAlgebra k G)) ≃ₗ[k]
+        ↥(Subalgebra.center k (∀ i : Fin D.n, Matrix (Fin (D.d i)) (Fin (D.d i)) k)) :=
+      { toFun := fun ⟨a, ha⟩ => ⟨D.iso a, by
+          rw [Subalgebra.mem_center_iff] at ha ⊢
+          intro b; obtain ⟨a', rfl⟩ := D.iso.surjective b
+          simp [← map_mul, ha a']⟩
+        invFun := fun ⟨b, hb⟩ => ⟨D.iso.symm b, by
+          rw [Subalgebra.mem_center_iff] at hb ⊢
+          intro a; apply D.iso.injective
+          simp [map_mul, hb (D.iso a)]⟩
+        left_inv := by intro ⟨a, _⟩; ext; simp
+        right_inv := by intro ⟨b, _⟩; ext; simp
+        map_add' := by intro ⟨a, _⟩ ⟨b, _⟩; ext; simp [map_add]
+        map_smul' := by
+          intro r ⟨a, _⟩; apply Subtype.ext
+          show D.iso (r • a) = r • D.iso a
+          rw [map_smul] }
+    exact e_center.finrank_eq
+  -- Combine
+  linarith
 
 /-! ### Main theorem -/
 
