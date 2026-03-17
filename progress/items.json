@@ -1689,8 +1689,8 @@
     "end_page": "59",
     "start_line": 13,
     "end_line": 16,
-    "status": "proof_formalized",
-    "notes": "Part (i) proved. Part (ii) classification still sorry."
+    "status": "sorry_free",
+    "notes": "All sorries resolved."
   },
   {
     "id": "Chapter3/Remark3.10.3",
@@ -1795,8 +1795,8 @@
     "end_page": "64",
     "start_line": 9,
     "end_line": 10,
-    "status": "proof_formalized",
-    "notes": "Proof wired up via IrrepDecomp.n_eq_card_simples. Two sorries remain upstream: iso construction in columnFDRep_surjective and n_eq_card_conjClasses."
+    "status": "sorry_free",
+    "notes": "All sorries resolved."
   },
   {
     "id": "Chapter4/Exercise4.2.3",
