@@ -3452,8 +3452,9 @@
     "end_page": "132",
     "start_line": 1,
     "end_line": 14,
-    "status": "statement_formalized",
-    "needs_statement": true
+    "status": "partially_proved",
+    "needs_statement": true,
+    "notes": "Proposition5_21_2_geometric proved (no sorry). Proposition5_21_2_dimension sorry (requires L H\u00f4pital limit formalization)."
   },
   {
     "id": "Chapter5/Introduction_5.22",
