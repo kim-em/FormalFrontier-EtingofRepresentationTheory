@@ -75,4 +75,4 @@ Progress is recorded here as stages from PLAN.md are completed.
 ## Stage 3.2: Proof Filling
 - **Status:** In progress
 - **Date started:** 2026-03-16
-- **Notes:** 120/583 items sorry_free (20.6%). Of 230 formal items, 120 proved (52.2%). 205 sorry occurrences remain across 110 files. 37 PRs merged in first proof wave. Chapters 2, 3, 7, 8 leading (30–33% completion). Chapter 9 lagging (2.9%). Column orthogonality infrastructure gap (#633) blocks character theory proofs. See `progress/summaries/stage3-2-first-wave.md` for full details.
+- **Notes:** 155/583 items sorry_free (26.6%). Of 231 formal items, 158 proved (68.4%). 159 sorry occurrences remain across 76 files. 86 PRs merged across three proof waves. Chapters 7 and 8 complete (100% formal items sorry-free). Chapters 3 and 4 near-complete (1 item each remaining). Chapter 6 stalled (0 progress across 3 waves). Column orthogonality infrastructure gap resolved. See `progress/summaries/stage3.2-third-wave.md` for full details.
