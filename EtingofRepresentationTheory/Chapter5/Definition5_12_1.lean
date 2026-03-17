@@ -125,4 +125,59 @@ noncomputable def YoungSymmetrizer (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℂ (Equiv.Perm (Fin n)) :=
   RowSymmetrizer n la * ColumnAntisymmetrizer n la
 
+/-! ## Helper lemmas for rowOfPos and colOfPos -/
+
+-- colOfPos is bounded by the row width for valid positions
+theorem colOfPos_lt_getD (parts : List ℕ) (k : ℕ) (hk : k < parts.sum) :
+    colOfPos parts k < parts.getD (rowOfPos parts k) 0 := by
+  induction parts generalizing k with
+  | nil => simp [List.sum_nil] at hk
+  | cons p ps ih =>
+    simp only [rowOfPos, colOfPos]
+    split_ifs with hlt
+    · rw [List.getD_cons_zero]; omega
+    · have hk' : k - p < ps.sum := by simp [List.sum_cons] at hk; omega
+      show colOfPos ps (k - p) < (p :: ps).getD (1 + rowOfPos ps (k - p)) 0
+      rw [show 1 + rowOfPos ps (k - p) = rowOfPos ps (k - p) + 1 from by omega,
+          List.getD_cons_succ]
+      exact ih (k - p) hk'
+
+-- (rowOfPos, colOfPos) is injective on valid positions
+theorem rowOfPos_colOfPos_injective (parts : List ℕ) (k₁ k₂ : ℕ)
+    (hk₁ : k₁ < parts.sum) (hk₂ : k₂ < parts.sum)
+    (hrow : rowOfPos parts k₁ = rowOfPos parts k₂)
+    (hcol : colOfPos parts k₁ = colOfPos parts k₂) : k₁ = k₂ := by
+  induction parts generalizing k₁ k₂ with
+  | nil => simp [List.sum_nil] at hk₁
+  | cons p ps ih =>
+    simp only [rowOfPos, colOfPos] at hrow hcol
+    by_cases h₁ : k₁ < p <;> by_cases h₂ : k₂ < p
+    · simp [h₁, h₂] at hcol; exact hcol
+    · simp only [h₁, ite_true, h₂, ite_false] at hrow; omega
+    · simp only [h₁, ite_false, h₂, ite_true] at hrow; omega
+    · simp only [h₁, ite_false, h₂] at hrow hcol
+      have hk₁' : k₁ - p < ps.sum := by simp [List.sum_cons] at hk₁; omega
+      have hk₂' : k₂ - p < ps.sum := by simp [List.sum_cons] at hk₂; omega
+      have : k₁ - p = k₂ - p := ih (k₁ - p) (k₂ - p) hk₁' hk₂' (by omega) hcol
+      omega
+
+-- For a valid cell (r, c), there exists a position with that row and column
+theorem exists_pos_of_cell (parts : List ℕ) (r c : ℕ)
+    (hr : c < parts.getD r 0) :
+    ∃ k, k < parts.sum ∧ rowOfPos parts k = r ∧ colOfPos parts k = c := by
+  induction parts generalizing r with
+  | nil => simp [List.getD] at hr
+  | cons p ps ih =>
+    cases r with
+    | zero =>
+      rw [List.getD_cons_zero] at hr
+      exact ⟨c, by simp [List.sum_cons]; omega,
+        by simp [rowOfPos]; omega, by simp [colOfPos]; omega⟩
+    | succ r =>
+      rw [List.getD_cons_succ] at hr
+      obtain ⟨k, hk, hrow, hcol⟩ := ih r hr
+      exact ⟨p + k, by simp [List.sum_cons]; omega,
+        by simp [rowOfPos]; omega,
+        by simp [colOfPos]; omega⟩
+
 end Etingof

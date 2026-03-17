@@ -95,13 +95,60 @@ open Pointwise in
 there exists a transposition t ∈ P_λ whose conjugate σ⁻¹ · t · σ lies in Q_λ.
 This is the pigeonhole argument: two elements in the same row must map to the
 same column under σ. -/
+-- A swap of two elements in the same row belongs to the row subgroup.
+private theorem swap_mem_rowSubgroup {n : ℕ} {la : Nat.Partition n}
+    {i j : Fin n} (h : rowOfPos la.sortedParts i.val = rowOfPos la.sortedParts j.val) :
+    Equiv.swap i j ∈ RowSubgroup n la := by
+  intro k
+  simp only [Equiv.swap_apply_def]
+  split_ifs with h1 h2
+  · subst h1; exact h.symm
+  · subst h2; exact h
+  · rfl
+
+-- A swap of two elements in the same column belongs to the column subgroup.
+private theorem swap_mem_colSubgroup {n : ℕ} {la : Nat.Partition n}
+    {i j : Fin n} (h : colOfPos la.sortedParts i.val = colOfPos la.sortedParts j.val) :
+    Equiv.swap i j ∈ ColumnSubgroup n la := by
+  intro k
+  simp only [Equiv.swap_apply_def]
+  split_ifs with h1 h2
+  · subst h1; exact h.symm
+  · subst h2; exact h
+  · rfl
+
+-- Conjugation of a swap: σ⁻¹ * swap(i,j) * σ = swap(σ⁻¹(i), σ⁻¹(j)).
+private theorem conj_swap_eq {n : ℕ} (σ : Equiv.Perm (Fin n)) (i j : Fin n) :
+    σ⁻¹ * Equiv.swap i j * σ = Equiv.swap (σ⁻¹ i) (σ⁻¹ j) :=
+  Equiv.trans_swap_trans_symm i j σ
+
+open Pointwise in
 private theorem pigeonhole_transposition {n : ℕ} {la : Nat.Partition n}
     (σ : Equiv.Perm (Fin n))
     (hσ : σ ∉ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
       (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))) :
     ∃ t : Equiv.Perm (Fin n), Equiv.Perm.IsSwap t ∧
       t ∈ RowSubgroup n la ∧ σ⁻¹ * t * σ ∈ ColumnSubgroup n la := by
-  sorry
+  classical
+  -- The map f(k) = (rowOfPos(k), colOfPos(σ⁻¹(k))) is either non-injective (giving the
+  -- transposition directly) or injective (forcing σ ∈ P_λ · Q_λ, contradiction).
+  -- We show it must be non-injective.
+  let parts := la.sortedParts
+  let row := fun k : Fin n => rowOfPos parts k.val
+  let col := fun k : Fin n => colOfPos parts k.val
+  -- Either ∃ distinct i, j in same row with σ⁻¹ images in same column, or not
+  by_cases h_exists : ∃ i j : Fin n, i ≠ j ∧ row i = row j ∧ col (σ⁻¹ i) = col (σ⁻¹ j)
+  · -- Case 1: We found the pair — construct the transposition
+    obtain ⟨i, j, hij, hrow, hcol⟩ := h_exists
+    exact ⟨Equiv.swap i j, ⟨i, j, hij, rfl⟩, swap_mem_rowSubgroup hrow,
+      by rw [conj_swap_eq]; exact swap_mem_colSubgroup hcol⟩
+  · -- Case 2: No such pair exists — derive σ ∈ P_λ · Q_λ, contradicting hσ
+    push_neg at h_exists
+    -- h_exists : ∀ i j, i ≠ j → row i = row j → col (σ⁻¹ i) ≠ col (σ⁻¹ j)
+    -- Equivalently (via a = σ⁻¹ i, b = σ⁻¹ j): same column → different rows under σ
+    exfalso
+    apply hσ
+    sorry
 
 /-- For σ ∈ P_λ · Q_λ with σ = p · q, the sandwiched product equals sign(q) • c_λ. -/
 private theorem sandwich_mem {n : ℕ} {la : Nat.Partition n}
