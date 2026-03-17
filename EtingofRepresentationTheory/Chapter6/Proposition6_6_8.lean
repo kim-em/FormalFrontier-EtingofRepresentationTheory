@@ -139,5 +139,56 @@ theorem Etingof.Proposition6_6_8_source
     (hinj : Function.Injective (ρ.sourceMap i)) :
     ∀ v, ((Etingof.reflectionFunctorMinus V i hi ρ).finrankAt' k v : ℤ) =
       Etingof.simpleReflectionDimVector (fun (a : Etingof.ArrowsOutOf V i) => a.1)
-        i (fun w => (Module.finrank k (ρ.obj w) : ℤ)) v :=
-  sorry
+        i (fun w => (Module.finrank k (ρ.obj w) : ℤ)) v := by
+  intro v
+  unfold Etingof.simpleReflectionDimVector
+  by_cases hv : v = i
+  · -- v = i: need finrankAt'(F⁻ᵢ(ρ), i) = -dim(V_i) + Σ dim(V_j)
+    subst hv
+    simp only [ite_true]
+    unfold Etingof.QuiverRepresentation.finrankAt' Etingof.reflectionFunctorMinus
+    simp only
+    match hd : (‹DecidableEq V› v v) with
+    | .isFalse hvv => exact absurd rfl hvv
+    | .isTrue _ =>
+      rw [hd]
+      dsimp only []
+      -- Provide AddCommGroup instances needed for quotient type
+      haveI : DecidableEq (Etingof.ArrowsOutOf V v) := Classical.decEq _
+      letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) :=
+        Etingof.addCommGroupOfField (k := k)
+      letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfField (k := k)
+      -- Goal: finrank of the cokernel (quotient by range of sourceMap)
+      change (Module.finrank k ((DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) ⧸
+          LinearMap.range (ρ.sourceMap v)) : ℤ) =
+        -(Module.finrank k (ρ.obj v) : ℤ) +
+        ∑ x : Etingof.ArrowsOutOf V v, (Module.finrank k (ρ.obj x.fst) : ℤ)
+      -- Rank-nullity for quotient + injectivity
+      have hrn : Module.finrank k ((DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) ⧸
+          LinearMap.range (ρ.sourceMap v)) + Module.finrank k (ρ.obj v) =
+          ∑ a : Etingof.ArrowsOutOf V v, Module.finrank k (ρ.obj a.1) := by
+        -- finrank(M/N) + finrank(N) = finrank(M)
+        have hquot := Submodule.finrank_quotient_add_finrank (LinearMap.range (ρ.sourceMap v))
+        -- finrank(range ψ) = finrank(V_i) by injectivity
+        have hrange_rn := LinearMap.finrank_range_add_finrank_ker (ρ.sourceMap v)
+        have hker : LinearMap.ker (ρ.sourceMap v) = ⊥ := LinearMap.ker_eq_bot.mpr hinj
+        rw [hker, finrank_bot] at hrange_rn
+        simp at hrange_rn
+        -- finrank(⊕ V_j) = Σ finrank(V_j)
+        have hds := Module.finrank_directSum (R := k)
+          (fun (a : Etingof.ArrowsOutOf V v) => ρ.obj a.1)
+        linarith
+      -- Cast from ℕ to ℤ
+      have hrn_z : (Module.finrank k ((DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) ⧸
+          LinearMap.range (ρ.sourceMap v)) : ℤ) +
+          (Module.finrank k (ρ.obj v) : ℤ) =
+          ∑ a : Etingof.ArrowsOutOf V v, (Module.finrank k (ρ.obj a.fst) : ℤ) := by
+        exact_mod_cast hrn
+      linarith
+  · -- v ≠ i: need finrankAt'(F⁻ᵢ(ρ), v) = dim(V_v)
+    simp only [hv, ite_false]
+    unfold Etingof.QuiverRepresentation.finrankAt' Etingof.reflectionFunctorMinus
+    simp only
+    match hd : (‹DecidableEq V› v i) with
+    | .isTrue hvi => exact absurd hvi hv
+    | .isFalse _ => rw [hd]
