@@ -2914,10 +2914,11 @@
     "end_page": "113",
     "start_line": 19,
     "end_line": 25,
-    "status": "proof_formalized",
+    "status": "attention_needed",
     "needs_statement": false,
-    "aristotle_project_id": "366668f8-c485-4cf1-8cbf-7a989ba03b7c",
-    "aristotle_target": "young_symmetrizer_sq_ne_zero"
+    "aristotle_target": "young_symmetrizer_sq_ne_zero",
+    "aristotle_note": "Aristotle failed: couldn't load file due to namespace/axiom issues. The proof that c_λ² ≠ 0 requires showing the identity permutation has nonzero coefficient in c_λ. Previous submissions: 366668f8 (import error), 9ebaca73 (load error).",
+    "aristotle_project_id": "9ebaca73-b917-472d-89bd-23a45fe94a69"
   },
   {
     "id": "Chapter5/Example5.12.3",
@@ -3154,9 +3155,11 @@
     "end_page": "119",
     "start_line": 22,
     "end_line": 26,
-    "status": "sent_to_aristotle",
-    "needs_statement": false,
-    "aristotle_project_id": "ca2097ca-a0df-4333-801f-853e50ea72ec"
+    "status": "attention_needed",
+    "needs_statement": true,
+    "aristotle_project_id": "ca2097ca-a0df-4333-801f-853e50ea72ec",
+    "aristotle_result": "false_statement",
+    "notes": "Aristotle found counterexample: N=2, z=[0,1], y=[-1,2]. Sign convention in the multiplicative Cauchy determinant formula is incorrect. Need to fix the formalized statement."
   },
   {
     "id": "Chapter5/Discussion_footnote_5.15",
@@ -3985,12 +3988,11 @@
     "end_line": 74,
     "status": "attention_needed",
     "needs_statement": false,
-    "aristotle_projects": [
-      "8cf7bd49-7d86-415a-a2ce-3088f36736b9",
-      "f2eb9bd1-b206-400f-8fcc-1734095d99f8",
-      "81494c44-faf9-456f-9cc6-9f6191c6ea0c"
-    ],
-    "notes": "All 3 Aristotle submissions failed: import error (unknown module prefix EtingofRepresentationTheory). Need to re-submit with --context-files. 2 sorries remain."
+    "aristotle_note": "All Aristotle submissions failed: (1) original 3 submissions failed with import error, (2) re-submissions with self-contained files failed because Aristotle can't load files with Unicode identifiers (D₄Rep) or axiom declarations. 2 sorries remain: decomp_dim_ge_three, classification_injective_dim_bound.",
+    "aristotle_project_ids": {
+      "decomp_dim_ge_three": "d5097338-6b3b-4178-80c6-1a9ecc60ee8b",
+      "classification_injective_dim_bound": "a028e123-075f-41f9-bfcb-44430f40dba7"
+    }
   },
   {
     "id": "Chapter6/Discussion_after_Example6.3.1",
@@ -5275,13 +5277,15 @@
     "end_line": 10,
     "status": "sent_to_aristotle",
     "needs_statement": false,
-    "aristotle_project_id": "44341f10-2dde-4cdc-b935-8a3dccf2722f",
-    "aristotle_note": "All 3 parts re-submitted 2026-03-17 with --context-files (Definition9_2_2.lean, Corollary9_1_3.lean). Previous submission failed due to missing context files.",
-    "notes": "Re-submitted to Aristotle with context files. 3 sorries: parts i, ii, iii.",
+    "aristotle_note": "Re-submitted 2026-03-17 with self-contained inlined files. Part (iii) failed ('wrong turn'). Parts (i) and (ii) still in progress after 15min.",
+    "notes": "3 sorries: parts i, ii, iii. Self-contained files with inlined Definition9_2_2 and Corollary9_1_3.",
     "aristotle_project_ids": {
-      "part_i": "44341f10-2dde-4cdc-b935-8a3dccf2722f",
-      "part_ii": "454d520e-5dd8-4100-943e-17d720304390",
-      "part_iii": "97316a0a-8fa2-4a8e-8a2c-e20085b25f17"
+      "part_i": "4ca354eb-8828-4e3b-871f-5ff9c4b1ec9c",
+      "part_ii": "0dcd9bcc-422d-4791-941b-ef05e1ddb1e7",
+      "part_iii": "a9dfc163-a81b-4849-8ffc-680ab90bae4f"
+    },
+    "aristotle_results": {
+      "part_iii": "failed - wrong turn (reason code 9)"
     }
   },
   {
