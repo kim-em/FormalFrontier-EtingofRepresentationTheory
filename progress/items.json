@@ -3258,8 +3258,9 @@
     "end_page": "122",
     "start_line": 3,
     "end_line": 16,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_project_id": "284c175f-9246-48c9-90d2-5dd96f3db8e7"
   },
   {
     "id": "Chapter5/Introduction_5.18",
