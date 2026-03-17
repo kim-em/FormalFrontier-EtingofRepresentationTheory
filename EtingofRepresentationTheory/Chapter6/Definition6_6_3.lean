@@ -27,6 +27,14 @@ into the sink vertex i. -/
 def Etingof.ArrowsInto (V : Type*) [Quiver V] (i : V) :=
   Σ (j : V), (j ⟶ i)
 
+/-- The canonical map φ : ⊕_{j→i} V_j → V_i at a sink vertex i. -/
+noncomputable def Etingof.QuiverRepresentation.sinkMap
+    {k : Type*} [CommSemiring k] {Q : Type*} [Quiver Q]
+    (ρ : Etingof.QuiverRepresentation k Q) (i : Q) :
+    DirectSum (Etingof.ArrowsInto Q i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i := by
+  classical
+  exact DirectSum.toModule k (Etingof.ArrowsInto Q i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
+
 /-- The reflection functor F⁺ᵢ at a sink vertex i, sending representations of Q
 to representations of Q̄ᵢ (the quiver with arrows at i reversed).
 
@@ -48,9 +56,8 @@ noncomputable def Etingof.reflectionFunctorPlus
     @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
   classical
   exact
-  -- φ : ⊕_{j→i} ρ_j → ρ_i, the sum of representation maps for arrows into i
-  let φ : DirectSum (Etingof.ArrowsInto V i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i :=
-    DirectSum.toModule k (Etingof.ArrowsInto V i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
+  -- φ : ⊕_{j→i} ρ_j → ρ_i, the canonical sink map
+  let φ := ρ.sinkMap i
   -- Use Decidable.casesOn with the [DecidableEq V] instance to construct
   -- obj, AddCommMonoid, and Module coherently. All three fields share the same
   -- Decidable instance, so the type-level case-split computes correctly.

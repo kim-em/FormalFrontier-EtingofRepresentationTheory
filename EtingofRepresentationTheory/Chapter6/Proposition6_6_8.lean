@@ -67,8 +67,58 @@ theorem Etingof.Proposition6_6_8_sink
     (hsurj : Function.Surjective (ρ.sinkMap i)) :
     ∀ v, ((Etingof.reflectionFunctorPlus V i hi ρ).finrankAt' k v : ℤ) =
       Etingof.simpleReflectionDimVector (fun (a : Etingof.ArrowsInto V i) => a.1)
-        i (fun w => (Module.finrank k (ρ.obj w) : ℤ)) v :=
-  sorry
+        i (fun w => (Module.finrank k (ρ.obj w) : ℤ)) v := by
+  intro v
+  unfold Etingof.simpleReflectionDimVector
+  by_cases hv : v = i
+  · -- v = i: need finrankAt'(F⁺ᵢ(ρ), i) = -dim(V_i) + Σ dim(V_j)
+    subst hv
+    simp only [ite_true]
+    -- Reduce finrankAt' by matching on the Decidable instance
+    unfold Etingof.QuiverRepresentation.finrankAt' Etingof.reflectionFunctorPlus
+    simp only
+    -- After subst, i is gone and v represents the sink vertex.
+    -- Split on the Decidable instance for v = v.
+    match hd : (‹DecidableEq V› v v) with
+    | .isFalse hvv => exact absurd rfl hvv
+    | .isTrue _ =>
+      rw [hd]
+      -- Decidable.rec (isTrue h✝) computes to the kernel branch
+      dsimp only []
+      -- Fold sinkMap back (dsimp expands let φ := sinkMap i to DirectSum.toModule)
+      change (Module.finrank k ↥(ρ.sinkMap v).ker : ℤ) =
+        -(Module.finrank k (ρ.obj v) : ℤ) +
+        ∑ x : Etingof.ArrowsInto V v, (Module.finrank k (ρ.obj x.fst) : ℤ)
+      -- Rank-nullity: finrank(target) + finrank(ker) = Σ finrank(components)
+      -- Stated with the goal's own instances to ensure omega can close the proof.
+      have hrn : Module.finrank k (ρ.obj v) + Module.finrank k ↥(ρ.sinkMap v).ker =
+          ∑ a : Etingof.ArrowsInto V v, Module.finrank k (ρ.obj a.1) := by
+        haveI : DecidableEq (Etingof.ArrowsInto V v) := Classical.decEq _
+        letI : AddCommGroup (DirectSum (Etingof.ArrowsInto V v) (fun a => ρ.obj a.1)) :=
+          Etingof.addCommGroupOfField (k := k)
+        letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfField (k := k)
+        have h := LinearMap.finrank_range_add_finrank_ker (ρ.sinkMap v)
+        have hrange : LinearMap.range (ρ.sinkMap v) = ⊤ := LinearMap.range_eq_top.mpr hsurj
+        rw [hrange, finrank_top] at h
+        have hds := Module.finrank_directSum (R := k)
+          (fun (a : Etingof.ArrowsInto V v) => ρ.obj a.1)
+        linarith
+      -- Cast hrn from ℕ to ℤ
+      have hrn_z : (Module.finrank k (ρ.obj v) : ℤ) +
+          (Module.finrank k ↥(ρ.sinkMap v).ker : ℤ) =
+          ∑ a : Etingof.ArrowsInto V v, (Module.finrank k (ρ.obj a.fst) : ℤ) := by
+        exact_mod_cast hrn
+      linarith
+  · -- v ≠ i: need finrankAt'(F⁺ᵢ(ρ), v) = dim(V_v)
+    simp only [hv, ite_false]
+    -- The reflection functor at v ≠ i returns ρ.obj v with the same instances.
+    -- We need to case-split on the Decidable instance to make casesOn reduce.
+    unfold Etingof.QuiverRepresentation.finrankAt' Etingof.reflectionFunctorPlus
+    simp only
+    -- Split on the decidable instance for v = i
+    match hd : (‹DecidableEq V› v i) with
+    | .isTrue hvi => exact absurd hvi hv
+    | .isFalse _ => rw [hd]
 
 /-- At a source with injective map, the dimension vector transforms by the
 simple reflection: `d(F⁻ᵢ V) = sᵢ(d(V))`.

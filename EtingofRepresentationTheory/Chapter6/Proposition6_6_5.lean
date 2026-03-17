@@ -76,14 +76,6 @@ def Etingof.QuiverRepresentation.IsSimpleAt
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)] : Prop :=
   Module.finrank k (ρ.obj i) = 1 ∧ ∀ j, j ≠ i → Module.finrank k (ρ.obj j) = 0
 
-/-- The canonical map φ : ⊕_{j→i} V_j → V_i at a sink vertex i. -/
-noncomputable def Etingof.QuiverRepresentation.sinkMap
-    {k : Type*} [CommSemiring k] {Q : Type*} [Quiver Q]
-    (ρ : Etingof.QuiverRepresentation k Q) (i : Q) :
-    DirectSum (Etingof.ArrowsInto Q i) (fun a => ρ.obj a.1) →ₗ[k] ρ.obj i := by
-  classical
-  exact DirectSum.toModule k (Etingof.ArrowsInto Q i) (ρ.obj i) (fun a => ρ.mapLinear a.2)
-
 /-- The canonical map ψ : V_i → ⊕_{i→j} V_j at a source vertex i. -/
 noncomputable def Etingof.QuiverRepresentation.sourceMap
     {k : Type*} [CommSemiring k] {Q : Type*} [Quiver Q]
