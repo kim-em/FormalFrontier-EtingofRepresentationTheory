@@ -2606,8 +2606,8 @@
     "end_page": "101",
     "start_line": 9,
     "end_line": 22,
-    "status": "proof_formalized",
-    "notes": "Core proof complete. 3 sorry helper lemmas remain: character_isIntegral, scalar_contradicts_simplicity, nontrivial_irrep_dim_ge_two. Main theorem and wrapper theorem compile."
+    "status": "sorry_free",
+    "notes": "All helper lemmas proved (character_isIntegral, scalar_contradicts_simplicity, nontrivial_irrep_dim_ge_two). Sorry-free since PRs #793, #801."
   },
   {
     "id": "Chapter5/Lemma5.4.7",
