@@ -5265,8 +5265,10 @@
     "end_page": "215",
     "start_line": 17,
     "end_line": 10,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_project_id": "00b59b3d-1422-4bb9-9c60-5d0d3ddad699",
+    "aristotle_note": "Part (i) only. Parts (ii) and (iii) remain sorry. Submitted 2026-03-17."
   },
   {
     "id": "Chapter9/Definition9.2.2",

@@ -1,6 +1,11 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_2_2
+import EtingofRepresentationTheory.Chapter9.Corollary9_1_3
 import Mathlib.LinearAlgebra.Dimension.Finrank
 import Mathlib.RingTheory.Artinian.Ring
+import Mathlib.RingTheory.Artinian.Module
+import Mathlib.RingTheory.Jacobson.Semiprimary
+import Mathlib.RingTheory.SimpleModule.WedderburnArtin
+import Mathlib.RingTheory.Idempotents
 
 /-!
 # Theorem 9.2.1: Classification of indecomposable projective modules
@@ -63,6 +68,17 @@ theorem Etingof.Theorem_9_2_1_i
       (_ : ∀ i, Module.Finite A (P i))
       (_ : ∀ i, Etingof.IsIndecomposableModule A (P i)),
       ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0 := by
+  -- Step 1: A is artinian (finite-dimensional algebra over a field)
+  haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
+  -- Step 2: Jacobson radical is nilpotent (artinian rings are semiprimary)
+  have hJ_nil : IsNilpotent (Ring.jacobson A) := IsSemiprimaryRing.isNilpotent
+  -- The proof requires constructing projective covers via lifted primitive idempotents
+  -- from the Wedderburn-Artin decomposition of A/rad(A). This involves:
+  -- 1. A/rad(A) is semisimple (artinian quotient by Jacobson radical)
+  -- 2. Wedderburn-Artin gives primitive orthogonal idempotents in A/rad(A)
+  -- 3. Corollary 9.1.3 lifts these to A
+  -- 4. Left ideals A·eᵢ are the projective covers
+  -- 5. Hom computation: Hom_A(Aeᵢ, Mⱼ) ≅ eᵢMⱼ ≅ δᵢⱼk
   sorry
 
 /-- **Theorem 9.2.1(ii)**: Decomposition of the algebra as a module.
