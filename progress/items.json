@@ -97,8 +97,10 @@
     "end_page": "6",
     "start_line": 18,
     "end_line": 25,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_project_id": "72d0c1fd-cacb-4d7d-bd26-a1fa3bb044c4",
+    "aristotle_note": "Part (ii) only. Weyl complete reducibility not in Mathlib."
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
