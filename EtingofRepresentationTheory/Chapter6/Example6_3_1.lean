@@ -121,9 +121,96 @@ The proof proceeds by iteratively splitting off direct summands:
 4. Split off pairwise intersections to make all pairwise intersections = 0
 5. Split off Vᵢ ∩ (Vⱼ⊕Vₖ) complements to get Vᵢ ⊆ Vⱼ⊕Vₖ
 6. The remaining representation decomposes into copies of (2,1,1,1) -/
+-- Step 1: Splitting off kernels. For each map Aᵢ, either ker Aᵢ = ⊥
+-- or all other components have dimension 0.
+private lemma ker_A₁_or_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable) :
+    LinearMap.ker ρ.A₁ = ⊥ ∨
+    (Module.finrank k ρ.V = 0 ∧ Module.finrank k ρ.V₂ = 0 ∧
+     Module.finrank k ρ.V₃ = 0) := by
+  by_contra h
+  rw [not_or] at h
+  obtain ⟨hker, hrest⟩ := h
+  obtain ⟨q₁, hq₁⟩ := Submodule.exists_isCompl (LinearMap.ker ρ.A₁)
+  -- Decompose: (⊥, ker A₁, ⊥, ⊥) ⊕ (⊤, q₁, ⊤, ⊤)
+  have := hind.2 ⊥ ⊤ (LinearMap.ker ρ.A₁) q₁ ⊥ ⊤ ⊥ ⊤
+    isCompl_bot_top hq₁ isCompl_bot_top isCompl_bot_top
+    (fun x hx => by simp [LinearMap.mem_ker.mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+  rcases this with ⟨_, hk, _, _⟩ | ⟨htop, _, htop₂, htop₃⟩
+  · exact hker hk
+  · apply hrest
+    exact ⟨by rw [← finrank_top (R := k) (M := ρ.V), htop, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₂), htop₂, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₃), htop₃, finrank_bot]⟩
+
+private lemma ker_A₂_or_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable) :
+    LinearMap.ker ρ.A₂ = ⊥ ∨
+    (Module.finrank k ρ.V = 0 ∧ Module.finrank k ρ.V₁ = 0 ∧
+     Module.finrank k ρ.V₃ = 0) := by
+  by_contra h
+  rw [not_or] at h
+  obtain ⟨hker, hrest⟩ := h
+  obtain ⟨q₂, hq₂⟩ := Submodule.exists_isCompl (LinearMap.ker ρ.A₂)
+  have := hind.2 ⊥ ⊤ ⊥ ⊤ (LinearMap.ker ρ.A₂) q₂ ⊥ ⊤
+    isCompl_bot_top isCompl_bot_top hq₂ isCompl_bot_top
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [LinearMap.mem_ker.mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+  rcases this with ⟨_, _, hk, _⟩ | ⟨htop, htop₁, _, htop₃⟩
+  · exact hker hk
+  · apply hrest
+    exact ⟨by rw [← finrank_top (R := k) (M := ρ.V), htop, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₁), htop₁, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₃), htop₃, finrank_bot]⟩
+
+private lemma ker_A₃_or_rest_zero {k : Type*} [Field k] (ρ : D₄Rep k)
+    (hind : ρ.Indecomposable) :
+    LinearMap.ker ρ.A₃ = ⊥ ∨
+    (Module.finrank k ρ.V = 0 ∧ Module.finrank k ρ.V₁ = 0 ∧
+     Module.finrank k ρ.V₂ = 0) := by
+  by_contra h
+  rw [not_or] at h
+  obtain ⟨hker, hrest⟩ := h
+  obtain ⟨q₃, hq₃⟩ := Submodule.exists_isCompl (LinearMap.ker ρ.A₃)
+  have := hind.2 ⊥ ⊤ ⊥ ⊤ ⊥ ⊤ (LinearMap.ker ρ.A₃) q₃
+    isCompl_bot_top isCompl_bot_top isCompl_bot_top hq₃
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [(Submodule.mem_bot (R := k)).mp hx])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by simp [LinearMap.mem_ker.mp hx])
+    (fun _ _ => Submodule.mem_top)
+  rcases this with ⟨_, _, _, hk⟩ | ⟨htop, htop₁, htop₂, _⟩
+  · exact hker hk
+  · apply hrest
+    exact ⟨by rw [← finrank_top (R := k) (M := ρ.V), htop, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₁), htop₁, finrank_bot],
+           by rw [← finrank_top (R := k) (M := ρ.V₂), htop₂, finrank_bot]⟩
+
+-- Step 2: If all maps are injective but V₁+V₂+V₃ ≠ V, then V₁=V₂=V₃=0
+-- (after splitting off the center complement).
+-- The full proof requires working with subspaces after embedding via injective maps,
+-- which involves significant Lean machinery for the triple of subspaces problem.
+
 theorem Etingof.Example_6_3_1 (k : Type*) [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable) :
     ρ.dimVector ∈ D₄_indecomposable_dimVectors := by
+  -- The proof follows Etingof's iterative decomposition.
+  -- Step 1: Case split on kernels of A₁, A₂, A₃.
+  -- If any kernel is nontrivial, indecomposability forces all other components to 0,
+  -- giving dimension vectors (0,*,0,0), (0,0,*,0), (0,0,0,*) with * = dim Vᵢ.
+  -- Indecomposability of the kernel as a vector space forces dim = 1.
+  -- Steps 2-6: After all kernels are trivial (maps injective), the proof reduces to
+  -- the triple of subspaces problem via successive decomposition arguments.
   sorry
 
 /-- The set of indecomposable dimension vectors has exactly 12 elements,
