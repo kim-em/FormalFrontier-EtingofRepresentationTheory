@@ -4403,7 +4403,7 @@
     "end_page": "177",
     "start_line": 15,
     "end_line": 28,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -4423,7 +4423,7 @@
     "end_page": "178",
     "start_line": 31,
     "end_line": 14,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
