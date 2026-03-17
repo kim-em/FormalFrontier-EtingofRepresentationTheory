@@ -196,7 +196,68 @@ private lemma exists_good_vertex
     (hd_sum : 2 ≤ ∑ i : Fin n, d i) :
     ∃ k, 0 < (cartanMatrix n adj).mulVec d k ∧
          (cartanMatrix n adj).mulVec d k ≤ d k := by
-  sorry
+  set A := cartanMatrix n adj with hA_def
+  set Ad := A.mulVec d
+  by_contra hcon; push_neg at hcon
+  -- hcon : ∀ k, 0 < Ad k → d k < Ad k  (so Ad k ≥ d k + 1 when Ad k > 0)
+  -- Step 1: Find k₀ with d_{k₀} > 0 and Ad_{k₀} > 0
+  have ⟨k₀, hdk₀, hAdk₀⟩ : ∃ k, 0 < d k ∧ 0 < Ad k := by
+    by_contra hall; push_neg at hall
+    -- All terms d_k * Ad_k ≤ 0, contradicting B(d,d) = 2
+    have : ∀ k, d k * Ad k ≤ 0 := fun k => by
+      by_cases hdk : 0 < d k
+      · exact mul_nonpos_of_nonneg_of_nonpos (le_of_lt hdk) (by linarith [hall k hdk])
+      · have : d k = 0 := le_antisymm (by linarith) (hd_pos k)
+        simp [this]
+    have hle := Finset.sum_nonpos (fun k (_ : k ∈ Finset.univ) => this k)
+    simp only [dotProduct] at hd_root
+    linarith
+  -- Step 2: Ad_{k₀} ≥ d_{k₀} + 1 ≥ 2
+  have hAdk₀_big : 2 ≤ Ad k₀ := by
+    have := hcon k₀ hAdk₀; omega
+  -- Step 3: d' = d - e_{k₀} → B(d', d') = 4 - 2·Ad_{k₀} ≤ 0
+  set d' : Fin n → ℤ := d - Pi.single k₀ 1
+  have hAsymm := cartanMatrix_isSymm hDynkin.1
+  -- B(d, e_{k₀}) = Ad_{k₀} (by symmetry of A)
+  have symm_k₀ : ∀ j, A j k₀ = A k₀ j := fun j => congr_fun (congr_fun hAsymm k₀) j
+  have hBde : dotProduct d (A.mulVec (Pi.single k₀ (1 : ℤ))) = Ad k₀ := by
+    simp only [dotProduct, mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact Finset.sum_congr rfl fun j _ => by rw [symm_k₀ j]; ring
+  -- B(e_{k₀}, d) = Ad_{k₀}
+  have hBed : dotProduct (Pi.single k₀ (1 : ℤ)) (A.mulVec d) = Ad k₀ := by
+    simp only [dotProduct, mulVec, Pi.single_apply, ite_mul, one_mul, zero_mul,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]; rfl
+  -- B(e_{k₀}, e_{k₀}) = A_{k₀,k₀} = 2
+  have hBee : dotProduct (Pi.single k₀ (1 : ℤ)) (A.mulVec (Pi.single k₀ (1 : ℤ))) = 2 := by
+    simp only [dotProduct, mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      ite_mul, one_mul, zero_mul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    simp only [hA_def, cartanMatrix, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply, if_pos rfl, smul_eq_mul, mul_one]
+    have := hDynkin.2.1 k₀; simp_all
+  -- B(d', d') = B(d,d) - 2·Ad_{k₀} + 2 = 4 - 2·Ad_{k₀} ≤ 0
+  have hBd' : dotProduct d' (A.mulVec d') = 4 - 2 * Ad k₀ := by
+    show dotProduct (d - Pi.single k₀ 1) (A.mulVec (d - Pi.single k₀ 1)) = _
+    simp only [Matrix.mulVec_sub, Matrix.mulVec_smul]
+    simp only [sub_dotProduct, dotProduct_sub, smul_dotProduct, dotProduct_smul]
+    rw [hd_root, hBde, hBed, hBee]
+    ring
+  have hBd'_nonpos : dotProduct d' (A.mulVec d') ≤ 0 := by linarith
+  -- Step 4: d' ≠ 0 → positive definiteness gives B(d',d') > 0, contradiction
+  -- d' = 0 → d = e_{k₀} → ∑ d = 1, contradicting ∑ d ≥ 2
+  by_cases hd'_zero : d' = 0
+  · -- d = e_{k₀}, so ∑ d = 1
+    have : d = Pi.single k₀ 1 := by
+      have := sub_eq_zero.mp (funext fun j => by exact congr_fun hd'_zero j)
+      exact this
+    have : ∑ i : Fin n, d i = 1 := by
+      rw [this]; simp [Finset.sum_ite_eq']
+    linarith
+  · -- d' ≠ 0: positive definiteness gives B(d', d') > 0
+    have hpos_def := hDynkin.2.2.2.2
+    have hpos := hpos_def d' hd'_zero
+    rw [show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) = A from rfl] at hpos
+    linarith
 
 private lemma iteratedSimpleReflection_cons (A : Matrix (Fin n) (Fin n) ℤ)
     (k : Fin n) (vertices : List (Fin n)) (v : Fin n → ℤ) :
