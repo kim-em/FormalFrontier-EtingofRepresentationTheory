@@ -75,4 +75,4 @@ Progress is recorded here as stages from PLAN.md are completed.
 ## Stage 3.2: Proof Filling
 - **Status:** In progress
 - **Date started:** 2026-03-16
-- **Notes:** 155/583 items sorry_free (26.6%). Of 231 formal items, 158 proved (68.4%). 159 sorry occurrences remain across 76 files. 86 PRs merged across three proof waves. Chapters 7 and 8 complete (100% formal items sorry-free). Chapters 3 and 4 near-complete (1 item each remaining). Chapter 6 stalled (0 progress across 3 waves). Column orthogonality infrastructure gap resolved. See `progress/summaries/stage3.2-third-wave.md` for full details.
+- **Notes:** 167/583 items sorry_free (28.6%). Of 231 formal items, 167 proved (72.3%). 152 sorry occurrences remain across 72 files. 96 PRs merged across four proof waves. Chapters 4, 7, and 8 complete (100% formal items sorry-free). Chapter 3 near-complete (1 item remaining). Chapter 6 stall broken (+3 items in Wave 4). Specht module chain advancing (5.13.1–5.13.2 algebraic proofs done, pigeonhole combinatorial lemma is shared bottleneck). See `progress/summaries/stage3.2-fourth-wave.md` for full details.
