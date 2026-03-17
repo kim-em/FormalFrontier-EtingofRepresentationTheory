@@ -525,8 +525,8 @@
     "end_page": "18",
     "start_line": 13,
     "end_line": 16,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized",
+    "needs_statement": false
   },
   {
     "id": "Chapter2/Remark2.7.2",
