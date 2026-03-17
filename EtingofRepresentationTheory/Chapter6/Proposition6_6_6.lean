@@ -86,11 +86,8 @@ private theorem Etingof.reversedAtVertex_twice
   intro a b
   change @Etingof.ReversedAtVertexHom Q _ (Etingof.reversedAtVertex Q i) i a b = (a ⟶ b)
   unfold Etingof.ReversedAtVertexHom
-  -- First level of split on a = i, b = i gives branches with @Hom Q (reversedAtVertex Q i) ...
   split_ifs with ha hb hb
   all_goals (simp only [Etingof.reversedAtVertex, Etingof.ReversedAtVertexHom])
-  -- Now each branch reduces to if-then-else on i,a,b equalities.
-  -- Some branches are impossible (¬True from i=i), others need subst before rfl.
   all_goals (split_ifs <;> first | rfl | subst_vars <;> rfl | exact absurd rfl ‹_›)
 
 /-- Transport a representation from the double-reversed quiver (Q̄ᵢ)̄ᵢ back to Q.
@@ -105,6 +102,17 @@ noncomputable def Etingof.QuiverRepresentation.transportReversedTwice
     Etingof.QuiverRepresentation k Q :=
   Etingof.reversedAtVertex_twice Q i ▸ ρ
 
+/-- If we can construct a `QuiverRepresentation.Iso` between ρ₁ and ρ₂ on
+quiver instance `inst₁`, this gives an Iso between `(h ▸ ρ₁)` and `(h ▸ ρ₂)` on `inst₂`.
+This is the key lemma for handling the `Eq.mpr` from `transportReversedTwice`. -/
+private noncomputable def Etingof.QuiverRepresentation.transport_iso
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q]
+    {inst₁ inst₂ : Quiver Q} (h : inst₁ = inst₂)
+    {ρ₁ ρ₂ : @Etingof.QuiverRepresentation k Q _ inst₁}
+    (iso : @Etingof.QuiverRepresentation.Iso k _ Q inst₁ ρ₁ ρ₂) :
+    @Etingof.QuiverRepresentation.Iso k _ Q inst₂ (h ▸ ρ₁) (h ▸ ρ₂) := by
+  subst h; exact iso
+
 end Iso
 
 /-- If φ is surjective at a sink, then applying F⁻ᵢ after F⁺ᵢ recovers V
@@ -117,7 +125,7 @@ the resulting representation is isomorphic to the original.
 (Etingof Proposition 6.6.6, part 1) -/
 theorem Etingof.Proposition6_6_6_sink
     {k : Type*} [Field k]
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
@@ -130,9 +138,19 @@ theorem Etingof.Proposition6_6_6_sink
           (Etingof.isSink_reversedAtVertex_isSource hi)
           (Etingof.reflectionFunctorPlus Q i hi ρ) _))
       ρ) := by
-  -- Now that Definition 6.6.4 is implemented, this proof should construct the Iso by:
-  --   - At vertex j ≠ i: identity equivalence (both F⁺ and F⁻ leave V_j unchanged)
-  --   - At vertex i: first isomorphism theorem (coker(ker φ ↪ ⊕V_j) ≅ V_i when φ surjective)
+  -- Mathematical argument:
+  -- F⁺ᵢ(V)_j = V_j for j ≠ i, F⁺ᵢ(V)_i = ker(φ)
+  -- F⁻ᵢ(F⁺ᵢ(V))_j = V_j for j ≠ i, F⁻ᵢ(F⁺ᵢ(V))_i = coker(ker(φ) ↪ ⊕V_j)
+  -- By the first isomorphism theorem: ⊕V_j / ker(φ) ≅ im(φ) = V_i (since φ surjective)
+  --
+  -- Technical blocker: `transportReversedTwice` uses `▸` (Eq.mpr) which creates opaque
+  -- terms. Building the Iso requires relating `(h ▸ ρ_dr).obj v` to `ρ.obj v`, but
+  -- the Eq.mpr prevents definitional reduction, and propositional transport triggers
+  -- Lean 4's synthesis check when two different Quiver instances are in scope.
+  -- Infrastructure for a potential resolution (transport_iso, reversedAtVertex_twice,
+  -- `{}` field annotations for instAddCommMonoid/instModule) is in place.
+  -- A full resolution likely requires making the Quiver parameter of
+  -- QuiverRepresentation explicit (not instance) to avoid the synthesis check.
   sorry
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
@@ -145,7 +163,7 @@ the resulting representation is isomorphic to the original.
 (Etingof Proposition 6.6.6, part 2) -/
 theorem Etingof.Proposition6_6_6_source
     {k : Type*} [Field k]
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
     {i : Q} (hi : Etingof.IsSource Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
@@ -158,7 +176,11 @@ theorem Etingof.Proposition6_6_6_source
           (Etingof.isSource_reversedAtVertex_isSink hi)
           (Etingof.reflectionFunctorMinus Q i hi ρ)))
       ρ) := by
-  -- Now that Definition 6.6.4 is implemented, this proof should construct the Iso by:
-  --   - At vertex j ≠ i: identity equivalence
-  --   - At vertex i: dual of sink case (ker of map from ⊕V_j to coker(ψ) ≅ V_i when ψ injective)
+  -- Mathematical argument (dual of sink case):
+  -- F⁻ᵢ(V)_j = V_j for j ≠ i, F⁻ᵢ(V)_i = coker(ψ) = ⊕V_j / im(ψ)
+  -- F⁺ᵢ(F⁻ᵢ(V))_j = V_j for j ≠ i, F⁺ᵢ(F⁻ᵢ(V))_i = ker(⊕V_j → coker(ψ))
+  -- When ψ is injective: 0 → V_i →ψ ⊕V_j → coker(ψ) → 0 is exact
+  -- So ker(⊕V_j → coker(ψ)) = im(ψ) ≅ V_i
+  --
+  -- Same technical blocker as the sink case.
   sorry
