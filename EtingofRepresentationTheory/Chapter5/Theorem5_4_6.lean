@@ -80,17 +80,119 @@ private lemma trivialFDRep_simple :
     exact is_simple_module_of_finrank_eq_one (Module.finrank_self ℂ)
   infer_instance
 
-/-- Scalar action on dim ≥ 2 irrep contradicts simplicity. -/
-private lemma scalar_contradicts_simplicity [IsSimpleGroup G]
-    (V : FDRep ℂ G) [Simple V] (hdim : 2 ≤ Module.finrank ℂ V)
-    (g : G) (hg : g ≠ 1) (c : ℂ) (hsc : V.ρ g = c • LinearMap.id) :
-    False := by sorry
+/-- If all elements of G act as scalars on an irreducible representation V, then finrank V = 1. -/
+private lemma finrank_eq_one_of_all_scalar
+    (V : FDRep ℂ G) [Representation.IsIrreducible V.ρ]
+    (hall : ∀ h : G, ∃ d : ℂ, V.ρ h = d • LinearMap.id) :
+    Module.finrank ℂ V = 1 := by
+  -- V is nontrivial (IsSimpleOrder → bot ≠ top → module nonzero)
+  have hnt : Nontrivial V := by
+    by_contra h; rw [not_nontrivial_iff_subsingleton] at h
+    exact IsSimpleOrder.bot_ne_top (α := Subrepresentation V.ρ)
+      (Subrepresentation.toSubmodule_injective (by
+        ext x; simp [Subsingleton.elim x 0]))
+  obtain ⟨v, hv⟩ := exists_ne (0 : V)
+  -- span{v} is G-invariant since all ρ(g) are scalar
+  have hspan_inv : ∀ (g : G) ⦃w : V⦄,
+      w ∈ Submodule.span ℂ {v} → V.ρ g w ∈ Submodule.span ℂ {v} := by
+    intro g w hw
+    obtain ⟨d, hd⟩ := hall g
+    rw [Submodule.mem_span_singleton] at hw ⊢
+    obtain ⟨a, rfl⟩ := hw
+    exact ⟨d * a, by rw [hd]; simp [smul_smul, mul_comm d a]⟩
+  let σ : Subrepresentation V.ρ := ⟨Submodule.span ℂ {v}, hspan_inv⟩
+  -- σ ≠ ⊥ since v ∈ σ and v ≠ 0
+  have hne_bot : σ ≠ ⊥ := by
+    intro h
+    have : v ∈ (⊥ : Subrepresentation V.ρ) :=
+      h ▸ Submodule.subset_span (Set.mem_singleton v)
+    simp [Submodule.mem_bot] at this
+    exact hv this
+  -- By IsSimpleOrder, σ = ⊤
+  have htop : σ = ⊤ := (eq_bot_or_eq_top σ).resolve_left hne_bot
+  -- span{v} = ⊤ → finrank = 1
+  exact (finrank_eq_one_iff_of_nonzero v hv).mpr
+    (congr_arg Subrepresentation.toSubmodule htop)
 
+/-- Scalar action on dim ≥ 2 irrep contradicts simplicity of G. -/
+private lemma scalar_contradicts_simplicity [IsSimpleGroup G]
+    (V : FDRep ℂ G) [Representation.IsIrreducible V.ρ]
+    (hdim : 2 ≤ Module.finrank ℂ V)
+    (g : G) (hg : g ≠ 1) (c : ℂ) (hsc : V.ρ g = c • LinearMap.id) :
+    False := by
+  rcases (MonoidHom.normal_ker V.ρ).eq_bot_or_eq_top with hbot | htop
+  · -- Case ker = ⊥: ρ is injective
+    have hinj : Function.Injective V.ρ := (MonoidHom.ker_eq_bot_iff V.ρ).mp hbot
+    -- ρ(g) = c•id commutes with all ρ(h), so g is central
+    have hg_center : g ∈ Subgroup.center G := by
+      rw [Subgroup.mem_center_iff]; intro h; apply hinj
+      simp only [map_mul, hsc]; ext; simp [smul_smul, mul_comm]
+    -- Z(G) ≠ ⊥ since g ∈ Z(G) and g ≠ 1
+    have hcenter_ne_bot : Subgroup.center G ≠ ⊥ := by
+      intro h; exact hg (Subgroup.mem_bot.mp (h ▸ hg_center))
+    -- Z(G) = ⊤ by simplicity
+    have hcenter_top : Subgroup.center G = ⊤ :=
+      (Subgroup.Normal.eq_bot_or_eq_top Subgroup.instNormalCenter).resolve_left hcenter_ne_bot
+    -- G is commutative
+    haveI : IsMulCommutative G := ⟨⟨fun a b =>
+      ((Subgroup.mem_center_iff.mp (hcenter_top ▸ Subgroup.mem_top a)) b).symm⟩⟩
+    -- By Schur's lemma for commutative groups, dim = 1
+    exact absurd (Representation.IsIrreducible.finrank_eq_one_of_isMulCommutative V.ρ)
+      (by omega)
+  · -- Case ker = ⊤: ρ is trivial (every g acts as id)
+    have hall : ∀ h : G, ∃ d : ℂ, V.ρ h = d • LinearMap.id := by
+      intro h
+      have hker : V.ρ h = 1 := MonoidHom.mem_ker.mp (htop ▸ Subgroup.mem_top h)
+      exact ⟨1, by rw [one_smul]; exact hker⟩
+    exact absurd (finrank_eq_one_of_all_scalar G V hall) (by omega)
+
+omit [Fintype G] [DecidableEq G] in
+/-- If V has trivial G-action and finrank 1, then V ≅ FDRep.of trivial. -/
+private lemma fdRep_iso_trivial_of_ker_top
+    (V : FDRep ℂ G) (hker : MonoidHom.ker V.ρ = ⊤)
+    (hd : Module.finrank ℂ V = 1) :
+    Nonempty (V ≅ FDRep.of (Representation.trivial ℂ G ℂ)) := by
+  -- V.ρ g = id for all g
+  have hρ_triv : ∀ g : G, V.ρ g = LinearMap.id := fun g =>
+    MonoidHom.mem_ker.mp (hker ▸ Subgroup.mem_top g)
+  -- Construct linear equiv V ≃ₗ[ℂ] ℂ
+  let e := LinearEquiv.ofFinrankEq V ℂ (by rw [hd, Module.finrank_self])
+  -- Both actions are trivial, so any linear equiv is equivariant
+  exact ⟨Action.mkIso e.toFGModuleCatIso (fun g => by
+    ext x
+    simp [FDRep.hom_hom_action_ρ, hρ_triv g, Representation.trivial])⟩
+
+omit [Fintype G] [DecidableEq G] in
 /-- Nontrivial irreps of a non-abelian simple group have dim ≥ 2. -/
 private lemma nontrivial_irrep_dim_ge_two [IsSimpleGroup G] [Nontrivial G]
-    (V : FDRep ℂ G) [Simple V]
-    (hntv : ¬Nonempty (V ≅ FDRep.of (Representation.trivial ℂ G ℂ))) :
-    2 ≤ Module.finrank ℂ V := by sorry
+    (V : FDRep ℂ G) [Representation.IsIrreducible V.ρ]
+    (hntv : ¬Nonempty (V ≅ FDRep.of (Representation.trivial ℂ G ℂ)))
+    (hnoncomm : ¬IsMulCommutative G) :
+    2 ≤ Module.finrank ℂ V := by
+  by_contra h; push_neg at h
+  -- finrank V ≥ 1 since V is nontrivial (from IsIrreducible)
+  have hnt : Nontrivial V := by
+    by_contra hnt; rw [not_nontrivial_iff_subsingleton] at hnt
+    exact IsSimpleOrder.bot_ne_top (α := Subrepresentation V.ρ)
+      (Subrepresentation.toSubmodule_injective (by
+        ext x; simp [Subsingleton.elim x 0]))
+  have hd1 : Module.finrank ℂ V = 1 := by
+    have := Module.finrank_pos (R := ℂ) (M := V); omega
+  -- dim V = 1, so all endomorphisms are scalar
+  have hall : ∀ g : G, V.ρ g = ((V.ρ g).existsUnique_eq_smul_id_of_finrank_eq_one hd1).choose
+      • LinearMap.id :=
+    fun g => ((V.ρ g).existsUnique_eq_smul_id_of_finrank_eq_one hd1).choose_spec.1
+  -- ρ(g)ρ(h) = ρ(h)ρ(g) since scalars commute
+  have hcomm : ∀ g h : G, V.ρ (g * h) = V.ρ (h * g) := by
+    intro g h; rw [map_mul, map_mul, hall g, hall h]
+    ext; simp [smul_smul, mul_comm]
+  -- ker(ρ) is normal; by simplicity ker = ⊥ or ker = ⊤
+  rcases (MonoidHom.normal_ker V.ρ).eq_bot_or_eq_top with hbot | htop
+  · -- ker = ⊥: ρ injective → G commutative → contradiction
+    have hinj := (MonoidHom.ker_eq_bot_iff V.ρ).mp hbot
+    exact hnoncomm ⟨⟨fun a b => hinj (hcomm a b)⟩⟩
+  · -- ker = ⊤: ρ trivial → V ≅ trivial → contradiction
+    exact hntv (fdRep_iso_trivial_of_ker_top G V htop hd1)
 
 end Helpers
 
@@ -150,10 +252,29 @@ private lemma IsSimpleGroup.no_prime_power_conjClass
     rcases Etingof.Theorem5_4_4 G (D.columnFDRep i) g hcop with hzero | ⟨c, hsc⟩
     · exact hzero
     · exfalso
+      haveI : Representation.IsIrreducible (D.columnFDRep i).ρ :=
+        (Representation.irreducible_iff_isSimpleModule_asModule _).mpr
+          (D.isSimpleModule_columnRep_asModule i)
       have hntv : ¬Nonempty (D.columnFDRep i ≅ FDRep.of (Representation.trivial ℂ G ℂ)) :=
         fun ⟨f⟩ => hi (D.columnFDRep_injective i i₀ ⟨f ≪≫ iso₀⟩)
+      -- G is non-abelian: in an abelian group all conjugacy classes have size 1,
+      -- but |C(g)| = p^k ≥ 2
+      have hnoncomm : ¬IsMulCommutative G := by
+        intro ⟨⟨hc⟩⟩
+        have hcard1 : Fintype.card { h : G // IsConj g h } = 1 := by
+          have : Unique { h : G // IsConj g h } := by
+            refine ⟨⟨⟨g, IsConj.refl g⟩⟩, ?_⟩
+            rintro ⟨h, hh⟩; simp only [Subtype.mk.injEq]
+            obtain ⟨u, hu⟩ := isConj_iff.mp hh
+            rw [hc u g, mul_inv_cancel_right] at hu
+            exact hu.symm
+          exact Fintype.card_unique
+        rw [hconj] at hcard1
+        have : 2 ≤ p ^ k := le_trans hp.two_le (Nat.le_self_pow hk.ne' p)
+        omega
       exact scalar_contradicts_simplicity G (D.columnFDRep i)
-        (nontrivial_irrep_dim_ge_two G (D.columnFDRep i) hntv) g hg_ne c hsc
+        (nontrivial_irrep_dim_ge_two G (D.columnFDRep i) hntv hnoncomm)
+        g hg_ne c hsc
   -- Split sum: 0 = 1 + p * S where S is an algebraic integer
   -- Separate i₀ from the sum
   have hterm_i₀ : (D.d i₀ : ℂ) * (D.columnFDRep i₀).character g = 1 := by
@@ -230,5 +351,7 @@ theorem Etingof.Theorem5_4_6
   haveI : Nontrivial G := ⟨⟨g, 1, hg_ne⟩⟩
   haveI : IsSimpleGroup G :=
     { eq_bot_or_eq_top_of_normal := fun H hH => by
-        by_cases h : H = ⊥; exact Or.inl h; exact Or.inr (habs H hH h) }
+        by_cases h : H = ⊥
+        · exact Or.inl h
+        · exact Or.inr (habs H hH h) }
   exact IsSimpleGroup.no_prime_power_conjClass G p hp k hk g hg_ne hconj
