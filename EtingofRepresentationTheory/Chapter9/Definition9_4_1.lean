@@ -1,5 +1,5 @@
-import Mathlib.Algebra.Module.Projective
-import Mathlib.Algebra.Homology.ShortComplex.Basic
+import Mathlib.CategoryTheory.Abelian.Projective.Dimension
+import Mathlib.Algebra.Category.ModuleCat.Abelian
 
 /-!
 # Definition 9.4.1: Projective dimension
@@ -12,10 +12,16 @@ resolution of M. If no finite projective resolution exists, pd(M) = ∞.
 
 ## Mathlib correspondence
 
-Not directly in Mathlib. Could be formalized using `CategoryTheory.ProjectiveResolution`
-and computing the length.
+Mathlib defines `CategoryTheory.projectiveDimension` for objects in an abelian category,
+via vanishing of Ext groups. We specialize this to `ModuleCat R`.
 -/
 
+universe u
+
 /-- The projective dimension of a module, in the sense of Etingof Definition 9.4.1.
-The length of the shortest finite projective resolution, or ∞ if none exists. -/
-noncomputable def Etingof.projectiveDimension : (sorry : Prop) := sorry
+Defined as `CategoryTheory.projectiveDimension` applied to the corresponding object
+of `ModuleCat R`. Returns a value in `WithBot ℕ∞`: `⊥` if M is zero, a natural number
+for the finite case, or `⊤` if no finite projective resolution exists. -/
+noncomputable def Etingof.projectiveDimension
+    (R : Type u) [Ring R] (M : ModuleCat.{u} R) : WithBot ℕ∞ :=
+  CategoryTheory.projectiveDimension M

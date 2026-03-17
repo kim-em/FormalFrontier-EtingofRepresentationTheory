@@ -5332,8 +5332,7 @@
     "end_page": "216",
     "start_line": 15,
     "end_line": 18,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free"
   },
   {
     "id": "Chapter9/Problem9.4.2",
@@ -5352,8 +5351,7 @@
     "end_page": "217",
     "start_line": 3,
     "end_line": 4,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "sorry_free"
   },
   {
     "id": "Chapter9/Example9.4.4",
