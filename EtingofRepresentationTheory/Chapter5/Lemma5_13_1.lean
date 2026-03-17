@@ -90,9 +90,79 @@ theorem ColumnAntisymmetrizer_mul_of_col {n : ℕ} {la : Nat.Partition n}
   -- Goal: sg = sq * (sg * sq). Proof: sq*(sg*sq) = sq*sq*sg = 1*sg = sg
   linear_combination -((↑(↑(Equiv.Perm.sign g.val) : ℤ) : ℂ)) * hsqq
 
+open Pointwise in
+/-- Key combinatorial lemma: if σ is not in the set product P_λ · Q_λ, then
+there exists a transposition t ∈ P_λ whose conjugate σ⁻¹ · t · σ lies in Q_λ.
+This is the pigeonhole argument: two elements in the same row must map to the
+same column under σ. -/
+private theorem pigeonhole_transposition {n : ℕ} {la : Nat.Partition n}
+    (σ : Equiv.Perm (Fin n))
+    (hσ : σ ∉ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
+      (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))) :
+    ∃ t : Equiv.Perm (Fin n), Equiv.Perm.IsSwap t ∧
+      t ∈ RowSubgroup n la ∧ σ⁻¹ * t * σ ∈ ColumnSubgroup n la := by
+  sorry
+
+/-- For σ ∈ P_λ · Q_λ with σ = p · q, the sandwiched product equals sign(q) • c_λ. -/
+private theorem sandwich_mem {n : ℕ} {la : Nat.Partition n}
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (p * q) * ColumnAntisymmetrizer n la =
+      ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ)) • YoungSymmetrizer n la := by
+  simp only [map_mul, mul_assoc]
+  rw [← mul_assoc (RowSymmetrizer n la), RowSymmetrizer_mul_of_row p hp,
+    of_col_mul_ColumnAntisymmetrizer q hq, Algebra.mul_smul_comm]
+  rfl
+
+open Pointwise in
+/-- For σ ∉ P_λ · Q_λ, a sign-reversing involution shows a_λ * of(σ) * b_λ = 0. -/
+private theorem sandwich_not_mem {n : ℕ} {la : Nat.Partition n}
+    (σ : Equiv.Perm (Fin n))
+    (hσ : σ ∉ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
+      (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))) :
+    RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la = 0 := by
+  classical
+  obtain ⟨t, ht_swap, ht_row, ht_col⟩ := pigeonhole_transposition σ hσ
+  set t' := σ⁻¹ * t * σ with ht'_def
+  -- Step 1: a * of(σ) = a * of(σ) * of(t')
+  have h_absorb : RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ =
+      RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * MonoidAlgebra.of ℂ _ t' := by
+    have htσ : t * σ = σ * t' := by simp [ht'_def]; group
+    calc RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ
+      _ = RowSymmetrizer n la * MonoidAlgebra.of ℂ _ t * MonoidAlgebra.of ℂ _ σ := by
+          rw [RowSymmetrizer_mul_of_row t ht_row]
+      _ = RowSymmetrizer n la * (MonoidAlgebra.of ℂ _ t * MonoidAlgebra.of ℂ _ σ) := by
+          rw [mul_assoc]
+      _ = RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (t * σ) := by rw [map_mul]
+      _ = RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (σ * t') := by rw [htσ]
+      _ = RowSymmetrizer n la * (MonoidAlgebra.of ℂ _ σ * MonoidAlgebra.of ℂ _ t') := by
+          rw [← map_mul]
+      _ = RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * MonoidAlgebra.of ℂ _ t' := by
+          rw [← mul_assoc]
+  -- Step 2: sign(t') = -1
+  have hsign_t' : (↑(↑(Equiv.Perm.sign t') : ℤ) : ℂ) = -1 := by
+    have hsign_t : Equiv.Perm.sign t = -1 := by
+      obtain ⟨x, z, hxz, ht_eq⟩ := ht_swap; rw [ht_eq]; exact Equiv.Perm.sign_swap hxz
+    have : Equiv.Perm.sign t' = -1 := by
+      change Equiv.Perm.sign (σ⁻¹ * t * σ) = -1
+      rw [map_mul, map_mul, Equiv.Perm.sign_inv, hsign_t,
+        mul_comm (Equiv.Perm.sign σ) (-1 : ℤˣ), mul_assoc, Int.units_mul_self, mul_one]
+    simp [this]
+  -- Step 3: y = -y
+  set y := RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la
+  have heq : y = -y := by
+    change RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la = -y
+    conv_lhs => rw [h_absorb, mul_assoc,
+      of_col_mul_ColumnAntisymmetrizer t' ht_col, Algebra.mul_smul_comm]
+    rw [hsign_t', neg_one_smul]
+  -- Step 4: y = -y → y = 0
+  have h2 : y + y = 0 := by nth_rw 1 [heq]; exact neg_add_cancel y
+  have h3 : (2 : ℂ) • y = 0 := by rw [two_smul]; exact h2
+  exact (smul_eq_zero.mp h3).resolve_left two_ne_zero
+
 end Etingof
 
-open Etingof in
+open Etingof Pointwise in
 /-- For x ∈ ℂ[S_n], a_λ · x · b_λ is a scalar multiple of c_λ = a_λ · b_λ.
 More precisely, there exists a linear functional ℓ_λ on ℂ[S_n] such that
 a_λ * x * b_λ = ℓ_λ(x) • c_λ for all x.
@@ -102,4 +172,35 @@ theorem Etingof.Lemma5_13_1
     ∃ ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ,
       ∀ x, RowSymmetrizer n la * x * ColumnAntisymmetrizer n la =
         ℓ x • YoungSymmetrizer n la := by
-  sorry
+  classical
+  -- For each basis element σ, compute the coefficient
+  have basis_mul : ∀ σ : Equiv.Perm (Fin n), ∃ coeff : ℂ,
+      RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la =
+        coeff • YoungSymmetrizer n la := by
+    intro σ
+    by_cases hmem : σ ∈ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
+        (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))
+    · obtain ⟨p, hp, q, hq, hpq⟩ := Set.mem_mul.mp hmem
+      exact ⟨↑(↑(Equiv.Perm.sign q) : ℤ), hpq ▸ sandwich_mem p hp q hq⟩
+    · exact ⟨0, by rw [zero_smul]; exact sandwich_not_mem σ hmem⟩
+  -- Extract coefficient function and build linear functional
+  choose f hf using basis_mul
+  -- ℓ(x) = ∑_{σ} x(σ) * f(σ), constructed via Finsupp.lsum
+  let ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ :=
+    Finsupp.lsum ℂ (fun σ => f σ • (LinearMap.id : ℂ →ₗ[ℂ] ℂ))
+  refine ⟨ℓ, fun x => ?_⟩
+  -- Both sides are linear in x; check on basis elements
+  induction x using Finsupp.induction_linear with
+  | zero => simp
+  | add x y hx hy =>
+    simp only [mul_add, add_mul, map_add, add_smul]
+    exact congr_arg₂ (· + ·) hx hy
+  | single σ r =>
+    have hℓ : ℓ (Finsupp.single σ r) = f σ * r := by
+      change (Finsupp.lsum ℂ (fun σ => f σ • (LinearMap.id : ℂ →ₗ[ℂ] ℂ)))
+        (Finsupp.single σ r) = f σ * r
+      rw [Finsupp.lsum_single, LinearMap.smul_apply, LinearMap.id_apply, smul_eq_mul]
+    have hsingle : (Finsupp.single σ r : MonoidAlgebra ℂ _) = r • MonoidAlgebra.of ℂ _ σ := by
+      simp [MonoidAlgebra.of_apply, mul_one]
+    conv_lhs => rw [hsingle]
+    rw [Algebra.mul_smul_comm, Algebra.smul_mul_assoc, hf, smul_smul, hℓ, mul_comm]

@@ -2963,8 +2963,9 @@
     "end_page": "114",
     "start_line": 15,
     "end_line": 23,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "proof_formalized",
+    "needs_statement": false,
+    "notes": "Full proof complete modulo pigeonhole_transposition combinatorial lemma (1 sorry). Algebraic structure proven: absorption case, sign-reversing involution case, linear extension."
   },
   {
     "id": "Chapter5/Discussion_end_of_Lemma5.13.1_proof",
