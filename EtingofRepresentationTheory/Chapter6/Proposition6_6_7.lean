@@ -220,6 +220,7 @@ theorem Etingof.Proposition6_6_7_source
     {i : Q} (hi : Etingof.IsSource Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    [Fintype (Etingof.ArrowsOutOf Q i)]
     (hρ : ρ.IsIndecomposable) :
     @Etingof.QuiverRepresentation.IsIndecomposable k _ Q
       (Etingof.reversedAtVertex Q i)

@@ -121,17 +121,16 @@ theorem Etingof.Proposition6_6_6_sink
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    [Fintype (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)]
     (hsurj : Function.Surjective (ρ.sinkMap i)) :
     Nonempty (Etingof.QuiverRepresentation.Iso
       (Etingof.QuiverRepresentation.transportReversedTwice
         (@Etingof.reflectionFunctorMinus k _ Q _
           (Etingof.reversedAtVertex Q i) i
           (Etingof.isSink_reversedAtVertex_isSource hi)
-          (Etingof.reflectionFunctorPlus Q i hi ρ)))
+          (Etingof.reflectionFunctorPlus Q i hi ρ) _))
       ρ) := by
-  -- BLOCKED: reflectionFunctorMinus (Definition 6.6.4) has sorry'd CokerType.
-  -- The cokernel construction needs AddCommGroup which QuiverRepresentation doesn't provide.
-  -- Once Definition 6.6.4 is fully implemented, this proof should construct the Iso by:
+  -- Now that Definition 6.6.4 is implemented, this proof should construct the Iso by:
   --   - At vertex j ≠ i: identity equivalence (both F⁺ and F⁻ leave V_j unchanged)
   --   - At vertex i: first isomorphism theorem (coker(ker φ ↪ ⊕V_j) ≅ V_i when φ surjective)
   sorry
@@ -159,8 +158,7 @@ theorem Etingof.Proposition6_6_6_source
           (Etingof.isSource_reversedAtVertex_isSink hi)
           (Etingof.reflectionFunctorMinus Q i hi ρ)))
       ρ) := by
-  -- BLOCKED: reflectionFunctorMinus (Definition 6.6.4) has sorry'd CokerType.
-  -- Once Definition 6.6.4 is fully implemented, this proof should construct the Iso by:
+  -- Now that Definition 6.6.4 is implemented, this proof should construct the Iso by:
   --   - At vertex j ≠ i: identity equivalence
   --   - At vertex i: dual of sink case (ker of map from ⊕V_j to coker(ψ) ≅ V_i when ψ injective)
   sorry
