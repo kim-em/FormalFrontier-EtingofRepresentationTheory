@@ -3288,8 +3288,9 @@
     "end_page": "123",
     "start_line": 21,
     "end_line": 2,
-    "status": "statement_formalized",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_project_id": "552eca9c-3664-4754-8a03-8cab968dcac3"
   },
   {
     "id": "Chapter5/Discussion_before_Theorem5.18.2",
