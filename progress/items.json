@@ -3098,7 +3098,7 @@
     "end_page": "118",
     "start_line": 1,
     "end_line": 9,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
@@ -3118,7 +3118,7 @@
     "end_page": "118",
     "start_line": 15,
     "end_line": 18,
-    "status": "scaffolded",
+    "status": "statement_formalized",
     "needs_statement": true
   },
   {
