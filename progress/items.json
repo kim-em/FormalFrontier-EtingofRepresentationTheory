@@ -4182,7 +4182,7 @@
     "end_page": "168",
     "start_line": 17,
     "end_line": 18,
-    "status": "scaffolded"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter6/Discussion_before_Definition6.6.3",
@@ -4201,7 +4201,7 @@
     "end_page": "168",
     "start_line": 21,
     "end_line": 35,
-    "status": "scaffolded"
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter6/Definition6.6.3_maps",
@@ -4220,7 +4220,7 @@
     "end_page": "169",
     "start_line": 3,
     "end_line": 26,
-    "status": "scaffolded"
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter6/Proposition6.6.5",
