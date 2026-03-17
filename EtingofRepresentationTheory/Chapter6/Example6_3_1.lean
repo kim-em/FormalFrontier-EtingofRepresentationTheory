@@ -438,6 +438,31 @@ private lemma decomp_of_ranges_split {k : Type*} [Field k] (ρ : D₄Rep k)
   · left; exact hp
   · right; exact hq
 
+-- When A₁ is surjective (range = ⊤) and A₁ is injective, the comap of a
+-- complement p ⊕ q = V gives a valid IsCompl decomposition of V₁.
+private lemma comap_isCompl_of_surj_inj {k : Type*} [Field k]
+    {V₁ V : Type*} [AddCommGroup V₁] [Module k V₁] [AddCommGroup V] [Module k V]
+    (A : V₁ →ₗ[k] V) (hA_inj : Function.Injective A) (hA_surj : LinearMap.range A = ⊤)
+    (p q : Submodule k V) (hpq : IsCompl p q) :
+    IsCompl (Submodule.comap A p) (Submodule.comap A q) := by
+  constructor
+  · rw [Submodule.disjoint_def]
+    intro x hxp hxq
+    have : A x ∈ p ⊓ q := ⟨hxp, hxq⟩
+    rw [hpq.inf_eq_bot, Submodule.mem_bot] at this
+    exact hA_inj (this.trans (map_zero _).symm)
+  · rw [codisjoint_iff]; ext x
+    simp only [Submodule.mem_sup, Submodule.mem_comap, Submodule.mem_top, iff_true]
+    have hA_surj' : Function.Surjective A := LinearMap.range_eq_top.mp hA_surj
+    have hx_top : A x ∈ (⊤ : Submodule k V) := Submodule.mem_top
+    rw [← hpq.sup_eq_top] at hx_top
+    obtain ⟨yp, hyp, yq, hyq, heq⟩ := Submodule.mem_sup.mp hx_top
+    obtain ⟨x₁, hx₁⟩ := hA_surj' yp
+    obtain ⟨x₂, hx₂⟩ := hA_surj' yq
+    have : x = x₁ + x₂ := hA_inj (by rw [map_add, hx₁, hx₂, heq])
+    exact ⟨x₁, by change A x₁ ∈ p; rw [hx₁]; exact hyp,
+           x₂, by change A x₂ ∈ q; rw [hx₂]; exact hyq, this.symm⟩
+
 -- dim V ≥ 3, all injective, range sum = ⊤ → decomposable
 private lemma decomp_dim_ge_three {k : Type*} [Field k] (ρ : D₄Rep k)
     (hind : ρ.Indecomposable)
