@@ -87,22 +87,40 @@ private lemma simpleReflection_preserves_B
     dotProduct (simpleReflection n (cartanMatrix n adj) i v)
       ((cartanMatrix n adj).mulVec (simpleReflection n (cartanMatrix n adj) i v)) =
     dotProduct v ((cartanMatrix n adj).mulVec v) := by
-  set A := cartanMatrix n adj
-  have hA := cartanMatrix_isSymm hDynkin.1
-  -- s_i(v) = v - c · e_i where c = (Av)_i (for symmetric A with A_ii = 2)
-  -- B(v - c·e_i, v - c·e_i) = B(v,v) - 2c·⟨v, A·e_i⟩ + c²·⟨e_i, A·e_i⟩
-  -- = B(v,v) - 2c·c + c²·A_ii = B(v,v) - 2c² + 2c² = B(v,v)
-  -- Key: A_ii = 2 for Cartan matrix (since adj_ii = 0)
+  set A := cartanMatrix n adj with hA_def
+  have hAsymm := cartanMatrix_isSymm hDynkin.1
+  have symm_ij : ∀ j, A j i = A i j := fun j => congr_fun (congr_fun hAsymm i) j
   set c := (A.mulVec v) i
-  -- Direct computation using the fact that s_i changes only coordinate i
-  -- s_i(v) j = v j for j ≠ i, and s_i(v) i = v i - c
-  -- B(s_i(v), s_i(v)) = ∑_j s_i(v)_j * (A·s_i(v))_j
-  -- A·s_i(v) = A·v - c · A·e_i, so (A·s_i(v))_j = (Av)_j - c · A_ji
-  -- For j ≠ i: contribution = v_j * ((Av)_j - c · A_ji)
-  -- For j = i: contribution = (v_i - c) * ((Av)_i - c · A_ii) = (v_i - c)(c - 2c) = -(v_i - c)c
-  -- Total = ∑_j v_j (Av)_j - c ∑_j v_j A_ji + c·A_ii·c - v_i·(Av)_i + ...
-  -- This is getting complicated. Use linearity directly.
-  sorry
+  -- s_i(v) = v - c • Pi.single i 1 (definition of rootReflection)
+  -- First show the inner product ⟨v, A·(Pi.single i 1)⟩ = c
+  have hc : dotProduct v (A.mulVec (Pi.single i (1 : ℤ))) = c := by
+    simp only [dotProduct, mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact Finset.sum_congr rfl fun j _ => by rw [symm_ij j]; ring
+  -- Express s_i(v) as v - c • α where α = Pi.single i 1
+  have hs : simpleReflection n A i v = v - c • (Pi.single i (1 : ℤ)) := by
+    ext j
+    simp only [simpleReflection, rootReflection, Pi.sub_apply, Pi.smul_apply, hc]
+  -- A_ii = 2 for Cartan matrix
+  have hAii : A i i = 2 := by
+    simp only [hA_def, cartanMatrix, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply, if_pos rfl, smul_eq_mul, mul_one]
+    have := hDynkin.2.1 i; simp_all
+  -- B(α,α) = A_ii = 2
+  have hBaa : dotProduct (Pi.single i (1 : ℤ)) (A.mulVec (Pi.single i (1 : ℤ))) = 2 := by
+    simp only [dotProduct, mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      ite_mul, one_mul, zero_mul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact hAii
+  -- Now compute using bilinearity
+  rw [hs]
+  simp only [Matrix.mulVec_sub, Matrix.mulVec_smul]
+  simp only [sub_dotProduct, dotProduct_sub, smul_dotProduct, dotProduct_smul]
+  -- Also need: B(α, v) = ⟨e_i, Av⟩ = (Av)_i = c
+  have hBav : dotProduct (Pi.single i (1 : ℤ)) (A.mulVec v) = c := by
+    simp only [dotProduct, mulVec, Pi.single_apply, ite_mul, one_mul, zero_mul,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]; rfl
+  rw [hc, hBaa, hBav]
+  ring
 
 /-- If d ≥ 0 and (Ad)_k ≤ d_k, then s_k(d) ≥ 0. -/
 private lemma simpleReflection_nonneg {A : Matrix (Fin n) (Fin n) ℤ}
