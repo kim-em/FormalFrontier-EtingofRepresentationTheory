@@ -3729,8 +3729,7 @@
     "end_page": "144",
     "start_line": 25,
     "end_line": 29,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter5/Remark5.26.2",
@@ -3758,8 +3757,7 @@
     "end_page": "145",
     "start_line": 7,
     "end_line": 8,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter5/Introduction_5.27",
@@ -3787,8 +3785,7 @@
     "end_page": "147",
     "start_line": 11,
     "end_line": 14,
-    "status": "scaffolded",
-    "needs_statement": true
+    "status": "statement_formalized"
   },
   {
     "id": "Chapter5/Exercise5.27.2",
