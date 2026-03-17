@@ -85,7 +85,7 @@ private theorem sortedParts_sum {n : ℕ} (la : Nat.Partition n) :
   have : la.sortedParts.sum = la.parts.sum := by rw [← Multiset.sum_coe, hsort]
   omega
 
-private theorem sortedParts_pos (la : Nat.Partition n) :
+theorem sortedParts_pos (la : Nat.Partition n) :
     ∀ x ∈ la.sortedParts, 0 < x := fun x hx =>
   la.parts_pos ((Multiset.mem_sort _).mp hx)
 
@@ -258,7 +258,7 @@ private theorem card_first_k_rows (la : Nat.Partition n) (k : ℕ) :
     omega)
 
 /-- Lists with all positive elements and equal partial sums are equal. -/
-private theorem list_eq_of_take_sum_eq {l₁ l₂ : List ℕ}
+theorem list_eq_of_take_sum_eq {l₁ l₂ : List ℕ}
     (hpos₁ : ∀ x ∈ l₁, 0 < x) (hpos₂ : ∀ x ∈ l₂, 0 < x)
     (h : ∀ k, (l₁.take k).sum = (l₂.take k).sum) : l₁ = l₂ := by
   have hlen : l₁.length = l₂.length := by
@@ -281,7 +281,7 @@ private theorem list_eq_of_take_sum_eq {l₁ l₂ : List ℕ}
   omega
 
 /-- Partitions with equal partial sums of sorted parts are equal. -/
-private theorem partition_eq_of_partial_sums (la mu : Nat.Partition n)
+theorem partition_eq_of_partial_sums (la mu : Nat.Partition n)
     (h : ∀ k, (la.sortedParts.take k).sum = (mu.sortedParts.take k).sum) :
     la = mu := by
   apply Nat.Partition.ext
@@ -331,7 +331,7 @@ private theorem conj_swap_eq {n : ℕ} (σ : Equiv.Perm (Fin n)) (i j : Fin n) :
             Equiv.swap_apply_of_ne_of_ne hki hkj]
 
 theorem pigeonhole_transposition (n : ℕ) (la mu : Nat.Partition n)
-    (hdom : la.StrictDominates mu) (σ : Equiv.Perm (Fin n)) :
+    (hdom : ¬ mu.Dominates la) (σ : Equiv.Perm (Fin n)) :
     ∃ (t : Equiv.Perm (Fin n)),
       t ∈ RowSubgroup n la ∧ σ⁻¹ * t * σ ∈ ColumnSubgroup n mu ∧
       Equiv.Perm.sign t = -1 := by
@@ -345,14 +345,9 @@ theorem pigeonhole_transposition (n : ℕ) (la mu : Nat.Partition n)
   -- Step 2: Pigeonhole — by contradiction, derive la = mu from injectivity + dominance
   by_contra h_no
   push_neg at h_no
-  obtain ⟨hdom_ge, hne⟩ := hdom
-  apply hne
   -- From h_no: within each row of la, the column-in-mu map is injective.
-  -- Combined with dominance, this forces equal partial sums, hence equal partitions.
-  apply partition_eq_of_partial_sums la mu
-  intro k
-  apply le_antisymm
-  · -- Reverse dominance: (la.take k).sum ≤ (mu.take k).sum via counting argument
+  -- The counting argument proves mu.Dominates la, contradicting hdom.
+  exact hdom fun k => by
     rw [← sum_min_colHeight mu.sortedParts k (sortedParts_sorted mu)]
     rw [← card_first_k_rows la k]
     -- Decompose S_k by column value g(i) = colOfPos(mu, σ⁻¹(i))
@@ -410,12 +405,10 @@ theorem pigeonhole_transposition (n : ℕ) (la mu : Nat.Partition n)
         exact σ.symm.injective (Fin.ext hval_eq)
       have h2 := Finset.card_le_card_of_injOn _ hmaps2 hinj2
       rw [Finset.card_range] at h2; exact h2
-  · -- Forward dominance (given)
-    exact hdom_ge k
 
 /-- For a basis element of(σ): if λ strictly dominates μ, then a_λ · of(σ) · b_μ = 0. -/
 theorem basis_vanishing (n : ℕ) (la mu : Nat.Partition n)
-    (hdom : la.StrictDominates mu)
+    (hdom : ¬ mu.Dominates la)
     (σ : Equiv.Perm (Fin n)) :
     RowSymmetrizer n la * MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) σ *
       ColumnAntisymmetrizer n mu = 0 := by
@@ -455,11 +448,12 @@ theorem basis_vanishing (n : ℕ) (la mu : Nat.Partition n)
   have h2 : (2 : ℂ) • val = 0 := by rwa [two_smul]
   exact (smul_eq_zero.mp h2).resolve_left (by norm_num)
 
-/-- If λ strictly dominates μ in the dominance order, then a_λ · x · b_μ = 0
-for all x ∈ ℂ[S_n]. (Etingof Lemma 5.13.2) -/
+/-- If μ does not dominate λ (in the dominance order on partitions of n), then
+a_λ · x · b_μ = 0 for all x ∈ ℂ[S_n]. This is a generalization of Etingof Lemma 5.13.2
+(which assumes λ strictly dominates μ, a stronger condition). -/
 theorem Lemma5_13_2
     (n : ℕ) (la mu : Nat.Partition n)
-    (hdom : la.StrictDominates mu)
+    (hdom : ¬ mu.Dominates la)
     (x : MonoidAlgebra ℂ (Equiv.Perm (Fin n))) :
     RowSymmetrizer n la * x * ColumnAntisymmetrizer n mu = 0 := by
   induction x using Finsupp.induction_linear with

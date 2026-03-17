@@ -2915,11 +2915,12 @@
     "end_page": "113",
     "start_line": 19,
     "end_line": 25,
-    "status": "attention_needed",
+    "status": "proof_formalized",
     "needs_statement": false,
     "aristotle_target": "young_symmetrizer_sq_ne_zero",
     "aristotle_note": "Aristotle failed: couldn't load file due to namespace/axiom issues. The proof that c_λ² ≠ 0 requires showing the identity permutation has nonzero coefficient in c_λ. Previous submissions: 366668f8 (import error), 9ebaca73 (load error).",
-    "aristotle_project_id": "9ebaca73-b917-472d-89bd-23a45fe94a69"
+    "aristotle_project_id": "9ebaca73-b917-472d-89bd-23a45fe94a69",
+    "note": "Theorem5_12_2_distinct proved. Theorem5_12_2_irreducible proved. young_symmetrizer_sq_ne_zero and Theorem5_12_2_classification still sorry."
   },
   {
     "id": "Chapter5/Example5.12.3",
