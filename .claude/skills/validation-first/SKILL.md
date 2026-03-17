@@ -58,7 +58,7 @@ Formalization adds a new dimension to validation — the Lean compiler itself is
 Unlike Phases 1-2 (JSON schemas, text validation), Phase 3 has `lake build` as the ground truth:
 - **No sorry = proved.** The compiler guarantees correctness.
 - **sorry = placeholder.** Compiles but isn't done.
-- **admit = dangerous.** Never commit — only use in temporary Aristotle submission files.
+- **admit = dangerous.** Never commit.
 
 ### Automated Status Tracking
 

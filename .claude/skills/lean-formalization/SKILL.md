@@ -1,6 +1,6 @@
 ---
 name: lean-formalization
-description: Use when working on Phase 3 formalization — translating mathematical text into Lean 4 statements and proofs, filling sorry placeholders, or escalating to Aristotle.
+description: Use when working on Phase 3 formalization — translating mathematical text into Lean 4 statements and proofs, or filling sorry placeholders.
 allowed-tools: Read, Edit, Write, Bash, Glob, Grep
 ---
 
@@ -94,101 +94,6 @@ Mathlib.GroupTheory.GroupAction.Basic
 ```
 
 **When Mathlib doesn't have it:** Check the `.refs.md` file for the item. If coverage is "gap", you need to build the definition from scratch. State it clearly, add a comment `-- not in Mathlib as of v4.28`, and use sorry for the proof.
-
-## Aristotle Escalation
-
-### When to Escalate
-
-Escalate after **2-3 serious attempts** (not 2-3 minor variations of the same approach). A "serious attempt" means:
-- You identified the mathematical strategy
-- You got partway through (some subgoals resolved)
-- You hit a specific blocker (missing lemma, type mismatch, tactic timeout)
-
-### How to Escalate
-
-1. **Prepare file.** Copy the item's `.lean` file. Keep exactly one `sorry` (the target). Change all other `sorry` to `admit`.
-2. **Gather context.** Collect sorry-free local `.lean` files from the import chain. Skip Mathlib imports.
-3. **Submit.**
-   ```bash
-   aristotle prove-from-file item_pending.lean --no-wait \
-     --no-auto-add-imports --context-files dep1.lean dep2.lean
-   ```
-4. **Record in items.json.** Set status to `sent_to_aristotle` with the project ID.
-5. **Delete temp file.** Never commit files with `admit`.
-
-**CRITICAL: Create self-contained files for Aristotle.** `--context-files` does NOT
-resolve `import EtingofRepresentationTheory.*` statements — Aristotle still fails with
-"unknown module prefix". Instead:
-1. Remove ALL local imports (`import EtingofRepresentationTheory.*`)
-2. Add the Mathlib imports that those local files needed
-3. Inline the content of local dependency files directly into the submission file
-4. Use `--no-auto-add-imports --no-validate-lean-project`
-
-**Self-contained file preparation checklist** (follow exactly — most Aristotle failures
-are file preparation errors, not proof difficulty):
-
-1. **Copy the target file** to `/tmp/item_pending.lean`
-2. **List all local imports:** `grep 'import Etingof' OriginalFile.lean`
-3. **For each local import:**
-   a. Open the imported file
-   b. Copy its Mathlib `import` lines into the submission file header
-   c. Copy its declarations (defs, theorems, instances) into the submission file body
-   d. Delete the `import EtingofRepresentationTheory.*` line
-4. **Replace all `sorry` except the target with `admit`**
-5. **Remove or rename Unicode identifiers** (e.g., `D₄Rep` → `D4Rep`)
-6. **Remove `namespace` blocks** — keep the file flat with fully qualified names
-7. **Test compilation:** `lake env lean /tmp/item_pending.lean` — must compile with only the target sorry
-8. **Submit:** `aristotle prove-from-file /tmp/item_pending.lean --no-wait --no-auto-add-imports --no-validate-lean-project`
-9. **Delete the temp file** — never commit files with `admit`
-
-**Example transformation:**
-```lean
--- BEFORE (won't work with Aristotle)
-import EtingofRepresentationTheory.Chapter9.Theorem9_2_1
-import Mathlib.Order.JordanHolder
-
-theorem Etingof.Proposition9_2_3 : statement := sorry
-
--- AFTER (self-contained for Aristotle)
-import Mathlib.Order.JordanHolder
-import Mathlib.RingTheory.SimpleModule  -- was needed by Theorem9_2_1
-
--- Inlined from Theorem9_2_1.lean:
-theorem Etingof.Theorem9_2_1 : ... := admit
-
-theorem Etingof.Proposition9_2_3 : statement := sorry
-```
-
-**Known Aristotle limitations** (as of 2026-03):
-- **Unicode identifiers** in types/structures (e.g., `D₄Rep`) cause load failures
-- **`axiom` declarations** trigger "unexpected axioms" warnings and may prevent loading
-- **`namespace` blocks** after axioms can cause "Function expected" errors
-- Workaround: use ASCII names, avoid axioms (use `admit` in helper lemmas instead),
-  keep the file flat without namespace blocks
-
-**Checking Aristotle status** (no CLI command exists):
-```bash
-python3 -c "
-import sys; sys.path.insert(0, '$(dirname $(which aristotle))/../pipx/venvs/aristotlelib/lib/python3.14/site-packages')
-import os, asyncio
-from aristotlelib.project import Project
-from aristotlelib.api_request import set_api_key
-set_api_key(os.environ['ARISTOTLE_API_KEY'])
-async def check():
-    p = await Project.from_id('PROJECT-UUID')
-    print(f'status={p.status.name}, pct={p.percent_complete}')
-    if p.status.name == 'COMPLETE':
-        await p.get_solution('output.lean')
-asyncio.run(check())
-"
-```
-Note: `aristotlelib` is installed in a pipx venv, not on the system Python path.
-
-### After Aristotle Returns
-
-- **Success:** Verify with `lake env lean`, copy proof, update status to `sorry_free`.
-- **False statement:** Mark `attention_needed`, post GitHub issue with counterexample.
-- **Failure/timeout:** Mark `attention_needed`, move on to next item.
 
 ## Scaffolding Anti-Patterns
 
@@ -287,7 +192,7 @@ Based on Phase 2 experience with issue sizing:
 - **Definitions:** 1-3 per issue (fast, low risk)
 - **Easy theorems** (direct application of Mathlib): 2-5 per issue
 - **Medium theorems** (multi-step proofs): 1-2 per issue
-- **Hard theorems** (may need Aristotle): 1 per issue
+- **Hard theorems**: 1 per issue
 - **Never mix difficulty levels** in one issue — a hard theorem blocks the easy ones
 
 ## Proven Proof Strategies
@@ -469,17 +374,6 @@ If the same gap blocks 3+ items (e.g., column orthogonality blocking all charact
 | Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch6 items | Workaround: concrete constructions |
 | Pigeonhole transposition | `Finset` API | Row/column counting for Young tableaux | Lemmas 5.13.1, 5.13.2 | Issues #776, #777 |
 
-## When Aristotle Is Unavailable
-
-If `aristotle` is not on PATH or fails to connect, don't waste time debugging it. Instead:
-
-1. Attempt the proof yourself (2-3 serious tries)
-2. If stuck, `sorry` the proof with a comment: `-- Escalate to Aristotle when available`
-3. Set items.json status to `attention_needed` (not `sent_to_aristotle`)
-4. Move on to the next item — don't block your entire session on one proof
-
-Aristotle availability varies by machine. Recording the need for escalation ensures a future session on a properly configured machine can pick it up.
-
 ## Proof Chain Completion Strategy
 
 When multiple sorry'd items exist, **prioritize completing already-started chains** over beginning new proofs. A "chain" is a sequence of items where proving one unblocks the next.
@@ -547,8 +441,7 @@ Pigeonhole-style counting arguments (e.g., "by counting, some row must have two 
 After 2 serious attempts:
 1. Sorry the combinatorial core with a precise comment describing the counting argument
 2. Complete the algebraic frame around it (this is valuable and independently reviewable)
-3. Escalate to Aristotle if available — combinatorial lemmas are good Aristotle candidates
-4. If Aristotle unavailable, file an issue with status `attention_needed`
+3. File an issue with status `attention_needed`
 
 This "algebraic frame + combinatorial sorry" pattern was successfully used in Lemmas 5.13.1 and 5.13.2 (Young symmetrizer proofs).
 
@@ -586,7 +479,7 @@ When a proof is too complex for a single session, extract helper lemmas into sep
 1. **State the helper as a separate `lemma`** in the same file, above the main theorem
 2. **Use `sorry` for the helper's proof** — this lets you test the main theorem's proof structure immediately
 3. **Commit the main theorem using the sorry'd helper** — this is valuable progress even if the helper is hard
-4. **Work on the helper separately** (or escalate to Aristotle)
+4. **Work on the helper separately**
 
 ```lean
 -- Helper extracted from complex proof
@@ -602,7 +495,7 @@ theorem main_result : conclusion := by
 
 Complex theorems may span multiple PRs. This is expected and desirable:
 - **PR 1**: State theorem + helpers, prove the algebraic frame, sorry the hard core
-- **PR 2**: Prove helper lemmas (or receive Aristotle results)
+- **PR 2**: Prove helper lemmas
 - **PR 3**: Close the last sorry
 
 Each PR must compile. Label intermediate PRs with the item ID so reviewers can track the chain.

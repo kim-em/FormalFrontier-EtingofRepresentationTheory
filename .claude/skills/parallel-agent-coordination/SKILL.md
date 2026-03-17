@@ -131,7 +131,7 @@ When the project transitions between phases (e.g., Phase 1 Source Preparation to
 
 - **Phase 1 (transcription/structure)**: Mechanical work, high parallelism, low cognitive load per item
 - **Phase 2 (dependency analysis)**: Reading comprehension, mathematical reasoning, lower parallelism
-- **Phase 3 (formalization)**: Lean proof writing, Aristotle escalation, dependency-ordered work
+- **Phase 3 (formalization)**: Lean proof writing, dependency-ordered work
 
 ### Tooling Gates
 
@@ -165,25 +165,6 @@ Phase 3 work must respect the dependency DAG — you can't formalize an item unt
 - Front-load foundational definitions (Chapter 1-2) — everything depends on them
 - Track the formalization frontier: the boundary between sorry-free and sorry'd items
 
-### Aristotle Coordination
-
-Aristotle adds a new dimension to coordination: async proof attempts running in parallel with Claude agents.
-
-**Constraints:**
-- Max 5 concurrent Aristotle projects
-- Deduplication: check `sent_to_aristotle` status before submitting
-- One submission per item at a time
-
-**Planner patterns:**
-- After Stage 3.1 scaffolding, plan an "Aristotle batch submission" issue
-- Plan periodic "Aristotle result harvesting" issues to check and incorporate results
-- Don't plan Claude work on items already sent to Aristotle (wait for result)
-
-**Worker patterns:**
-- Before starting an item, check if Aristotle already solved it
-- If you escalate to Aristotle mid-work, commit what you have, mark the PR partial
-- Record the Aristotle project ID in `progress/items.json` immediately
-
 ### Merge Order Matters
 
 In formalization, merge order affects what's available to downstream agents:
@@ -194,10 +175,9 @@ In formalization, merge order affects what's available to downstream agents:
 ### Formalization Anti-Patterns
 
 1. **Working on items with unmet dependencies** — wastes time, proof will need to change when dependencies are formalized
-2. **Submitting the same theorem to both Claude and Aristotle simultaneously** — wasteful duplication
-3. **Large PRs touching many items** — high conflict risk with parallel agents
-4. **Changing definition signatures after dependents exist** — cascading breakage across all agents
-5. **Not checking `.refs.md` before starting** — may miss that Mathlib already has the result
+2. **Large PRs touching many items** — high conflict risk with parallel agents
+3. **Changing definition signatures after dependents exist** — cascading breakage across all agents
+4. **Not checking `.refs.md` before starting** — may miss that Mathlib already has the result
 
 ## Lessons from Stage 3.2 Proof Wave (30 PRs)
 
@@ -240,23 +220,22 @@ From 30 PRs across 4 concurrent agents:
 - **Definitions/aliases:** 3-8 per PR (mechanical, rarely conflict)
 - **Infrastructure items:** 1 per PR (high complexity, needs careful review)
 
-Mixing difficulty levels in one issue causes the hard item to block all easy ones. Never combine a "may need Aristotle" theorem with straightforward proofs.
+Mixing difficulty levels in one issue causes the hard item to block all easy ones. Never combine a hard theorem with straightforward proofs.
 
 ### Housekeeping Cadence
 
 Regular housekeeping prevents accumulation of stale state. Planners should create review-type issues for these tasks periodically:
 
 **Every 10-15 merged PRs:**
-- **Aristotle result polling**: Check all `sent_to_aristotle` items for completed results. Incorporate successes, mark failures as `attention_needed`.
 - **items.json staleness audit**: Compare items.json status with actual sorry counts in Lean files. Fix any discrepancies.
 - **Stale PR triage**: Review open PRs with failing CI or merge conflicts. Close dead PRs, replan if needed.
 
 **Every 25 merged PRs (meditate trigger):**
 - **Skill and command refresh**: The meditate session handles this automatically.
 
-**Why this matters:** In Wave 5-6, stale Aristotle submissions and items.json drift caused agents to skip ready work or duplicate effort. PR #817 (Aristotle polling audit) and PR #824 (stale PR triage) were reactive fixes. Proactive housekeeping prevents these issues.
+**Why this matters:** In Wave 5-6, items.json drift caused agents to skip ready work or duplicate effort. PR #824 (stale PR triage) was a reactive fix. Proactive housekeeping prevents these issues.
 
-**Planner implementation:** When the planner sees that 10+ PRs have merged since the last review issue, create a review issue with deliverables covering the three housekeeping tasks above. This is separate from the summarize trigger (which focuses on progress reporting, not cleanup).
+**Planner implementation:** When the planner sees that 10+ PRs have merged since the last review issue, create a review issue with deliverables covering the housekeeping tasks above. This is separate from the summarize trigger (which focuses on progress reporting, not cleanup).
 
 ### Breadth-Depth Phase Balancing for Planners
 
