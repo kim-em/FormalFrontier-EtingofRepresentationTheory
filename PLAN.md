@@ -19,17 +19,17 @@ pdfseparate source/original.pdf pdf/raw-pages/%d.pdf
 
 ### Stage 1.2: Start Lean Build
 
-The `lean/` directory was created by `ff init` using `lake init <ProjectName> math`, where `<ProjectName>` is the repository name with the `FormalFrontier-` prefix stripped (e.g., `FormalFrontier-Rudin` → `Rudin`). Start downloading Mathlib now so it is ready by the time formalization begins.
+The Lean project was created at the repo root by `ff init` using `lake init <ProjectName> math`, where `<ProjectName>` is the repository name with the `FormalFrontier-` prefix stripped (e.g., `FormalFrontier-Rudin` → `Rudin`). Start downloading Mathlib now so it is ready by the time formalization begins.
 
 ```bash
-cd lean && lake build
+lake build
 ```
 
 This takes ~30 minutes the first time (Mathlib download and build). Start it in the background and proceed with the remaining Phase 1 stages. Having the Lean project available early allows agents to test Lean snippets while transcribing and analyzing structure.
 
-**Output:** `lean/.lake/` with compiled Mathlib artifacts.
+**Output:** `.lake/` with compiled Mathlib artifacts.
 
-**Verify:** `cd lean && lake build` exits successfully.
+**Verify:** `lake build` exits successfully.
 
 ### Stage 1.3: Frontmatter Detection
 
@@ -224,35 +224,7 @@ Categorize each:
 
 **Output:** `dependencies/external.json` — a list of external dependencies, each with a description, the items that need it, and the category.
 
-### Stage 2.3: Blueprint Assembly
-
-Combine `items.json`, `dependencies/internal.json`, and `dependencies/external.json` into a preliminary blueprint.
-
-This is a DAG of what needs to be formalized and in what order. Because the initial dependencies form a linear chain (each item depends only on its immediate predecessor), the initial DAG is a single path. That is fine — it will be refined in Stage 3.3.
-
-#### Blueprint tooling
-
-The blueprint uses a hybrid of two tools:
-
-- **leanblueprint** (https://github.com/PatrickMassot/leanblueprint): The rendering substrate. Produces an interactive HTML website with a dependency DAG and a PDF document. Uses LaTeX source with special macros (`\uses{}`, `\lean{}`, `\leanok`). This handles **all** blueprint nodes — both formal declarations and non-formal content (discussion blobs, introductions, external dependencies).
-- **LeanArchitect** (https://github.com/hanwenzhu/LeanArchitect, using https://github.com/kim-em/LeanArchitect/tree/blueprint-all until https://github.com/hanwenzhu/LeanArchitect/pull/8 is merged): Complements leanblueprint for Lean-backed nodes. Run externally with `extract_blueprint --all` against the project's compiled `.olean` files — no `require`, `import`, or attributes needed in the Lean source. Automatically infers dependencies between formal declarations and tracks formalization status via sorry detection. Provides JSON export for agent consumption.
-
-The split: leanblueprint owns the full DAG (formal + non-formal nodes). LeanArchitect automates the Lean-backed portion (theorems, definitions, lemmas), eliminating manual `\leanok` and `\uses{}` maintenance for those nodes. Non-formal nodes (discussion, introductions, external dependencies) use leanblueprint's LaTeX macros directly. The Lean source files are completely free of blueprint annotations.
-
-#### Steps
-
-1. Set up leanblueprint scaffolding in `blueprint/` (use `leanblueprint new` or copy from a template).
-2. Generate LaTeX blueprint nodes from `items.json` and dependency data. Each item becomes a LaTeX environment with `\label{}` and `\uses{}` annotations.
-3. Non-formalizable items (discussion, introduction, etc.) are included as LaTeX nodes for completeness — they appear in the DAG but don't need Lean declarations.
-4. Run `leanblueprint web` to generate the HTML dependency graph.
-
-The initial blueprint is purely LaTeX-based. LeanArchitect integration happens after Stage 3.1 when Lean scaffolding is compiled — run `extract_blueprint --all --json` against the `.olean` files to get the dependency graph and formalization status.
-
-**Output:** `blueprint/` directory with leanblueprint LaTeX source files.
-
-**Verify:** `leanblueprint web` succeeds and produces a valid dependency graph.
-
-### Stage 2.4: Research — Mathlib Coverage
+### Stage 2.3: Research — Mathlib Coverage
 
 For each external dependency and each item, search Mathlib for relevant material.
 
@@ -262,7 +234,7 @@ For each external dependency and each item, search Mathlib for relevant material
 
 **Output:** `research/mathlib-coverage.json` — mapping items and external deps to Mathlib declarations (with `#check` names).
 
-### Stage 2.5: Research — External Sources
+### Stage 2.4: Research — External Sources
 
 For items and dependencies not covered by Mathlib:
 
@@ -272,7 +244,7 @@ For items and dependencies not covered by Mathlib:
 
 **Output:** `research/external-sources.json`
 
-### Stage 2.6: Readiness Report
+### Stage 2.5: Readiness Report
 
 Prepare a human-readable report summarizing:
 
@@ -283,9 +255,9 @@ Prepare a human-readable report summarizing:
 
 **Output:** `READINESS.md`
 
-**Note:** This report is informational — do not pause for human review. Write the report and immediately continue to Stage 2.7.
+**Note:** This report is informational — do not pause for human review. Write the report and immediately continue to Stage 2.6.
 
-### Stage 2.7: Reference Attachment
+### Stage 2.6: Reference Attachment
 
 For each blob that has external dependencies or Mathlib matches, create a companion reference file.
 
@@ -299,19 +271,17 @@ These files are read by formalization agents when they work on the corresponding
 
 ### Stage 3.1: Lean Scaffolding
 
-The `lean/` project was created by `ff init` in Stage 1.2 and Mathlib was built then. Create `.lean` files for each formalizable item (theorems, definitions, lemmas — not discussion blobs).
+The Lean project was created at the repo root by `ff init` in Stage 1.2 and Mathlib was built then. Create `.lean` files for each formalizable item (theorems, definitions, lemmas — not discussion blobs).
 
 Set up the import chain:
-- Root file: `lean/{Title}.lean` importing all chapter files
-- Chapter files: `lean/{Title}/Chapter1.lean` importing all items in the chapter
-- Item files: `lean/{Title}/Chapter1/Theorem1_1.lean` with a sorry'd statement
+- Root file: `{Title}.lean` importing all chapter files
+- Chapter files: `{Title}/Chapter1.lean` importing all items in the chapter
+- Item files: `{Title}/Chapter1/Theorem1_1.lean` with a sorry'd statement
 
 Each item file should contain:
 - A sorry'd `theorem` or `def` statement based on the blob's content
 - A doc-string with the natural language statement from the book
 - Appropriate Mathlib imports
-
-No blueprint-specific annotations are needed — LeanArchitect runs externally with `--all` to extract the blueprint from the compiled `.olean` files.
 
 Example:
 ```lean
@@ -321,15 +291,13 @@ theorem bolzano_weierstrass {s : ℕ → ℝ} (hb : Bornology.IsBounded (Set.ran
   sorry
 ```
 
-Once scaffolding is complete, run `extract_blueprint single --all --json` against each module's `.olean` to get the blueprint JSON, and `leanblueprint web` to update the HTML dependency graph.
+**Output:** `{Title}/Chapter1/Theorem1_1.lean`, etc.
 
-**Output:** `lean/{Title}/Chapter1/Theorem1_1.lean`, etc.
-
-**Verify:** `cd lean && lake build` succeeds (everything compiles with sorries).
+**Verify:** `lake build` succeeds (everything compiles with sorries).
 
 ### Stage 3.2: Formalization Work Loop
 
-Orchestrate agents to formalize items, respecting the dependency DAG from the blueprint. Uses a tiered strategy: Claude agents first, with escalation to Aristotle (an automated theorem prover) for difficult proofs.
+Orchestrate agents to formalize items, respecting the dependency DAG.
 
 #### PR lifecycle
 
@@ -361,75 +329,11 @@ Each agent is assigned a task (an item or small group of related items). The age
 
 #### Task selection
 
-Agents query the blueprint to find ready work:
-1. Run `extract_blueprint single --all --json` against each module to get the current dependency graph and formalization status.
-2. Find nodes that still contain `sorry` but whose dependency nodes are all sorry-free.
-3. These are the items ready for formalization — pick one and work on it.
+Agents query `progress/items.json` and the dependency DAG to find ready work:
+1. Find items that still contain `sorry` but whose dependency items are all sorry-free.
+2. These are the items ready for formalization — pick one and work on it.
 
-Status updates are automatic: when an agent removes a `sorry`, the next extraction reflects the new status. No annotations needed in the Lean source. Non-formal nodes (discussion, external dependencies) are tracked via leanblueprint's LaTeX macros and `progress/items.json`.
-
-#### Tiered proving strategy
-
-Use a tiered approach to maximize throughput:
-
-1. **Claude first** — Claude agents attempt initial formalization: statement formalization, straightforward proofs, and definition translation. Most textbook items should be attempted by Claude first.
-
-2. **Escalate to Aristotle** — When a Claude agent fails to prove a theorem after 2-3 serious attempts, escalate to Aristotle. Record the escalation in `progress/items.json` by setting `"escalated_to_aristotle": true`.
-
-3. **Aristotle batch pass** — After Stage 3.1 scaffolding is complete, submit all sorry'd theorems to Aristotle as a batch. This runs concurrently with Claude agents working on other items. Any theorems Aristotle solves reduce the workload for Claude.
-
-#### Aristotle integration
-
-Aristotle is an automated theorem proving service that can fill `sorry` placeholders in Lean files. It is especially effective for standard mathematical proofs that follow well-known patterns.
-
-##### Submitting to Aristotle
-
-For each item to submit:
-
-1. **Prepare the file.** Create a temporary copy of the item's Lean file. The file must contain exactly one `sorry` (the target theorem). Change all other `sorry` occurrences to `admit`.
-
-2. **Gather context.** Collect sorry-free local Lean files that this item depends on (from the import chain). Skip Mathlib imports — Aristotle has Mathlib built in. If no local files are sorry-free yet (e.g., during the initial batch pass after Stage 3.1), submit with no context files. Pass context via `--context-files`.
-
-3. **Submit.**
-   ```bash
-   aristotle prove-from-file item_pending.lean --no-wait \
-     --no-auto-add-imports --context-files dep1.lean dep2.lean
-   ```
-
-4. **Record the project ID.** Aristotle returns a UUID. Store it in `progress/items.json`:
-   ```json
-   {
-     "Chapter1/Theorem1.1": {
-       "status": "sent_to_aristotle",
-       "aristotle_id": "uuid-here",
-       "last_updated": "2026-03-20"
-     }
-   }
-   ```
-
-5. **Clean up.** Delete the temporary file. Never commit files with `admit`.
-
-##### Monitoring and retrieval
-
-- **Poll every 5 minutes** for completion using the `aristotlelib` Python API.
-- **Respect the concurrency limit:** Aristotle allows at most 5 concurrent projects. Queue excess items and submit as slots free up.
-- **Deduplication:** Before submitting, check that the item is not already in `sent_to_aristotle` status. Only one submission per item at a time.
-- When a project completes, download the result to a temporary file for verification.
-
-##### Incorporating results
-
-When Aristotle returns a result:
-
-1. **Verify it compiles** against the local toolchain: copy the proof into the item's Lean file (under `lean/{Title}/...`) and run `lake build` for that module.
-2. **If it compiles clean:** Update status to `sorry_free` (if the item has no remaining sorries) or `proof_formalized`. Submit a PR.
-3. **If Aristotle reports the theorem is false:** Mark the item as `attention_needed`. Post a GitHub issue describing the counterexample Aristotle found. The formalized statement (from Stage 3.1) needs revision.
-4. **If it fails to compile** (toolchain version mismatch): Mark the item as `attention_needed` for manual review.
-
-##### Aristotle item statuses
-
-Items going through Aristotle use these statuses in `progress/items.json`:
-
-`statement_formalized` → `sent_to_aristotle` → `sorry_free` (success) or `attention_needed` (failure)
+Status updates are tracked in `progress/items.json`. Non-formal nodes (discussion, external dependencies) are also tracked there.
 
 #### Dependency tracking
 
@@ -444,7 +348,6 @@ Specialized triage agents should periodically review open issues for:
 - Missing low-level API lemmas needed across multiple items
 - Dependency ordering mistakes
 - Opportunities for useful tactics or metaprograms
-- Aristotle results that need attention (false statements, version mismatches)
 
 #### Formalization guidance
 
@@ -454,18 +357,103 @@ Specialized triage agents should periodically review open issues for:
 
 ### Stage 3.3: Dependency Trimming (post-formalization)
 
-Once items have sorry-free proofs, analyze actual dependencies using both LeanArchitect's inference (for formal declarations) and manual review (for non-formal nodes).
+Once items have sorry-free proofs, analyze actual dependencies by reviewing the proof terms and imports.
 
-For Lean-backed nodes, LeanArchitect automatically infers dependencies from proof terms — compare these against the conservative initial dependencies. For non-formal nodes (discussion blobs, external dependencies), review whether the initial dependency assumptions were accurate.
-
-Compare the inferred/reviewed dependencies against `dependencies/internal.json`:
+Compare the actual dependencies against `dependencies/internal.json`:
 - Which initial dependencies turned out to be unnecessary?
 - Are there unexpected dependencies that weren't in the original analysis?
 - Does the actual dependency structure reveal anything interesting about the book's organization?
 
 This is when we learn the true dependency structure of the book, which may differ significantly from the conservative initial assumption.
 
-**Output:** Updated `dependencies/internal.json` and blueprint reflecting actual dependencies.
+**Output:** Updated `dependencies/internal.json` reflecting actual dependencies.
+
+### Stage 3.5: Upstreaming Analysis
+
+Identify formalized results that may be worth contributing to Mathlib or related libraries.
+The output is a non-binding `UPSTREAMING.md` report — no actual upstreaming happens here.
+
+#### Criteria
+
+Include only results with **proofs genuinely new to Mathlib**. Exclude:
+- Items whose proof is a one-line call to an existing Mathlib declaration (pure wrappers)
+- Items that combine two or three Mathlib facts with trivial glue
+- Items where the proof quality, generality, or formulation is not at Mathlib level
+
+#### Phase 1: Lightweight triage
+
+Scan all sorry-free, proof-polished items. For each, make an initial judgment:
+
+- **Reject immediately** if the proof in the Lean file is a one-liner delegating to a named
+  Mathlib theorem — it's already in Mathlib.
+- **Keep as candidate** if the proof is substantive and the result feels absent from Mathlib's
+  API.
+
+Record the initial candidate list with a brief justification for each entry.
+
+#### Phase 2: Deep Mathlib research
+
+For each candidate, search the **local Mathlib source** (`.lake/packages/mathlib/`) for
+closely related results — do not rely on web searches or AI knowledge of Mathlib, which
+may be out of date. Open one GitHub issue per candidate to track the research and verdict.
+
+For each candidate, determine:
+1. Is the result already in Mathlib, possibly under a different name or with different type
+   class assumptions? (Check related files carefully — not just exact name matches.)
+2. Is there a close relative in Mathlib such that the candidate is just a straightforward
+   corollary or type-class variant?
+3. Is the proof approach genuinely new, or does it reconstruct something Mathlib already
+   proves elsewhere?
+
+Based on the research, assign one of three verdicts:
+
+- **Reject — insufficient interest:** The result is too narrow, the proof quality doesn't
+  meet Mathlib standards, or it's not a good fit.
+- **Reject — already in Mathlib:** Found an equivalent result. Create a GitHub issue to
+  refactor the proof to use the Mathlib declaration directly, and update the item's
+  `progress/items.json` status to `mathlib_covered`.
+- **Include in UPSTREAMING.md:** Genuinely new to Mathlib, correct, and at appropriate
+  generality and quality.
+
+#### Phase 3: Write UPSTREAMING.md
+
+Write `UPSTREAMING.md` at the repository root with the following structure:
+
+```markdown
+# Upstreaming Candidates
+
+These are suggestions only — no actual upstreaming has occurred.
+
+## Included
+
+### <Item ID> — `theorem_name`
+
+**File:** `path/to/Item.lean`
+
+**Statement:** (the Lean statement)
+
+**Why it's new:** What was searched, what was found, why this is absent.
+
+**Suggested home:** Which Mathlib file/module it belongs in.
+
+## Excluded
+
+### <Item ID> — reason
+
+One-line reason (already in Mathlib as `FooBar.baz`, too narrow, etc.).
+```
+
+#### Output
+
+- `UPSTREAMING.md` at the repository root
+- GitHub issues for any items whose proofs should be refactored to use Mathlib directly
+- `progress/items.json` updated with `"upstreaming_status"` field:
+  - `"candidate"` — included in UPSTREAMING.md
+  - `"mathlib_covered"` — already in Mathlib, refactor issue opened
+  - `"rejected"` — not a candidate
+
+**Verify:** `UPSTREAMING.md` exists. Every proof-polished item has an `upstreaming_status`
+in `progress/items.json`.
 
 ---
 
@@ -523,8 +511,6 @@ Commits made during a turn should mention the corresponding progress file in the
 Item statuses flow through:
 `identified` → `extracted` → `statement_formalized` → `proof_formalized` → `sorry_free` → `dependency_trimmed`
 
-Items escalated to Aristotle use: `statement_formalized` → `sent_to_aristotle` → `sorry_free` (success) or `attention_needed` (failure)
-
 ```json
 {
   "Chapter1/Theorem1.1": {
@@ -532,13 +518,6 @@ Items escalated to Aristotle use: `statement_formalized` → `sent_to_aristotle`
     "last_updated": "2026-03-20",
     "pr": "#42",
     "notes": ""
-  },
-  "Chapter2/Theorem2.3": {
-    "status": "sent_to_aristotle",
-    "last_updated": "2026-03-21",
-    "aristotle_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-    "escalated_to_aristotle": true,
-    "notes": "Claude failed after 3 attempts, escalated"
   }
 }
 ```

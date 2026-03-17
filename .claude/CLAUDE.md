@@ -65,36 +65,6 @@ Aristotle is an automated theorem prover. Escalate to it when Claude can't prove
 - **False statement:** Mark `attention_needed`, post a GitHub issue with the counterexample — the formalized statement needs fixing
 - **Failure/timeout/version mismatch:** Mark `attention_needed`, move on
 
-## Blueprint Tooling
-
-The blueprint uses a hybrid of **leanblueprint** (rendering, full DAG) and **LeanArchitect** (external extraction).
-
-- **leanblueprint** owns the complete dependency graph — formal declarations and non-formal content (discussion, introductions, external deps)
-- **LeanArchitect** runs externally with `extract_blueprint --all` against compiled `.olean` files — automates dependency inference and sorry detection. No `require`, `import`, or attributes needed in the Lean source.
-- Non-formal nodes use leanblueprint's LaTeX macros (`\uses{}`, `\leanok`) directly
-
-### Querying the blueprint
-
-From the `lean/` directory, after `lake build`:
-
-```bash
-# Extract JSON for a single module
-lake env /path/to/LeanArchitect/.lake/build/bin/extract_blueprint \
-  single --all --json --build .lake/build MyProject.Chapter1.Theorem1
-```
-
-The `lake env` wrapper sets `LEAN_PATH` so the extractor can find `.olean` files. LeanArchitect is built separately — it is NOT a dependency of this project.
-
-- `leanblueprint web` — visual HTML dependency graph for all nodes
-
-### Finding ready work
-
-Query the extracted JSON for nodes where:
-- The node still contains `sorry` (not yet proved)
-- All dependency nodes are sorry-free (prerequisites are done)
-
-These nodes are ready for formalization. Status updates are automatic — removing a `sorry` and recompiling updates the extraction output.
-
 ## PR Workflow
 
 ### Submitting PRs
@@ -128,7 +98,6 @@ Never skip this step. Downstream agents are blocked on `main` until merged PRs l
 - **Per-turn handoff files:** `progress/YYYY-MM-DDTHH-MM-SSZ.md` (UTC timestamp)
 - Stage-level summary: `PROGRESS.md` (optional, human-facing)
 - Item-level: `progress/items.json`
-- Blueprint status: automatic via LeanArchitect (sorry detection)
 - Do NOT modify `PLAN.md` — it is the reference plan
 - Blockers and discussion: GitHub issues
 
@@ -164,32 +133,3 @@ At the start of every turn, read the most recent file in `progress/` (sorted alp
 lake exe cache get
 ```
 This downloads pre-built Mathlib oleans and avoids a full rebuild (1800+ jobs). Skipping this wastes significant time and compute.
-
-
-# Pod Agent Session
-
-You are running as an autonomous agent launched by `pod`. This is a
-non-interactive session via `claude -p` — there is no human to answer
-questions. Never ask for confirmation or approval. Just do the work.
-
-Each agent runs in its own git worktree on its own branch, coordinating
-via GitHub issues, labels, and PRs. The `coordination` script is already
-on your PATH — just run it directly (e.g. `coordination orient`,
-`coordination claim 42`). Do NOT search for it or try to locate it.
-
-Session UUID is available as `$POD_SESSION_ID`.
-
-## Agent Types
-
-- **Planners** (`/plan`): create work items as GitHub issues, then exit
-- **Workers** (`/feature`, `/review`, `/summarize`, `/meditate`): claim
-  and execute issues using the `agent-worker-flow` skill
-
-See your `/command` file and the `agent-worker-flow` skill for the full
-workflow.
-
-## Off-limits Files
-
-Agents must not modify the project's top-level CLAUDE.md (`.claude/CLAUDE.md`)
-or roadmap file (`PLAN.md`). PRs touching these files are rejected by
-`coordination create-pr`. Update skills and commands instead.
