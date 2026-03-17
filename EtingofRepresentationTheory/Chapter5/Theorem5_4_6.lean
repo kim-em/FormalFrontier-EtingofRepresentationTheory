@@ -34,7 +34,12 @@ private lemma trivial_character_eq_one (g : G) :
 
 /-- The trivial FDRep is simple. -/
 private lemma trivialFDRep_simple :
-    Simple (FDRep.of (Representation.trivial ℂ G ℂ)) := by sorry
+    Simple (FDRep.of (Representation.trivial ℂ G ℂ)) := by
+  haveI : NeZero (Nat.card G : ℂ) := by
+    rw [Nat.card_eq_fintype_card]
+    exact ⟨Nat.cast_ne_zero.mpr (Fintype.card_pos (α := G)).ne'⟩
+  apply FDRep.simple_of_isSimpleModule_asModule
+  done
 
 /-- Scalar action on dim ≥ 2 irrep contradicts simplicity. -/
 private lemma scalar_contradicts_simplicity [IsSimpleGroup G]
