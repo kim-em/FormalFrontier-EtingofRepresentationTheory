@@ -4218,7 +4218,7 @@
     "end_page": "168",
     "start_line": 21,
     "end_line": 35,
-    "status": "proof_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter6/Definition6.6.3_maps",
