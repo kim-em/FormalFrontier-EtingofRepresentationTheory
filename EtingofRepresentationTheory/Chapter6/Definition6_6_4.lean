@@ -1,4 +1,6 @@
-import Mathlib
+import EtingofRepresentationTheory.Chapter2.Definition2_8_3
+import EtingofRepresentationTheory.Chapter6.Definition6_6_1
+import EtingofRepresentationTheory.Chapter6.Definition6_6_2
 
 /-!
 # Definition 6.6.4: Reflection Functor F⁻ᵢ (at a Source)
@@ -17,10 +19,28 @@ BGP reflection functors are not in Mathlib. The cokernel-based construction uses
 `Submodule.mkQ` for quotient maps and `LinearMap.range` for image.
 -/
 
+/-- The type indexing the direct sum for F⁻ᵢ: pairs (j, h) where h : i ⟶ j is an arrow
+out of the source vertex i. -/
+def Etingof.ArrowsOutOf (V : Type*) [Quiver V] (i : V) :=
+  Σ (j : V), (i ⟶ j)
+
 /-- The reflection functor F⁻ᵢ at a source vertex i, sending representations of Q
-to representations of Q̄ᵢ. At vertex i, replaces V_i with coker(V_i → ⊕_{i→j} V_j).
+to representations of Q̄ᵢ (the quiver with arrows at i reversed).
+
+At vertex k ≠ i, F⁻ᵢ(ρ)_k = ρ_k (unchanged).
+At vertex i, F⁻ᵢ(ρ)_i = coker(ψ) where ψ : ρ_i → ⊕_{i→j} ρ_j is the sum of
+the representation maps ρ(h) for each arrow h : i → j.
+
+The linear maps in the reversed quiver Q̄ᵢ are:
+- For arrows not touching i: unchanged from ρ
+- For arrows into i in Q̄ᵢ (= reversed arrows out of i in Q):
+  ρ_j → ⊕_{i→j} ρ_j → coker(ψ) (inclusion then quotient)
+
 (Etingof Definition 6.6.4) -/
 noncomputable def Etingof.reflectionFunctorMinus
-    (V : Type*) [Quiver V] [DecidableEq V] (i : V) :
-    sorry := -- TODO: needs Rep Q and Rep Q̄ᵢ types
+    {k : Type*} [CommSemiring k]
+    (V : Type*) [DecidableEq V] [Quiver V]
+    (i : V) (hi : Etingof.IsSource V i)
+    (ρ : Etingof.QuiverRepresentation k V) :
+    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) :=
   sorry
