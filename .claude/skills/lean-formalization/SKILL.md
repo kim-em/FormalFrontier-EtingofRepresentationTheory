@@ -197,7 +197,7 @@ Based on Phase 2 experience with issue sizing:
 
 ## Proven Proof Strategies
 
-Patterns that have succeeded in this project, derived from 70+ merged proof PRs (through wave 11).
+Patterns that have succeeded in this project, derived from 90+ merged proof PRs (through wave 14).
 
 ### Mathlib Alias Pattern (Chapter 2)
 
@@ -593,6 +593,44 @@ example : reflectionResult₁ = expected₁ := by decide
 
 **Caution:** `decide` only works when all types are decidable and small. It won't work for general `n` or abstract algebraic structures.
 
+## Strong Induction on Coordinate Sums (Root System Pattern)
+
+For proofs involving positive roots or dimension vectors where the claim is "every element can be reached from simple elements via reflections":
+
+1. **Induct on `∑ dᵢ`** (the coordinate sum of the dimension vector)
+2. **Base case:** When `∑ dᵢ` is minimal (e.g., a simple root `eᵢ`), the claim holds trivially
+3. **Inductive step:** Find a "good vertex" `k₀` where `(B·d)_{k₀} > 0` (positive entry in Cartan matrix product)
+4. **Key lemma:** If no good vertex exists, construct `d' = d - e_{k₀}` and show `B(d', d') ≤ 0`, contradicting positive-definiteness
+
+**Implementation pattern:** Build helper lemmas systematically:
+- Cartan matrix symmetry (`cartanMatrix_symm`)
+- Simple reflection properties (`simpleReflection_preserves_bilinearForm`)
+- `exists_good_vertex` (by contradiction using positive-definiteness)
+- Main induction with `Nat.strongRecOn` or `WellFoundedRelation`
+
+This pattern proved Theorem 6.8.1 (reaching simple roots via reflections) — the linchpin of Gabriel's theorem. It's applicable to any root-system argument requiring structural induction.
+
+## Rank-Nullity for Non-Commutative Hom Spaces
+
+For proofs about `Hom_A(P, M)` where `A` is a non-commutative algebra:
+
+1. Use `LinearMap.finrank_range_add_finrank_ker` for Hom additivity on short exact sequences
+2. Use `Submodule.comapSubtypeEquivOfLe` for relating submodule preimages
+3. For composition factor simplicity: `covBy_iff_quot_is_simple`
+
+**Key workaround:** `LinearEquiv.congrRight` requires commutativity. For non-commutative algebras, manually construct k-linear equivalences on Hom spaces instead. This was the successful pattern for Proposition 9.2.3.
+
+## Partial Proof Publication Pattern
+
+When a theorem has conceptually independent parts (e.g., symmetric power + exterior power):
+
+1. **Split the theorem** into independent sub-declarations
+2. **Prove the tractable part** completely (sorry-free)
+3. **Sorry the hard part** with an explicit issue filed
+4. **Submit as `proof_partial`** in items.json
+
+This is strictly better than leaving the entire theorem sorry'd. Downstream work that only needs the proved part can proceed. Example: Example 5.19.3 symmetric power was proved completely while the exterior power part (blocked by the ExteriorAlgebra/PiTensorProduct coercion gap) was sorry'd with an issue.
+
 ## Known Dead-Ends (Don't Waste Context Windows)
 
 These are proof approaches that multiple agents have attempted and failed. Don't retry them without new Mathlib infrastructure.
@@ -616,9 +654,25 @@ These are proof approaches that multiple agents have attempted and failed. Don't
 
 **Status:** Documented in detail above (Type-Level If/Else Diamond Issue). The workaround is to sorry the `instModule` field. Don't attempt to solve the diamond — it requires a structural refactor.
 
+### Aristotle Version Mismatch (v4.24 → v4.28)
+
+**Problem:** Aristotle proofs are generated against Lean v4.24 / Mathlib v4.24, but this project runs v4.28. Completed proofs arrive with 10-20+ API change errors: renamed tactics, changed signatures, moved lemmas.
+
+**What fails:** Direct integration of Aristotle proofs — they won't compile without systematic adaptation work (renamed lemmas, changed API signatures, moved declarations).
+
+**Status:** Affects all Aristotle submissions. Proposition 2.7.1 had 19 errors; Theorem 5.18.1(i) similar. **Adaptation is a separate feature issue**, not inline fixup work. When creating issues for Aristotle adaptations, tag them explicitly as "adapt Aristotle proof" so agents know the work type.
+
+### Aristotle Import Isolation
+
+**Problem:** Aristotle cannot resolve project-local imports (`EtingofRepresentationTheory.*`). Proofs that depend on project-specific definitions fail at submission time.
+
+**What fails:** Theorem 5.17.1, Proposition 6.6.7 failed due to project-local imports. Re-submission with inlined definitions or `--context-folder` is needed.
+
+**Status:** Not a dead-end but a persistent friction source. Workaround: submit self-contained files to Aristotle, or use `--context-folder` to provide project context.
+
 ## Common Failure Modes
 
-From Phase 2 review patterns and Stage 3.2 proof experience (70+ merged PRs through wave 11):
+From Phase 2 review patterns and Stage 3.2 proof experience (90+ merged PRs through wave 14):
 
 1. **Wrong Mathlib declaration name.** Always `#check` the declaration before using it.
 2. **Fabricated references.** If `.refs.md` cites a Mathlib declaration, verify it exists.
@@ -629,6 +683,8 @@ From Phase 2 review patterns and Stage 3.2 proof experience (70+ merged PRs thro
 7. **FDRep abstraction fighting.** If your proof requires distributing `.hom.hom` over sums or otherwise unwrapping 3+ layers of categorical abstraction, you're fighting the wrong abstraction. See the FDRep Categorical Plumbing patterns above for alternatives.
 8. **Universe level mismatches.** Representation theory proofs sometimes need explicit universe annotations (`.{v}`) especially when working with Jacobson radical or maximal ideal APIs. If type unification fails mysteriously, try adding explicit universe parameters.
 9. **Sinking entire context windows on known dead-ends.** Before starting a proof, check the "Known Dead-Ends" section above. If the proof requires bridging `ExteriorAlgebra` ↔ `PiTensorProduct` or resolving the `if`-branching diamond, sorry it immediately and move on. Multiple agents have confirmed these are blocked on missing infrastructure.
+10. **Opaque placeholder accumulation.** Defining key structures as `sorry : FDRep k G` (e.g., `SchurModule k N lam`) creates downstream dependency chains that block entire proof clusters. When you must sorry a definition, prefer making the carrier type concrete and sorry-ing only specific operations/instances (see "Never sorry a Type" above). Each opaque placeholder blocks all items that depend on it.
+11. **Aristotle proof integration without adaptation.** Aristotle proofs target v4.24 but the project runs v4.28. Never try to integrate an Aristotle proof directly — it needs systematic API adaptation first (renamed lemmas, changed signatures). See "Known Dead-Ends" for details.
 
 ## Breadth-vs-Depth Phase Awareness
 
@@ -646,7 +702,11 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 11)
-The project has 188/583 items sorry-free (32.2%) with a proof backlog of 43 items. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
+### Current Status (as of Wave 14)
+The project has 191/583 items sorry-free (32.8%) with 109 sorry occurrences across 41 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
 
-**Key velocity insight from waves 9-11:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Plan accordingly — don't create more statement issues than the proof pipeline can absorb.
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (65 sorries across 22 files). Gabriel's theorem chain (Ch6) is progressing: 3/7 sorry-free with Theorem 6.8.1 (linchpin) proven. Ch9 saw its first proof completion (Proposition 9.2.3).
+
+**Velocity trend:** Declining as remaining items are harder. 16 claimed issues without PRs after 24h suggest agents hitting items that resist standard tactics. The easy wins are done — remaining items require deep proof work or new Mathlib infrastructure.
+
+**Key velocity insight from waves 9-14:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Plan accordingly — don't create more statement issues than the proof pipeline can absorb.
