@@ -725,11 +725,35 @@ theorem IrrepDecomp.n_eq_card_simples [NeZero (Nat.card G : k)]
   ⟨D.columnFDRep, D.columnFDRep_simple, D.columnFDRep_injective, D.columnFDRep_surjective⟩
 
 /-- Each dimension `d i` in the Wedderburn-Artin decomposition equals the
-`Module.finrank k` of the corresponding irreducible representation. -/
+`Module.finrank k` of the corresponding irreducible representation.
+
+**WARNING**: This statement is likely incorrect as written. It claims `D.d i = finrank k (V i)`
+for an *arbitrary* complete set `V` of non-isomorphic simples, but `V` could list them in a
+different order than `D.columnFDRep`. The correct statement should involve a permutation:
+`∃ σ : Equiv.Perm (Fin D.n), ∀ i, D.d (σ i) = finrank k (V i)`.
+Downstream uses in `RegularCharacter.lean` and `Theorem5_1_5.lean` should be updated
+to work with the permuted version (sums over permutations are equal). -/
 theorem IrrepDecomp.d_eq_finrank [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
     (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
     (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) :
     ∀ i, D.d i = Module.finrank k (V i) := by
+  intro i
+  -- V i is simple, so by columnFDRep_surjective, V i ≅ columnFDRep j for some j
+  obtain ⟨j, ⟨eVj⟩⟩ := D.columnFDRep_surjective (V i) (hV i)
+  -- columnFDRep i is simple, so by hsurj, columnFDRep i ≅ V j' for some j'
+  obtain ⟨j', ⟨eCj'⟩⟩ := hsurj (D.columnFDRep i) (D.columnFDRep_simple i)
+  -- By the iso V i ≅ columnFDRep j, finrank k (V i) = D.d j
+  have hfr : Module.finrank k (V i) = D.d j := by
+    rw [← D.finrank_columnFDRep j]
+    exact LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eVj)
+  -- By the iso columnFDRep i ≅ V j', finrank k (V j') = D.d i
+  have hfr' : Module.finrank k (V j') = D.d i := by
+    rw [← D.finrank_columnFDRep i]
+    exact (LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eCj')).symm
+  -- The bijection σ : i ↦ j (where V i ≅ columnFDRep j) gives finrank k (V i) = D.d (σ i).
+  -- We need D.d i = D.d (σ i), i.e. σ = id on d values. This does NOT follow for general V:
+  -- V could be a permutation of columnFDRep that swaps blocks of different sizes.
+  -- The theorem statement needs to be corrected to use an explicit permutation σ.
   sorry
