@@ -214,6 +214,8 @@ theorem Etingof.projective_cover_hom_multiplicity
     (N : Type*) [AddCommGroup N] [Module A N]
     [Module k N] [IsScalarTower k A N] [SMulCommClass A k N]
     [Module.Finite k N]
+    (hM_complete : ∀ (S T : Submodule A N), S ⋖ T →
+      ∃ j, Nonempty ((↥T ⧸ S.comap T.subtype) ≃ₗ[A] M j))
     (s : CompositionSeries (Submodule A N))
     (hs_head : s.head = ⊥) (hs_last : s.last = ⊤) :
     ∀ i, Module.finrank k (P i →ₗ[A] N) =
@@ -263,7 +265,76 @@ theorem Etingof.projective_cover_hom_multiplicity
       rw [RelSeries.head_eraseLast]; exact hs'_head
     have h_el_len : s'.eraseLast.length = n := by simp [hn]
     rw [← ih N'' s'.eraseLast h_el_head rfl h_el_len i]
-    -- Now need: finrank(P i →ₗ N') = finrank(P i →ₗ N'') + finrank(P i →ₗ last_factor)
-    -- This follows from the Hom additivity for projective modules
-    -- and the identification of the last factor with the quotient N'/N''
-    sorry
+    -- Apply Hom additivity: finrank(P i →ₗ N') = finrank(P i →ₗ N'') + finrank(P i →ₗ N'/N'')
+    -- N'' is a submodule of N' since the series is increasing
+    -- The submodule of ↥N' corresponding to N'' is N''.comap N'.subtype
+    subst hs'_last
+    set Q := Submodule.comap (s'.last).subtype N'' with hQ_def
+    -- P i is finite-dimensional over k (from Module.Finite A (P i) and Module.Finite k A)
+    haveI : Module.Finite k (P i) := Module.Finite.trans A (P i)
+    -- ↥(s'.last) is finite-dimensional over k (k-subspace of finite-dim N)
+    haveI : Module.Finite k ↥(s'.last) :=
+      FiniteDimensional.finiteDimensional_submodule ((s'.last).restrictScalars k)
+    -- N'' ≤ s'.last from the composition series
+    have hN''_le : N'' ≤ s'.last :=
+      (s'.eraseLast_last_rel_last (by omega)).le
+    -- ↥Q ≃ₗ[k] ↥N'' via comapSubtypeEquivOfLe
+    have e := Submodule.comapSubtypeEquivOfLe hN''_le
+    have hQ_eq : Module.finrank k (P i →ₗ[A] ↥Q) = Module.finrank k (P i →ₗ[A] ↥N'') := by
+      apply LinearEquiv.finrank_eq
+      exact LinearEquiv.mk
+        { toFun := fun f => (e.toLinearMap).comp f
+          map_add' := fun f g => by simp [LinearMap.comp_add]
+          map_smul' := fun c f => by simp [LinearMap.comp_smul] }
+        (fun f => (e.symm.toLinearMap).comp f)
+        (fun f => by simp)
+        (fun f => by simp)
+    -- Apply Hom additivity for projective modules
+    have haddit := finrank_hom_additive_of_projective
+      (R := A) (F := k) (P := P i) (N := ↥(s'.last)) Q
+    rw [haddit, hQ_eq]
+    -- Suffices to show finrank(P i →ₗ S) = ite (Nonempty (S ≃ₗ M i)) 1 0
+    -- where S = ↥(s'.last) ⧸ Q is the last composition factor
+    congr 1
+    set S := (↥(s'.last) ⧸ Q)
+    split
+    · -- Case: S ≅ M i → finrank = 1
+      rename_i h
+      obtain ⟨iso⟩ := h
+      -- Construct k-linear equiv Hom(P i, S) ≃ₗ[k] Hom(P i, M i)
+      have hom_equiv : Module.finrank k (P i →ₗ[A] S) = Module.finrank k (P i →ₗ[A] M i) := by
+        apply LinearEquiv.finrank_eq
+        exact LinearEquiv.mk
+          { toFun := fun f => iso.toLinearMap.comp f
+            map_add' := fun f g => by simp [LinearMap.comp_add]
+            map_smul' := fun c f => by simp [LinearMap.comp_smul] }
+          (fun f => iso.symm.toLinearMap.comp f)
+          (fun f => by simp)
+          (fun f => by simp)
+      rw [hom_equiv, hP i i, if_pos rfl]
+    · -- Case: S ≇ M i → finrank = 0
+      rename_i h
+      -- S is simple (composition factor from CovBy step)
+      have hcovby : N'' ⋖ s'.last := s'.eraseLast_last_rel_last (by omega)
+      haveI : IsSimpleModule A (↥(s'.last) ⧸ Q) :=
+        (covBy_iff_quot_is_simple hN''_le).mp hcovby
+      -- S ≅ M j for some j (completeness of simple modules)
+      obtain ⟨j, ⟨iso_j'⟩⟩ := hM_complete N'' s'.last hcovby
+      -- Convert iso_j' to use Q (definitionally equal but Lean needs the rewrite)
+      have iso_j : S ≃ₗ[A] M j := by
+        change (↥(s'.last) ⧸ Q) ≃ₗ[A] M j
+        rw [hQ_def]; exact iso_j'
+      -- j ≠ i (otherwise S ≅ M j ≅ M i, contradicting h)
+      have hji : j ≠ i := by
+        intro hji; subst hji; exact h ⟨iso_j⟩
+      -- finrank(P i →ₗ S) = finrank(P i →ₗ M j) = 0
+      have hom_equiv : Module.finrank k (P i →ₗ[A] S) = Module.finrank k (P i →ₗ[A] M j) := by
+        apply LinearEquiv.finrank_eq
+        exact LinearEquiv.mk
+          { toFun := fun f => iso_j.toLinearMap.comp f
+            map_add' := fun f g => by simp [LinearMap.comp_add]
+            map_smul' := fun c f => by simp [LinearMap.comp_smul] }
+          (fun f => iso_j.symm.toLinearMap.comp f)
+          (fun f => by simp)
+          (fun f => by simp)
+      rw [hom_equiv, hP i j, if_neg (Ne.symm hji)]
