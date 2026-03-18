@@ -113,6 +113,11 @@ theorem cycleTypePsumProduct_eq_fullCycleType (n : ℕ) (σ : Equiv.Perm (Fin n)
   unfold cycleTypePsumProduct fullCycleType
   rw [Multiset.map_add, Multiset.prod_add, Multiset.map_replicate, Multiset.prod_replicate]
 
+/-- Each psum polynomial equals a sum of monomials: p_m = ∑ i, monomial (single i m) 1. -/
+theorem psum_eq_sum_monomial (m : ℕ) :
+    MvPolynomial.psum (Fin n) ℂ m = ∑ i : Fin n, MvPolynomial.monomial (Finsupp.single i m) 1 := by
+  simp only [MvPolynomial.psum, MvPolynomial.X_pow_eq_monomial]
+
 /-- The coefficient of x^λ in a product of psum polynomials equals the number of
 monochromatic colorings. This is the polynomial side of the bijection. -/
 theorem coeff_psum_prod_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
