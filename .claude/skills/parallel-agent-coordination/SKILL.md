@@ -91,6 +91,14 @@ Stale claims, labels, and branches accumulate when agents crash or PRs are aband
 
 Issues with `claimed` label but no PR after several hours are stale. Use `coordination release-stale-claims` to release them (default 4h threshold). Planners should check for stale claims during orientation.
 
+**To release a specific claim manually** (no `unclaim` command exists):
+```bash
+gh issue edit N --remove-label claimed
+gh issue comment N --body "Releasing claim: <reason>"
+```
+
+**Warning:** `coordination release-stale-claims 0` releases ALL claimed issues including your own. Never use threshold 0. To release specific claims, use `gh issue edit` directly.
+
 ### Stale `has-pr` Labels
 
 If a PR was closed without merging, the issue may still have `has-pr` (excluding it from `list-unclaimed`). Fix by removing the label and adding `replan`:
