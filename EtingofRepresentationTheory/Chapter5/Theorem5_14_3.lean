@@ -63,9 +63,6 @@ noncomputable def cycleTypePsumProduct (n : ℕ) (σ : Equiv.Perm (Fin n)) :
   (σ.cycleType.map (MvPolynomial.psum (Fin n) ℂ)).prod *
     MvPolynomial.psum (Fin n) ℂ 1 ^ (n - σ.support.card)
 
--- Keep old name for backwards compatibility with Theorem5_15_1 (also needs fixing)
-noncomputable abbrev cycleTypeHsymmProduct := cycleTypePsumProduct
-
 /-- **Theorem 5.14.3** (Character formula via power sums): The character of the permutation
 module U_λ at a permutation σ with cycle type i = (i₁, i₂, ...) equals the coefficient
 of x^λ in ∏_{m≥1} p_m(x)^{i_m}, where p_m is the power sum symmetric polynomial

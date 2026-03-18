@@ -67,7 +67,7 @@ theorem Theorem5_15_1
     (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
     spechtModuleCharacter n la σ =
       MvPolynomial.coeff (Nat.Partition.toFinsupp la + rhoShift n)
-        (vandermondePoly n * cycleTypeHsymmProduct n σ) := by
+        (vandermondePoly n * cycleTypePsumProduct n σ) := by
   sorry
 
 end Etingof
