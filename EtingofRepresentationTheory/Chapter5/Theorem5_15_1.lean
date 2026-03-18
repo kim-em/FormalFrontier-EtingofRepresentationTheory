@@ -48,9 +48,10 @@ noncomputable def rhoShift (n : ℕ) : Fin n →₀ ℕ :=
 Since V_λ is a left ideal of ℂ[S_n], left multiplication by `of σ` preserves it. -/
 noncomputable def spechtModuleAction (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) : ↥(SpechtModule n la) →ₗ[ℂ] ↥(SpechtModule n la) where
-  toFun := fun ⟨m, hm⟩ => ⟨MonoidAlgebra.of ℂ _ σ * m, sorry⟩
-  map_add' := sorry
-  map_smul' := sorry
+  toFun := fun ⟨m, hm⟩ => ⟨MonoidAlgebra.of ℂ _ σ * m,
+    (SpechtModule n la).smul_mem (MonoidAlgebra.of ℂ _ σ) hm⟩
+  map_add' := fun ⟨a, _⟩ ⟨b, _⟩ => Subtype.ext (mul_add _ a b)
+  map_smul' := fun _ ⟨m, _⟩ => Subtype.ext (Algebra.mul_smul_comm _ _ m)
 
 /-- The character of the Specht module V_λ at a permutation σ ∈ S_n, defined as the
 trace of left multiplication by σ restricted to V_λ ⊆ ℂ[S_n]. -/
