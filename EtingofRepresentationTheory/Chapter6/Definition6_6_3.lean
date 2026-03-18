@@ -113,3 +113,68 @@ noncomputable def Etingof.reflectionFunctorPlus
             | isFalse _ =>
               intro e
               exact ρ.mapLinear e)
+
+section ReflectionFunctorPlusAPI
+
+/-! ## API for `reflectionFunctorPlus`
+
+The reflection functor `F⁺ᵢ` is defined using `Decidable.casesOn`, making the types
+at each vertex opaque. These API lemmas provide `LinearEquiv`s that reduce the
+`Decidable.casesOn` once, so downstream proofs can compose them without
+re-doing the case analysis. -/
+
+/-- At a vertex v ≠ i, the type `F⁺ᵢ(ρ).obj v` is propositionally equal to `ρ.obj v`. -/
+theorem Etingof.reflFunctorPlus_obj_ne
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) v = ρ.obj v := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
+/-- At vertex i, the type `F⁺ᵢ(ρ).obj i` is propositionally equal to `ker(sinkMap i)`. -/
+theorem Etingof.reflFunctorPlus_obj_eq
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) i = ↥(ρ.sinkMap i).ker := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› i i) with
+  | .isTrue _ => rw [hd]
+  | .isFalse hii => exact absurd rfl hii
+
+/-- `LinearEquiv` at vertex v ≠ i: `F⁺ᵢ(ρ).obj v ≃ₗ[k] ρ.obj v`.
+This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition. -/
+noncomputable def Etingof.reflFunctorPlus_equivAt_ne
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) v ≃ₗ[k] ρ.obj v := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
+/-- `LinearEquiv` at vertex i: `F⁺ᵢ(ρ).obj i ≃ₗ[k] ker(sinkMap i)`.
+This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition. -/
+noncomputable def Etingof.reflFunctorPlus_equivAt_eq
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) i ≃ₗ[k] ↥(ρ.sinkMap i).ker := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› i i) with
+  | .isTrue _ => rw [hd]
+  | .isFalse hii => exact absurd rfl hii
+
+end ReflectionFunctorPlusAPI

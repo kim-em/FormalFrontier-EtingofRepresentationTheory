@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter6.Definition6_6_1
 import EtingofRepresentationTheory.Chapter6.Definition6_6_2
+import EtingofRepresentationTheory.Chapter6.Definition6_6_3
 import Mathlib.Algebra.DirectSum.Module
 import Mathlib.LinearAlgebra.Quotient.Defs
 
@@ -144,3 +145,68 @@ noncomputable def Etingof.reflectionFunctorMinus
             | isFalse _ =>
               intro e
               exact ρ.mapLinear e)
+
+section ReflectionFunctorMinusAPI
+
+/-! ## API for `reflectionFunctorMinus`
+
+Dual of the `reflectionFunctorPlus` API. Provides `LinearEquiv`s that reduce
+the `Decidable.casesOn` in the definition of `reflectionFunctorMinus`. -/
+
+/-- At a vertex v ≠ i, the type `F⁻ᵢ(ρ).obj v` is propositionally equal to `ρ.obj v`. -/
+theorem Etingof.reflFunctorMinus_obj_ne
+    {k : Type*} [CommRing k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) v = ρ.obj v := by
+  unfold Etingof.reflectionFunctorMinus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
+/-- `LinearEquiv` at vertex v ≠ i: `F⁻ᵢ(ρ).obj v ≃ₗ[k] ρ.obj v`.
+This reduces the `Decidable.casesOn` in the `reflectionFunctorMinus` definition. -/
+noncomputable def Etingof.reflFunctorMinus_equivAt_ne
+    {k : Type*} [CommRing k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) v ≃ₗ[k] ρ.obj v := by
+  unfold Etingof.reflectionFunctorMinus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
+/-- For an arrow `j →_{Q̄ᵢ} i` in the reversed quiver (with i a source), the source vertex
+j ≠ i. This is because i is a sink in Q̄ᵢ. -/
+theorem Etingof.arrowsIntoReversed_ne
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (a : @Etingof.ArrowsInto Q (Etingof.reversedAtVertex Q i) i) : a.fst ≠ i := by
+  obtain ⟨j, e⟩ := a
+  intro heq; dsimp only at heq
+  change Etingof.ReversedAtVertexHom Q i j i at e
+  unfold Etingof.ReversedAtVertexHom at e
+  rw [heq] at e
+  simp only [ite_true] at e; exact (hi i).false e
+
+/-- Extract the original arrow i →_Q j from a reversed arrow j →_{Q̄ᵢ} i.
+When i is a source, `ReversedAtVertexHom Q i j i` with j ≠ i is just `i ⟶ j` in Q. -/
+def Etingof.arrowsIntoReversed_origArrow
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (a : @Etingof.ArrowsInto Q (Etingof.reversedAtVertex Q i) i) : i ⟶ a.fst := by
+  obtain ⟨j, e⟩ := a
+  change Etingof.ReversedAtVertexHom Q i j i at e
+  unfold Etingof.ReversedAtVertexHom at e
+  have hne := Etingof.arrowsIntoReversed_ne hi ⟨j, e⟩
+  simp only [hne, ite_false, ite_true] at e; exact e
+
+end ReflectionFunctorMinusAPI
