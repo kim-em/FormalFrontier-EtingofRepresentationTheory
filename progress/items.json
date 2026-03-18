@@ -544,9 +544,10 @@
     "end_page": "18",
     "start_line": 13,
     "end_line": 16,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Spanning half proved (standard monomials span the Weyl algebra). LinearIndependent still sorry. Issue #989."
+    "notes": "Both spanning and linear independence proved. Uses polynomial representation with CharZero + NoZeroDivisors.",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.7.2",
