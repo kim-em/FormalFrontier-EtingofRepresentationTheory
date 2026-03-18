@@ -7,6 +7,7 @@ import Mathlib.Order.SupIndep
 import Mathlib.Order.ModularLattice
 import Mathlib.Algebra.DirectSum.Module
 import Mathlib.Algebra.DirectSum.Decomposition
+import EtingofRepresentationTheory.Chapter2.Definition2_3_8
 import EtingofRepresentationTheory.Chapter3.Lemma3_8_2
 
 /-!
@@ -19,12 +20,6 @@ The existence of such a decomposition is clear. Uniqueness is proved by inductio
 using Lemma 3.8.2 (endomorphisms of indecomposable representations are either isomorphisms
 or nilpotent).
 -/
-
-/-- A module is indecomposable if it cannot be decomposed as a nontrivial direct sum
-of two submodules. This matches the formulation used in Lemma 3.8.2. -/
-def Etingof.IsIndecomposable (A : Type*) (W : Type*) [Ring A] [AddCommGroup W] [Module A W] :
-    Prop :=
-  ¬ ∃ (M N : Submodule A W), M ≠ ⊥ ∧ N ≠ ⊥ ∧ M ⊔ N = ⊤ ∧ M ⊓ N = ⊥
 
 /-- Auxiliary lemma for Krull-Schmidt existence: every A-submodule of V admits an
 indecomposable decomposition. Proved by induction on k-dimension. -/
@@ -49,9 +44,15 @@ private lemma krull_schmidt_existence_aux (k : Type*) (A : Type*) (V : Type*)
     · exact ⟨1, fun _ => S, fun _ => le_refl S, fun _ => hIndec,
         by simp, iSupIndep_subsingleton _⟩
     · -- S is decomposable
+      by_cases hS_triv : S = ⊥
+      · subst hS_triv
+        exact ⟨0, Fin.elim0, nofun, nofun, by simp, iSupIndep_subsingleton _⟩
+      have hS_nt : Nontrivial ↥S := Submodule.nontrivial_iff_ne_bot.mpr hS_triv
       unfold Etingof.IsIndecomposable at hIndec
       push_neg at hIndec
-      obtain ⟨M', N', hM'ne, hN'ne, hSup', hInf'⟩ := hIndec
+      obtain ⟨M', N', hCompl, hM'ne, hN'ne⟩ := hIndec hS_nt
+      have hSup' : M' ⊔ N' = ⊤ := codisjoint_iff.mp hCompl.codisjoint
+      have hInf' : M' ⊓ N' = ⊥ := disjoint_iff.mp hCompl.disjoint
       -- Map from submodules of ↥S to submodules of V
       set M := Submodule.map S.subtype M' with hM_def
       set N := Submodule.map S.subtype N' with hN_def
@@ -619,21 +620,27 @@ private lemma krull_schmidt_uniqueness_aux (k : Type*) (A : Type*) [Field k] [Ri
       let W'C : Fin (m - 1) → Submodule A ↥C :=
         fun i => (W'D i).map eCD.symm.toLinearMap
       -- Prove all 8 IH hypotheses for WC
+      have hWC_ne : ∀ i, WC i ≠ ⊥ := by
+        intro i h; apply hW_ne (succMap i)
+        have : Submodule.map C.subtype (WC i) = W (succMap i) :=
+          by rw [Submodule.map_comap_subtype, inf_eq_right.mpr (hW_le_C _ (succMap_ne i))]
+        rw [← this, h, Submodule.map_bot]
       have hWC_indec : ∀ i, Etingof.IsIndecomposable A (WC i) := by
-        intro i ⟨P, Q, hP, hQ, hSup, hInf⟩
+        intro i
+        refine ⟨Submodule.nontrivial_iff_ne_bot.mpr (hWC_ne i), fun P Q hPQ => ?_⟩
         have e := Submodule.comapSubtypeEquivOfLe (hW_le_C _ (succMap_ne i))
-        exact (hW_indec (succMap i))
+        have hSup := codisjoint_iff.mp hPQ.codisjoint
+        have hInf := disjoint_iff.mp hPQ.disjoint
+        by_contra hne
+        push_neg at hne
+        obtain ⟨hP, hQ⟩ := hne
+        exact (hW_indec (succMap i)).not_exists_nontrivial_compl
           ⟨P.map e.toLinearMap, Q.map e.toLinearMap,
            fun h => hP (by rwa [Submodule.map_eq_bot_iff] at h),
            fun h => hQ (by rwa [Submodule.map_eq_bot_iff] at h),
            by rw [← Submodule.map_sup, hSup, Submodule.map_top]
               exact LinearMap.range_eq_top.mpr e.surjective,
            by rw [← Submodule.map_inf e.toLinearMap e.injective, hInf, Submodule.map_bot]⟩
-      have hWC_ne : ∀ i, WC i ≠ ⊥ := by
-        intro i h; apply hW_ne (succMap i)
-        have : Submodule.map C.subtype (WC i) = W (succMap i) :=
-          by rw [Submodule.map_comap_subtype, inf_eq_right.mpr (hW_le_C _ (succMap_ne i))]
-        rw [← this, h, Submodule.map_bot]
       have hWC_sup : iSup WC = ⊤ := by
         have hC_eq : C = ⨆ i, W (succMap i) := by
           rw [show C = ⨆ i, ⨆ (_ : i ≠ i₀), W i from rfl]
@@ -668,21 +675,27 @@ private lemma krull_schmidt_uniqueness_aux (k : Type*) (A : Type*) [Field k] [Ri
           (disjoint_iff.mp ((hW_ind.comp succMap_inj) i) ▸
             (⟨hx1, hx2⟩ : x ∈ W (succMap i) ⊓ _))
       -- W'D properties (analogous)
+      have hW'D_ne : ∀ i, W'D i ≠ ⊥ := by
+        intro i h; apply hW'_ne (skipJ₀ i)
+        have : Submodule.map D.subtype (W'D i) = W' (skipJ₀ i) :=
+          by rw [Submodule.map_comap_subtype, inf_eq_right.mpr (hW'_le_D _ (skipJ₀_ne i))]
+        rw [← this, h, Submodule.map_bot]
       have hW'D_indec : ∀ i, Etingof.IsIndecomposable A (W'D i) := by
-        intro i ⟨P, Q, hP, hQ, hSup, hInf⟩
+        intro i
+        refine ⟨Submodule.nontrivial_iff_ne_bot.mpr (hW'D_ne i), fun P Q hPQ => ?_⟩
         have e := Submodule.comapSubtypeEquivOfLe (hW'_le_D _ (skipJ₀_ne i))
-        exact (hW'_indec (skipJ₀ i))
+        have hSup := codisjoint_iff.mp hPQ.codisjoint
+        have hInf := disjoint_iff.mp hPQ.disjoint
+        by_contra hne
+        push_neg at hne
+        obtain ⟨hP, hQ⟩ := hne
+        exact (hW'_indec (skipJ₀ i)).not_exists_nontrivial_compl
           ⟨P.map e.toLinearMap, Q.map e.toLinearMap,
            fun h => hP (by rwa [Submodule.map_eq_bot_iff] at h),
            fun h => hQ (by rwa [Submodule.map_eq_bot_iff] at h),
            by rw [← Submodule.map_sup, hSup, Submodule.map_top]
               exact LinearMap.range_eq_top.mpr e.surjective,
            by rw [← Submodule.map_inf e.toLinearMap e.injective, hInf, Submodule.map_bot]⟩
-      have hW'D_ne : ∀ i, W'D i ≠ ⊥ := by
-        intro i h; apply hW'_ne (skipJ₀ i)
-        have : Submodule.map D.subtype (W'D i) = W' (skipJ₀ i) :=
-          by rw [Submodule.map_comap_subtype, inf_eq_right.mpr (hW'_le_D _ (skipJ₀_ne i))]
-        rw [← this, h, Submodule.map_bot]
       have hW'D_sup : iSup W'D = ⊤ := by
         have hD_eq : D = ⨆ i, W' (skipJ₀ i) := by
           rw [show D = ⨆ j, ⨆ (_ : j ≠ j₀), W' j from rfl]
@@ -713,6 +726,10 @@ private lemma krull_schmidt_uniqueness_aux (k : Type*) (A : Type*) [Field k] [Ri
           (disjoint_iff.mp ((hW'_ind.comp skipJ₀_inj) i) ▸
             (⟨hx1, hx2⟩ : x ∈ W' (skipJ₀ i) ⊓ _))
       -- W'C properties (via eCD.symm transfer from W'D)
+      have hW'C_ne : ∀ i, W'C i ≠ ⊥ := by
+        intro i h; apply hW'D_ne i
+        rwa [show W'C i = (W'D i).map eCD.symm.toLinearMap from rfl,
+          Submodule.map_eq_bot_iff] at h
       have hW'C_indec : ∀ i, Etingof.IsIndecomposable A (W'C i) := by
         intro i
         -- W'C i = (W'D i).comap eCD (propositionally)
@@ -722,18 +739,19 @@ private lemma krull_schmidt_uniqueness_aux (k : Type*) (A : Type*) [Field k] [Ri
         -- Build equivalence W'C i ≃ₗ W'D i using ▸ to cast
         have e : ↥(W'C i) ≃ₗ[A] ↥(W'D i) :=
           hcomap_eq ▸ LinearEquiv.ofSubmodule' eCD (W'D i)
-        intro ⟨P, Q, hP, hQ, hSup, hInf⟩
-        exact (hW'D_indec i)
+        refine ⟨Submodule.nontrivial_iff_ne_bot.mpr (hW'C_ne i), fun P Q hPQ => ?_⟩
+        have hSup := codisjoint_iff.mp hPQ.codisjoint
+        have hInf := disjoint_iff.mp hPQ.disjoint
+        by_contra hne
+        push_neg at hne
+        obtain ⟨hP, hQ⟩ := hne
+        exact (hW'D_indec i).not_exists_nontrivial_compl
           ⟨P.map e.toLinearMap, Q.map e.toLinearMap,
            fun h => hP (by rwa [Submodule.map_eq_bot_iff] at h),
            fun h => hQ (by rwa [Submodule.map_eq_bot_iff] at h),
            by rw [← Submodule.map_sup, hSup, Submodule.map_top]
               exact LinearMap.range_eq_top.mpr e.surjective,
            by rw [← Submodule.map_inf e.toLinearMap e.injective, hInf, Submodule.map_bot]⟩
-      have hW'C_ne : ∀ i, W'C i ≠ ⊥ := by
-        intro i h; apply hW'D_ne i
-        rwa [show W'C i = (W'D i).map eCD.symm.toLinearMap from rfl,
-          Submodule.map_eq_bot_iff] at h
       have hW'C_sup : iSup W'C = ⊤ := by
         have : iSup W'C = iSup (fun i => (W'D i).map eCD.symm.toLinearMap) := rfl
         rw [this, ← Submodule.map_iSup, hW'D_sup, Submodule.map_top]

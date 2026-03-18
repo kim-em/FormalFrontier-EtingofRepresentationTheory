@@ -22,3 +22,16 @@ def Etingof.IsIndecomposable (A : Type*) (V : Type*) [Ring A] [AddCommGroup V]
     [Module A V] : Prop :=
   Nontrivial V ∧ ∀ (W₁ W₂ : Submodule A V),
     IsCompl W₁ W₂ → W₁ = ⊥ ∨ W₂ = ⊥
+
+/-- An indecomposable module has no nontrivial direct sum decomposition (negation form).
+Useful for proofs that proceed by contradiction on a decomposition. -/
+theorem Etingof.IsIndecomposable.not_exists_nontrivial_compl {A : Type*} {V : Type*}
+    [Ring A] [AddCommGroup V] [Module A V]
+    (h : Etingof.IsIndecomposable A V) :
+    ¬ ∃ (M N : Submodule A V), M ≠ ⊥ ∧ N ≠ ⊥ ∧ M ⊔ N = ⊤ ∧ M ⊓ N = ⊥ := by
+  rintro ⟨M, N, hM, hN, hSup, hInf⟩
+  have hC : IsCompl M N :=
+    ⟨disjoint_iff.mpr hInf, codisjoint_iff.mpr (top_le_iff.mp (hSup ▸ le_rfl))⟩
+  rcases h.2 M N hC with rfl | rfl
+  · exact hM rfl
+  · exact hN rfl

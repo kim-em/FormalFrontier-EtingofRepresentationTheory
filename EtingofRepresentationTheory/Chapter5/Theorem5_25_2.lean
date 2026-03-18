@@ -23,9 +23,27 @@ variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ)
 noncomputable def Etingof.GL2.BorelSubgroup :
     Subgroup (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) where
   carrier := {g | (g : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0}
-  mul_mem' := sorry
-  one_mem' := sorry
-  inv_mem' := sorry
+  mul_mem' := by
+    intro a b ha hb
+    simp only [Set.mem_setOf_eq, Units.val_mul, Matrix.mul_apply, Fin.sum_univ_two] at *
+    simp [ha, hb]
+  one_mem' := by
+    simp only [Set.mem_setOf_eq, Units.val_one, Matrix.one_apply_ne (by decide : (1 : Fin 2) ≠ 0)]
+  inv_mem' := by
+    intro g hg
+    simp only [Set.mem_setOf_eq] at *
+    -- Entry (1,0) of g * g⁻¹ = 1 gives g₁₁ * g⁻¹₁₀ = 0
+    have hmul : (g.val * (g⁻¹).val) 1 0 = (1 : Matrix (Fin 2) (Fin 2) _) 1 0 := by
+      have : g.val * (g⁻¹).val = 1 := by exact_mod_cast g.mul_inv
+      rw [this]
+    simp only [Matrix.mul_apply, Fin.sum_univ_two,
+      Matrix.one_apply_ne (by decide : (1 : Fin 2) ≠ 0)] at hmul
+    rw [hg, zero_mul, zero_add] at hmul
+    -- hmul : g₁₁ * g⁻¹₁₀ = 0, need g₁₁ ≠ 0
+    have hdet : IsUnit (g.val.det) := g.isUnit.map Matrix.detMonoidHom
+    rw [Matrix.det_fin_two, hg, mul_zero, sub_zero] at hdet
+    exact (mul_eq_zero.mp hmul).resolve_left
+      (IsUnit.ne_zero (isUnit_of_mul_isUnit_right hdet))
 
 /-- The principal series representation V(χ₁, χ₂) of GL₂(𝔽_q), defined as
 Ind_B^G ℂ_{χ₁,χ₂} where B is the Borel subgroup and χ₁, χ₂ : 𝔽_q× → ℂ×

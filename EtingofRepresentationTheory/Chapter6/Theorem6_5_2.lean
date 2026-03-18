@@ -50,37 +50,131 @@ theorem Etingof.posdef_min_value
   rw [hk] at hpos ⊢
   omega
 
-/-- For a positive root d of a Dynkin diagram with n vertices, each coordinate
-satisfies d_i ≤ n. The argument uses positive definiteness to bound lattice
-points of the quadratic sublevel set {x | B(x,x) = 2, x ≥ 0}:
+/-- The Cartan matrix mulVec is injective for a Dynkin diagram: if C·x = C·y
+then x = y. This follows from positive definiteness: C(x-y) = 0 implies
+(x-y)ᵀC(x-y) = 0, hence x-y = 0. -/
+private theorem Etingof.cartan_mulVec_injective
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hDynkin : Etingof.IsDynkinDiagram n adj) :
+    Function.Injective (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec := by
+  intro x y hxy
+  by_contra hne
+  have hne' : x - y ≠ 0 := sub_ne_zero.mpr hne
+  have hpos := hDynkin.2.2.2.2 (x - y) hne'
+  have hzero : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec (x - y) = 0 := by
+    rw [Matrix.mulVec_sub]; exact sub_eq_zero.mpr hxy
+  simp only [dotProduct, hzero, Pi.zero_apply, mul_zero, Finset.sum_const_zero] at hpos
+  omega
 
-1. If d = d_i·e_i (one nonzero coord): B = 2d_i², so d_i = 1 ≤ n.
-2. If d has multiple nonzero coords: d - e_i is nonzero nonneg, so
-   B(d - e_i, d - e_i) ≥ 2 (by posdef_min_value), giving (Ad)_i ≤ 1,
-   i.e., d_i ≤ (1 + ∑_j adj_{ij} d_j)/2 ≤ (1 + deg(i)·max(d))/2.
-   The coupled system on the Dynkin tree forces d_i ≤ n. -/
-private theorem Etingof.posRoot_coord_le
+/-- Symmetry of the bilinear form for a symmetric matrix:
+    y ⬝ᵥ C *ᵥ x = x ⬝ᵥ C *ᵥ y when C is symmetric. -/
+private lemma Etingof.dotProduct_mulVec_comm
+    {n : ℕ} (C : Matrix (Fin n) (Fin n) ℤ)
+    (hCsymm : C.IsSymm) (x y : Fin n → ℤ) :
+    dotProduct y (C.mulVec x) = dotProduct x (C.mulVec y) := by
+  simp only [dotProduct, Matrix.mulVec]
+  simp_rw [Finset.mul_sum]
+  rw [Finset.sum_comm]
+  congr 1; ext i; congr 1; ext j
+  rw [hCsymm.apply j i]; ring
+
+/-- Helper: bilinear form expansion B(x-y,x-y) = B(x,x) - 2B(x,y) + B(y,y)
+for a symmetric matrix, stated in terms of dotProduct and mulVec. -/
+private lemma Etingof.bilinear_expand_sub
+    {n : ℕ} (C : Matrix (Fin n) (Fin n) ℤ)
+    (hCsymm : C.IsSymm) (x y : Fin n → ℤ) :
+    dotProduct (x - y) (C.mulVec (x - y)) =
+    dotProduct x (C.mulVec x) - 2 * dotProduct x (C.mulVec y) +
+    dotProduct y (C.mulVec y) := by
+  rw [Matrix.mulVec_sub, sub_dotProduct, dotProduct_sub, dotProduct_sub]
+  have hsym := Etingof.dotProduct_mulVec_comm C hCsymm x y
+  linarith
+
+/-- Helper: bilinear form expansion B(x+y,x+y) = B(x,x) + 2B(x,y) + B(y,y)
+for a symmetric matrix, stated in terms of dotProduct and mulVec. -/
+private lemma Etingof.bilinear_expand_add
+    {n : ℕ} (C : Matrix (Fin n) (Fin n) ℤ)
+    (hCsymm : C.IsSymm) (x y : Fin n → ℤ) :
+    dotProduct (x + y) (C.mulVec (x + y)) =
+    dotProduct x (C.mulVec x) + 2 * dotProduct x (C.mulVec y) +
+    dotProduct y (C.mulVec y) := by
+  rw [Matrix.mulVec_add, add_dotProduct, dotProduct_add, dotProduct_add]
+  have hsym := Etingof.dotProduct_mulVec_comm C hCsymm x y
+  linarith
+
+/-- For a positive root d of a Dynkin diagram, -2 ≤ (Cd)_i ≤ 2 for all i.
+Proof: B(d±e_i, d±e_i) = 4 ± 2(Cd)_i. Since these are nonzero when d ≠ ∓e_i,
+posdef_min_value gives |(Cd)_i| ≤ 1 (or = 2 when d = e_i). -/
+private theorem Etingof.cartan_mulVec_bounded
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     (d : Fin n → ℤ) (hd : Etingof.IsPositiveRoot n adj d) (i : Fin n) :
-    d i ≤ (n : ℤ) := by
-  -- The coordinate bound for positive roots of Dynkin diagrams.
-  -- This requires a bound on lattice points of a positive definite quadratic form,
-  -- which ultimately depends on eigenvalue analysis or tree-structural arguments.
-  sorry
+    (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec d i ∈ Set.Icc (-2 : ℤ) 2 := by
+  set C := (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj)
+  have hBdd : dotProduct d (C.mulVec d) = 2 := hd.1.2
+  have hCsymm : C.IsSymm := Matrix.IsSymm.ext fun a b => by
+    simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply]
+    rw [hDynkin.1.apply a b]; split_ifs <;> omega
+  -- B(e_i, e_i) = 2
+  have hBei : dotProduct (Pi.single i 1) (C.mulVec (Pi.single i 1)) = 2 := by
+    simp only [dotProduct, C, Matrix.mulVec, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply, Pi.single_apply]
+    simp [Finset.sum_ite_eq', hDynkin.2.1 i]
+  -- B(e_i, d) = (Cd)_i
+  have hBeid : dotProduct (Pi.single i 1) (C.mulVec d) = C.mulVec d i := by
+    simp [dotProduct, Pi.single_apply, Finset.sum_ite_eq']
+  -- B(d, e_i) = (Cd)_i  (by symmetry of C)
+  have hBdei : dotProduct d (C.mulVec (Pi.single i 1)) = C.mulVec d i := by
+    -- Rewrite as: ∑_a d_a * (∑_b C_{ab} * δ_{bi}) = ∑_b C_{ib} * d_b
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    -- Goal: ∑_a d_a * C_{ai} = ∑_b C_{ib} * d_b
+    congr 1; ext a; rw [hCsymm.apply i a]; ring
+  constructor
+  · -- Lower bound: -2 ≤ (Cd)_i
+    -- d + e_i ≠ 0
+    have hne : d + Pi.single i 1 ≠ 0 := by
+      intro h; have := congr_fun h i
+      simp [Pi.add_apply] at this; linarith [hd.2 i]
+    have hB := Etingof.posdef_min_value hDynkin _ hne
+    have hexp := Etingof.bilinear_expand_add C hCsymm d (Pi.single i 1)
+    rw [hBdd, hBdei, hBei] at hexp; linarith
+  · -- Upper bound: (Cd)_i ≤ 2
+    by_cases hdeq : d = Pi.single i 1
+    · subst hdeq; rw [← hBeid]; linarith [hBei]
+    · have hne : d - Pi.single i 1 ≠ 0 := sub_ne_zero.mpr hdeq
+      have hB := Etingof.posdef_min_value hDynkin _ hne
+      have hexp := Etingof.bilinear_expand_sub C hCsymm d (Pi.single i 1)
+      rw [hBdd, hBdei, hBei] at hexp; linarith
 
 /-- Part (a) of Gabriel's theorem: for a Dynkin diagram, there are finitely many
-positive roots. The proof shows positive roots are contained in the finite set
-[0, n]ⁿ ⊂ ℤⁿ, using the coordinate bound from positive definiteness.
+positive roots. The proof uses the Cauchy-Schwarz bound: for any positive root d,
+the vector Cd has entries in {-2,...,2}. Since the map d ↦ Cd is injective
+(positive definiteness), the set of positive roots injects into the finite set
+{v : Fin n → ℤ | ∀ i, -2 ≤ v i ≤ 2}, hence is finite.
 (Etingof Theorem 6.5.2(a)) -/
 theorem Etingof.Theorem_6_5_2a_finiteness
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj) :
     Set.Finite {d : Fin n → ℤ | Etingof.IsPositiveRoot n adj d} := by
-  apply Set.Finite.subset (Set.finite_Icc (0 : Fin n → ℤ) (fun _ => (n : ℤ)))
-  intro d hd
-  simp only [Set.mem_Icc, Pi.le_def, Pi.zero_apply]
-  exact ⟨fun i => hd.2 i, fun i => Etingof.posRoot_coord_le hDynkin d hd i⟩
+  set C := (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj)
+  -- The map d ↦ Cd is injective
+  have hC_inj := Etingof.cartan_mulVec_injective hDynkin
+  -- The image of positive roots under C.mulVec is in [-2, 2]ⁿ
+  have hbounded : ∀ d ∈ {d : Fin n → ℤ | Etingof.IsPositiveRoot n adj d},
+      C.mulVec d ∈ Set.Icc (fun (_ : Fin n) => (-2 : ℤ)) (fun _ => 2) := by
+    intro d hd
+    simp only [Set.mem_Icc, Pi.le_def]
+    exact ⟨fun i => (Etingof.cartan_mulVec_bounded hDynkin d hd i).1,
+           fun i => (Etingof.cartan_mulVec_bounded hDynkin d hd i).2⟩
+  -- [-2, 2]ⁿ is finite
+  have hfin : Set.Finite (Set.Icc (fun (_ : Fin n) => (-2 : ℤ)) (fun _ => 2)) :=
+    Set.finite_Icc _ _
+  -- The image of positive roots is a subset of a finite set, hence finite
+  have himg_fin : Set.Finite (C.mulVec '' {d | Etingof.IsPositiveRoot n adj d}) :=
+    hfin.subset (Set.image_subset_iff.mpr hbounded)
+  -- By injectivity, the domain is also finite
+  exact himg_fin.of_finite_image (hC_inj.injOn.mono (Set.subset_univ _))
 
 /-- Gabriel's theorem (combined, part a): the set of positive roots is finite. -/
 theorem Etingof.Theorem_6_5_2_Gabriels_theorem

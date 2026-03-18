@@ -158,18 +158,15 @@ theorem sum_dim_character_eq_zero [Fintype G] [IsAlgClosed k] [NeZero (Nat.card 
     (D : IrrepDecomp k G) (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
     (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
-    (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i))
     (g : G) (hg : g ≠ 1) :
-    ∑ i, (D.d i : k) * (V i).character g = 0 := by
-  -- Step 1: For each j, find τ j with V j ≅ columnFDRep (τ j)
+    ∑ i, (Module.finrank k (V i) : k) * (V i).character g = 0 := by
+  -- For each j, find τ j with V j ≅ columnFDRep (τ j)
   choose τ hτ using fun j => D.columnFDRep_surjective (V j) (hV j)
-  -- τ is injective: if τ j₁ = τ j₂, then columnFDRep(τ j₁) = columnFDRep(τ j₂),
-  -- so V j₁ ≅ V j₂, giving j₁ = j₂ by hinj
   have hτ_inj : Function.Injective τ := by
     intro j₁ j₂ h
     exact hinj j₁ j₂ ⟨(hτ j₁).some ≪≫ (h ▸ (hτ j₂).some.symm)⟩
   have hτ_bij : Function.Bijective τ := Finite.injective_iff_bijective.mp hτ_inj
-  -- Step 2: Prove ∑_i d_i * (columnFDRep i).character g = 0 via trace decomposition
+  -- ∑_i d_i * (columnFDRep i).character g = 0 via trace decomposition
   have h_col : ∑ i, (D.d i : k) * (D.columnFDRep i).character g = 0 := by
     simp_rw [columnFDRep_character_eq D _ g]
     have h1 : LinearMap.trace k (MonoidAlgebra k G) (LinearMap.mulLeft k (MonoidAlgebra.of k G g)) = 0 := by
@@ -177,25 +174,19 @@ theorem sum_dim_character_eq_zero [Fintype G] [IsAlgClosed k] [NeZero (Nat.card 
       rwa [ofMulAction_eq_mulLeft] at this
     rw [trace_mulLeft_algEquiv D.iso, trace_mulLeft_pi] at h1
     exact h1
-  -- Step 3: Relate V version to column version
-  -- (V j).character = (columnFDRep (τ j)).character by char_iso
+  -- finrank(V j) = D.d(τ j) and char(V j) = char(columnFDRep(τ j))
+  have hfr : ∀ j, Module.finrank k (V j) = D.d (τ j) := by
+    intro j; rw [← D.finrank_columnFDRep (τ j)]
+    exact LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv (hτ j).some)
   have hchar : ∀ j, (V j).character g = (D.columnFDRep (τ j)).character g := by
     intro j; exact congr_fun (FDRep.char_iso (hτ j).some) g
-  -- D.d j = D.d (τ j) via d_eq_finrank + finrank preserved by iso
-  have hd : ∀ j, (D.d j : k) = (D.d (τ j) : k) := by
-    intro j
-    have hfr := D.d_eq_finrank V hV hinj hsurj
-    congr 1; rw [hfr j, ← D.finrank_columnFDRep (τ j)]
-    exact LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv (hτ j).some)
-  -- Rewrite each term and reindex
-  conv_lhs => arg 2; ext j; rw [hchar j, hd j]
-  -- Now goal: ∑ j, d_{τ j} * (columnFDRep (τ j)).char g = 0
-  -- Reindex: ∑ j, f (τ j) = ∑ i, f i since τ is a bijection
+  -- Rewrite and reindex by τ
+  conv_lhs => arg 2; ext j; rw [hfr j, hchar j]
   let τ_equiv := Equiv.ofBijective τ hτ_bij
-  have : ∑ j, (D.d (τ j) : k) * (D.columnFDRep (τ j)).character g =
-    ∑ i, (D.d i : k) * (D.columnFDRep i).character g :=
-    Finset.sum_equiv τ_equiv (fun _ => by simp) (fun _ _ => rfl)
-  rw [this]; exact h_col
+  rw [show ∑ j, (D.d (τ j) : k) * (D.columnFDRep (τ j)).character g =
+    ∑ i, (D.d i : k) * (D.columnFDRep i).character g from
+    Finset.sum_equiv τ_equiv (fun _ => by simp) (fun _ _ => rfl)]
+  exact h_col
 
 /-! ### Dimension nonzero in k
 

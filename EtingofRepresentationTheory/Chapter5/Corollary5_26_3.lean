@@ -20,14 +20,6 @@ computed via the Frobenius formula.
 
 noncomputable section
 
-open Classical in
-/-- The character of the induced representation Ind_H^G W, computed via the
-Frobenius character formula. (See Theorem 5.26.1 for details.) -/
-def Etingof.inducedCharacter' {G : Type} [Group G] [Fintype G]
-    (H : Subgroup G) (χ : ↥H → ℂ) : G → ℂ :=
-  fun g => (Fintype.card ↥H : ℂ)⁻¹ *
-    ∑ x : G, if h : x⁻¹ * g * x ∈ H then χ ⟨x⁻¹ * g * x, h⟩ else 0
-
 /-- Any irreducible character of a finite group is a ℚ-linear combination of
 characters induced from cyclic subgroups.
 
@@ -40,7 +32,7 @@ theorem Etingof.Corollary5_26_3
     (V : FDRep ℂ G) [CategoryTheory.Simple V] :
     V.character ∈ Submodule.span ℚ
       {f : G → ℂ | ∃ (g : G) (W : FDRep ℂ ↥(Subgroup.zpowers g)),
-        f = Etingof.inducedCharacter' (Subgroup.zpowers g) W.character} := by
+        f = Etingof.inducedCharacter (Subgroup.zpowers g) W.character} := by
   -- Apply Artin's theorem with X = set of all cyclic subgroups
   have hX_conj : ∀ H ∈ ({H : Subgroup G | ∃ g : G, H = Subgroup.zpowers g} : Set (Subgroup G)),
       ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈
@@ -51,7 +43,7 @@ theorem Etingof.Corollary5_26_3
       Set (Subgroup G)), g ∈ H :=
     fun g => ⟨Subgroup.zpowers g, ⟨g, rfl⟩, Subgroup.mem_zpowers g⟩
   have artin := (Etingof.Theorem5_26_1 G _ hX_conj).mp hcover V ‹_›
-  -- Convert span sets: theorem uses inducedCharacter, corollary uses inducedCharacter'
+  -- Convert span sets: theorem uses set of all subgroups in X, corollary uses cyclic subgroups
   apply Submodule.span_mono _ artin
   rintro f ⟨H, ⟨g, rfl⟩, W, rfl⟩
-  exact ⟨g, W, by unfold Etingof.inducedCharacter Etingof.inducedCharacter'; rfl⟩
+  exact ⟨g, W, rfl⟩

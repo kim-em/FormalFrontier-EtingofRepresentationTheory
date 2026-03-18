@@ -54,6 +54,19 @@ private theorem reflFunctorPlus_obj_eq
   | .isTrue _ => rw [hd]
   | .isFalse hii => exact absurd rfl hii
 
+/-- At v ≠ i, the linear equiv between F⁺ᵢ(ρ).obj v and ρ.obj v (the identity). -/
+private noncomputable def reflFunctorPlus_equiv_ne
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) v ≃ₗ[k] ρ.obj v := by
+  unfold Etingof.reflectionFunctorPlus
+  simp only
+  match hd : (‹DecidableEq Q› v i) with
+  | .isTrue hvi => exact absurd hvi hv
+  | .isFalse _ => rw [hd]
+
 /-- Reflection functors preserve indecomposability at a sink:
 F⁺ᵢ(V) is either indecomposable or zero.
 
@@ -206,6 +219,24 @@ theorem Etingof.Proposition6_6_7_sink
       --
       -- BLOCKED: The dependent type issues with Decidable.rec in reflectionFunctorPlus
       -- make the construction extremely painful to formalize.
+      intro W₁ W₂ hW₁ hW₂ hcompl
+      -- The full proof requires constructing complementary subreps of V from W₁, W₂.
+      -- This involves transporting submodules through reflFunctorPlus_equiv_ne and
+      -- proving map commutativity + complementarity at vertex i.
+      -- The dependent type issues with Decidable.rec in reflectionFunctorPlus make
+      -- both the map commutativity and the complementarity at i extremely technical.
+      --
+      -- Infrastructure available:
+      -- - reflFunctorPlus_equiv_ne: LinearEquiv at v ≠ i (identity after Decidable reduction)
+      -- - reflFunctorPlus_obj_eq: F⁺(V).obj i = ker(sinkMap)
+      -- - hsurj: sinkMap is surjective
+      -- - hρ.2: V's indecomposability
+      --
+      -- The mathematical argument is spelled out in the comments above (lines 200-218).
+      -- A future attempt should use the generalize+cases pattern (as in the `by_cases`
+      -- branches of the zero case proof above) to reduce all Decidable instances
+      -- simultaneously, avoiding the instance synthesis issues that arise when trying
+      -- to state map commutativity as a standalone lemma.
       sorry
 
 /-- Reflection functors preserve indecomposability at a source:

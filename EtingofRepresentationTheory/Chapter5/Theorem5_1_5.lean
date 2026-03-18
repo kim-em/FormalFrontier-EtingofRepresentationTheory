@@ -28,7 +28,7 @@ noncomputable def FDRep.frobeniusSchurIndicator
     (V : FDRep k G) : k :=
   ⅟(Fintype.card G : k) • ∑ g : G, V.character (g * g)
 
-/-- The sum `∑_i d_i · χ_{V_i}(h)` over all irreducible representations equals the
+/-- The sum `∑_i dim(V_i) · χ_{V_i}(h)` over all irreducible representations equals the
 regular character: `|G|` if `h = 1` and `0` otherwise. -/
 private lemma sum_dim_char_eq_regularChar
     [DecidableEq G] [IsAlgClosed k] [NeZero (Nat.card G : k)]
@@ -36,21 +36,24 @@ private lemma sum_dim_char_eq_regularChar
     (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
     (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
-    (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i))
     (h : G) :
-    ∑ i, (D.d i : k) * (V i).character h =
+    ∑ i, (Module.finrank k (V i) : k) * (V i).character h =
       if h = 1 then (Fintype.card G : k) else 0 := by
   split
   case isTrue heq =>
     subst heq
     simp only [FDRep.char_one]
-    have hd := D.d_eq_finrank V hV hinj hsurj
-    have : ∀ i, (Module.finrank k (V i) : k) = (D.d i : k) := by
-      intro i; rw [← hd i]
-    simp_rw [this]
+    -- ∑ finrank(V i)² = ∑ D.d(σ i)² = ∑ D.d(j)² = |G|
+    obtain ⟨σ, hσ⟩ := D.d_eq_finrank V hV hinj
+    have hcast : ∀ i, (Module.finrank k (V i) : k) = (D.d (σ i) : k) := by
+      intro i; congr 1; exact (hσ i).symm
+    simp_rw [hcast]
+    rw [show ∑ i, (D.d (σ i) : k) * (D.d (σ i) : k) =
+      ∑ j, (D.d j : k) * (D.d j : k) from
+      Finset.sum_equiv σ (fun _ => by simp) (fun _ _ => rfl)]
     rw [← D.sum_sq_eq_card]; push_cast; congr 1; ext i; ring
   case isFalse hne =>
-    exact sum_dim_character_eq_zero D V hV hinj hsurj h hne
+    exact sum_dim_character_eq_zero D V hV hinj h hne
 
 /-- The number of involutions in G equals Σ_i dim(V_i) · FS(V_i), where the sum ranges over
 irreducible representations indexed by a Wedderburn-Artin decomposition.
@@ -61,10 +64,9 @@ theorem Etingof.Theorem5_1_5
     (D : IrrepDecomp k G)
     (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
-    (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
-    (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) :
+    (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j) :
     (Finset.univ.filter (fun g : G => g * g = 1)).card =
-    ∑ i : Fin D.n, D.d i * (V i).frobeniusSchurIndicator := by
+    ∑ i : Fin D.n, Module.finrank k (V i) * (V i).frobeniusSchurIndicator := by
   simp only [FDRep.frobeniusSchurIndicator]
   -- Factor out ⅟|G| and rearrange sums
   simp_rw [mul_smul_comm]
@@ -72,7 +74,7 @@ theorem Etingof.Theorem5_1_5
   simp_rw [Finset.mul_sum]
   rw [Finset.sum_comm]
   -- Apply the regular character identity
-  simp_rw [sum_dim_char_eq_regularChar D V hV hinj hsurj]
+  simp_rw [sum_dim_char_eq_regularChar D V hV hinj]
   -- Simplify: ⅟|G| • ∑_g (if g²=1 then |G| else 0) = #{involutions}
   rw [← Finset.sum_filter, Finset.sum_const]
   simp only [nsmul_eq_mul, smul_eq_mul]

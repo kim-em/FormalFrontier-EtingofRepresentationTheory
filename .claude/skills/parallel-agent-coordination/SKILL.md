@@ -46,7 +46,7 @@ Before starting work on any item, verify it hasn't already been completed:
 git show main:pages/N.md 2>/dev/null && echo "Already done"
 
 # For formalization
-git show main:lean/MyProject/Chapter1/Item42.lean 2>/dev/null && echo "Already done"
+git show main:MyProject/Chapter1/Item42.lean 2>/dev/null && echo "Already done"
 ```
 
 ### Salvage, Don't Restart
@@ -138,7 +138,7 @@ When the project transitions between phases (e.g., Phase 1 Source Preparation to
 Before starting content work in a new phase, verify that:
 1. Validation tooling exists and is tested (see `validation-first` skill)
 2. The previous phase's outputs are complete and validated
-3. Any CLI workarounds are documented (e.g., leanblueprint needing `lean/` as cwd)
+3. Any CLI workarounds are documented
 
 ### Issue Sizing Shifts
 

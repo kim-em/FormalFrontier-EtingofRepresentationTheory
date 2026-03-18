@@ -544,9 +544,10 @@
     "end_page": "18",
     "start_line": 13,
     "end_line": 16,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: Has Aristotle proof needing v4.24\u2192v4.28 adaptation. Active claimed issue #989. Leave for that agent."
+    "notes": "Both spanning and linear independence proved. Uses polynomial representation with CharZero + NoZeroDivisors.",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.7.2",
@@ -3015,7 +3016,7 @@
     "end_line": 25,
     "status": "proof_partial",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: 2 of 3 parts proved (irreducible, distinct). Only Theorem5_12_2_classification (every simple is some V_\u03bb) has sorry. Active claimed issue #1001 working on this. Also youngSymmetrizer_identity_coeff has sorry but is internal."
+    "notes": "youngSymmetrizer_identity_coeff proved, cascading to young_symmetrizer_sq_ne_zero and Theorem5_12_2_irreducible. Only Theorem5_12_2_classification (every simple is some V_\u03bb) has sorry."
   },
   {
     "id": "Chapter5/Example5.12.3",
@@ -4215,7 +4216,7 @@
     "end_page": "167",
     "start_line": 19,
     "end_line": 21,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": false
   },
   {
@@ -4276,7 +4277,8 @@
     "start_line": 1,
     "end_line": 2,
     "status": "proof_partial",
-    "needs_statement": true
+    "needs_statement": true,
+    "notes": "Part (a) finiteness sorry-free. Part (b) sorry-free. Part (c) still sorry (needs reflection functors)."
   },
   {
     "id": "Chapter6/Section6.6_heading",
@@ -4369,7 +4371,7 @@
     "end_page": "171",
     "start_line": 19,
     "end_line": 32,
-    "status": "statement_formalized"
+    "status": "proof_partial"
   },
   {
     "id": "Chapter6/Proposition6.6.7",
@@ -4476,7 +4478,7 @@
     "end_page": "176",
     "start_line": 47,
     "end_line": 30,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
@@ -4497,7 +4499,8 @@
     "start_line": 33,
     "end_line": 14,
     "status": "statement_formalized",
-    "needs_statement": true
+    "needs_statement": true,
+    "attention_needed": "statement fixed: added IsOrientationOf hypothesis and pinned universe (#1094)"
   },
   {
     "id": "Chapter6/Example6.8.5",
