@@ -147,7 +147,8 @@
     "end_page": "9",
     "start_line": 1,
     "end_line": 1,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.2.2",
@@ -157,7 +158,8 @@
     "end_page": "9",
     "start_line": 2,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Proposition2.2.3",
@@ -167,7 +169,8 @@
     "end_page": "9",
     "start_line": 5,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_after_Proposition2.2.3",
@@ -186,7 +189,8 @@
     "end_page": "9",
     "start_line": 11,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.2.5",
@@ -196,7 +200,8 @@
     "end_page": "9",
     "start_line": 23,
     "end_line": 23,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_commutativity_examples",
@@ -215,7 +220,8 @@
     "end_page": "9",
     "start_line": 27,
     "end_line": 27,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.1",
@@ -225,7 +231,8 @@
     "end_page": "10",
     "start_line": 1,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.3.2",
@@ -253,7 +260,8 @@
     "end_page": "10",
     "start_line": 12,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.4",
@@ -263,7 +271,8 @@
     "end_page": "10",
     "start_line": 21,
     "end_line": 23,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.5",
@@ -273,7 +282,8 @@
     "end_page": "11",
     "start_line": 1,
     "end_line": 1,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.6",
@@ -283,7 +293,8 @@
     "end_page": "11",
     "start_line": 2,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.7",
@@ -293,7 +304,8 @@
     "end_page": "11",
     "start_line": 9,
     "end_line": 9,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.3.8",
@@ -303,7 +315,8 @@
     "end_page": "11",
     "start_line": 10,
     "end_line": 11,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_irreducible_vs_indecomposable",
@@ -331,7 +344,8 @@
     "end_page": "12",
     "start_line": 3,
     "end_line": 13,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Corollary2.3.10",
@@ -341,7 +355,8 @@
     "end_page": "12",
     "start_line": 14,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.3.11",
@@ -369,7 +384,8 @@
     "end_page": "12",
     "start_line": 21,
     "end_line": 21,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.3.13",
@@ -398,7 +414,8 @@
     "start_line": 9,
     "end_line": 15,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.3.14_continued",
@@ -408,7 +425,8 @@
     "end_page": "14",
     "start_line": 1,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Problem2.3.15",
@@ -547,7 +565,8 @@
     "end_page": "18",
     "start_line": 21,
     "end_line": 21,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_faithful_example",
@@ -584,7 +603,8 @@
     "end_page": "19",
     "start_line": 21,
     "end_line": 24,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.8.2",
@@ -594,7 +614,8 @@
     "end_page": "19",
     "start_line": 25,
     "end_line": 30,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_quiver_notation",
@@ -613,7 +634,8 @@
     "end_page": "19",
     "start_line": 35,
     "end_line": 35,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_path_algebra_intro",
@@ -632,7 +654,8 @@
     "end_page": "20",
     "start_line": 2,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.8.5",
@@ -678,7 +701,8 @@
     "end_page": "21",
     "start_line": 8,
     "end_line": 9,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.8.9",
@@ -688,7 +712,8 @@
     "end_page": "21",
     "start_line": 10,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_quiver_irreducible_indecomposable",
@@ -707,7 +732,8 @@
     "end_page": "21",
     "start_line": 14,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Problem2.8.11",
@@ -735,7 +761,8 @@
     "end_page": "22",
     "start_line": 16,
     "end_line": 21,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.9.2",
@@ -745,7 +772,8 @@
     "end_page": "22",
     "start_line": 22,
     "end_line": 35,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.9.2_continued",
@@ -755,7 +783,8 @@
     "end_page": "23",
     "start_line": 1,
     "end_line": 1,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.9.3",
@@ -810,7 +839,8 @@
     "end_page": "24",
     "start_line": 7,
     "end_line": 9,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.9.7",
@@ -820,7 +850,8 @@
     "end_page": "24",
     "start_line": 10,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.9.8",
@@ -830,7 +861,8 @@
     "end_page": "24",
     "start_line": 11,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.9.9",
@@ -840,7 +872,8 @@
     "end_page": "24",
     "start_line": 21,
     "end_line": 23,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.9.10",
@@ -868,7 +901,8 @@
     "end_page": "25",
     "start_line": 3,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Example2.9.13",
@@ -878,7 +912,8 @@
     "end_page": "25",
     "start_line": 7,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Remark2.9.14",
@@ -933,7 +968,8 @@
     "end_page": "31",
     "start_line": 7,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Exercise2.11.2",
@@ -1033,7 +1069,8 @@
     "end_page": "36",
     "start_line": 1,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Discussion_2.13_heading",
@@ -1070,7 +1107,8 @@
     "end_page": "37",
     "start_line": 10,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Definition2.14.2",
@@ -1080,7 +1118,8 @@
     "end_page": "37",
     "start_line": 15,
     "end_line": 17,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter2/Problem2.14.3",
@@ -1180,7 +1219,8 @@
     "end_page": "43",
     "start_line": 9,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Example3.1.2",
@@ -1190,7 +1230,8 @@
     "end_page": "43",
     "start_line": 11,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Remark3.1.3",
@@ -1218,7 +1259,8 @@
     "end_page": "44",
     "start_line": 3,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Remark3.1.5",
@@ -1246,7 +1288,8 @@
     "end_page": "45",
     "start_line": 13,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Discussion_after_Lemma3.1.6",
@@ -1274,7 +1317,8 @@
     "end_page": "46",
     "start_line": 1,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Theorem3.2.2",
@@ -1285,7 +1329,8 @@
     "start_line": 5,
     "end_line": 13,
     "status": "sorry_free",
-    "notes": "Both parts proved. Part (i) uses Jacobson density theorem for simple modules. Part (ii) applies density theorem to the product module via Schur's lemma decomposition."
+    "notes": "Both parts proved. Part (i) uses Jacobson density theorem for simple modules. Part (ii) applies density theorem to the product module via Schur's lemma decomposition.",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Introduction_to_3.3",
@@ -1304,7 +1349,8 @@
     "end_page": "47",
     "start_line": 5,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Discussion_before_Definition3.3.2",
@@ -1323,7 +1369,8 @@
     "end_page": "47",
     "start_line": 9,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Discussion_proof_of_Theorem3.3.1",
@@ -1369,7 +1416,8 @@
     "end_page": "49",
     "start_line": 7,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Lemma3.4.2",
@@ -1379,7 +1427,8 @@
     "end_page": "49",
     "start_line": 9,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Introduction_to_3.5",
@@ -1398,7 +1447,8 @@
     "end_page": "49",
     "start_line": 15,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Proposition3.5.2",
@@ -1408,7 +1458,8 @@
     "end_page": "49",
     "start_line": 17,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Proposition3.5.3",
@@ -1418,7 +1469,8 @@
     "end_page": "50",
     "start_line": 21,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Theorem3.5.4",
@@ -1428,7 +1480,8 @@
     "end_page": "50",
     "start_line": 5,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Corollary3.5.5",
@@ -1438,7 +1491,8 @@
     "end_page": "51",
     "start_line": 23,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Example3.5.6",
@@ -1448,7 +1502,8 @@
     "end_page": "51",
     "start_line": 5,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Definition3.5.7",
@@ -1458,7 +1513,8 @@
     "end_page": "51",
     "start_line": 9,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Proposition3.5.8",
@@ -1468,7 +1524,8 @@
     "end_page": "52",
     "start_line": 11,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Introduction_to_3.6",
@@ -1497,7 +1554,8 @@
     "start_line": 13,
     "end_line": 2,
     "status": "sorry_free",
-    "notes": "All parts proved sorry-free: (i) linear independence of characters, (ii) characters span tracial functionals for semisimple algebras. Helper lemmas tracial_of_end_eq_scalar_trace and rep_map_injective_of_semisimple also proved."
+    "notes": "All parts proved sorry-free: (i) linear independence of characters, (ii) characters span tracial functionals for semisimple algebras. Helper lemmas tracial_of_end_eq_scalar_trace and rep_map_injective_of_semisimple also proved.",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Introduction_to_3.7",
@@ -1516,7 +1574,8 @@
     "end_page": "54",
     "start_line": 7,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Discussion_after_Theorem3.7.1",
@@ -1545,7 +1604,8 @@
     "start_line": 11,
     "end_line": 14,
     "status": "sorry_free",
-    "note": "Existence sorry-free. Uniqueness: find_iso_summand + complement IsCompl proved. 1 sorry remains in inductive step (IH application plumbing)."
+    "note": "Existence sorry-free. Uniqueness: find_iso_summand + complement IsCompl proved. 1 sorry remains in inductive step (IH application plumbing).",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Lemma3.8.2",
@@ -1555,7 +1615,8 @@
     "end_page": "55",
     "start_line": 15,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Discussion_proof_of_Theorem3.8.1",
@@ -1692,7 +1753,8 @@
     "start_line": 13,
     "end_line": 16,
     "status": "sorry_free",
-    "notes": "All sorries resolved."
+    "notes": "All sorries resolved.",
+    "sorry_free": true
   },
   {
     "id": "Chapter3/Remark3.10.3",
@@ -1748,7 +1810,8 @@
     "end_page": "63",
     "start_line": 23,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Example4.1.3",
@@ -1758,7 +1821,8 @@
     "end_page": "63",
     "start_line": 13,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Problem4.1.4",
@@ -1787,7 +1851,8 @@
     "start_line": 23,
     "end_line": 8,
     "status": "sorry_free",
-    "notes": "All sorries resolved. hd_ne proved via trace nondegeneracy (IrrepDecomp.d_cast_ne_zero)."
+    "notes": "All sorries resolved. hd_ne proved via trace nondegeneracy (IrrepDecomp.d_cast_ne_zero).",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Corollary4.2.2",
@@ -1798,7 +1863,8 @@
     "start_line": 9,
     "end_line": 10,
     "status": "sorry_free",
-    "notes": "All sorries resolved."
+    "notes": "All sorries resolved.",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Exercise4.2.3",
@@ -1817,7 +1883,8 @@
     "end_page": "64",
     "start_line": 15,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Introduction_4.3",
@@ -1836,7 +1903,8 @@
     "end_page": "65",
     "start_line": 21,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Example4.3_S3",
@@ -1846,7 +1914,8 @@
     "end_page": "65",
     "start_line": 3,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Example4.3_Q8",
@@ -1856,7 +1925,8 @@
     "end_page": "66",
     "start_line": 11,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Exercise4.3.1",
@@ -1875,7 +1945,8 @@
     "end_page": "67",
     "start_line": 11,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_4.4",
@@ -1903,7 +1974,8 @@
     "end_page": "68",
     "start_line": 3,
     "end_line": 30,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_after_Theorem4.5.1",
@@ -1949,7 +2021,8 @@
     "end_page": "70",
     "start_line": 3,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Remark4.5.5",
@@ -1977,7 +2050,8 @@
     "end_page": "71",
     "start_line": 3,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Theorem4.6.2",
@@ -2043,7 +2117,8 @@
     "end_page": "73",
     "start_line": 15,
     "end_line": 24,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Introduction_4.8",
@@ -2062,7 +2137,8 @@
     "end_page": "77",
     "start_line": 28,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Introduction_4.9",
@@ -2081,7 +2157,8 @@
     "end_page": "77",
     "start_line": 9,
     "end_line": 31,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Introduction_4.10",
@@ -2100,7 +2177,8 @@
     "end_page": "78",
     "start_line": 7,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_before_Theorem4.10.2",
@@ -2120,7 +2198,8 @@
     "start_line": 11,
     "end_line": 16,
     "status": "sorry_free",
-    "notes": "All sorries resolved: blockPoly_irreducible proved via retraction argument"
+    "notes": "All sorries resolved: blockPoly_irreducible proved via retraction argument",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_before_Lemma4.10.3",
@@ -2139,7 +2218,8 @@
     "end_page": "78",
     "start_line": 19,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_proof_Theorem4.10.2",
@@ -2293,7 +2373,8 @@
     "end_page": "93",
     "start_line": 7,
     "end_line": 11,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_after_Definition5.1.1",
@@ -2331,7 +2412,8 @@
     "end_page": "94",
     "start_line": 7,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Theorem5.1.5",
@@ -2341,7 +2423,8 @@
     "end_page": "95",
     "start_line": 9,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Corollary5.1.6",
@@ -2380,7 +2463,8 @@
     "end_page": "95",
     "start_line": 29,
     "end_line": 29,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Definition5.2.2",
@@ -2390,7 +2474,8 @@
     "end_page": "96",
     "start_line": 1,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Proposition5.2.3",
@@ -2400,7 +2485,8 @@
     "end_page": "96",
     "start_line": 3,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_after_Proposition5.2.3",
@@ -2419,7 +2505,8 @@
     "end_page": "97",
     "start_line": 17,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Proposition5.2.5",
@@ -2429,7 +2516,8 @@
     "end_page": "97",
     "start_line": 11,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_after_Proposition5.2.5",
@@ -2448,7 +2536,8 @@
     "end_page": "98",
     "start_line": 29,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Problem5.2.7",
@@ -2532,7 +2621,8 @@
     "end_page": "100",
     "start_line": 7,
     "end_line": 12,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Remark5.4.2",
@@ -2551,7 +2641,8 @@
     "end_page": "100",
     "start_line": 15,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_after_Theorem5.4.3",
@@ -2570,7 +2661,8 @@
     "end_page": "100",
     "start_line": 21,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_before_Lemma5.4.5",
@@ -2589,7 +2681,8 @@
     "end_page": "101",
     "start_line": 25,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.4.4",
@@ -2609,7 +2702,8 @@
     "start_line": 9,
     "end_line": 22,
     "status": "sorry_free",
-    "notes": "All helper lemmas proved (character_isIntegral, scalar_contradicts_simplicity, nontrivial_irrep_dim_ge_two). Sorry-free since PRs #793, #801."
+    "notes": "All helper lemmas proved (character_isIntegral, scalar_contradicts_simplicity, nontrivial_irrep_dim_ge_two). Sorry-free since PRs #793, #801.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Lemma5.4.7",
@@ -2693,7 +2787,8 @@
     "end_page": "107",
     "start_line": 9,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_before_Lemma5.7.2",
@@ -2833,7 +2928,8 @@
     "start_line": 7,
     "end_line": 34,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Problem5.10.2",
@@ -2897,7 +2993,8 @@
     "end_page": "113",
     "start_line": 29,
     "end_line": 9,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_Young_projectors",
@@ -2939,7 +3036,8 @@
     "start_line": 7,
     "end_line": 8,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Problem5.12.5",
@@ -2969,7 +3067,8 @@
     "end_line": 23,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Full proof complete modulo pigeonhole_transposition combinatorial lemma (1 sorry). Algebraic structure proven: absorption case, sign-reversing involution case, linear extension."
+    "notes": "Full proof complete modulo pigeonhole_transposition combinatorial lemma (1 sorry). Algebraic structure proven: absorption case, sign-reversing involution case, linear extension.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_end_of_Lemma5.13.1_proof",
@@ -2999,7 +3098,8 @@
     "end_line": 8,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Fully proved. pigeonhole_transposition proved via column fiber decomposition + double counting identity."
+    "notes": "Fully proved. pigeonhole_transposition proved via column fiber decomposition + double counting identity.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Lemma5.13.3",
@@ -3010,7 +3110,8 @@
     "start_line": 9,
     "end_line": 12,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Lemma5.13.4",
@@ -3021,7 +3122,8 @@
     "start_line": 13,
     "end_line": 13,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_proof_of_Lemma5.13.4",
@@ -3070,7 +3172,8 @@
     "end_page": "116",
     "start_line": 15,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_proof_of_Proposition5.14.1",
@@ -3158,7 +3261,8 @@
     "end_line": 26,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Cauchy determinant identity by induction with row operations."
+    "notes": "Cauchy determinant identity by induction with row operations.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_footnote_5.15",
@@ -3187,7 +3291,8 @@
     "start_line": 5,
     "end_line": 10,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Remark5.15.5",
@@ -3387,7 +3492,8 @@
     "end_line": 4,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Symmetric part (Example5_19_3_symmetric) is sorry_free. Exterior part (Example5_19_3_exterior) still has sorry due to coercion issues between ExteriorAlgebra and PiTensorProduct."
+    "notes": "Symmetric part (Example5_19_3_symmetric) is sorry_free. Exterior part (Example5_19_3_exterior) still has sorry due to coercion issues between ExteriorAlgebra and PiTensorProduct.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.20",
@@ -3524,7 +3630,8 @@
     "start_line": 9,
     "end_line": 10,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_after_Definition5.23.1",
@@ -3843,7 +3950,8 @@
     "end_page": "150",
     "start_line": 3,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Discussion_after_Definition6.1.4",
@@ -3948,7 +4056,8 @@
     "start_line": 13,
     "end_line": 14,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Example6.2.3",
@@ -3959,7 +4068,8 @@
     "start_line": 15,
     "end_line": 20,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Example6.2.4",
@@ -3970,7 +4080,8 @@
     "start_line": 21,
     "end_line": 10,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Section6.3_heading",
@@ -4019,7 +4130,8 @@
     "end_page": "164",
     "start_line": 7,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Lemma6.4.2",
@@ -4030,7 +4142,8 @@
     "start_line": 21,
     "end_line": 38,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Definition6.4.3",
@@ -4040,7 +4153,8 @@
     "end_page": "164",
     "start_line": 39,
     "end_line": 46,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Remark6.4.4",
@@ -4059,7 +4173,8 @@
     "end_page": "165",
     "start_line": 1,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Lemma6.4.6",
@@ -4069,7 +4184,8 @@
     "end_page": "166",
     "start_line": 11,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Definition6.4.7",
@@ -4079,7 +4195,8 @@
     "end_page": "166",
     "start_line": 15,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Remark6.4.8",
@@ -4109,7 +4226,8 @@
     "end_page": "167",
     "start_line": 22,
     "end_line": 29,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Remark6.4.11",
@@ -4137,7 +4255,8 @@
     "end_page": "167",
     "start_line": 40,
     "end_line": 47,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Discussion_before_Theorem6.5.2",
@@ -4176,7 +4295,8 @@
     "end_page": "168",
     "start_line": 5,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Definition6.6.2",
@@ -4186,7 +4306,8 @@
     "end_page": "168",
     "start_line": 17,
     "end_line": 18,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Discussion_before_Definition6.6.3",
@@ -4205,7 +4326,8 @@
     "end_page": "168",
     "start_line": 21,
     "end_line": 35,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Definition6.6.3_maps",
@@ -4224,7 +4346,8 @@
     "end_page": "169",
     "start_line": 3,
     "end_line": 26,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Proposition6.6.5",
@@ -4235,7 +4358,8 @@
     "start_line": 27,
     "end_line": 18,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Proposition6.6.6",
@@ -4268,7 +4392,8 @@
     "end_line": 12,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Sink case (part 1) fully proved via rank-nullity. Source case (part 2) blocked by Definition 6.6.4 sorry (cokernel type needs AddCommGroup)."
+    "notes": "Sink case (part 1) fully proved via rank-nullity. Source case (part 2) blocked by Definition 6.6.4 sorry (cokernel type needs AddCommGroup).",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Section6.7_heading",
@@ -4287,7 +4412,8 @@
     "end_page": "173",
     "start_line": 15,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Lemma6.7.2",
@@ -4318,7 +4444,8 @@
     "start_line": 1,
     "end_line": 28,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Discussion_after_Theorem6.8.1",
@@ -4381,7 +4508,8 @@
     "start_line": 15,
     "end_line": 28,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Section6.9_heading",
@@ -4447,7 +4575,8 @@
     "end_page": "182",
     "start_line": 13,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Remark7.1.2",
@@ -4466,7 +4595,8 @@
     "end_page": "182",
     "start_line": 17,
     "end_line": 28,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Example7.1.3",
@@ -4485,7 +4615,8 @@
     "end_page": "183",
     "start_line": 3,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Example7.1.5",
@@ -4495,7 +4626,8 @@
     "end_page": "183",
     "start_line": 5,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Example7.1.5",
@@ -4514,7 +4646,8 @@
     "end_page": "183",
     "start_line": 9,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Introduction_7.2",
@@ -4533,7 +4666,8 @@
     "end_page": "184",
     "start_line": 15,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Definition7.2.1",
@@ -4552,7 +4686,8 @@
     "end_page": "184",
     "start_line": 5,
     "end_line": 25,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Introduction_7.3",
@@ -4571,7 +4706,8 @@
     "end_page": "185",
     "start_line": 5,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Example7.3.2",
@@ -4582,7 +4718,8 @@
     "start_line": 9,
     "end_line": 15,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Introduction_7.4",
@@ -4601,7 +4738,8 @@
     "end_page": "187",
     "start_line": 1,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Definition7.4.1",
@@ -4629,7 +4767,8 @@
     "end_page": "188",
     "start_line": 23,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Remark7.5.2",
@@ -4649,7 +4788,8 @@
     "start_line": 7,
     "end_line": 8,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Introduction_7.6",
@@ -4668,7 +4808,8 @@
     "end_page": "188",
     "start_line": 13,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Definition7.6.1",
@@ -4696,7 +4837,8 @@
     "end_page": "190",
     "start_line": 1,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Example7.6.3",
@@ -4724,7 +4866,8 @@
     "end_page": "190",
     "start_line": 17,
     "end_line": 17,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Example7.7.2",
@@ -4734,7 +4877,8 @@
     "end_page": "191",
     "start_line": 1,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Problem7.7.3",
@@ -4789,7 +4933,8 @@
     "end_page": "192",
     "start_line": 15,
     "end_line": 2,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Definition7.8.1",
@@ -4808,7 +4953,8 @@
     "end_page": "192",
     "start_line": 13,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Example7.8.3",
@@ -4818,7 +4964,8 @@
     "end_page": "192",
     "start_line": 21,
     "end_line": 21,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Exercise7.8.4",
@@ -4846,7 +4993,8 @@
     "end_page": "193",
     "start_line": 21,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Problem7.8.7",
@@ -4874,7 +5022,8 @@
     "end_page": "194",
     "start_line": 21,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Definition7.9.1",
@@ -4893,7 +5042,8 @@
     "end_page": "194",
     "start_line": 25,
     "end_line": 26,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Definition7.9.3",
@@ -4903,7 +5053,8 @@
     "end_page": "194",
     "start_line": 27,
     "end_line": 51,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Definition7.9.4",
@@ -4913,7 +5064,8 @@
     "end_page": "195",
     "start_line": 1,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Example7.9.5",
@@ -4924,7 +5076,8 @@
     "start_line": 9,
     "end_line": 10,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Discussion_after_Example7.9.5",
@@ -4945,7 +5098,8 @@
     "end_line": 24,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "hom_left_exact via inferInstance (coyoneda); tensor_right_exact via inferInstance (MonoidalClosed left adjoint)"
+    "notes": "hom_left_exact via inferInstance (coyoneda); tensor_right_exact via inferInstance (MonoidalClosed left adjoint)",
+    "sorry_free": true
   },
   {
     "id": "Chapter7/Exercise7.9.7",
@@ -5009,7 +5163,8 @@
     "end_page": "206",
     "start_line": 11,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Definition8.1.2",
@@ -5019,7 +5174,8 @@
     "end_page": "206",
     "start_line": 7,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Problem8.1.3",
@@ -5056,7 +5212,8 @@
     "end_page": "207",
     "start_line": 23,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Definition8.1.6",
@@ -5066,7 +5223,8 @@
     "end_page": "207",
     "start_line": 17,
     "end_line": 18,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Example8.1.7",
@@ -5076,7 +5234,8 @@
     "end_page": "207",
     "start_line": 19,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Discussion_after_Example8.1.7",
@@ -5095,7 +5254,8 @@
     "end_page": "207",
     "start_line": 23,
     "end_line": 26,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Introduction_8.2",
@@ -5114,7 +5274,8 @@
     "end_page": "208",
     "start_line": 3,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Exercise8.2.2",
@@ -5133,7 +5294,8 @@
     "end_page": "208",
     "start_line": 11,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Definition8.2.4",
@@ -5143,7 +5305,8 @@
     "end_page": "208",
     "start_line": 17,
     "end_line": 22,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter8/Problem8.2.5",
@@ -5235,7 +5398,8 @@
     "start_line": 9,
     "end_line": 4,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Definition9.1.2",
@@ -5245,7 +5409,8 @@
     "end_page": "214",
     "start_line": 5,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Corollary9.1.3",
@@ -5256,7 +5421,8 @@
     "start_line": 7,
     "end_line": 10,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Introduction_9.2",
@@ -5289,7 +5455,8 @@
     "start_line": 11,
     "end_line": 12,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Proposition9.2.3",
@@ -5301,7 +5468,8 @@
     "end_line": 27,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "All sorry placeholders filled. Proof uses rank-nullity and induction on composition series length."
+    "notes": "All sorry placeholders filled. Proof uses rank-nullity and induction on composition series length.",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Introduction_9.3",
@@ -5321,7 +5489,8 @@
     "start_line": 5,
     "end_line": 8,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Problem9.3.2",
@@ -5349,7 +5518,8 @@
     "end_page": "216",
     "start_line": 15,
     "end_line": 18,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Problem9.4.2",
@@ -5368,7 +5538,8 @@
     "end_page": "217",
     "start_line": 3,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Example9.4.4",
@@ -5419,7 +5590,8 @@
     "start_line": 19,
     "end_line": 4,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Example9.5.2",
@@ -5430,7 +5602,8 @@
     "start_line": 5,
     "end_line": 6,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Problem9.5.3",
@@ -5460,7 +5633,8 @@
     "end_line": 20,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "IsFiniteAbelianCategory class: extends Abelian + EnoughProjectives, with finite indexing type for simple objects"
+    "notes": "IsFiniteAbelianCategory class: extends Abelian + EnoughProjectives, with finite indexing type for simple objects",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Definition9.6.2",
@@ -5472,7 +5646,8 @@
     "end_line": 2,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "IsProgenerator class: extends Projective, requires epi from finite biproduct of copies"
+    "notes": "IsProgenerator class: extends Projective, requires epi from finite biproduct of copies",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Exercise9.6.3",
@@ -5531,7 +5706,8 @@
     "end_page": "220",
     "start_line": 7,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Discussion_after_Definition9.7.1",
@@ -5550,7 +5726,8 @@
     "end_page": "220",
     "start_line": 13,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Corollary9.7.3",
