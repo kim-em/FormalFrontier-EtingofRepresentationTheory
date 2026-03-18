@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter2.Definition2_8_10
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 
 /-!
 # Theorem 2.1.2: Gabriel's Theorem
@@ -21,9 +22,10 @@ positive definite quadratic forms on graphs). The statement is formalized; the p
 
 We formalize the key supporting concepts:
 - `QuiverRepresentationEquiv`: isomorphism of quiver representations
-- `QuiverRepresentation.IsIndecomposable`: indecomposability via vertex-wise complements
 - `HasFiniteRepresentationType`: finitely many iso classes of f.d. indecomposable reps
 - `quiverUndirectedAdj`: the underlying undirected adjacency matrix of a quiver
+
+`QuiverRepresentation.IsIndecomposable` is defined in `Proposition6_6_5.lean`.
 -/
 
 namespace Etingof
@@ -39,30 +41,6 @@ structure QuiverRepresentationEquiv (k : Type*) (Q : Type*) [CommSemiring k] [Qu
   /-- The equivalences commute with the arrow maps -/
   commutes : ∀ {v w : Q} (e : v ⟶ w) (x : ρ₁.obj v),
     equivAt w (ρ₁.mapLinear e x) = ρ₂.mapLinear e (equivAt v x)
-
-/-- A quiver representation is nonzero if at least one vertex space is nontrivial. -/
-def QuiverRepresentation.IsNonzero {k : Type*} {Q : Type*} [CommSemiring k] [Quiver Q]
-    (ρ : QuiverRepresentation k Q) : Prop :=
-  ∃ v, Nontrivial (ρ.obj v)
-
-/-- A quiver representation over a field is indecomposable if it is nonzero and for any
-vertex-wise complementary pair of subrepresentations, one must be trivial everywhere.
-
-A pair (W₁, W₂) of families of submodules is a complementary pair of subrepresentations
-if: (1) W₁ v and W₂ v are complementary submodules of ρ.obj v for each vertex v, and
-(2) both W₁ and W₂ are stable under the arrow maps. -/
-def QuiverRepresentation.IsIndecomposable {k : Type*} {Q : Type*} [Field k] [Quiver Q]
-    (ρ : QuiverRepresentation k Q) : Prop :=
-  ρ.IsNonzero ∧
-  ∀ (W₁ W₂ : ∀ v, Submodule k (ρ.obj v)),
-    -- W₁ and W₂ are complementary at each vertex
-    (∀ v, IsCompl (W₁ v) (W₂ v)) →
-    -- W₁ is a subrepresentation (stable under arrow maps)
-    (∀ {v w : Q} (e : v ⟶ w) (x : ρ.obj v), x ∈ W₁ v → ρ.mapLinear e x ∈ W₁ w) →
-    -- W₂ is a subrepresentation
-    (∀ {v w : Q} (e : v ⟶ w) (x : ρ.obj v), x ∈ W₂ v → ρ.mapLinear e x ∈ W₂ w) →
-    -- Then one of them is trivial everywhere
-    (∀ v, W₁ v = ⊥) ∨ (∀ v, W₂ v = ⊥)
 
 /-- Quiver representation with all universes pinned to 0 (the natural setting for
 finite-dimensional representations over a concrete field on a finite vertex set). -/
