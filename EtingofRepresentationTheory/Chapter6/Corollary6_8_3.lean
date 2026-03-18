@@ -1,7 +1,9 @@
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.Definition6_4_1
 import EtingofRepresentationTheory.Chapter6.Definition6_5_1
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_6
+import EtingofRepresentationTheory.Chapter6.Theorem6_5_2
 import EtingofRepresentationTheory.Chapter6.Theorem6_8_1
 import Mathlib.LinearAlgebra.Dimension.Free
 
@@ -159,6 +161,37 @@ private lemma Etingof.reflectionFunctors_reduce_and_recover
 
 end ReflectionFunctorChain
 
+section TitsFormBound
+
+/-- The Tits form of the dimension vector of an indecomposable representation of a
+Dynkin quiver satisfies B(d, d) ≤ 2.
+
+The full proof requires Ringel's homological formula:
+  dim Hom(V, V) - dim Ext¹(V, V) = ½ B(d(V), d(V))
+For V indecomposable over an algebraically closed field:
+  - dim End(V) = 1 (Schur's lemma for finite-dimensional indecomposables)
+  - dim Ext¹(V, V) ≥ 0
+So 1 ≤ ½ B(d, d), i.e., B(d, d) ≤ 2 + 2·dim Ext¹(V, V).
+Combined with evenness and positive definiteness, this gives B(d, d) = 2
+(since B(d,d) ≥ 2 by posdef_min_value, and the Ext term would force B > 2
+only if dim Ext¹ > 0, but for Dynkin quivers Ext¹(V,V) = 0 for indecomposables).
+
+This requires homological algebra infrastructure (Ext groups for quiver
+representations) not yet formalized in this project. -/
+private lemma Etingof.indecomposable_titsForm_le_two
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (_hDynkin : Etingof.IsDynkinDiagram n adj)
+    {k : Type*} [Field k]
+    {Q : Quiver (Fin n)}
+    (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
+    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    (_hρ : ρ.IsIndecomposable) :
+    dotProduct (fun v => (Module.finrank k (ρ.obj v) : ℤ))
+      ((Etingof.cartanMatrix n adj).mulVec (fun v => (Module.finrank k (ρ.obj v) : ℤ))) ≤ 2 :=
+  sorry
+
+end TitsFormBound
+
 /-- Indecomposable representations of a Dynkin quiver are determined (up to isomorphism)
 by their dimension vectors.
 
@@ -191,10 +224,15 @@ theorem Etingof.Corollary6_8_3
     rw [Module.finrank_eq_zero_iff_of_free (R := k)] at this
     exact not_nontrivial_iff_subsingleton.mpr this hv
   -- Step 4: The dimension vector is a positive root (B(d,d) = 2)
-  -- This requires showing that the dimension vector of an indecomposable representation
-  -- satisfies the root condition. This is part of Gabriel's theorem infrastructure.
+  -- Lower bound: B(d,d) ≥ 2 from positive definiteness + evenness (Lemma 6.4.2)
+  -- Upper bound: B(d,d) ≤ 2 from indecomposability (requires Ext group infrastructure)
   have hd_root : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) = 2 := by
-    sorry
+    have hlb : 2 ≤ dotProduct d ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec d) :=
+      Etingof.posdef_min_value hDynkin d hd_nonzero
+    have hub : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) ≤ 2 :=
+      Etingof.indecomposable_titsForm_le_two hDynkin ρ₁ h₁
+    unfold Etingof.cartanMatrix at hub ⊢
+    omega
   -- Step 5: By Theorem 6.8.1, there exists a sequence of reflections reducing d to a simple root
   obtain ⟨vertices, p, hreflect⟩ := Etingof.Theorem6_8_1 hDynkin d hd_pos hd_nonzero hd_root
   -- Step 6: Use the reflection functor chain to show ρ₁ ≅ ρ₂
