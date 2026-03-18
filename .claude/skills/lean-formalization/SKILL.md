@@ -16,6 +16,27 @@ lake exe cache get
 ```
 This downloads pre-built Mathlib oleans. Skipping it triggers a full Mathlib rebuild (1800+ jobs).
 
+## Pre-Flight Checklist (Before Starting Any Proof)
+
+Run this checklist before writing a single tactic. Skipping it has caused agents to waste entire context windows on dead-ends.
+
+1. **Check Known Dead-Ends.** Scan the "Known Dead-Ends" section below. If your proof requires any of these patterns, sorry it immediately and move on:
+   - ExteriorAlgebra ↔ PiTensorProduct bridging
+   - `if`-branching `obj` fields in QuiverRepresentation-like structures
+   - Direct Aristotle proof integration (needs adaptation PR first)
+
+2. **Search for existing definitions.** Before defining any concept, search the codebase:
+   ```bash
+   grep -r "def.*YourConceptName\|abbrev.*YourConceptName" EtingofRepresentationTheory/
+   ```
+   Duplicate definitions across chapters create incompatibility bugs that require manual refactoring later (e.g., duplicate `inducedCharacter'` in Ch5, duplicate `IsIndecomposable` in Ch2/Ch6).
+
+3. **Verify the statement.** Cross-reference the Lean statement against the book's text. Missing hypotheses (algebraic closure, field characteristic, orientation constraints) are a recurring source of wasted proof attempts. If the proof fails at a fundamental level after 1 attempt, suspect a statement bug before trying alternative tactics.
+
+4. **Estimate your context budget.** Difficulty 3/3 proofs consume 60-80% of a context window on average. If you're already past the midpoint of your session, consider claiming an easier item instead. Partial progress on a hard proof with no commit is worth zero — a completed easy proof is worth one sorry removed.
+
+5. **Check dependency readiness.** Verify that imports compile and key helper lemmas are sorry-free (or that sorry'd helpers won't block your proof). Use `lake build <module>` for the specific file.
+
 ## Translation Pipeline
 
 Formalizing an item follows three stages: **translate**, **scaffold**, **prove**.
@@ -723,11 +744,11 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 14)
-The project has 191/583 items sorry-free (32.8%) with 109 sorry occurrences across 41 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
+### Current Status (as of Wave 16)
+The project has ~193/583 items sorry-free (33.1%). This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (65 sorries across 22 files). Gabriel's theorem chain (Ch6) is progressing: 3/7 sorry-free with Theorem 6.8.1 (linchpin) proven. Ch9 saw its first proof completion (Proposition 9.2.3).
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (63/104 remaining sorries — 61% of all remaining). Gabriel's theorem chain (Ch6) is progressing with Theorem 6.8.1 (linchpin) proven; reflection functor infrastructure (#1097) blocks 4/7 remaining items. Ch9 has 9 sorries across 4 files.
 
-**Velocity trend:** Declining as remaining items are harder. 16 claimed issues without PRs after 24h suggest agents hitting items that resist standard tactics. The easy wins are done — remaining items require deep proof work or new Mathlib infrastructure.
+**Velocity trend:** Declining as remaining items are harder. Stale claim triage (#1096) released 14 claimed issues in wave 15 — agents were hitting items that resist standard tactics. The easy wins are done.
 
-**Key velocity insight from waves 9-14:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Plan accordingly — don't create more statement issues than the proof pipeline can absorb.
+**Key velocity insight from waves 9-16:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early.
