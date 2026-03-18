@@ -30,6 +30,7 @@ noncomputable def SpechtModule (n : ℕ) (la : Nat.Partition n) :
   Submodule.span (SymGroupAlgebra n) {YoungSymmetrizer n la}
 
 noncomputable section
+open scoped Classical
 
 private abbrev G' (n : ℕ) := Equiv.Perm (Fin n)
 private abbrev A' (n : ℕ) := MonoidAlgebra ℂ (G' n)
@@ -74,15 +75,79 @@ private lemma trace_lmul_monoidAlgebra
     rw [MonoidAlgebra.mul_single_apply, mul_inv_cancel, mul_one]
   simp only [this, Finset.sum_const, Finset.card_univ]
 
+/-- The sorted parts of a partition of n sum to n. -/
+private lemma sortedParts_sum (n : ℕ) (la : Nat.Partition n) :
+    la.sortedParts.sum = n := by
+  have h := Multiset.sort_eq la.parts (· ≥ ·)
+  have : (la.sortedParts : Multiset ℕ).sum = la.parts.sum := congrArg Multiset.sum h
+  rw [Multiset.sum_coe] at this
+  rw [this, la.parts_sum]
+
+/-- A permutation that preserves both rows and columns must be the identity.
+This follows from the injectivity of (rowOfPos, colOfPos) on valid positions. -/
+private lemma row_col_inter_trivial (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hrow : σ ∈ RowSubgroup n la) (hcol : σ ∈ ColumnSubgroup n la) :
+    σ = 1 := by
+  ext k
+  simp only [Equiv.Perm.one_apply]
+  have hsum : la.sortedParts.sum = n := sortedParts_sum n la
+  have hk : k.val < la.sortedParts.sum := by rw [hsum]; exact k.isLt
+  have hσk : (σ k).val < la.sortedParts.sum := by rw [hsum]; exact (σ k).isLt
+  exact rowOfPos_colOfPos_injective la.sortedParts
+    (σ k).val k.val hσk hk (hrow k) (hcol k)
+
+/-- The ColumnAntisymmetrizer evaluated at σ ∈ Q_λ gives sign(σ). -/
+private lemma columnAntisymmetrizer_apply_mem (n : ℕ) (la : Nat.Partition n) (σ : G' n)
+    (hσ : σ ∈ ColumnSubgroup n la) :
+    (ColumnAntisymmetrizer n la : A' n) σ = ((↑(Equiv.Perm.sign σ) : ℤ) : ℂ) := by
+  simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+  rw [Finsupp.finset_sum_apply]
+  rw [Finset.sum_congr rfl (fun i _ => show _ = _ from by
+    change ((↑(↑(Equiv.Perm.sign (i : G' n)) : ℤ) : ℂ) • (Finsupp.single (i : G' n) (1 : ℂ))) σ = _
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply])]
+  rw [Finset.sum_eq_single (⟨σ, hσ⟩ : ↑(ColumnSubgroup n la))]
+  · simp
+  · intro q _ hq
+    have : (q : G' n) ≠ σ := fun h => hq (Subtype.ext h)
+    simp [this]
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- The ColumnAntisymmetrizer evaluated at σ ∉ Q_λ gives 0. -/
+private lemma columnAntisymmetrizer_apply_not_mem (n : ℕ) (la : Nat.Partition n) (σ : G' n)
+    (hσ : σ ∉ ColumnSubgroup n la) :
+    (ColumnAntisymmetrizer n la : A' n) σ = 0 := by
+  simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+  rw [Finsupp.finset_sum_apply]
+  rw [Finset.sum_congr rfl (fun i _ => show _ = _ from by
+    change ((↑(↑(Equiv.Perm.sign (i : G' n)) : ℤ) : ℂ) • (Finsupp.single (i : G' n) (1 : ℂ))) σ = _
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply])]
+  apply Finset.sum_eq_zero
+  intro q _
+  have : (q : G' n) ≠ σ := fun h => hσ (h ▸ q.prop)
+  simp [this]
+
 /-- The coefficient of the identity permutation in the Young symmetrizer is 1.
 This uses the fact that P_λ ∩ Q_λ = {id}: only the pair (id, id) in P × Q
 maps to the identity permutation. -/
 private lemma youngSymmetrizer_identity_coeff (n : ℕ) (la : Nat.Partition n) :
     (YoungSymmetrizer n la : A' n) 1 = 1 := by
-  -- c_λ(1) = (a_λ · b_λ)(1), use mul_single to expand
-  -- Strategy: show (RowSym * ColAnti)(1) = 1
-  -- by showing RowSym applied at identity gives the coefficient
-  sorry
+  simp only [YoungSymmetrizer, RowSymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
+  rw [Finsupp.finset_sum_apply]
+  simp only [MonoidAlgebra.single_mul_apply, one_mul, mul_one]
+  -- Goal: ∑ p : RowSubgroup, (ColAnti)(p⁻¹) = 1
+  rw [Finset.sum_eq_single (⟨1, (RowSubgroup n la).one_mem⟩ : ↑(RowSubgroup n la))]
+  · -- p = 1: ColAnti(1⁻¹) = ColAnti(1) = sign(1) = 1
+    simp only [Subgroup.coe_mk, inv_one]
+    rw [columnAntisymmetrizer_apply_mem n la 1 (ColumnSubgroup n la).one_mem]
+    simp [Equiv.Perm.sign_one]
+  · -- p ≠ 1: ColAnti(p⁻¹) = 0
+    intro p _ hp
+    have hp_ne : (p : G' n) ≠ 1 := fun h => hp (Subtype.ext h)
+    apply columnAntisymmetrizer_apply_not_mem
+    intro hcol
+    exact hp_ne (row_col_inter_trivial n la p.val p.prop
+      ((ColumnSubgroup n la).inv_mem_iff.mp hcol))
+  · intro h; exact absurd (Finset.mem_univ _) h
 
 /-- c_λ² ≠ 0. Proved via the trace argument: if c_λ² = 0 then left multiplication
 L_{c_λ} is nilpotent, so its trace is 0. But Tr(L_{c_λ}) = n! · c_λ(e) = n! ≠ 0. -/
