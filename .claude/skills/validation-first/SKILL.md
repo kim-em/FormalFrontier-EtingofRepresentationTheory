@@ -60,11 +60,11 @@ Unlike Phases 1-2 (JSON schemas, text validation), Phase 3 has `lake build` as t
 - **sorry = placeholder.** Compiles but isn't done.
 - **admit = dangerous.** Never commit.
 
-### Automated Status Tracking
+### Status Tracking
 
-LeanArchitect's `extract_blueprint` automatically detects sorry status from compiled `.olean` files. No manual status tracking needed for formal declarations — just compile and extract.
+Formal item status is tracked manually in `progress/items.json`. After proving a theorem (removing its `sorry`), update the item's status to `sorry_free` in the same commit.
 
-For non-formal items (discussion blobs, external dependencies), status is tracked manually in `progress/items.json`.
+For non-formal items (discussion blobs, external dependencies), status is also tracked in `progress/items.json`.
 
 ### Validation Tooling for Stage 3.1 (Scaffolding)
 
