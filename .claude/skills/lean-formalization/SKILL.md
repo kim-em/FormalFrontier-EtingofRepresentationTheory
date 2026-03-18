@@ -553,7 +553,28 @@ ext ⟨σ, hσ⟩
 simp [...]
 ```
 
+**Preferred fix:** Add `open scoped Classical` at the section level (before any definitions that use `haveI : DecidablePred ... := Classical.decPred _`). This ensures all `DecidablePred` instances come from the same source, avoiding the mismatch entirely. This is better than `convert rfl` because it prevents the issue rather than patching it.
+
 **Alternative:** Prove equality via `Finsupp.ext` (coefficient-wise) to sidestep sum comparison entirely.
+
+## MonoidAlgebra Coefficient Computation
+
+`MonoidAlgebra k G` is a `def` (not `abbrev`) alias for `G →₀ k`. This means `simp_rw` and `simp only` cannot see through it to apply `Finsupp` lemmas like `Finsupp.smul_apply`, `Finsupp.single_apply`, etc.
+
+**Symptom:** `simp_rw [Finsupp.smul_apply, Finsupp.single_apply]` makes no progress on a goal involving `MonoidAlgebra` terms.
+
+**Fix:** Use `Finset.sum_congr rfl` with `change` to coerce the term to `Finsupp` before `rw`:
+```lean
+rw [Finset.sum_congr rfl (fun i _ => show _ = _ from by
+  change (c • (Finsupp.single g (1 : k))) σ = _
+  rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply])]
+```
+
+**Key lemmas for MonoidAlgebra coefficients:**
+- `MonoidAlgebra.single_mul_apply`: `(single g r * x) h = r * x (g⁻¹ * h)` (for groups)
+- `MonoidAlgebra.mul_single_apply`: `(x * single g r) h = x (h * g⁻¹) * r` (for groups)
+- `Finsupp.finset_sum_apply`: `(∑ i ∈ S, f i) a = ∑ i ∈ S, f i a`
+- `Finsupp.smul_apply`: `(b • v) a = b • v a` (definitional, but needs coercion via `change`)
 
 ## Trace-Based Proof Pattern
 
