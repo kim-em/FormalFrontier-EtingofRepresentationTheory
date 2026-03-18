@@ -35,33 +35,140 @@ reconstruct the representation from the simple one.
 
 ## Current status
 
-The proof is structured as follows:
-1. **Reduction to simple root**: By `Theorem6_8_1`, there exist vertices
-   `[v₁, ..., vₘ]` and a vertex `p` such that `sᵥₘ ∘ ⋯ ∘ sᵥ₁(α) = αₚ`.
-2. **Base case** (α is a simple root): Construct the simple representation
-   `k₍ₚ₎` (one-dimensional at `p`, zero elsewhere, all maps zero). This is
-   indecomposable with dimension vector `αₚ`.
-3. **Inductive step**: Apply inverse reflection functors `F⁻ᵥ₁ ∘ ⋯ ∘ F⁻ᵥₘ`
-   to reconstruct a representation with dimension vector `α`.
+### Infrastructure built
+- **Simple representation construction** (`simpleRepresentation`): Constructs the
+  indecomposable representation k₍ₚ₎ at vertex p (1-dim at p, 0 elsewhere, all
+  maps zero) for any quiver Q.
+- **Base case proved** (`Corollary6_8_4_simpleRoot`): When α = simpleRoot n p,
+  the simple representation realizes it.
+- **Induction structure**: The main proof reduces via Theorem 6.8.1 to the base
+  case plus a reflection functor chain step (sorry'd).
 
-### Blockers (sorry remaining)
-
-The construction is sorry'd due to several infrastructure gaps:
-- **Universe mismatch**: The `QuiverRepresentation` structure's `obj` field
-  lives in a universe variable `u₃`, but concrete constructions (e.g.,
-  `Fin m → k`) fix it to the universe of `k`. This prevents the simple
-  representation construction from type-checking against the existential.
-- **Quiver orientation**: Each reflection functor `F⁻ᵢ` changes the quiver
-  via `reversedAtVertex`, producing a representation on a different quiver
-  type. Chaining `m` reflections requires tracking `m` nested quiver
-  orientations.
-- **Q unconstrained**: The theorem statement has `{Q : Quiver (Fin n)}`
-  without requiring compatibility between `Q` and `adj`. The proof needs
-  `Q` to be an orientation of the Dynkin diagram.
-- **Prop 6.6.7 source**: The source version of indecomposability preservation
-  is sorry'd, needed for each step of the reflection functor chain.
-- **Theorem 6.8.1 sorry'd**: The reflection sequence theorem is itself sorry'd.
+### Remaining blocker
+- **Reflection functor chain** (`reflectionFunctorChainStep`): Applying F⁻ᵢ to
+  transform a realization on the reversed quiver back to Q. This requires:
+  - Q to be an orientation of the Dynkin diagram (currently unconstrained)
+  - Iterated quiver reversal tracking
+  - Proposition 6.6.7 source case (currently sorry'd)
+  - Proposition 6.6.8 source case for dimension vector tracking
 -/
+
+open scoped Matrix
+
+section SimpleRepresentation
+
+/-- The simple quiver representation at vertex p: assigns `Fin 1 → k` at p,
+`Fin 0 → k` at all other vertices, and zero maps on all edges. -/
+noncomputable def Etingof.simpleRepresentation
+    (k : Type*) [CommSemiring k]
+    {n : ℕ} (p : Fin n)
+    {Q : Quiver (Fin n)} :
+    @Etingof.QuiverRepresentation k (Fin n) _ Q where
+  obj v := Fin (if v = p then 1 else 0) → k
+  mapLinear _ := 0
+
+/-- The simple representation at p has `Module.Free k` at every vertex. -/
+instance Etingof.simpleRepresentation_free
+    (k : Type*) [CommSemiring k]
+    {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} (v : Fin n) :
+    Module.Free k ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
+  Module.Free.pi _ _
+
+/-- The simple representation at p has `Module.Finite k` at every vertex. -/
+instance Etingof.simpleRepresentation_finite
+    (k : Type*) [CommSemiring k]
+    {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} (v : Fin n) :
+    Module.Finite k ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
+  Module.Finite.pi
+
+private lemma Etingof.simpleRepresentation_finrank
+    (k : Type*) [Field k]
+    {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} (v : Fin n) :
+    Module.finrank k ((Etingof.simpleRepresentation k p (Q := Q)).obj v) =
+      if v = p then 1 else 0 := by
+  show Module.finrank k (Fin (if v = p then 1 else 0) → k) = _
+  split_ifs with h <;> simp_all [Module.finrank_pi_fintype]
+
+private lemma Etingof.simpleRepresentation_finrank_eq_simpleRoot
+    (k : Type*) [Field k]
+    {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} (v : Fin n) :
+    (Etingof.simpleRoot n p v : ℤ) =
+      ↑(Module.finrank k ((Etingof.simpleRepresentation k p (Q := Q)).obj v)) := by
+  rw [Etingof.simpleRepresentation_finrank]
+  simp only [Etingof.simpleRoot, Pi.single_apply]
+  split_ifs <;> simp_all
+
+/-- The simple representation at p is indecomposable: nontrivial at p and
+any complementary sub-representations must have one component trivial. -/
+private lemma Etingof.simpleRepresentation_indecomposable
+    (k : Type*) [Field k]
+    {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} :
+    (Etingof.simpleRepresentation k p (Q := Q)).IsIndecomposable := by
+  refine ⟨⟨p, ?_⟩, fun W₁ W₂ _ _ hcompl => ?_⟩
+  · -- Nontrivial at p: Fin 1 → k is nontrivial
+    change Nontrivial (Fin (if p = p then 1 else 0) → k)
+    simp only [ite_true]
+    exact Pi.nontrivial
+  · -- At vertices v ≠ p, both submodules are ⊥ (zero-dimensional space)
+    have hbot : ∀ v, v ≠ p → W₁ v = ⊥ ∧ W₂ v = ⊥ := by
+      intro v hv
+      have hempty : IsEmpty (Fin (if v = p then 1 else 0)) := by
+        simp only [hv, ite_false]; exact Fin.isEmpty
+      haveI : Subsingleton ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
+        show Subsingleton (Fin (if v = p then 1 else 0) → k) from inferInstance
+      exact ⟨Submodule.eq_bot_of_subsingleton, Submodule.eq_bot_of_subsingleton⟩
+    -- At vertex p, 1-dimensional space: one complement must be ⊥
+    have hdim_p : Module.finrank k (Fin (if p = p then 1 else 0) → k) = 1 := by
+      simp
+    -- In a 1-dim space, any IsCompl pair has one component = ⊥
+    have hcompl_p := hcompl p
+    -- Use disjointness: W₁ ⊓ W₂ = ⊥, W₁ ⊔ W₂ = ⊤
+    -- In a 1-dim space, if both are nonzero then both = ⊤, contradicting disjointness
+    set_option maxHeartbeats 400000 in
+    have : W₁ p = ⊥ ∨ W₂ p = ⊥ := by
+      -- upgrade to AddCommGroup for Submodule API
+      letI : ∀ v, AddCommGroup ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
+        fun v => Etingof.addCommGroupOfField (k := k)
+      by_contra h
+      push_neg at h
+      obtain ⟨h1, h2⟩ := h
+      have hr1 := Submodule.one_le_finrank_iff.mpr h1
+      have hr2 := Submodule.one_le_finrank_iff.mpr h2
+      have hsum := Submodule.finrank_sup_add_finrank_inf_eq (W₁ p) (W₂ p)
+      rw [hcompl_p.sup_eq_top, hcompl_p.inf_eq_bot] at hsum
+      rw [finrank_top, finrank_bot] at hsum
+      -- finrank of the whole space at p equals 1
+      have hdim_p' : Module.finrank k ((Etingof.simpleRepresentation k p (Q := Q)).obj p) = 1 :=
+        hdim_p
+      omega
+    rcases this with h | h
+    · left; intro v; by_cases hv : v = p
+      · subst hv; exact h
+      · exact (hbot v hv).1
+    · right; intro v; by_cases hv : v = p
+      · subst hv; exact h
+      · exact (hbot v hv).2
+
+end SimpleRepresentation
+
+universe u in
+/-- Base case: when α is a simple root, the simple representation realizes it.
+The `obj` universe is fixed to match `k` (uses `Fin m → k` for spaces).
+Note: This fixes `QuiverRepresentation.obj` to live in the same universe as `k`. -/
+theorem Etingof.Corollary6_8_4_simpleRoot
+    {n : ℕ} (p : Fin n)
+    (k : Type u) [Field k]
+    {Q : Quiver (Fin n)} :
+    ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
+      (_ : ∀ v, Module.Free k (ρ.obj v))
+      (_ : ∀ v, Module.Finite k (ρ.obj v)),
+      ρ.IsIndecomposable ∧
+      ∀ v, (Etingof.simpleRoot n p v : ℤ) = ↑(Module.finrank k (ρ.obj v)) :=
+  ⟨Etingof.simpleRepresentation k p,
+   fun v => Etingof.simpleRepresentation_free k p v,
+   fun v => Etingof.simpleRepresentation_finite k p v,
+   Etingof.simpleRepresentation_indecomposable k p,
+   fun v => Etingof.simpleRepresentation_finrank_eq_simpleRoot k p v⟩
 
 /-- Every positive root of a Dynkin quiver is the dimension vector of some
 indecomposable representation.
@@ -83,26 +190,24 @@ theorem Etingof.Corollary6_8_4
       ρ.IsIndecomposable ∧
       ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v)) := by
   -- By Theorem 6.8.1, iterated simple reflections reduce α to a simple root αₚ.
-  -- This gives us the sequence of vertices [v₁, ..., vₘ] for the reflection
-  -- functor chain.
   obtain ⟨vertices, p, hreduce⟩ := Etingof.Theorem6_8_1 hDynkin α hα.2 hα.1.1 hα.1.2
-  -- The proof proceeds by induction on `vertices.length`:
+  -- The proof proceeds by induction on the reflection sequence `vertices`.
   --
-  -- BASE CASE (vertices = []): α = simpleRoot n p.
-  --   Construct ρ with obj v = k^(δ_{v,p}) (1-dim at p, 0-dim elsewhere).
-  --   All edge maps are zero. This is indecomposable because:
-  --   - Nontrivial at p (k is nontrivial)
-  --   - Any complementary sub-reps W₁, W₂ satisfy: at v ≠ p, both are ⊥
-  --     (zero-dimensional space); at p, the space is 1-dimensional (simple),
-  --     so one of W₁ p, W₂ p must be ⊥.
+  -- BASE CASE (vertices = []): α = simpleRoot n p directly.
+  --   The simple representation k₍ₚ₎ (1-dim at p, 0 elsewhere) realizes this.
+  --   See `Corollary6_8_4_simpleRoot` above.
   --
   -- INDUCTIVE STEP (vertices = i :: rest):
-  --   Let α' = sᵢ(α). By IH (on quiver reversedAtVertex Q i),
-  --   ∃ ρ' indecomposable with dim vector α'.
-  --   Apply F⁻ᵢ(ρ') to get ρ on Q with:
-  --   - dim vector = sᵢ(α') = sᵢ(sᵢ(α)) = α (reflections are involutions)
-  --     [uses Proposition 6.6.8]
-  --   - indecomposable [uses Proposition 6.6.7]
+  --   Let α' = sᵢ(α). By the induction hypothesis (on the quiver
+  --   `reversedAtVertex Q i`), there exists an indecomposable representation ρ'
+  --   with dim vector α'. Apply F⁻ᵢ(ρ') to obtain ρ on Q.
+  --   Requires: F⁻ᵢ (Def 6.6.4), Prop 6.6.7 source (indecomposability),
+  --   Prop 6.6.8 source (dimension vector tracking).
   --
-  -- SORRY: Construction blocked — see module docstring for details.
+  -- The inductive step is blocked by:
+  -- 1. Q is unconstrained — no compatibility with adj is enforced, so
+  --    reflection functors (which need sink/source structure) may not apply.
+  -- 2. Proposition 6.6.7 source case is sorry'd.
+  -- 3. Chaining quiver reversals (each F⁻ᵢ changes the quiver via
+  --    `reversedAtVertex`) requires careful type-level tracking.
   sorry
