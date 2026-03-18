@@ -5,6 +5,8 @@ import Mathlib.LinearAlgebra.FiniteDimensional.Defs
 import Mathlib.Algebra.Module.Projective
 import Mathlib.LinearAlgebra.Dimension.RankNullity
 import Mathlib.RingTheory.SimpleModule.Basic
+import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
+import Mathlib.LinearAlgebra.Matrix.FiniteDimensional
 
 /-!
 # Proposition 9.2.3: Hom from projective cover computes Jordan–Hölder multiplicity
@@ -82,13 +84,62 @@ theorem finrank_hom_additive_of_projective
     {R : Type*} [Ring R] {F : Type*} [Field F] [Algebra F R]
     {P : Type*} [AddCommGroup P] [Module R P] [Module.Projective R P]
     [Module F P] [IsScalarTower F R P] [SMulCommClass R F P]
+    [Module.Finite F P]
     {N : Type*} [AddCommGroup N] [Module R N]
     [Module F N] [IsScalarTower F R N] [SMulCommClass R F N]
     [Module.Finite F N]
     (N' : Submodule R N) :
     Module.finrank F (P →ₗ[R] N) =
       Module.finrank F (P →ₗ[R] N') + Module.finrank F (P →ₗ[R] (N ⧸ N')) := by
-  sorry
+  -- Post-composition with mkQ gives ψ : Hom(P,N) →ₗ[F] Hom(P, N/N')
+  let ψ : (P →ₗ[R] N) →ₗ[F] (P →ₗ[R] (N ⧸ N')) :=
+    { toFun := fun f => N'.mkQ.comp f
+      map_add' := fun f g => by ext; simp
+      map_smul' := fun c f => by ext; simp }
+  -- ψ is surjective by projectivity of P
+  have hψ_surj : Function.Surjective ψ := by
+    intro g
+    obtain ⟨h, hh⟩ := Module.projective_lifting_property N'.mkQ g N'.mkQ_surjective
+    exact ⟨h, LinearMap.ext fun p => by
+      show N'.mkQ (h p) = g p
+      exact congr_fun (congr_arg DFunLike.coe hh) p⟩
+  -- Pre-composition with subtype gives ι : Hom(P,N') →ₗ[F] Hom(P,N)
+  let ι : (P →ₗ[R] N') →ₗ[F] (P →ₗ[R] N) :=
+    { toFun := fun f => N'.subtype.comp f
+      map_add' := fun f g => by ext; simp
+      map_smul' := fun c f => by ext; simp }
+  -- range ι = ker ψ (exactness of Hom(P, −) applied to 0 → N' → N → N/N' → 0)
+  have hι_range : LinearMap.range ι = LinearMap.ker ψ := by
+    ext f
+    simp only [LinearMap.mem_range, LinearMap.mem_ker]
+    constructor
+    · rintro ⟨g, rfl⟩
+      ext p
+      show N'.mkQ (N'.subtype (g p)) = 0
+      simp [Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero, (g p).2]
+    · intro hf
+      refine ⟨{ toFun := fun p => ⟨f p, ?_⟩, map_add' := ?_, map_smul' := ?_ }, ?_⟩
+      · have : (ψ f) p = 0 := LinearMap.ext_iff.mp hf p
+        simp only [ψ, LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply] at this
+        rwa [Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero] at this
+      · intro x y; ext; simp
+      · intro r x; ext; simp
+      · ext p; simp [ι]
+  -- ι is injective
+  have hι_inj : Function.Injective ι := by
+    intro f g hfg
+    ext p
+    have := LinearMap.ext_iff.mp hfg p
+    simp only [ι, LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+      Submodule.subtype_apply] at this
+    exact this
+  -- Apply rank-nullity: finrank(range ψ) + finrank(ker ψ) = finrank(source)
+  have hrn := LinearMap.finrank_range_add_finrank_ker ψ
+  -- finrank(range ψ) = finrank(codomain) by surjectivity
+  rw [LinearMap.range_eq_top.mpr hψ_surj, finrank_top] at hrn
+  -- finrank(ker ψ) = finrank(range ι) = finrank(Hom(P,N'))
+  rw [← hι_range, LinearEquiv.finrank_eq (LinearEquiv.ofInjective ι hι_inj).symm] at hrn
+  linarith
 
 /-- The composition factor multiplicity of a series `s` decomposes as the multiplicity
 of the truncated series `s.eraseLast` plus 1 or 0 depending on whether the last
