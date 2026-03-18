@@ -25,10 +25,112 @@ variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ)
 
 private abbrev GL2 := Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)
 
+section FieldExtInfrastructure
+
+open Polynomial
+
+/-- X^(p^n) - X divides X^(p^(2n)) - X in characteristic p.
+Proof: (X^(p^n) - X)^(p^n) = X^(p^(2n)) - X^(p^n) by Freshman's dream,
+so X^(p^(2n)) - X = (X^(p^n) - X)^(p^n) + (X^(p^n) - X). -/
+private lemma Etingof.dvd_X_pow_sub_X :
+    (X ^ p ^ n - X : (ZMod p)[X]) ∣ (X ^ p ^ (2 * n) - X : (ZMod p)[X]) := by
+  set f := (X ^ p ^ n - X : (ZMod p)[X])
+  have key : f ^ p ^ n = X ^ p ^ (2 * n) - X ^ p ^ n := by
+    change (X ^ p ^ n - X) ^ p ^ n = X ^ p ^ (2 * n) - X ^ p ^ n
+    rw [sub_pow_char_pow (p := p)]
+    congr 1
+    rw [← pow_mul, ← Nat.pow_add]
+    ring_nf
+  have decomp : X ^ p ^ (2 * n) - X = f ^ p ^ n + f := by
+    rw [key]; ring
+  rw [decomp]
+  exact dvd_add (dvd_pow_self f (pow_ne_zero n hp.out.pos.ne')) dvd_rfl
+
+/-- X^(p^n) - X splits in GaloisField p (2*n) because it divides X^(p^(2n)) - X
+which splits there. -/
+private lemma Etingof.splits_X_pow_sub_X :
+    Splits (map (algebraMap (ZMod p) (GaloisField p (2 * n))) (X ^ p ^ n - X)) := by
+  by_cases hn : n = 0
+  · subst hn
+    simp only [Nat.mul_zero, pow_zero, pow_one, sub_self, Polynomial.map_zero]
+    exact Polynomial.Splits.zero
+  · haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+    have hsplits : Splits (map (algebraMap (ZMod p) (GaloisField p (2 * n)))
+        (X ^ p ^ (2 * n) - X)) := by
+      have hcard : Nat.card (GaloisField p (2 * n)) = p ^ (2 * n) :=
+        GaloisField.card p (2 * n) (Nat.mul_ne_zero two_ne_zero hn)
+      rw [show p ^ (2 * n) = Fintype.card (GaloisField p (2 * n)) from by
+        rw [Nat.card_eq_fintype_card] at hcard; omega]
+      exact @FiniteField.splits_X_pow_card_sub_X p hp _ _ _ _
+    have hne : (X ^ p ^ (2 * n) - X : (ZMod p)[X]) ≠ 0 :=
+      FiniteField.X_pow_card_pow_sub_X_ne_zero (ZMod p)
+        (Nat.mul_ne_zero two_ne_zero hn) hp.out.one_lt
+    exact hsplits.of_dvd (map_ne_zero hne) (map_dvd _ (Etingof.dvd_X_pow_sub_X p n))
+
+/-- The algebra homomorphism GaloisField p n →ₐ[ZMod p] GaloisField p (2*n)
+obtained from IsSplittingField.lift. -/
+private noncomputable def Etingof.galoisFieldAlgHom :
+    GaloisField p n →ₐ[ZMod p] GaloisField p (2 * n) :=
+  IsSplittingField.lift (GaloisField p n) (X ^ p ^ n - X)
+    (Etingof.splits_X_pow_sub_X p n)
+
+/-- Algebra instance for GaloisField p (2*n) over GaloisField p n. -/
+private noncomputable instance Etingof.algebraGaloisFieldExt :
+    Algebra (GaloisField p n) (GaloisField p (2 * n)) :=
+  (Etingof.galoisFieldAlgHom p n).toRingHom.toAlgebra
+
+/-- The scalar tower ZMod p → GaloisField p n → GaloisField p (2*n). -/
+private noncomputable instance Etingof.scalarTowerGaloisField :
+    IsScalarTower (ZMod p) (GaloisField p n) (GaloisField p (2 * n)) :=
+  IsScalarTower.of_algebraMap_eq fun r => by
+    change (algebraMap (ZMod p) (GaloisField p (2 * n))) r =
+      (Etingof.galoisFieldAlgHom p n).toRingHom
+        ((algebraMap (ZMod p) (GaloisField p n)) r)
+    exact ((Etingof.galoisFieldAlgHom p n).commutes r).symm
+
+/-- GaloisField p (2*n) is finite-dimensional over GaloisField p n. -/
+private noncomputable instance Etingof.finiteDimensionalGaloisFieldExt :
+    FiniteDimensional (GaloisField p n) (GaloisField p (2 * n)) := by
+  haveI : FiniteDimensional (ZMod p) (GaloisField p (2 * n)) := inferInstance
+  exact FiniteDimensional.right (ZMod p) (GaloisField p n) (GaloisField p (2 * n))
+
+/-- The degree of GaloisField p (2*n) over GaloisField p n is 2 (when n > 0). -/
+private lemma Etingof.finrank_galoisField_ext (hn : n ≠ 0) :
+    Module.finrank (GaloisField p n) (GaloisField p (2 * n)) = 2 := by
+  have h1 := GaloisField.finrank p (show n ≠ 0 from hn)
+  have h2 := GaloisField.finrank p (show 2 * n ≠ 0 from Nat.mul_ne_zero two_ne_zero hn)
+  have htower := Module.finrank_mul_finrank (ZMod p) (GaloisField p n)
+    (GaloisField p (2 * n))
+  rw [h1, h2] at htower
+  -- htower : n * finrank = 2 * n
+  have hpos : 0 < n := Nat.pos_of_ne_zero hn
+  nlinarith
+
+end FieldExtInfrastructure
+
 /-- The embedding of 𝔽_{q²}× into GL₂(𝔽_q) via the left regular representation
 on a chosen basis of the degree-2 field extension 𝔽_{q²}/𝔽_q. -/
 private noncomputable def Etingof.GL2.fieldExtEmbed :
-    (GaloisField p (2 * n))ˣ →* GL2 p n := sorry
+    (GaloisField p (2 * n))ˣ →* GL2 p n := by
+  by_cases hn : n = 0
+  · -- Degenerate case: n = 0, both fields have 1 element
+    exact 1
+  · -- Main case: use left multiplication matrix representation
+    letI := Etingof.algebraGaloisFieldExt p n
+    letI := Etingof.scalarTowerGaloisField p n
+    haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+    -- Construct Fin 2-indexed basis via finrank = 2
+    let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+      (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+    let matRepr := Algebra.leftMulMatrix b
+    -- matRepr is an algebra hom: lift to units
+    exact
+      { toFun := fun u =>
+          ⟨matRepr u, matRepr ↑u⁻¹, by
+            rw [← map_mul, Units.mul_inv, map_one],
+           by rw [← map_mul, Units.inv_mul, map_one]⟩
+        map_one' := Units.ext (map_one matRepr)
+        map_mul' := fun a b => Units.ext (by simp [map_mul]) }
 
 /-- The cyclic subgroup K ⊂ GL₂(𝔽_q) corresponding to multiplication by
 elements of 𝔽_{q²}× (embedded via the basis {1, √ε}). -/
@@ -37,14 +139,58 @@ noncomputable def Etingof.GL2.ellipticSubgroup : Subgroup (GL2 p n) :=
 
 /-- Embedding of scalar matrices 𝔽_q× ↪ K via a ↦ embed(algebraMap a). -/
 private noncomputable def Etingof.GL2.scalarToElliptic :
-    (GaloisField p n)ˣ →* ↥(Etingof.GL2.ellipticSubgroup p n) := sorry
+    (GaloisField p n)ˣ →* ↥(Etingof.GL2.ellipticSubgroup p n) := by
+  by_cases hn : n = 0
+  · exact 1
+  · letI := Etingof.algebraGaloisFieldExt p n
+    -- Map a : (GaloisField p n)ˣ to algebraMap a : (GaloisField p (2*n))ˣ
+    -- then apply fieldExtEmbed
+    refine (Etingof.GL2.fieldExtEmbed p n).codRestrict
+      (Etingof.GL2.ellipticSubgroup p n) ?_ |>.comp ?_
+    · intro x; exact ⟨x, rfl⟩
+    · -- Units.map of algebraMap
+      exact Units.map (algebraMap (GaloisField p n) (GaloisField p (2 * n))).toMonoidHom
 
-/-- Character of W₁, the q-dimensional irreducible complement in V(1,1). -/
-private noncomputable def Etingof.GL2.charW₁ : GL2 p n → ℂ := sorry
+/-- Character of W₁, the q-dimensional irreducible complement in V(1,1).
+W₁ is the complement of the trivial representation in the permutation representation
+on P¹(𝔽_q). Its character equals (number of fixed points on P¹) - 1.
 
-/-- Character of the principal series representation V(α, 1) of GL₂(𝔽_q). -/
+A point [1:t] ∈ P¹ is fixed by matrix M iff M₀₁t² + (M₀₀ - M₁₁)t - M₁₀ = 0.
+The point [0:1] is fixed iff M₀₁ = 0. -/
+private noncomputable def Etingof.GL2.charW₁ : GL2 p n → ℂ :=
+  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
+  fun g =>
+    let M := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+    -- Count fixed points on the affine chart [1:t]
+    let fixedAffine := Finset.univ.filter fun (t : GaloisField p n) =>
+      M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0
+    -- Check if the point at infinity [0:1] is fixed
+    let fixedInfty : ℕ := if M 0 1 = 0 then 1 else 0
+    ((fixedAffine.card + fixedInfty : ℕ) : ℂ) - 1
+
+/-- Character of the principal series representation V(α, 1) of GL₂(𝔽_q).
+V(α, 1) = Ind_B^G(α ⊗ 1) where B is the Borel subgroup (upper triangular matrices).
+By Frobenius reciprocity, char(V(α,1))(g) = (1/|B|) ∑_{x : x⁻¹gx ∈ B} α(upper-left of x⁻¹gx). -/
 private noncomputable def Etingof.GL2.charVα₁
-    (alpha : (GaloisField p n)ˣ →* ℂˣ) : GL2 p n → ℂ := sorry
+    (alpha : (GaloisField p n)ˣ →* ℂˣ) : GL2 p n → ℂ :=
+  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
+  haveI : Fintype (GL2 p n) := Fintype.ofFinite _
+  fun g =>
+    -- Frobenius character formula for induced representation
+    -- sum over x ∈ G of (indicator that x⁻¹gx is upper triangular) * α(upper-left entry)
+    let borelCard : ℂ := ((Fintype.card (GaloisField p n) - 1) ^ 2 *
+      Fintype.card (GaloisField p n) : ℕ)
+    borelCard⁻¹ * ∑ x : GL2 p n,
+      let conj := (x⁻¹ * g * x : GL2 p n)
+      let M := (conj : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+      if M 1 0 = 0 then
+        -- x⁻¹gx is upper triangular; extract upper-left entry as a unit
+        if h : M 0 0 ≠ 0 then
+          (alpha (Units.mk0 (M 0 0) h) : ℂ)
+        else 0
+      else 0
 
 open Classical in
 /-- The complementary series virtual character of GL₂(𝔽_q), defined as
