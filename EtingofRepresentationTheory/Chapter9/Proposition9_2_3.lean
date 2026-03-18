@@ -209,7 +209,7 @@ theorem Etingof.projective_cover_hom_multiplicity
     [∀ i, Module k (P i)] [∀ i, IsScalarTower k A (P i)]
     [∀ i, SMulCommClass A k (P i)]
     [∀ i, Module.Projective A (P i)] [∀ i, Module.Finite A (P i)]
-    [∀ i, Etingof.IsIndecomposableModule A (P i)]
+    (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0)
     (N : Type*) [AddCommGroup N] [Module A N]
     [Module k N] [IsScalarTower k A N] [SMulCommClass A k N]
