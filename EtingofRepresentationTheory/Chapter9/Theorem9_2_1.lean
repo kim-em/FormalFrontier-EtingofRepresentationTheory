@@ -68,7 +68,7 @@ theorem Etingof.Theorem_9_2_1_i
       (_ : ∀ i, SMulCommClass A k (P i))
       (_ : ∀ i, Module.Projective A (P i))
       (_ : ∀ i, Module.Finite A (P i))
-      (_ : ∀ i, Etingof.IsIndecomposableModule A (P i)),
+      (_ : ∀ i, Etingof.IsIndecomposable A (P i)),
       ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0 := by
   -- Step 1: A is artinian (finite-dimensional algebra over a field)
   haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
@@ -102,7 +102,7 @@ theorem Etingof.Theorem_9_2_1_ii
     [∀ i, Module k (P i)] [∀ i, IsScalarTower k A (P i)]
     [∀ i, SMulCommClass A k (P i)]
     [∀ i, Module.Projective A (P i)] [∀ i, Module.Finite A (P i)]
-    [∀ i, Etingof.IsIndecomposableModule A (P i)]
+    (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0) :
     Nonempty (A ≃ₗ[A] ⨁ (i : ι), Fin (Module.finrank k (M i)) → P i) := by
   sorry
@@ -127,9 +127,9 @@ theorem Etingof.Theorem_9_2_1_iii
     [∀ i, Module k (P i)] [∀ i, IsScalarTower k A (P i)]
     [∀ i, SMulCommClass A k (P i)]
     [∀ i, Module.Projective A (P i)] [∀ i, Module.Finite A (P i)]
-    [∀ i, Etingof.IsIndecomposableModule A (P i)]
+    (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0)
     (Q : Type*) [AddCommGroup Q] [Module A Q]
-    [Module.Projective A Q] [Module.Finite A Q] [Etingof.IsIndecomposableModule A Q] :
+    [Module.Projective A Q] [Module.Finite A Q] (hQ_indec : Etingof.IsIndecomposable A Q) :
     ∃ i, Nonempty (Q ≃ₗ[A] P i) := by
   sorry
