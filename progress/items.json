@@ -3385,7 +3385,7 @@
     "end_page": "125",
     "start_line": 3,
     "end_line": 4,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false,
     "notes": "Symmetric part (Example5_19_3_symmetric) is sorry_free. Exterior part (Example5_19_3_exterior) still has sorry due to coercion issues between ExteriorAlgebra and PiTensorProduct."
   },
