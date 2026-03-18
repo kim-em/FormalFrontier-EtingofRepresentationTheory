@@ -2,6 +2,8 @@ import Mathlib.Algebra.FreeAlgebra
 import Mathlib.Algebra.RingQuot
 import Mathlib.LinearAlgebra.Basis.VectorSpace
 import Mathlib.Algebra.Algebra.Subalgebra.Lattice
+import Mathlib.Algebra.Polynomial.Derivative
+import Mathlib.Algebra.Polynomial.AlgebraMap
 
 /-!
 # Proposition 2.7.1: Basis for the Weyl Algebra
@@ -209,14 +211,167 @@ private lemma spanning :
   | add x y _ _ ihx ihy => rw [map_add]; exact (MonS k).add_mem (ihx trivial) (ihy trivial)
   | mul x y _ _ ihx ihy => rw [map_mul]; exact mul_mem_span k (ihx trivial) (ihy trivial)
 
+-- === Polynomial representation for linear independence proof ===
+
+/-- Left multiplication by `X` as a `k`-linear endomorphism of `k[X]`. -/
+private noncomputable def polyMulX : Module.End k (Polynomial k) where
+  toFun p := Polynomial.X * p
+  map_add' := mul_add _
+  map_smul' c p := by
+    simp only [RingHom.id_apply]
+    exact Algebra.mul_smul_comm c Polynomial.X p
+
+private lemma polyMulX_apply (p : Polynomial k) :
+    polyMulX k p = Polynomial.X * p := rfl
+
+/-- The Leibniz rule: `D ∘ (X * ·) = (X * ·) ∘ D + id` in `End_k(k[X])`. -/
+private lemma deriv_mul_polyMulX :
+    (Polynomial.derivative (R := k)) * polyMulX k =
+    polyMulX k * Polynomial.derivative + 1 := by
+  apply LinearMap.ext; intro p
+  change Polynomial.derivative (polyMulX k p) =
+    polyMulX k (Polynomial.derivative p) + (1 : Module.End k (Polynomial k)) p
+  simp only [polyMulX_apply, Module.End.one_apply]
+  rw [Polynomial.derivative_mul, Polynomial.derivative_X, one_mul, add_comm]
+
+/-- Generator assignment: `x ↦ (X * ·)`, `y ↦ d/dX`. -/
+private noncomputable def polyRepGen : Fin 2 → Module.End k (Polynomial k) :=
+  ![polyMulX k, Polynomial.derivative]
+
+private noncomputable def polyRepFree :
+    FreeAlgebra k (Fin 2) →ₐ[k] Module.End k (Polynomial k) :=
+  FreeAlgebra.lift k (polyRepGen k)
+
+private lemma polyRep_rel :
+    ∀ ⦃a b⦄, WeylAlgebraRel k a b → polyRepFree k a = polyRepFree k b := by
+  intro a b ⟨ha, hb⟩
+  subst ha; subst hb
+  simp only [polyRepFree, map_mul, map_add, map_one, FreeAlgebra.lift_ι_apply,
+    polyRepGen, Matrix.cons_val_zero, Matrix.cons_val_one]
+  exact deriv_mul_polyMulX k
+
+/-- Algebra hom from the Weyl algebra to `End_k(k[X])`. -/
+private noncomputable def polyRep :
+    WeylAlgebra k →ₐ[k] Module.End k (Polynomial k) :=
+  RingQuot.liftAlgHom k ⟨polyRepFree k, polyRep_rel k⟩
+
+private lemma polyRep_x :
+    polyRep k (WeylAlgebra.x k) = polyMulX k := by
+  simp [polyRep, WeylAlgebra.x, WeylAlgebra.mk, RingQuot.liftAlgHom_mkAlgHom_apply,
+    polyRepFree, FreeAlgebra.lift_ι_apply, polyRepGen]
+
+private lemma polyRep_y :
+    polyRep k (WeylAlgebra.y k) =
+    (Polynomial.derivative : Module.End k (Polynomial k)) := by
+  simp [polyRep, WeylAlgebra.y, WeylAlgebra.mk, RingQuot.liftAlgHom_mkAlgHom_apply,
+    polyRepFree, FreeAlgebra.lift_ι_apply, polyRepGen]
+
+private lemma polyMulX_pow_apply (i : ℕ) (p : Polynomial k) :
+    (polyMulX k ^ i) p = Polynomial.X ^ i * p := by
+  induction i generalizing p with
+  | zero => simp
+  | succ n ih =>
+    rw [pow_succ, Module.End.mul_apply, ih, polyMulX_apply, ← mul_assoc, ← pow_succ]
+
+/-- Key computation: `ρ(xⁱyʲ)(X^n) = n.descFactorial(j) * X^(i + (n - j))`. -/
+private lemma polyRep_monomial_apply (i j n : ℕ) :
+    polyRep k (WeylAlgebra.monomial k i j) (Polynomial.X ^ n) =
+    Polynomial.C (↑(n.descFactorial j) : k) * Polynomial.X ^ (i + (n - j)) := by
+  simp only [WeylAlgebra.monomial, map_mul, map_pow, polyRep_x, polyRep_y]
+  rw [Module.End.mul_apply, Module.End.pow_apply (Polynomial.derivative (R := k)) j,
+    Polynomial.iterate_derivative_X_pow_eq_C_mul, polyMulX_pow_apply]
+  ring
+
+/-- When `j > n`, the representation gives zero. -/
+private lemma polyRep_monomial_high_deriv (i j n : ℕ) (hjn : n < j) :
+    polyRep k (WeylAlgebra.monomial k i j) (Polynomial.X ^ n) = 0 := by
+  rw [polyRep_monomial_apply]
+  simp [Nat.descFactorial_eq_zero_iff_lt.mpr hjn]
+
+/-- Diagonal evaluation: `ρ(xⁱyʲ)(X^j) = j! * X^i`. -/
+private lemma polyRep_monomial_diag (i j : ℕ) :
+    polyRep k (WeylAlgebra.monomial k i j) (Polynomial.X ^ j) =
+    Polynomial.C (↑(j.factorial) : k) * Polynomial.X ^ i := by
+  rw [polyRep_monomial_apply, Nat.descFactorial_self, Nat.sub_self, add_zero]
+
+-- === Linear independence proof ===
+
+/-- The standard monomials of the Weyl algebra are linearly independent
+over any characteristic-zero integral domain. -/
+private lemma linearIndep [CharZero k] [NoZeroDivisors k] :
+    LinearIndependent k (fun p : ℕ × ℕ => WeylAlgebra.monomial k p.1 p.2) := by
+  rw [linearIndependent_iff']
+  intro s g hg
+  -- Applying polyRep and extracting coefficient m from evaluation at X^n gives 0
+  -- polyRep annihilates the linear combination
+  have hpoly : polyRep k (∑ r ∈ s, g r • WeylAlgebra.monomial k r.1 r.2) = 0 := by
+    rw [hg, map_zero]
+  -- Extract coefficient m from evaluation at X^n
+  have hcoeff : ∀ (n m : ℕ),
+      ∑ r ∈ s, g r *
+        (polyRep k (WeylAlgebra.monomial k r.1 r.2) (Polynomial.X ^ n)).coeff m = 0 := by
+    intro n m
+    -- First: the polynomial sum evaluated at X^n is 0
+    -- polyRep distributes over the sum, evaluated at X^n gives 0
+    have h1 : (polyRep k (∑ r ∈ s, g r • WeylAlgebra.monomial k r.1 r.2)) (Polynomial.X ^ n)
+        = 0 := by rw [hpoly, LinearMap.zero_apply]
+    -- Rewrite as sum of scalar multiples of polynomials
+    have h2 : ∀ r, polyRep k (g r • WeylAlgebra.monomial k r.1 r.2) (Polynomial.X ^ n) =
+        g r • (polyRep k (WeylAlgebra.monomial k r.1 r.2) (Polynomial.X ^ n)) := by
+      intro r
+      rw [Algebra.smul_def, map_mul, AlgHom.commutes]
+      simp [Module.End.mul_apply, Algebra.smul_def]
+    rw [map_sum] at h1
+    simp only [LinearMap.coe_sum, Finset.sum_apply] at h1
+    simp_rw [h2] at h1
+    -- Extract coeff m from the polynomial equation
+    have hc : (∑ r ∈ s, g r •
+        (polyRep k (WeylAlgebra.monomial k r.1 r.2) (Polynomial.X ^ n))).coeff m = 0 :=
+      congr_arg (Polynomial.coeff · m) h1
+    rw [Polynomial.finset_sum_coeff] at hc
+    simp only [Polynomial.coeff_smul, smul_eq_mul] at hc
+    exact hc
+  -- Key claim by strong induction on j
+  suffices key : ∀ j i, (i, j) ∈ s → g (i, j) = 0 by
+    intro ⟨i, j⟩ hp; exact key j i hp
+  intro j
+  induction j using Nat.strongRecOn with
+  | ind j ih =>
+    intro i hij
+    -- Extract coefficient i from evaluation at X^j
+    have hXj := hcoeff j i
+    -- All terms with r ≠ (i, j) contribute 0
+    have hterm : ∀ r ∈ s, r ≠ (i, j) →
+        g r * (polyRep k (WeylAlgebra.monomial k r.1 r.2)
+          (Polynomial.X ^ j)).coeff i = 0 := by
+      intro ⟨ri, rj⟩ hr hne
+      by_cases hjrj : j < rj
+      · rw [polyRep_monomial_high_deriv k ri rj j hjrj, Polynomial.coeff_zero, mul_zero]
+      · push_neg at hjrj
+        by_cases heq : rj = j
+        · subst heq
+          have hri : ri ≠ i := fun h => hne (Prod.ext h rfl)
+          rw [polyRep_monomial_diag, Polynomial.coeff_C_mul_X_pow,
+            if_neg (Ne.symm hri), mul_zero]
+        · rw [ih rj (lt_of_le_of_ne hjrj heq) ri hr, zero_mul]
+    -- Rewrite sum: only the (i,j) term survives
+    have honly : g (i, j) * (polyRep k (WeylAlgebra.monomial k i j)
+        (Polynomial.X ^ j)).coeff i = 0 := by
+      have := Finset.sum_eq_single (i, j) (fun r hr hne => hterm r hr hne)
+        (fun h => absurd hij h) |>.symm.trans hXj
+      exact this
+    rw [polyRep_monomial_diag, Polynomial.coeff_C_mul_X_pow, if_pos rfl] at honly
+    exact (mul_eq_zero.mp honly).resolve_right
+      (Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero j))
+
 /-- **Proposition 2.7.1 (i)**: The standard monomials `{xⁱyʲ : i, j ≥ 0}` form a basis
 for the Weyl algebra `A` over `k`.
 
 More precisely, the function `(i, j) ↦ xⁱyʲ` from `ℕ × ℕ` to the Weyl algebra
 is a basis for the Weyl algebra as a `k`-module. -/
-theorem Proposition_2_7_1 :
+theorem Proposition_2_7_1 [CharZero k] [NoZeroDivisors k] :
     LinearIndependent k (fun p : ℕ × ℕ => WeylAlgebra.monomial k p.1 p.2) ∧
     ⊤ ≤ Submodule.span k (Set.range (fun p : ℕ × ℕ => WeylAlgebra.monomial k p.1 p.2)) := by
-  exact ⟨sorry, spanning k⟩
+  exact ⟨linearIndep k, spanning k⟩
 
 end Etingof
