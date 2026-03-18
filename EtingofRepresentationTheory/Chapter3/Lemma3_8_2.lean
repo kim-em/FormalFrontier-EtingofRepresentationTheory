@@ -6,6 +6,7 @@ import Mathlib.RingTheory.Noetherian.Basic
 import Mathlib.RingTheory.Artinian.Module
 import Mathlib.LinearAlgebra.FiniteDimensional.Basic
 import Mathlib.Algebra.Module.Equiv.Basic
+import EtingofRepresentationTheory.Chapter2.Definition2_3_8
 
 /-!
 # Lemma 3.8.2: Endomorphisms of Indecomposable Representations
@@ -30,7 +31,7 @@ theorem Etingof.endo_indecomposable_iso_or_nilpotent (k : Type*) (A : Type*) (W 
     [Field k] [Ring A] [Algebra k A]
     [AddCommGroup W] [Module k W] [Module A W] [IsScalarTower k A W]
     [FiniteDimensional k W]
-    (hW : ¬ ∃ (M N : Submodule A W), M ≠ ⊥ ∧ N ≠ ⊥ ∧ M ⊔ N = ⊤ ∧ M ⊓ N = ⊥)
+    (hW : Etingof.IsIndecomposable A W)
     (θ : W →ₗ[A] W) :
     Function.Bijective θ ∨ IsNilpotent θ := by
   -- W is Noetherian and Artinian as an A-module (since it's finite-dimensional over k)
@@ -39,10 +40,8 @@ theorem Etingof.endo_indecomposable_iso_or_nilpotent (k : Type*) (A : Type*) (W 
   -- Fitting decomposition: ker(θ^n) and range(θ^n) are complementary A-submodules
   have hFit := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow θ
   -- By indecomposability, one factor must be ⊥
-  have h_triv : (⨆ n, LinearMap.ker (θ ^ n)) = ⊥ ∨ (⨅ n, LinearMap.range (θ ^ n)) = ⊥ := by
-    by_contra h
-    push_neg at h
-    exact hW ⟨_, _, h.1, h.2, codisjoint_iff.mp hFit.codisjoint, disjoint_iff.mp hFit.disjoint⟩
+  have h_triv : (⨆ n, LinearMap.ker (θ ^ n)) = ⊥ ∨ (⨅ n, LinearMap.range (θ ^ n)) = ⊥ :=
+    hW.2 _ _ hFit
   rcases h_triv with hker_bot | hrange_bot
   · -- Case: ⨆ ker(θ^n) = ⊥, so ker θ = ⊥, θ is injective hence bijective
     left
@@ -72,15 +71,10 @@ theorem Etingof.sum_nilpotent_endo_indecomposable (k : Type*) (A : Type*) (W : T
     [Field k] [Ring A] [Algebra k A]
     [AddCommGroup W] [Module k W] [Module A W] [IsScalarTower k A W]
     [FiniteDimensional k W]
-    (hW : ¬ ∃ (M N : Submodule A W), M ≠ ⊥ ∧ N ≠ ⊥ ∧ M ⊔ N = ⊤ ∧ M ⊓ N = ⊥)
+    (hW : Etingof.IsIndecomposable A W)
     {n : ℕ} (θ : Fin n → (W →ₗ[A] W)) (hθ : ∀ i, IsNilpotent (θ i)) :
     IsNilpotent (∑ i, θ i) := by
-  -- Handle W = 0 (subsingleton) case separately
-  by_cases htriv : Subsingleton W
-  · haveI := htriv
-    exact ⟨1, by ext x; exact Subsingleton.eq_zero _⟩
-  rw [not_subsingleton_iff_nontrivial] at htriv
-  haveI := htriv
+  haveI := hW.1
   -- Key fact: nilpotent endomorphisms of a nontrivial module are not units
   have nilp_not_unit : ∀ (f : Module.End A W), IsNilpotent f → ¬ IsUnit f := by
     rintro f ⟨m, hm⟩ huf
