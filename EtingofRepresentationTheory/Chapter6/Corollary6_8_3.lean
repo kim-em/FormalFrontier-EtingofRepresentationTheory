@@ -58,6 +58,7 @@ private lemma Etingof.simpleAt_iso
     [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
     [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)]
     (p : Q)
+    (hNoSelfLoop : IsEmpty (p ⟶ p))
     (h₁ : ρ₁.IsSimpleAt p)
     (h₂ : ρ₂.IsSimpleAt p) :
     Nonempty (Etingof.QuiverRepresentation.Iso ρ₁ ρ₂) := by
@@ -73,10 +74,8 @@ private lemma Etingof.simpleAt_iso
   -- If a ≠ p, then ρ₁.obj a has finrank 0, so it's subsingleton, x = 0
   -- If b ≠ p, then both sides land in a subsingleton space
   by_cases ha : a = p <;> by_cases hb : b = p
-  · -- a = p, b = p: self-loop case
-    -- For Dynkin quivers there are no self-loops; this case requires
-    -- connecting the quiver Q to the Dynkin diagram hypothesis.
-    sorry
+  · -- a = p, b = p: self-loop case — vacuous since Dynkin quivers have no self-loops
+    subst ha; subst hb; exact (hNoSelfLoop.false e).elim
   · -- a = p, b ≠ p: target space is zero-dimensional (subsingleton)
     haveI : Subsingleton (ρ₂.obj b) := by
       have hfr := h₂.2 b hb
