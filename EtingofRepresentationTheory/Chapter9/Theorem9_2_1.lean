@@ -32,9 +32,11 @@ The three parts are stated as separate theorems sharing common hypotheses:
 a finite-dimensional algebra A over a field k, with a finite indexing type ι for the
 isomorphism classes of simple modules, and a family of simple modules indexed by ι.
 
-Part (i) is an existence statement producing the projective covers.
-Part (ii) states that A (as a module over itself) decomposes as the direct sum.
-Part (iii) states that any indecomposable f.g. projective is isomorphic to some Pᵢ.
+Part (i) is an existence statement producing the projective covers — it only requires
+that the Mᵢ are pairwise non-isomorphic.
+Parts (ii) and (iii) additionally require that the Mᵢ exhaust all simple A-modules
+(up to isomorphism), since the decomposition of A and the completeness of the
+classification both fail if some simple modules are missing from the family.
 -/
 
 open scoped DirectSum
@@ -93,6 +95,9 @@ theorem Etingof.Theorem_9_2_1_ii
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
     [∀ i, SMulCommClass A k (M i)]
     [∀ i, IsSimpleModule A (M i)]
+    (hM : ∀ i j, Nonempty (M i ≃ₗ[A] M j) → i = j)
+    (hM_exhaustive : ∀ (S : Type*) [AddCommGroup S] [Module A S] [IsSimpleModule A S],
+      ∃ i, Nonempty (S ≃ₗ[A] M i))
     (P : ι → Type*) [∀ i, AddCommGroup (P i)] [∀ i, Module A (P i)]
     [∀ i, Module k (P i)] [∀ i, IsScalarTower k A (P i)]
     [∀ i, SMulCommClass A k (P i)]
@@ -115,6 +120,9 @@ theorem Etingof.Theorem_9_2_1_iii
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
     [∀ i, SMulCommClass A k (M i)]
     [∀ i, IsSimpleModule A (M i)]
+    (hM : ∀ i j, Nonempty (M i ≃ₗ[A] M j) → i = j)
+    (hM_exhaustive : ∀ (S : Type*) [AddCommGroup S] [Module A S] [IsSimpleModule A S],
+      ∃ i, Nonempty (S ≃ₗ[A] M i))
     (P : ι → Type*) [∀ i, AddCommGroup (P i)] [∀ i, Module A (P i)]
     [∀ i, Module k (P i)] [∀ i, IsScalarTower k A (P i)]
     [∀ i, SMulCommClass A k (P i)]
