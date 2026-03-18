@@ -51,7 +51,7 @@ noncomputable def spechtModuleAction (n : ℕ) (la : Nat.Partition n)
   toFun := fun ⟨m, hm⟩ => ⟨MonoidAlgebra.of ℂ _ σ * m,
     (SpechtModule n la).smul_mem (MonoidAlgebra.of ℂ _ σ) hm⟩
   map_add' := fun ⟨a, _⟩ ⟨b, _⟩ => Subtype.ext (mul_add _ a b)
-  map_smul' := fun _ ⟨_, _⟩ => Subtype.ext (Algebra.mul_smul_comm _ _ _)
+  map_smul' := fun _ ⟨m, _⟩ => Subtype.ext (Algebra.mul_smul_comm _ _ m)
 
 /-- The character of the Specht module V_λ at a permutation σ ∈ S_n, defined as the
 trace of left multiplication by σ restricted to V_λ ⊆ ℂ[S_n]. -/
