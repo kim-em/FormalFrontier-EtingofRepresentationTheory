@@ -59,6 +59,50 @@ noncomputable def Etingof.Q₂Rep_E (n : ℕ) (hn : 0 < n) (eigenval : ℂ) : Q�
     if i = j then eigenval else if i.val = j.val + 1 then 1 else 0)
   B := LinearMap.id
 
+/-- The E_{n,λ} family is indecomposable. Key argument: since B = Id, any compatible
+decomposition V = V₁ ⊕ V₂, W = W₁ ⊕ W₂ forces W₁ = V₁ and W₂ = V₂ (via dimension
+counting from B mapping W₁ into V₁ and W₂ into V₂). Then A = J_n(λ) must preserve
+both V₁ and V₂, but a single Jordan block has no nontrivial invariant direct summands. -/
+theorem Etingof.Q₂Rep_E_indecomposable (n : ℕ) (hn : 0 < n) (eigenval : ℂ) :
+    (Etingof.Q₂Rep_E n hn eigenval).Indecomposable := by
+  constructor
+  · -- Nontriviality: dim V = n > 0
+    left
+    simp only [Q₂Rep_E, finrank_euclideanSpace_fin]
+    exact hn
+  · -- No nontrivial compatible decomposition
+    intro pV qV pW qW hcV hcW hApV hAqV hBpV hBqW
+    -- B = LinearMap.id, so B(pW) ⊆ pV means pW ≤ pV, B(qW) ⊆ qV means qW ≤ qV
+    have hpWpV : pW ≤ pV := fun x hx => hBpV x hx
+    have hqWqV : qW ≤ qV := fun x hx => hBqW x hx
+    -- pW ≤ pV and qW ≤ qV force pW = pV: decompose x ∈ pV via IsCompl pW qW,
+    -- the qW-component lies in pV ∩ qV = ⊥, so x ∈ pW.
+    -- Show pV ≤ pW (with pW ≤ pV this gives equality)
+    -- For x ∈ pV, decompose x = p + q (p ∈ pW, q ∈ qW) via IsCompl pW qW.
+    -- Then q ∈ pV (since p ∈ pW ≤ pV) and q ∈ qW ≤ qV, so q ∈ pV ⊓ qV = ⊥.
+    have aux : ∀ (s₁ t₁ : Submodule ℂ (EuclideanSpace ℂ (Fin n)))
+        (s₂ t₂ : Submodule ℂ (EuclideanSpace ℂ (Fin n))),
+        IsCompl s₁ t₁ → IsCompl s₂ t₂ → s₂ ≤ s₁ → t₂ ≤ t₁ → s₁ ≤ s₂ := by
+      intro s₁ t₁ s₂ t₂ hc1 hc2 hs ht x hx
+      have hx_top : x ∈ (⊤ : Submodule ℂ _) := Submodule.mem_top
+      rw [← hc2.codisjoint.eq_top] at hx_top
+      obtain ⟨p, hp, q, hq, hpq⟩ := Submodule.mem_sup.mp hx_top
+      have hq_s1 : q ∈ s₁ := by
+        have heq : q = x + (-p) := by rw [← hpq]; abel
+        rw [heq]; exact s₁.add_mem hx (s₁.neg_mem (hs hp))
+      have hq_t1 : q ∈ t₁ := ht hq
+      have hq_bot : q ∈ s₁ ⊓ t₁ := Submodule.mem_inf.mpr ⟨hq_s1, hq_t1⟩
+      rw [hc1.disjoint.eq_bot] at hq_bot
+      have hq0 : q = 0 := hq_bot
+      rw [hq0, add_zero] at hpq; rwa [← hpq]
+    have hpWeq : pW = pV := le_antisymm hpWpV (aux pV qV pW qW hcV hcW hpWpV hqWqV)
+    have hqWeq : qW = qV := le_antisymm hqWqV (aux qV pV qW pW hcV.symm hcW.symm hqWqV hpWpV)
+    -- Now A preserves both pV and qV (using hApV, hAqV with pW = pV, qW = qV)
+    -- The Jordan block J_n(λ) has no nontrivial invariant direct sum decomposition
+    -- This follows from ker(A - λI) being 1-dimensional (spanned by e₁)
+    -- TODO: Prove Jordan block indecomposability
+    sorry
+
 /-- **Problem 6.9.1(a), Family H_n (Etingof)**: For n ≥ 1, V = ℂⁿ with basis vᵢ,
 W = ℂⁿ⁻¹ with basis wᵢ. A sends vᵢ ↦ wᵢ (i < n) and vₙ ↦ 0.
 B sends wᵢ ↦ v_{i+1}. This is an indecomposable representation with dim V ≠ dim W. -/
