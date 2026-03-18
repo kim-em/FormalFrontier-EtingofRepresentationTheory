@@ -4499,7 +4499,8 @@
     "start_line": 33,
     "end_line": 14,
     "status": "statement_formalized",
-    "needs_statement": true
+    "needs_statement": true,
+    "attention_needed": "statement fixed: added IsOrientationOf hypothesis and pinned universe (#1094)"
   },
   {
     "id": "Chapter6/Example6.8.5",

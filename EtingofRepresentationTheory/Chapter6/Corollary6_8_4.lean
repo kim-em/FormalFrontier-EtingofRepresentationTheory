@@ -47,13 +47,34 @@ reconstruct the representation from the simple one.
 ### Remaining blocker
 - **Reflection functor chain** (`reflectionFunctorChainStep`): Applying F⁻ᵢ to
   transform a realization on the reversed quiver back to Q. This requires:
-  - Q to be an orientation of the Dynkin diagram (currently unconstrained)
   - Iterated quiver reversal tracking
   - Proposition 6.6.7 source case (currently sorry'd)
   - Proposition 6.6.8 source case for dimension vector tracking
+
+### Fixed (issue #1094)
+- **Q-adj connection**: Added `IsOrientationOf Q adj` hypothesis linking the
+  quiver to the Dynkin diagram's adjacency matrix.
+- **Universe polymorphism**: Pinned `obj` universe to match `k` in the
+  conclusion's `QuiverRepresentation`.
 -/
 
 open scoped Matrix
+
+/-- A quiver `Q` on `Fin n` is an orientation of the undirected graph with adjacency
+matrix `adj` if:
+- for each edge (`adj i j = 1`), exactly one of `i ⟶ j` or `j ⟶ i` is inhabited;
+- for non-edges (`adj i j ≠ 1`), no arrows exist in either direction.
+
+This predicate connects the unoriented graph (encoded by `adj`) to the oriented
+quiver `Q`, which is needed for Gabriel's theorem: the positive roots of the
+Dynkin diagram correspond to indecomposable representations of any orientation. -/
+def Etingof.IsOrientationOf {n : ℕ} (Q : Quiver (Fin n))
+    (adj : Matrix (Fin n) (Fin n) ℤ) : Prop :=
+  -- Non-edges have no arrows
+  (∀ i j : Fin n, adj i j ≠ 1 → IsEmpty (Q.Hom i j)) ∧
+  -- Each edge is oriented: exactly one direction
+  (∀ i j : Fin n, adj i j = 1 → Nonempty (Q.Hom i j) ∨ Nonempty (Q.Hom j i)) ∧
+  (∀ i j : Fin n, Nonempty (Q.Hom i j) → Nonempty (Q.Hom j i) → False)
 
 section SimpleRepresentation
 
@@ -173,18 +194,19 @@ theorem Etingof.Corollary6_8_4_simpleRoot
 /-- Every positive root of a Dynkin quiver is the dimension vector of some
 indecomposable representation.
 
-Given a Dynkin diagram with adjacency matrix `adj` and a positive root α
-(i.e., α ≠ 0, B(α, α) = 2, all coordinates nonneg), there exists an
-indecomposable quiver representation ρ over any field k such that
-`finrank k (ρ.obj v) = α v` at each vertex v.
+Given a Dynkin diagram with adjacency matrix `adj`, an orientation `Q` of that
+diagram, and a positive root α (i.e., α ≠ 0, B(α, α) = 2, all coordinates
+nonneg), there exists an indecomposable quiver representation ρ over any field k
+such that `finrank k (ρ.obj v) = α v` at each vertex v.
 (Etingof Corollary 6.8.4) -/
+universe u in
 theorem Etingof.Corollary6_8_4
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     (α : Fin n → ℤ) (hα : Etingof.IsPositiveRoot n adj α)
-    (k : Type*) [Field k]
-    {Q : Quiver (Fin n)} :
-    ∃ (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
+    (k : Type u) [Field k]
+    {Q : Quiver (Fin n)} (hQ : Etingof.IsOrientationOf Q adj) :
+    ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
       (_ : ∀ v, Module.Free k (ρ.obj v))
       (_ : ∀ v, Module.Finite k (ρ.obj v)),
       ρ.IsIndecomposable ∧
@@ -205,9 +227,8 @@ theorem Etingof.Corollary6_8_4
   --   Prop 6.6.8 source (dimension vector tracking).
   --
   -- The inductive step is blocked by:
-  -- 1. Q is unconstrained — no compatibility with adj is enforced, so
-  --    reflection functors (which need sink/source structure) may not apply.
-  -- 2. Proposition 6.6.7 source case is sorry'd.
-  -- 3. Chaining quiver reversals (each F⁻ᵢ changes the quiver via
+  -- 1. Proposition 6.6.7 source case is sorry'd.
+  -- 2. Chaining quiver reversals (each F⁻ᵢ changes the quiver via
   --    `reversedAtVertex`) requires careful type-level tracking.
+  -- Note: `hQ : IsOrientationOf Q adj` now connects Q to the Dynkin diagram.
   sorry
