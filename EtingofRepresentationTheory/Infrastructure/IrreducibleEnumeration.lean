@@ -724,36 +724,25 @@ theorem IrrepDecomp.n_eq_card_simples [NeZero (Nat.card G : k)]
       (∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) :=
   ⟨D.columnFDRep, D.columnFDRep_simple, D.columnFDRep_injective, D.columnFDRep_surjective⟩
 
-/-- Each dimension `d i` in the Wedderburn-Artin decomposition equals the
-`Module.finrank k` of the corresponding irreducible representation.
-
-**WARNING**: This statement is likely incorrect as written. It claims `D.d i = finrank k (V i)`
-for an *arbitrary* complete set `V` of non-isomorphic simples, but `V` could list them in a
-different order than `D.columnFDRep`. The correct statement should involve a permutation:
-`∃ σ : Equiv.Perm (Fin D.n), ∀ i, D.d (σ i) = finrank k (V i)`.
-Downstream uses in `RegularCharacter.lean` and `Theorem5_1_5.lean` should be updated
-to work with the permuted version (sums over permutations are equal). -/
+/-- Each dimension `d i` in the Wedderburn-Artin decomposition equals the `Module.finrank k`
+of the corresponding irreducible representation, up to a permutation. Given any complete set
+`V` of non-isomorphic simples, there exists a permutation `σ` such that
+`D.d (σ i) = finrank k (V i)` for all `i`. -/
 theorem IrrepDecomp.d_eq_finrank [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
-    (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
-    (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) :
-    ∀ i, D.d i = Module.finrank k (V i) := by
-  intro i
-  -- V i is simple, so by columnFDRep_surjective, V i ≅ columnFDRep j for some j
-  obtain ⟨j, ⟨eVj⟩⟩ := D.columnFDRep_surjective (V i) (hV i)
-  -- columnFDRep i is simple, so by hsurj, columnFDRep i ≅ V j' for some j'
-  obtain ⟨j', ⟨eCj'⟩⟩ := hsurj (D.columnFDRep i) (D.columnFDRep_simple i)
-  -- By the iso V i ≅ columnFDRep j, finrank k (V i) = D.d j
-  have hfr : Module.finrank k (V i) = D.d j := by
-    rw [← D.finrank_columnFDRep j]
-    exact LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eVj)
-  -- By the iso columnFDRep i ≅ V j', finrank k (V j') = D.d i
-  have hfr' : Module.finrank k (V j') = D.d i := by
-    rw [← D.finrank_columnFDRep i]
-    exact (LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eCj')).symm
-  -- The bijection σ : i ↦ j (where V i ≅ columnFDRep j) gives finrank k (V i) = D.d (σ i).
-  -- We need D.d i = D.d (σ i), i.e. σ = id on d values. This does NOT follow for general V:
-  -- V could be a permutation of columnFDRep that swaps blocks of different sizes.
-  -- The theorem statement needs to be corrected to use an explicit permutation σ.
-  sorry
+    (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j) :
+    ∃ σ : Equiv.Perm (Fin D.n), ∀ i, D.d (σ i) = Module.finrank k (V i) := by
+  -- For each i, V i is simple, so V i ≅ columnFDRep (τ i) for some τ i
+  choose τ hτ using fun i => D.columnFDRep_surjective (V i) (hV i)
+  -- τ is injective: V i ≅ columnFDRep(τ i) ≅ columnFDRep(τ j) ≅ V j implies i = j
+  have hτ_inj : Function.Injective τ := by
+    intro i j h
+    exact hinj i j ⟨(hτ i).some ≪≫ (h ▸ (hτ j).some.symm)⟩
+  -- τ is bijective (injective endomorphism of a finite type)
+  have hτ_bij : Function.Bijective τ := Finite.injective_iff_bijective.mp hτ_inj
+  let σ := Equiv.ofBijective τ hτ_bij
+  refine ⟨σ, fun i => ?_⟩
+  -- finrank k (V i) = finrank k (columnFDRep (τ i)) = D.d (τ i) = D.d (σ i)
+  rw [show (σ : Fin D.n → Fin D.n) i = τ i from rfl, ← D.finrank_columnFDRep (τ i)]
+  exact (LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv (hτ i).some)).symm

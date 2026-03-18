@@ -222,9 +222,11 @@ private lemma IsSimpleGroup.no_prime_power_conjClass
     exact ⟨Nat.cast_ne_zero.mpr (Fintype.card_pos (α := G)).ne'⟩
   let D := IrrepDecomp.mk' (k := ℂ) (G := G)
   -- Sum identity: ∑_i d_i * χ_{V_i}(g) = 0
-  have hsum : ∑ i : Fin D.n, (D.d i : ℂ) * (D.columnFDRep i).character g = 0 :=
-    sum_dim_character_eq_zero D D.columnFDRep D.columnFDRep_simple
-      D.columnFDRep_injective D.columnFDRep_surjective g hg_ne
+  have hsum : ∑ i : Fin D.n, (D.d i : ℂ) * (D.columnFDRep i).character g = 0 := by
+    have := sum_dim_character_eq_zero D D.columnFDRep D.columnFDRep_simple
+      D.columnFDRep_injective g hg_ne
+    simp_rw [D.finrank_columnFDRep] at this
+    exact this
   -- Find the trivial representation
   obtain ⟨i₀, ⟨iso₀⟩⟩ := D.columnFDRep_surjective _ (trivialFDRep_simple G)
   -- iso₀ : FDRep.of (trivial) ≅ D.columnFDRep i₀
