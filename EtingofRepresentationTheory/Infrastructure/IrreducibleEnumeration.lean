@@ -422,6 +422,42 @@ private noncomputable def IrrepDecomp.centralIdemEndo [NeZero (Nat.card G : k)]
     ext v
     exact LinearMap.congr_fun heq v
 
+/-- The identity matrix is the sum of diagonal matrix units. -/
+private lemma Matrix.one_eq_sum_single (n : ℕ) [NeZero n] :
+    (1 : Matrix (Fin n) (Fin n) k) = ∑ j, Matrix.single j j (1 : k) := by
+  ext p q; simp only [Matrix.one_apply, Matrix.sum_apply, Matrix.single_apply]
+  by_cases h : p = q
+  · subst h
+    convert (Finset.sum_ite_eq' Finset.univ p (fun _ => (1 : k))).symm using 1
+    · simp
+    · congr 1; ext x; by_cases hx : x = p <;> simp_all
+  · convert (Finset.sum_eq_zero (fun c _ => ?_)).symm
+    · simp [h]
+    · simp only [ite_eq_right_iff]; rintro ⟨rfl, rfl⟩; exact absurd rfl h
+
+/-- Matrix product `M * single j j₀ 1` equals ∑_a M a j • single a j₀ 1. -/
+private lemma Matrix.mul_single_eq_sum {n : ℕ}
+    (M : Matrix (Fin n) (Fin n) k) (j j₀ : Fin n) :
+    M * Matrix.single j j₀ (1 : k) =
+      ∑ a, M a j • Matrix.single a j₀ (1 : k) := by
+  ext p q; simp only [Matrix.mul_apply, Matrix.sum_apply, Matrix.single_apply,
+    Pi.smul_apply, smul_ite, smul_zero, smul_eq_mul, mul_one, mul_ite, mul_zero]
+  -- LHS: ∑ x, if j = x ∧ j₀ = q then M p x else 0
+  -- RHS: ∑ x, M x j * if x = p ∧ j₀ = q then 1 else 0
+  -- Both evaluate to: if j₀ = q then M p j else 0
+  trans (if j₀ = q then M p j else 0)
+  · convert Finset.sum_ite_eq Finset.univ j
+      (fun x => if j₀ = q then M p x else 0) using 1
+    · congr 1; ext x
+      by_cases hx : j = x <;> by_cases hq : j₀ = q <;> simp [hx, hq]
+    · simp
+  · symm; convert Finset.sum_ite_eq' Finset.univ p
+      (fun a => if j₀ = q then M a j else 0) using 1
+    · congr 1; ext x
+      by_cases hxp : x = p <;> by_cases hq : j₀ = q <;> simp [hxp, hq]
+    · simp
+
+set_option maxHeartbeats 400000 in
 /-- Every simple FDRep is isomorphic to some column FDRep (Wedderburn surjectivity). -/
 theorem IrrepDecomp.columnFDRep_surjective [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (W : FDRep k G) (hW : Simple W) :
@@ -526,7 +562,157 @@ theorem IrrepDecomp.columnFDRep_surjective [NeZero (Nat.card G : k)]
   -- Step 5: Construct isomorphism W ≅ columnFDRep i₀
   -- centralIdem i₀ acts as id on W, so W is a module over the i₀-th Wedderburn block
   -- This gives W ≅ columnFDRep i₀
-  exact ⟨i₀, sorry⟩
+  refine ⟨i₀, ?_⟩
+  -- centralIdemEndo W i₀ = 𝟙 W
+  have hid : D.centralIdemEndo W i₀ = 𝟙 W := by
+    have := (hc i₀).symm; rwa [hi₀, one_smul] at this
+  -- Pointwise: e_{i₀} acts as identity on W
+  have hid_pt : ∀ w : W,
+      Representation.asAlgebraHom W.ρ (D.centralIdem i₀) w = w := by
+    intro w
+    have := congr_arg (fun f => f.hom.hom w) hid
+    simpa [centralIdemEndo] using this
+  -- Key algebraic identity: e_{i₀} * a = iso.symm (Pi.single i₀ (projRingHom i₀ a))
+  have heidem_mul : ∀ a : MonoidAlgebra k G,
+      D.centralIdem i₀ * a = D.iso.symm (Pi.single i₀ (D.projRingHom i₀ a)) := by
+    intro a
+    apply D.iso.injective
+    simp only [AlgEquiv.apply_symm_apply]
+    ext j
+    simp only [centralIdem, map_mul, AlgEquiv.apply_symm_apply, Pi.mul_apply]
+    by_cases h : i₀ = j
+    · subst h; simp [Pi.single_eq_same, projRingHom, Pi.evalRingHom]
+    · simp [Pi.single_eq_of_ne (Ne.symm h)]
+  -- The k[G]-action on W factors through projRingHom i₀
+  have hfactor : ∀ (a : MonoidAlgebra k G) (w : W),
+      Representation.asAlgebraHom W.ρ a w =
+      Representation.asAlgebraHom W.ρ (D.iso.symm (Pi.single i₀ (D.projRingHom i₀ a))) w := by
+    intro a w
+    rw [← heidem_mul, map_mul]
+    change Representation.asAlgebraHom W.ρ a w =
+      Representation.asAlgebraHom W.ρ (D.centralIdem i₀)
+        (Representation.asAlgebraHom W.ρ a w)
+    rw [hid_pt]
+  -- Use Schur's lemma: construct a nonzero FDRep morphism columnFDRep i₀ ⟶ W
+  -- Then isIso_of_hom_simple gives the isomorphism
+  haveI := D.d_pos i₀
+  haveI := D.columnFDRep_simple i₀
+  -- W is nontrivial (from Simple)
+  obtain ⟨w₀, hw₀⟩ : ∃ w₀ : W.V, w₀ ≠ 0 := by
+    by_contra h; push_neg at h
+    exact id_nonzero W (by ext v; simp [h v])
+  -- Helper: projRingHom i₀ inverts iso.symm ∘ Pi.single i₀
+  have hproj_single : ∀ X : Matrix (Fin (D.d i₀)) (Fin (D.d i₀)) k,
+      D.projRingHom i₀ (D.iso.symm (Pi.single i₀ X)) = X := by
+    intro X; simp [projRingHom, Pi.evalRingHom, Pi.single]
+  -- Find j₀ such that some diagonal matrix unit doesn't kill w₀
+  obtain ⟨j₀, hj₀⟩ : ∃ j₀ : Fin (D.d i₀),
+      Representation.asAlgebraHom W.ρ
+        (D.iso.symm (Pi.single i₀ (Matrix.single j₀ j₀ (1 : k)))) w₀ ≠ 0 := by
+    by_contra h; push_neg at h
+    apply hw₀; rw [← hid_pt w₀]
+    have : D.centralIdem i₀ =
+        ∑ j, D.iso.symm (Pi.single i₀ (Matrix.single j j (1 : k))) := by
+      apply D.iso.injective; rw [map_sum]
+      simp only [centralIdem, AlgEquiv.apply_symm_apply]
+      conv_lhs => rw [Matrix.one_eq_sum_single (D.d i₀) (k := k)]
+      ext l; simp only [Finset.sum_apply]
+      by_cases hl : i₀ = l
+      · subst hl; simp [Pi.single_eq_same]
+      · simp [Pi.single_eq_of_ne (Ne.symm hl)]
+    rw [this, map_sum, LinearMap.sum_apply]
+    exact Finset.sum_eq_zero (fun j _ => h j)
+  -- Define φ j = action of matrix unit E_{j,j₀} on w₀
+  set φ : Fin (D.d i₀) → W.V :=
+    fun j => Representation.asAlgebraHom W.ρ
+      (D.iso.symm (Pi.single i₀ (Matrix.single j j₀ (1 : k)))) w₀
+  -- Key equivariance: W.ρ g (φ j) = ∑ a, M a j • φ a
+  have hphi_equivar : ∀ (g : G) (j : Fin (D.d i₀)),
+      W.ρ g (φ j) = ∑ a, (D.projRingHom i₀ (MonoidAlgebra.of k G g)) a j • φ a := by
+    intro g j
+    set M := D.projRingHom i₀ (MonoidAlgebra.of k G g)
+    -- W.ρ g (φ j) = asAlgebraHom (of g) (φ j)
+    have hρ_eq : W.ρ g (φ j) =
+        Representation.asAlgebraHom W.ρ (MonoidAlgebra.of k G g) (φ j) := by
+      rw [MonoidAlgebra.of_apply, Representation.asAlgebraHom_single, one_smul]
+    rw [hρ_eq, show Representation.asAlgebraHom W.ρ (MonoidAlgebra.of k G g) (φ j) =
+      Representation.asAlgebraHom W.ρ
+        (MonoidAlgebra.of k G g * D.iso.symm (Pi.single i₀ (Matrix.single j j₀ 1))) w₀ from by
+          rw [map_mul]; rfl]
+    rw [hfactor, show D.projRingHom i₀ (MonoidAlgebra.of k G g *
+        D.iso.symm (Pi.single i₀ (Matrix.single j j₀ (1 : k)))) =
+      M * Matrix.single j j₀ 1 from by rw [map_mul, hproj_single]]
+    rw [Matrix.mul_single_eq_sum]
+    -- Use linearity: the composition asAlgebraHom ∘ iso.symm ∘ Pi.single i₀ is linear
+    -- So distributing over ∑ and • works step by step
+    show (Representation.asAlgebraHom W.ρ)
+      (D.iso.symm (Pi.single i₀ (∑ a, M a j • Matrix.single a j₀ (1 : k)))) w₀ =
+      ∑ a, M a j • (Representation.asAlgebraHom W.ρ)
+        (D.iso.symm (Pi.single i₀ (Matrix.single a j₀ 1))) w₀
+    -- Define the linear map: X ↦ asAlgebraHom(iso.symm(Pi.single i₀ X)) w₀
+    let L : Matrix (Fin (D.d i₀)) (Fin (D.d i₀)) k →ₗ[k] W.V :=
+      { toFun := fun X => (Representation.asAlgebraHom W.ρ)
+          (D.iso.symm (Pi.single i₀ X)) w₀
+        map_add' := fun X Y => by
+          simp only [Pi.single_add, map_add, map_add, LinearMap.add_apply]
+        map_smul' := fun r X => by
+          simp only [Pi.single_smul (f := fun i => Matrix (Fin (D.d i)) (Fin (D.d i)) k),
+            map_smul, map_smul, LinearMap.smul_apply, RingHom.id_apply] }
+    change L (∑ a, M a j • Matrix.single a j₀ 1) = ∑ a, M a j • L (Matrix.single a j₀ 1)
+    rw [map_sum]; congr 1; ext a; rw [map_smul]
+  -- Construct the FDRep morphism: f(v) = ∑_j v_j • φ_j
+  let fHom : D.columnFDRep i₀ ⟶ W :=
+    { hom := FGModuleCat.ofHom
+        { toFun := fun v => ∑ j, v j • φ j
+          map_add' := fun v w => by simp [Pi.add_apply, add_smul, Finset.sum_add_distrib]
+          map_smul' := fun r v => by
+            simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]
+            rw [Finset.smul_sum]; congr 1; ext j; rw [smul_smul] }
+      comm := fun g => by
+        ext v
+        -- Goal: f(ρ_col(g)(v)) = W.ρ g (f(v))
+        show ∑ j, ((D.columnRep i₀) g v) j • φ j = W.ρ g (∑ j, v j • φ j)
+        -- RHS: distribute W.ρ g over the sum
+        rw [map_sum]; simp_rw [map_smul]
+        -- Rewrite W.ρ g (φ j) using hphi_equivar
+        simp_rw [hphi_equivar g]
+        -- columnRep g = mulVecLin (projRingHom (of g))
+        -- (columnRep g v) j = ∑ a, M j a * v a  where M = projRingHom (of g)
+        -- Need: ∑ j, (∑ a, M j a * v a) • φ j = ∑ x, v x • ∑ a, M a x • φ a
+        -- This is just rearranging a double sum
+        -- columnRep is definitionally mulVec, so we can just use show
+        -- after hphi_equivar, LHS has columnRep and RHS has expanded form
+        -- Goal: ∑ j, (columnRep i₀ g v) j • φ j = ∑ x, v x • ∑ a, M a x • φ a
+        -- columnRep g v j = ∑ a, M j a * v a  by definition
+        simp_rw [show ∀ j, ((D.columnRep i₀) g v) j =
+          ∑ a, (D.projRingHom i₀ (MonoidAlgebra.of k G g)) j a * v a from fun j => rfl]
+        -- Distribute (∑ a, c a) • x = ∑ a, c a • x on LHS
+        conv_lhs => arg 2; ext x; rw [Finset.sum_smul]
+        -- RHS: distribute v x • over the inner sum, combine smul
+        conv_rhs => arg 2; ext x; rw [Finset.smul_sum]; arg 2; ext a; rw [smul_smul]
+        rw [Finset.sum_comm]
+        congr 1; ext x; congr 1; ext a; ring }
+  -- fHom is nonzero: f(e_{j₀}) = φ j₀ ≠ 0
+  have hfHom_ne : fHom ≠ 0 := by
+    intro h
+    apply hj₀
+    -- If fHom = 0, then φ j₀ = 0 (since fHom(e_{j₀}) = φ j₀)
+    -- fHom = 0 means the underlying hom is 0
+    have h2 : ∀ v : Fin (D.d i₀) → k, ∑ j, v j • φ j = 0 := by
+      intro v
+      have := congr_arg (fun (f : D.columnFDRep i₀ ⟶ W) => f.hom.hom v) h
+      simpa [fHom] using this
+    specialize h2 (Pi.single (M := fun _ => k) j₀ 1)
+    -- φ j₀ = ∑ j, (Pi.single j₀ 1) j • φ j  (only j₀ term survives)
+    have hs : ∑ j, (Pi.single (M := fun _ => k) j₀ 1) j • φ j = φ j₀ := by
+      rw [show ∑ j, (Pi.single (M := fun _ => k) j₀ 1) j • φ j =
+        ∑ j, if j = j₀ then φ j else 0 from by
+          congr 1; ext j; by_cases hj : j = j₀ <;> simp [Pi.single_apply, hj]]
+      rw [Finset.sum_ite_eq']; simp
+    rw [hs] at h2; exact h2
+  -- By Schur's lemma, a nonzero morphism between simples is an isomorphism
+  haveI : IsIso fHom := isIso_of_hom_simple hfHom_ne
+  exact ⟨(asIso fHom).symm⟩
 
 /-- The number of Wedderburn-Artin components equals the number of isomorphism classes
 of simple `FDRep k G` objects. -/
@@ -539,11 +725,35 @@ theorem IrrepDecomp.n_eq_card_simples [NeZero (Nat.card G : k)]
   ⟨D.columnFDRep, D.columnFDRep_simple, D.columnFDRep_injective, D.columnFDRep_surjective⟩
 
 /-- Each dimension `d i` in the Wedderburn-Artin decomposition equals the
-`Module.finrank k` of the corresponding irreducible representation. -/
+`Module.finrank k` of the corresponding irreducible representation.
+
+**WARNING**: This statement is likely incorrect as written. It claims `D.d i = finrank k (V i)`
+for an *arbitrary* complete set `V` of non-isomorphic simples, but `V` could list them in a
+different order than `D.columnFDRep`. The correct statement should involve a permutation:
+`∃ σ : Equiv.Perm (Fin D.n), ∀ i, D.d (σ i) = finrank k (V i)`.
+Downstream uses in `RegularCharacter.lean` and `Theorem5_1_5.lean` should be updated
+to work with the permuted version (sums over permutations are equal). -/
 theorem IrrepDecomp.d_eq_finrank [NeZero (Nat.card G : k)]
     (D : IrrepDecomp k G) (V : Fin D.n → FDRep k G)
     (hV : ∀ i, Simple (V i))
     (hinj : ∀ i j, Nonempty ((V i) ≅ (V j)) → i = j)
     (hsurj : ∀ (W : FDRep k G), Simple W → ∃ i, Nonempty (W ≅ V i)) :
     ∀ i, D.d i = Module.finrank k (V i) := by
+  intro i
+  -- V i is simple, so by columnFDRep_surjective, V i ≅ columnFDRep j for some j
+  obtain ⟨j, ⟨eVj⟩⟩ := D.columnFDRep_surjective (V i) (hV i)
+  -- columnFDRep i is simple, so by hsurj, columnFDRep i ≅ V j' for some j'
+  obtain ⟨j', ⟨eCj'⟩⟩ := hsurj (D.columnFDRep i) (D.columnFDRep_simple i)
+  -- By the iso V i ≅ columnFDRep j, finrank k (V i) = D.d j
+  have hfr : Module.finrank k (V i) = D.d j := by
+    rw [← D.finrank_columnFDRep j]
+    exact LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eVj)
+  -- By the iso columnFDRep i ≅ V j', finrank k (V j') = D.d i
+  have hfr' : Module.finrank k (V j') = D.d i := by
+    rw [← D.finrank_columnFDRep i]
+    exact (LinearEquiv.finrank_eq (FDRep.isoToLinearEquiv eCj')).symm
+  -- The bijection σ : i ↦ j (where V i ≅ columnFDRep j) gives finrank k (V i) = D.d (σ i).
+  -- We need D.d i = D.d (σ i), i.e. σ = id on d values. This does NOT follow for general V:
+  -- V could be a permutation of columnFDRep that swaps blocks of different sizes.
+  -- The theorem statement needs to be corrected to use an explicit permutation σ.
   sorry
