@@ -38,9 +38,85 @@ noncomputable def diagonalLieAction :
   toLinearMap :=
     { toFun := fun b => ∑ i : Fin n,
         PiTensorProduct.map (fun j => if j = i then b else LinearMap.id)
-      map_add' := sorry
-      map_smul' := sorry }
-  map_lie' := sorry
+      map_add' := by
+        intro b₁ b₂
+        have key : ∀ (i : Fin n) (b : Module.End k V),
+            (fun j => if j = i then b else LinearMap.id) =
+            Function.update (fun _ => LinearMap.id) i b := by
+          intro i b; ext j; simp [Function.update, eq_comm]
+        simp_rw [key]
+        rw [← Finset.sum_add_distrib]
+        congr 1; ext i
+        rw [PiTensorProduct.map_update_add]
+      map_smul' := by
+        intro c b
+        have key : ∀ (i : Fin n) (b : Module.End k V),
+            (fun j => if j = i then b else LinearMap.id) =
+            Function.update (fun _ => LinearMap.id) i b := by
+          intro i b; ext j; simp [Function.update, eq_comm]
+        simp_rw [key]
+        rw [show RingHom.id k c = c from rfl, Finset.smul_sum]
+        congr 1; ext i
+        rw [PiTensorProduct.map_update_smul] }
+  map_lie' := by
+    intro b₁ b₂
+    have key : ∀ (i : Fin n) (b : Module.End k V),
+        (fun j => if j = i then b else LinearMap.id) =
+        Function.update (fun _ => LinearMap.id) i b := by
+      intro i b; ext j; simp [Function.update, eq_comm]
+    simp_rw [key]
+    simp only [LieRing.of_associative_ring_bracket]
+    -- LHS: ∑ᵢ map(δᵢ(b₁*b₂ - b₂*b₁))
+    -- Step 1: Reduce to ∑ᵢ (map(δᵢ(b₁)) * map(δᵢ(b₂)) - map(δᵢ(b₂)) * map(δᵢ(b₁)))
+    -- Helper: map_mul for our specific type family
+    set δ := fun (i : Fin n) (b : Module.End k V) =>
+      PiTensorProduct.map (R := k) (s := fun _ => V) (t := fun _ => V)
+        (Function.update (fun _ => LinearMap.id) i b) with hδ
+    -- Step 1: δ i b₁ * δ j b₂ = δ of composed updates (via map_mul)
+    have mul_eq : ∀ (i j : Fin n) (a b : Module.End k V),
+        δ i a * δ j b = PiTensorProduct.map
+          (fun l => Function.update (fun _ => LinearMap.id) i a l *
+                    Function.update (fun _ => LinearMap.id) j b l) := by
+      intro i j a b; exact (PiTensorProduct.map_mul _ _).symm
+    -- Helper: δ respects sub (from multilinear structure)
+    have δ_sub : ∀ (i : Fin n) (a b : Module.End k V),
+        δ i (a - b) = δ i a - δ i b := by
+      intro i a b
+      simp only [hδ]
+      exact (PiTensorProduct.mapMultilinear (R := k) (s := fun _ => V)
+        (t := fun _ => V)).map_update_sub (fun _ => LinearMap.id) i a b
+    -- Helper: δ preserves mul (update id i (a*b) = (update id i a) * (update id i b) pointwise)
+    have δ_mul : ∀ (i : Fin n) (a b : Module.End k V),
+        δ i (a * b) = δ i a * δ i b := by
+      intro i a b
+      simp only [hδ, ← PiTensorProduct.map_mul]
+      congr 1; funext l
+      by_cases h : l = i <;>
+        simp [Function.update, h, Module.End.mul_eq_comp, LinearMap.comp_id]
+    -- Step 2: Each LHS summand equals diagonal term
+    have lhs_eq : ∀ i : Fin n,
+        δ i (b₁ * b₂ - b₂ * b₁) = δ i b₁ * δ i b₂ - δ i b₂ * δ i b₁ := by
+      intro i; rw [δ_sub, δ_mul, δ_mul]
+    rw [Finset.sum_congr rfl (fun i _ => lhs_eq i)]
+    -- Step 3: Cross-terms (i ≠ j) commute
+    have comm : ∀ i j : Fin n, i ≠ j → δ i b₁ * δ j b₂ = δ j b₂ * δ i b₁ := by
+      intro i j hij
+      simp only [hδ, ← PiTensorProduct.map_mul]
+      congr 1; funext l
+      by_cases hi : l = i <;> by_cases hj : l = j <;>
+        simp [Function.update, hi, hj, hij, Ne.symm hij,
+          Module.End.mul_eq_comp, LinearMap.comp_id, LinearMap.id_comp]
+    -- Step 4: Expand RHS to double sum, show cross-terms vanish
+    rw [Finset.sum_mul_sum, Finset.sum_mul_sum]
+    rw [Finset.sum_comm (f := fun j i => δ j b₂ * δ i b₁)]
+    rw [← Finset.sum_sub_distrib]
+    simp_rw [← Finset.sum_sub_distrib]
+    -- ∑ᵢ∑ⱼ (δᵢb₁*δⱼb₂ - δⱼb₂*δᵢb₁). Cross-terms (i≠j) vanish.
+    apply Finset.sum_congr rfl; intro i _
+    symm
+    exact Finset.sum_eq_single i
+      (fun j _ hji => sub_eq_zero.mpr (comm i j hji.symm))
+      (fun h => absurd (Finset.mem_univ _) h)
 
 /-- The algebra homomorphism from U(gl(V)) to End(V^⊗n) induced by the
 diagonal Lie algebra action. By the universal property, the Lie algebra
