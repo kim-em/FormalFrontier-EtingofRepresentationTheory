@@ -257,11 +257,23 @@ private noncomputable def Etingof.equivAt_eq_sink
   match hd1 : (‹DecidableEq Q› i i) with
   | .isFalse hii => exact absurd rfl hii
   | .isTrue _ =>
-    -- The rw would fail on dependent types, so use sorry for now
-    -- The mathematical content is:
-    -- LHS reduces to (⊕V_j) ⧸ range(ker(φ) ↪ ⊕V_j) where φ = sinkMap
-    -- This is isomorphic to (⊕V_j) / ker(φ) ≅ V_i by first isomorphism theorem
-    -- (quotKerEquivOfSurjective)
+    rw [hd1]; dsimp only [Decidable.rec]
+    -- Goal: (⊕_{a : ArrowsOutOf Q̄ᵢ i} F⁺(V).obj a.1) / range(ψ') ≃ₗ[k] V_i
+    --
+    -- Mathematical argument (first isomorphism theorem):
+    -- • F⁺ᵢ(V).obj i = ker(φ) where φ = sinkMap
+    -- • F⁻ᵢ at vertex i gives the cokernel of the source map ψ' of F⁺(V)
+    -- • ψ' sends ker(φ) ↪ ⊕ V_j via the composition of inclusion and projection
+    --   (which is just the subtype inclusion)
+    -- • Therefore: coker(ψ') = (⊕ V_j) / range(subtype) = (⊕ V_j) / ker(φ)
+    -- • By quotKerEquivOfSurjective: (⊕ V_j) / ker(φ) ≅ V_i when φ is surjective
+    --
+    -- BLOCKER: The types in the goal involve Decidable.casesOn from the reflection
+    -- functor definitions. ArrowsOutOf Q̄ᵢ i and ArrowsInto Q i are propositionally
+    -- equal (both index arrows j → i), and F⁺(V).obj j = V_j for j ≠ i, but Lean
+    -- cannot see this without explicit case-splitting on every DecidableEq instance.
+    -- A direct sum reindexing + type transport equivalence is needed.
+    -- See GitHub issue for proposed infrastructure.
     sorry
 
 end Helpers
@@ -307,7 +319,15 @@ theorem Etingof.Proposition6_6_6_sink
       · -- v ≠ i: both sides reduce to ρ.obj v
         exact @Etingof.equivAt_ne_sink k _ Q _ inst i hi ρ _ v hv)
     (fun {a b} e x => by
-      -- naturality: the diagram commutes
+      -- Naturality: the isomorphism commutes with representation maps.
+      -- Case analysis on a = i and b = i:
+      -- • a ≠ i, b ≠ i: both equivs are identity, maps unchanged — trivial
+      -- • a = i, b ≠ i: involves equivAt_eq_sink on the source vertex
+      -- • a ≠ i, b = i: involves equivAt_eq_sink on the target vertex
+      -- • a = i, b = i: self-loop at sink, vacuous
+      -- BLOCKER: Same Decidable.casesOn type transport issue as equivAt_eq_sink.
+      -- The representation maps of F⁻(F⁺(V)) are defined via Decidable.casesOn
+      -- and don't reduce without explicit case-splitting on DecidableEq instances.
       sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
@@ -333,5 +353,12 @@ theorem Etingof.Proposition6_6_6_source
           (Etingof.isSource_reversedAtVertex_isSink hi)
           (Etingof.reflectionFunctorMinus Q i hi ρ)))
       ρ) := by
-  -- Dual of the sink case. Uses ker/range duality instead of quotient/kernel.
+  -- Dual of the sink case:
+  -- • F⁻ᵢ(V).obj i = coker(ψ) where ψ = sourceMap
+  -- • F⁺ᵢ at vertex i gives ker of sink map of F⁻(V)
+  -- • When ψ is injective: ker(sink map of F⁻(V)) ≅ V_i
+  -- BLOCKER: Same Decidable.casesOn type transport issue as the sink case.
+  -- Proving this requires the same infrastructure: direct sum reindexing
+  -- between ArrowsInto Q̄ᵢ i and ArrowsOutOf Q i, plus type transport
+  -- for the component types through Decidable.casesOn.
   sorry
