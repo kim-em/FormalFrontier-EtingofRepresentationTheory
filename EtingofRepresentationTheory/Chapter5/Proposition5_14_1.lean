@@ -115,6 +115,61 @@ private lemma rowSymmetrizer_annihilates_specht (n : ℕ) (la mu : Nat.Partition
     from by simp only [mul_assoc]]
   exact Lemma5_13_2_general n la mu h _
 
+/-! ## Left action of row group on Young symmetrizer -/
+
+/-- Left multiplication by a row group element fixes the Young symmetrizer:
+of(p) * c_la = c_la for p in P_la. -/
+private lemma of_row_mul_youngSymmetrizer (n : ℕ) (la : Nat.Partition n)
+    (p : G' n) (hp : p ∈ RowSubgroup n la) :
+    MonoidAlgebra.of ℂ _ p * YoungSymmetrizer n la = YoungSymmetrizer n la := by
+  simp only [YoungSymmetrizer]
+  rw [← mul_assoc, of_row_mul_RowSymmetrizer p hp]
+
+/-- The product of(g) * c_la depends only on the coset of g modulo P_la. -/
+private lemma of_mul_cla_coset_indep (n : ℕ) (la : Nat.Partition n)
+    (g g' : G' n) (h : (QuotientGroup.mk g : Q n la) = QuotientGroup.mk g') :
+    MonoidAlgebra.of ℂ (G' n) g * YoungSymmetrizer n la =
+    MonoidAlgebra.of ℂ (G' n) g' * YoungSymmetrizer n la := by
+  rw [QuotientGroup.eq] at h
+  -- h : g⁻¹ * g' ∈ RowSubgroup, need g'⁻¹ * g ∈ RowSubgroup
+  have h' : g'⁻¹ * g ∈ RowSubgroup n la := by
+    have := (RowSubgroup n la).inv_mem h; simp [mul_inv_rev] at this; exact this
+  have hof : MonoidAlgebra.of ℂ (G' n) g =
+      MonoidAlgebra.of ℂ (G' n) g' * MonoidAlgebra.of ℂ (G' n) (g'⁻¹ * g) := by
+    rw [← (MonoidAlgebra.of ℂ (G' n)).map_mul]; congr 1; group
+  rw [hof, mul_assoc, of_row_mul_youngSymmetrizer n la _ h']
+
+/-- Any P_la-fixed element of V_la is a scalar multiple of c_la. -/
+private lemma pla_fixed_is_scalar_of_cla (n : ℕ) (la : Nat.Partition n)
+    (v : ↥(SpechtModule n la))
+    (h_fix : ∀ p ∈ RowSubgroup n la,
+      (MonoidAlgebra.of ℂ (G' n) p : SymGroupAlgebra n) • v = v) :
+    ∃ c : ℂ, (v : SymGroupAlgebra n) = c • YoungSymmetrizer n la := by
+  classical
+  have h_fix_val : ∀ p ∈ RowSubgroup n la,
+      MonoidAlgebra.of ℂ (G' n) p * (v : SymGroupAlgebra n) = (v : SymGroupAlgebra n) :=
+    fun p hp => congrArg Subtype.val (h_fix p hp)
+  have h_row_sym : RowSymmetrizer n la * (v : SymGroupAlgebra n) =
+      (Fintype.card (RowSubgroup n la) : ℂ) • (v : SymGroupAlgebra n) := by
+    simp only [RowSymmetrizer, Finset.sum_mul]
+    rw [Finset.sum_congr rfl (fun p _ => h_fix_val p.val p.prop)]
+    rw [Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
+  obtain ⟨x, hx⟩ := Submodule.mem_span_singleton.mp v.prop
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  have h_sandwich : RowSymmetrizer n la * (v : SymGroupAlgebra n) =
+      ℓ (x * RowSymmetrizer n la) • YoungSymmetrizer n la := by
+    rw [show (v : SymGroupAlgebra n) = x * YoungSymmetrizer n la from hx.symm]
+    simp only [YoungSymmetrizer]
+    rw [show RowSymmetrizer n la * (x * (RowSymmetrizer n la * ColumnAntisymmetrizer n la)) =
+      RowSymmetrizer n la * (x * RowSymmetrizer n la) * ColumnAntisymmetrizer n la
+      from by simp only [mul_assoc]]
+    exact hℓ _
+  have h_card_ne : (Fintype.card (RowSubgroup n la) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Fintype.card_pos.ne'
+  rw [h_row_sym] at h_sandwich
+  refine ⟨ℓ (x * RowSymmetrizer n la) * (Fintype.card (RowSubgroup n la) : ℂ)⁻¹, ?_⟩
+  rw [mul_comm, ← smul_smul, ← h_sandwich, smul_smul, inv_mul_cancel₀ h_card_ne, one_smul]
+
 end
 
 /-! ## Proposition 5.14.1 -/
@@ -178,6 +233,31 @@ permutation module U_λ to the Specht module V_λ is one-dimensional.
 theorem Proposition5_14_1_diagonal
     (n : ℕ) (la : Nat.Partition n) :
     Module.finrank ℂ (PermutationModule n la →ₗ[SymGroupAlgebra n] ↥(SpechtModule n la)) = 1 := by
+  classical
+  set e : PermutationModule n la := Finsupp.single (QuotientGroup.mk (1 : G' n)) (1 : ℂ)
+  set cla : ↥(SpechtModule n la) := ⟨YoungSymmetrizer n la, Submodule.subset_span rfl⟩
+  -- Step 1: Any equivariant map f is determined by f(e)
+  have hf_det : ∀ f : PermutationModule n la →ₗ[SymGroupAlgebra n] ↥(SpechtModule n la),
+      f e = 0 → f = 0 := by
+    intro f hfe
+    ext x
+    have hx : x ∈ Submodule.span (SymGroupAlgebra n) {e} :=
+      permMod_cyclic n la ▸ Submodule.mem_top
+    obtain ⟨a, rfl⟩ := Submodule.mem_span_singleton.mp hx
+    simp [f.map_smul, hfe]
+  -- Step 2: f(e) is P_la-fixed, hence f(e).val is a scalar multiple of c_la
+  have hf_scalar : ∀ f : PermutationModule n la →ₗ[SymGroupAlgebra n] ↥(SpechtModule n la),
+      ∃ c : ℂ, (f e : SymGroupAlgebra n) = c • YoungSymmetrizer n la := by
+    intro f
+    apply pla_fixed_is_scalar_of_cla
+    intro p hp
+    rw [← f.map_smul]; congr 1
+    rw [of_smul_single, rowSubgroup_fixes_identity n la p hp]
+  -- Step 3: Any two maps f, g satisfy g = α • f for some scalar
+  -- (both f(e).val and g(e).val are scalar multiples of c_la,
+  --  so they differ by a scalar, and since U_la is cyclic, the maps differ by that scalar)
+  -- Step 4: Construct a nonzero equivariant map (the canonical map)
+  -- and show everything is a scalar multiple
   sorry
 
 end Etingof
