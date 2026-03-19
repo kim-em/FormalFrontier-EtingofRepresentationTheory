@@ -155,7 +155,61 @@ lemma finrank_hom_leftIdeal_eq
     [Module k M] [IsScalarTower k A M] [SMulCommClass A k M] :
     Module.finrank k (↥(Submodule.span A ({e} : Set A)) →ₗ[A] M) =
     Module.finrank k ↥(smulRange (k := k) (A := A) M e) := by
-  sorry
+  -- The isomorphism Hom_A(Ae, M) ≅ eM is given by:
+  -- Forward: φ ↦ φ(e)  (this lands in eM since e·φ(e) = φ(e²) = φ(e))
+  -- Backward: m ∈ eM ↦ (x ↦ x • m)  (A-linear: (rx)•m = r•(x•m))
+  -- The backward map works because for m ∈ eM, e•m = m, so the
+  -- A-module map x ↦ x•m restricts correctly to Ae.
+  set S := Submodule.span A ({e} : Set A) with hS_def
+  have he_mem_S : e ∈ S := Submodule.subset_span rfl
+  -- Construct the k-linear equivalence
+  -- Forward map: φ ↦ φ(e) (evaluation at e)
+  have hfwd_mem : ∀ (φ : S →ₗ[A] M), φ ⟨e, he_mem_S⟩ ∈ smulRange (k := k) (A := A) M e := by
+    intro φ
+    refine ⟨φ ⟨e, he_mem_S⟩, ?_⟩
+    show e • φ ⟨e, he_mem_S⟩ = φ ⟨e, he_mem_S⟩
+    rw [← φ.map_smul]; congr 1
+    exact Subtype.ext (IsIdempotentElem.eq he)
+  -- Backward map: m ∈ eM ↦ (⟨x, _⟩ ↦ x • m) where x acts on m via the A-module structure
+  -- This is A-linear because (a • x) • m = a • (x • m) by module associativity
+  have hbwd_map_smul : ∀ (m : M) (a : A) (x : S), (a • x.1) • m = a • (x.1 • m) := by
+    intro m a x; rw [smul_eq_mul, mul_smul]
+  -- Construct the k-linear equivalence
+  let equiv : (S →ₗ[A] M) ≃ₗ[k] ↥(smulRange (k := k) (A := A) M e) :=
+    { toFun := fun φ => ⟨φ ⟨e, he_mem_S⟩, hfwd_mem φ⟩
+      invFun := fun ⟨m, hm⟩ =>
+        { toFun := fun ⟨x, _⟩ => x • m
+          map_add' := fun ⟨x, _⟩ ⟨y, _⟩ => by simp [add_smul]
+          map_smul' := fun a ⟨x, _⟩ => by simp [mul_smul] }
+      left_inv := by
+        intro φ; ext ⟨x, hx⟩
+        -- Need: x • φ(e) = φ(x)
+        -- x ∈ Ae means x = a • e for some a
+        rw [Submodule.mem_span_singleton] at hx
+        obtain ⟨a, rfl⟩ := hx
+        -- Goal: (a • e) • φ(e) = φ(⟨a • e, _⟩)
+        -- (a • e) • φ(e) = φ(a • e) by A-linearity and idempotency
+        have he_act : (e : A) • φ ⟨e, he_mem_S⟩ = φ ⟨e, he_mem_S⟩ := by
+          conv_rhs => rw [show (⟨e, he_mem_S⟩ : S) = e • ⟨e, he_mem_S⟩ from
+            Subtype.ext (IsIdempotentElem.eq he).symm]
+          exact (φ.map_smul e ⟨e, he_mem_S⟩).symm
+        change (a • e : A) • φ ⟨e, he_mem_S⟩ = φ ⟨a • e, _⟩
+        conv_rhs => rw [show (⟨a • e, _⟩ : S) = a • ⟨e, he_mem_S⟩ from rfl]
+        rw [φ.map_smul, smul_eq_mul, mul_smul, he_act]
+      right_inv := by
+        intro ⟨m, hm⟩
+        -- Need: e • m = m, which follows from m ∈ eM (m = e • m₀ for some m₀)
+        obtain ⟨m₀, hm₀⟩ := hm
+        -- hm₀ : e • m₀ = m, so e • m = e • (e • m₀) = (e*e) • m₀ = e • m₀ = m
+        apply Subtype.ext
+        show (e : A) • m = m
+        rw [← hm₀]
+        show e • (e • m₀) = e • m₀
+        rw [← mul_smul, IsIdempotentElem.eq he]
+      map_add' := fun φ ψ => by ext; simp
+      map_smul' := fun c φ => by
+        ext; rfl }
+  exact equiv.finrank_eq
 
 end Etingof.Theorem921
 
