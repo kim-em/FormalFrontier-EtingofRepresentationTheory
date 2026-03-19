@@ -512,14 +512,133 @@ lemma exists_orthogonal_idempotents_for_simples
   have hσ_inj : Function.Injective σ := by
     intro i j hij
     apply hM i j
-    -- Strategy: Both M_i and M_j are simple A-modules annihilated by Rad(A).
-    -- Since σ(i) = σ(j), both live in the same block l of A/Rad(A) ≅ ∏ Mat_{d_l}(k).
-    -- Construct Module (Mat_{d_l}(k)) structures on both via the block action
-    -- (Pi.single l mat lifts to an element whose action on M_p uses hc_identity/hc_zero).
-    -- Mat_{d_l}(k) is simple + artinian, so by IsSimpleRing.nonempty_linearEquiv_of_isSimpleModule,
-    -- M_i ≃ M_j as Mat-modules. The A-linearity follows since the A-action factors through
-    -- the block. See IsSimpleRing.nonempty_linearEquiv_of_isSimpleModule helper lemma above.
-    sorry
+    -- σ(i) = σ(j), so both M_i and M_j are supported on the same WA block l.
+    -- We construct Module (Mat_{d_l}(k)) instances on both, get a Mat-linear equiv,
+    -- then convert to A-linear using the decomposition a • m = (WA(π a) l) •_Mat m.
+    set l := σ i with hl_def
+    have hlj : σ j = l := hij.symm
+    -- Lift function: for any q ∈ A/J, pick a ∈ A with π a = q
+    let lft : (A ⧸ Ring.jacobson A) → A := fun q => (Ideal.Quotient.mk_surjective q).choose
+    have hlft : ∀ q, π (lft q) = q := fun q =>
+      (Ideal.Quotient.mk_surjective q).choose_spec
+    -- Matrix action on M p: mat • m := (lift of WA.symm(Pi.single l mat)) • m
+    let matAct : ∀ p : ι, Matrix (Fin (d l)) (Fin (d l)) k → M p → M p :=
+      fun p mat m => lft (WA.symm (Pi.single l mat)) • m
+    -- Key decomposition: a • m = matAct p (WA(π a) l) m, when σ p = l.
+    have hdecomp : ∀ (p : ι) (hp : σ p = l) (a : A) (m : M p),
+        a • m = matAct p ((WA (π a)) l) m := by
+      intro p hp a m
+      have hid := hc_identity p (lft (c l)) (by rw [hlft]; exact (congrArg c hp).symm ▸ rfl)
+      conv_lhs => rw [show a • m = (a * lft (c l)) • m from by rw [mul_smul, hid m]]
+      -- π(a * lft(c l)) = π(a) * c(l) = WA.symm(WA(π a)) * WA.symm(Pi.single l 1)
+      --                  = WA.symm(WA(π a) * Pi.single l 1) = WA.symm(Pi.single l ((WA(π a)) l))
+      apply hsmul_eq
+      rw [map_mul, hlft]
+      -- Goal: π a * c l = π (lft (WA.symm (Pi.single l ((WA (π a)) l))))
+      rw [hlft]
+      -- Goal: π a * c l = WA.symm (Pi.single l ((WA (π a)) l))
+      conv_lhs => rw [show π a = WA.symm (WA (π a)) from (WA.symm_apply_apply _).symm,
+                       show c l = WA.symm (Pi.single l 1) from rfl]
+      rw [hWA_mul]; congr 1; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · simp [Pi.mul_apply, show l ≠ l' from fun h => hl' h.symm]
+    -- Module axiom helpers
+    have hpi_single_mul : ∀ (x y : (fun l => Matrix (Fin (d l)) (Fin (d l)) k) l),
+        Pi.single l x * Pi.single l y = Pi.single l (x * y) := by
+      intro x y; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · simp [Pi.mul_apply, show l ≠ l' from fun h => hl' h.symm]
+    have hmatAct_mul : ∀ (p : ι) (mat1 mat2 : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p),
+        matAct p (mat1 * mat2) m = matAct p mat1 (matAct p mat2 m) := by
+      intro p mat1 mat2 m
+      show lft (WA.symm (Pi.single l (mat1 * mat2))) • m =
+        lft (WA.symm (Pi.single l mat1)) • (lft (WA.symm (Pi.single l mat2)) • m)
+      rw [← mul_smul]; apply hsmul_eq
+      rw [map_mul, hlft, hlft]; conv_rhs => rw [hlft]
+      rw [hWA_mul, hpi_single_mul]
+    have hmatAct_add : ∀ (p : ι) (mat1 mat2 : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p),
+        matAct p (mat1 + mat2) m = matAct p mat1 m + matAct p mat2 m := by
+      intro p mat1 mat2 m
+      show lft (WA.symm (Pi.single l (mat1 + mat2))) • m =
+        lft (WA.symm (Pi.single l mat1)) • m + lft (WA.symm (Pi.single l mat2)) • m
+      rw [← add_smul]; apply hsmul_eq
+      rw [map_add, hlft, hlft]; conv_rhs => rw [hlft]
+      rw [show WA.symm (Pi.single l mat1) + WA.symm (Pi.single l mat2) =
+            WA.symm (Pi.single l mat1 + Pi.single l mat2) from (map_add WA.symm _ _).symm]
+      congr 1; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · have hne : l ≠ l' := fun h => hl' h.symm
+        simp [Pi.single_eq_of_ne hne]
+    have hmatAct_one : ∀ (p : ι) (hp : σ p = l) (m : M p), matAct p 1 m = m := by
+      intro p hp m
+      exact hc_identity p (lft (c l)) (by rw [hlft]; exact (congrArg c hp).symm ▸ rfl) m
+    have hmatAct_zero : ∀ (p : ι) (m : M p), matAct p 0 m = 0 := by
+      intro p m
+      have : lft (WA.symm (Pi.single l 0)) • m = (0 : A) • m := by
+        apply hsmul_eq; rw [hlft, map_zero, Pi.single_zero, map_zero]
+      exact this.trans (zero_smul A m)
+    -- Build Module instances for M i and M j
+    letI instMi : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M i) :=
+      { smul := matAct i
+        one_smul := hmatAct_one i rfl
+        mul_smul := hmatAct_mul i
+        smul_zero := fun _ => smul_zero _
+        smul_add := fun _ => smul_add _
+        add_smul := hmatAct_add i
+        zero_smul := hmatAct_zero i }
+    letI instMj : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M j) :=
+      { smul := matAct j
+        one_smul := hmatAct_one j hlj
+        mul_smul := hmatAct_mul j
+        smul_zero := fun _ => smul_zero _
+        smul_add := fun _ => smul_add _
+        add_smul := hmatAct_add j
+        zero_smul := hmatAct_zero j }
+    -- IsSimpleModule: Mat-submodules = A-submodules (same carrier),
+    -- since a • m = matAct (WA(π a) l) m and mat • m = lft(WA.symm(Pi.single l mat)) • m
+    -- Prove IsSimpleModule for M i and M j over the matrix ring
+    -- IsSimpleModule over Matrix: A-submodules = Mat-submodules (same carrier)
+    have hMatSimple : ∀ (p : ι) (hp : σ p = l) (inst : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M p)),
+        (∀ (mat : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p), mat • m = matAct p mat m) →
+        @IsSimpleModule (Matrix (Fin (d l)) (Fin (d l)) k) _ (M p) _ inst := by
+      intro p hp inst hsmul_def
+      haveI : Nontrivial (M p) := IsSimpleModule.nontrivial A (M p)
+      exact { eq_bot_or_eq_top := fun N => by
+        let N_A : Submodule A (M p) :=
+          { carrier := N.carrier
+            add_mem' := N.add_mem'
+            zero_mem' := N.zero_mem'
+            smul_mem' := fun a x hx => by
+              rw [hdecomp p hp a x, ← hsmul_def]; exact N.smul_mem _ hx }
+        rcases IsSimpleOrder.eq_bot_or_eq_top N_A with h | h
+        · left; ext x; simp only [Submodule.mem_bot]
+          exact ⟨fun hx => Submodule.eq_bot_iff.mp h x hx,
+                 fun hx => hx ▸ N.zero_mem⟩
+        · right; ext x
+          exact ⟨fun _ => trivial,
+                 fun _ => (Submodule.eq_top_iff'.mp h x : x ∈ N_A)⟩ }
+    haveI hSimMi := hMatSimple i rfl instMi (fun _ _ => rfl)
+    haveI hSimMj := hMatSimple j hlj instMj (fun _ _ => rfl)
+    -- Get Mat-linear equiv via uniqueness of simple modules over simple artinian ring
+    haveI : IsSimpleRing (Matrix (Fin (d l)) (Fin (d l)) k) := by
+      haveI := hd l; exact IsSimpleRing.matrix (Fin (d l)) k
+    haveI : IsArtinianRing (Matrix (Fin (d l)) (Fin (d l)) k) := inferInstance
+    obtain ⟨f⟩ := @IsSimpleRing.nonempty_linearEquiv_of_isSimpleModule
+      (Matrix (Fin (d l)) (Fin (d l)) k) _ _ _ (M i) (M j) _ instMi hSimMi _ instMj hSimMj
+    -- Convert Mat-linear equiv to A-linear equiv
+    exact ⟨{ toFun := f
+             invFun := f.symm
+             left_inv := f.left_inv
+             right_inv := f.right_inv
+             map_add' := f.map_add
+             map_smul' := fun a m => by
+               -- a • m = matAct ((WA(π a)) l) m, and f is Mat-linear
+               rw [hdecomp i rfl a m, hdecomp j hlj a (f m)]
+               exact @LinearMap.map_smul _ _ _ _ _ instMi instMj _ f.toLinearMap
+                 ((WA (π a)) l) m }⟩
   -- Sub-lemma: rank property
   have hrank : ∀ i j (a : A), π a = WA.symm
       (Pi.single (σ i) (Matrix.single (0 : Fin (d (σ i))) 0 (1 : k))) →
