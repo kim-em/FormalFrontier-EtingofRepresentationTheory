@@ -710,6 +710,8 @@ These are proof approaches that multiple agents have attempted and failed. Don't
 
 **What to do:** If your proof requires showing `equivAt_ne(F⁺.mapLinear(e)(w)) = ρ.mapLinear(e')(equivAt_ne(w))` or similar map compatibility, **sorry it immediately**. Don't try tactic variations — they ALL hit the same dependent type wall. The fix requires refactoring `reflectionFunctorPlus` to avoid `Decidable.casesOn`.
 
+**Workaround for API lemma application:** When proofs have local `let instR := reversedAtVertex Q i` bindings, Lean's type class synthesis finds `instR` for `[Quiver Q]` instead of the registered `inst`, causing "synthesized type class instance is not definitionally equal" errors when applying API lemmas. **Fix**: Extract the computation as a separate top-level theorem (outside the proof) where `instR` doesn't exist as a local binding. Use explicit `@`-prefixed terms with `Etingof.reversedAtVertex Q _ inst i` to control instance resolution. See `Φ_comp_source_eq_zero` in Proposition6_6_6.lean and `reflFunctorPlus_mapLinear_eq_ne` in Definition6_6_3.lean for examples of this pattern.
+
 ## Common Failure Modes
 
 From Phase 2 review patterns and Stage 3.2 proof experience (90+ merged PRs through wave 14):
