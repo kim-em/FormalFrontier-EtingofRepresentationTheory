@@ -344,7 +344,63 @@ private lemma finrank_center_pi_matrix
     {k : ℕ} {d : Fin k → ℕ} (hd : ∀ i, NeZero (d i)) :
     Module.finrank ℂ
       (Subalgebra.center ℂ (Π i : Fin k, Matrix (Fin (d i)) (Fin (d i)) ℂ)) = k := by
-  sorry
+  -- Each Mat_{d i}(ℂ) is a central ℂ-algebra
+  haveI : ∀ i : Fin k, Algebra.IsCentral ℂ (Matrix (Fin (d i)) (Fin (d i)) ℂ) :=
+    fun _ => Algebra.IsCentral.matrix _ _ _
+  set C := Subalgebra.center ℂ (Π i : Fin k, Matrix (Fin (d i)) (Fin (d i)) ℂ)
+  -- Key lemma: each component of a center element is in the component's center
+  have hcomp : ∀ (f : ↥C) (i : Fin k),
+      f.1 i ∈ Subalgebra.center ℂ (Matrix (Fin (d i)) (Fin (d i)) ℂ) := by
+    intro ⟨f, hf⟩ i
+    rw [Subalgebra.mem_center_iff]
+    intro A
+    have h := Subalgebra.mem_center_iff.mp hf (Function.update 0 i A)
+    have := congr_fun h i
+    simp [Function.update_self, Pi.mul_apply] at this
+    exact this
+  -- Since each matrix algebra is central, center elements have scalar components
+  have hscalar : ∀ (f : ↥C) (i : Fin k),
+      ∃ c : ℂ, f.1 i = algebraMap ℂ _ c := by
+    intro f i
+    exact (Algebra.IsCentral.mem_center_iff (K := ℂ)).mp (hcomp f i)
+  -- Construct a linear equiv: C ≃ₗ[ℂ] (Fin k → ℂ) using the (0,0) entry of each block
+  have h0 : ∀ i : Fin k, 0 < d i := fun i => Nat.pos_of_ne_zero (hd i).ne
+  -- Forward map: extract scalar from the (0,0) entry of each component
+  let φ : ↥C →ₗ[ℂ] (Fin k → ℂ) :=
+  { toFun := fun f i => f.1 i ⟨0, h0 i⟩ ⟨0, h0 i⟩
+    map_add' := fun _ _ => by ext; simp
+    map_smul' := fun _ _ => by ext; simp }
+  -- Backward map: embed scalars via algebraMap into each component
+  have hmem_alg : ∀ c : Fin k → ℂ,
+      (fun i => algebraMap ℂ (Matrix (Fin (d i)) (Fin (d i)) ℂ) (c i)) ∈ C := by
+    intro c
+    rw [Subalgebra.mem_center_iff]
+    intro g; funext i; simp [Pi.mul_apply, Algebra.commutes]
+  let ψ : (Fin k → ℂ) →ₗ[ℂ] ↥C :=
+  { toFun := fun c => ⟨fun i => algebraMap ℂ _ (c i), hmem_alg c⟩
+    map_add' := fun _ _ => by ext i : 2; simp [Pi.add_apply, map_add]
+    map_smul' := fun r c => by
+      apply Subtype.ext; funext i
+      simp only [Pi.smul_apply, RingHom.id_apply, SetLike.val_smul]
+      simp [Algebra.algebraMap_eq_smul_one, smul_smul, smul_eq_mul] }
+  -- φ ∘ ψ = id
+  have hφψ : ∀ c, φ (ψ c) = c := by
+    intro c; ext i
+    simp only [φ, ψ, LinearMap.coe_mk, AddHom.coe_mk, Matrix.algebraMap_matrix_apply]
+    simp
+  -- ψ ∘ φ = id (uses: center elements have scalar components)
+  have hψφ : ∀ f, ψ (φ f) = f := by
+    intro f; apply Subtype.ext; funext i
+    simp only [φ, ψ, LinearMap.coe_mk, AddHom.coe_mk]
+    obtain ⟨c, hc⟩ := (Algebra.IsCentral.mem_center_iff (K := ℂ)).mp (hcomp f i)
+    conv_rhs => rw [hc]
+    congr 1
+    have := congr_fun (congr_fun hc ⟨0, h0 i⟩) ⟨0, h0 i⟩
+    simp [Matrix.algebraMap_matrix_apply] at this
+    exact this
+  have e : ↥C ≃ₗ[ℂ] (Fin k → ℂ) := LinearEquiv.ofLinear φ ψ
+    (LinearMap.ext hφψ) (LinearMap.ext hψφ)
+  rw [e.finrank_eq, Module.finrank_pi, Fintype.card_fin]
 
 /-- For ℂ[S_n] with k Wedderburn blocks, we have k ≤ |Nat.Partition n|.
 The chain of inequalities is: k = dim Z(∏ Mat_{dᵢ}(ℂ)) = dim Z(ℂ[S_n])
