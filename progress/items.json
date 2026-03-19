@@ -3202,8 +3202,10 @@
     "end_page": "118",
     "start_line": 1,
     "end_line": 9,
-    "status": "proof_partial",
-    "needs_statement": true
+    "status": "sent_to_aristotle",
+    "needs_statement": true,
+    "aristotle_project_id": "d6d0df76-8214-4097-ac8f-c191f819a556",
+    "notes": "fixedCosets_eq_card_colorings sorry remaining. Submitted to Aristotle. Main theorem proved modulo this helper."
   },
   {
     "id": "Chapter5/Introduction_5.15",
