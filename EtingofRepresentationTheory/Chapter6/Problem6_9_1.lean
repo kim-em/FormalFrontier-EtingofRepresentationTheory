@@ -269,27 +269,6 @@ noncomputable def Etingof.Q₂Rep_H (n : ℕ) (hn : 0 < n) : Q₂Rep ℂ where
   B := Matrix.toEuclideanLin (Matrix.of fun (i : Fin n) (j : Fin (n - 1)) =>
     if i.val = j.val + 1 then (1 : ℂ) else 0)
 
-/-- **Problem 6.9.1(a) (Etingof)**: The four families E_{n,λ}, E_{n,∞}, H_n, K_n
-(as defined above) are indecomposable and pairwise nonisomorphic. Moreover, these
-are all the indecomposable representations of Q₂.
-
-Specifically, every indecomposable representation of Q₂ is isomorphic to exactly one of:
-- E_{n,λ} for some n ≥ 1, λ ∈ ℂ
-- E_{n,∞} for some n ≥ 1 (obtained from E_{n,0} by swapping V ↔ W and A ↔ B)
-- H_n for some n ≥ 1
-- K_n for some n ≥ 1 (obtained from H_n by swapping V ↔ W and A ↔ B)
-
-This extends the Jordan normal form classification from Q₁ (single vertex with a loop)
-to Q₂ (two vertices with a cycle). -/
-theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
-    -- The representation belongs to one of the four families (existential form):
-    -- Either dim V = dim W (E_{n,λ} or E_{n,∞} family)
-    -- or |dim V - dim W| = 1 (H_n or K_n family)
-    (Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W ∨
-     Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W + 1 ∨
-     Module.finrank ℂ ρ.W = Module.finrank ℂ ρ.V + 1) := by
-  sorry
-
 /-- **Problem 6.9.1(b) (Etingof)**: If AB : W → W is not nilpotent in a Q₂-representation,
 then the representation decomposes as E' ⊕ E_{n,λ} for some λ ≠ 0.
 
@@ -425,6 +404,157 @@ theorem Etingof.Problem6_9_1b (ρ : Q₂Rep ℂ)
     exact le_antisymm
       (LinearMap.finrank_le_finrank_of_injective hA'_inj)
       (LinearMap.finrank_le_finrank_of_injective hB'_inj)
+
+/-- **Problem 6.9.1(a) (Etingof)**: The four families E_{n,λ}, E_{n,∞}, H_n, K_n
+(as defined above) are indecomposable and pairwise nonisomorphic. Moreover, these
+are all the indecomposable representations of Q₂.
+
+Specifically, every indecomposable representation of Q₂ is isomorphic to exactly one of:
+- E_{n,λ} for some n ≥ 1, λ ∈ ℂ
+- E_{n,∞} for some n ≥ 1 (obtained from E_{n,0} by swapping V ↔ W and A ↔ B)
+- H_n for some n ≥ 1
+- K_n for some n ≥ 1 (obtained from H_n by swapping V ↔ W and A ↔ B)
+
+This extends the Jordan normal form classification from Q₁ (single vertex with a loop)
+to Q₂ (two vertices with a cycle). -/
+theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
+    -- The representation belongs to one of the four families (existential form):
+    -- Either dim V = dim W (E_{n,λ} or E_{n,∞} family)
+    -- or |dim V - dim W| = 1 (H_n or K_n family)
+    (Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W ∨
+     Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W + 1 ∨
+     Module.finrank ℂ ρ.W = Module.finrank ℂ ρ.V + 1) := by
+  by_cases hAB : IsNilpotent (ρ.A.comp ρ.B)
+  · -- Nilpotent case: AB nilpotent → |dim V - dim W| ≤ 1
+    -- This requires the chain/Jordan structure argument for nilpotent Q₂ reps
+    sorry
+  · -- Non-nilpotent case: Fitting decomposition → dim V = dim W
+    left
+    -- Use Fitting decomposition directly
+    set AB := ρ.A.comp ρ.B
+    set BA := ρ.B.comp ρ.A
+    set pW := ⨆ n, LinearMap.ker (AB ^ n)
+    set qW := ⨅ n, LinearMap.range (AB ^ n)
+    set pV := ⨆ n, LinearMap.ker (BA ^ n)
+    set qV := ⨅ n, LinearMap.range (BA ^ n)
+    have hcV := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
+    have hcW := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
+    -- Intertwining identities (reuse via inline proof)
+    have intertwine_A : ∀ n : ℕ, ∀ v, (AB ^ n) (ρ.A v) = ρ.A ((BA ^ n) v) := by
+      intro n; induction n with
+      | zero => intro v; simp
+      | succ n ih =>
+        intro v
+        have h1 : (AB ^ (n + 1)) (ρ.A v) = (AB ^ n) (AB (ρ.A v)) := by
+          simp only [pow_succ, Module.End.mul_apply]
+        have h2 : AB (ρ.A v) = ρ.A (BA v) := rfl
+        have h3 : (BA ^ (n + 1)) v = (BA ^ n) (BA v) := by
+          simp only [pow_succ, Module.End.mul_apply]
+        rw [h1, h2, ih, h3]
+    have intertwine_B : ∀ n : ℕ, ∀ w, (BA ^ n) (ρ.B w) = ρ.B ((AB ^ n) w) := by
+      intro n; induction n with
+      | zero => intro w; simp
+      | succ n ih =>
+        intro w
+        have h1 : (BA ^ (n + 1)) (ρ.B w) = (BA ^ n) (BA (ρ.B w)) := by
+          simp only [pow_succ, Module.End.mul_apply]
+        have h2 : BA (ρ.B w) = ρ.B (AB w) := rfl
+        have h3 : (AB ^ (n + 1)) w = (AB ^ n) (AB w) := by
+          simp only [pow_succ, Module.End.mul_apply]
+        rw [h1, h2, ih, h3]
+    have ker_dir_AB : Directed (· ≤ ·) (fun n => LinearMap.ker (AB ^ n)) :=
+      Monotone.directed_le fun m n hmn => by
+        intro x hx; rw [LinearMap.mem_ker] at hx ⊢
+        rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+    have ker_dir_BA : Directed (· ≤ ·) (fun n => LinearMap.ker (BA ^ n)) :=
+      Monotone.directed_le fun m n hmn => by
+        intro x hx; rw [LinearMap.mem_ker] at hx ⊢
+        rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+    -- Compatibility
+    have hApV : ∀ x ∈ pV, ρ.A x ∈ pW := by
+      intro x hx
+      rw [Submodule.mem_iSup_of_directed _ ker_dir_BA] at hx
+      rw [Submodule.mem_iSup_of_directed _ ker_dir_AB]
+      obtain ⟨n, hn⟩ := hx
+      exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_A, hn, map_zero]⟩
+    have hAqV : ∀ x ∈ qV, ρ.A x ∈ qW := by
+      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
+      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+      exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
+    have hBpW : ∀ x ∈ pW, ρ.B x ∈ pV := by
+      intro x hx
+      rw [Submodule.mem_iSup_of_directed _ ker_dir_AB] at hx
+      rw [Submodule.mem_iSup_of_directed _ ker_dir_BA]
+      obtain ⟨n, hn⟩ := hx
+      exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_B, hn, map_zero]⟩
+    have hBqW : ∀ x ∈ qW, ρ.B x ∈ qV := by
+      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
+      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+      exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
+    -- qW ≠ ⊥ (since AB not nilpotent, the eventual range is nontrivial)
+    have hqW_ne : qW ≠ ⊥ := by
+      intro h
+      apply hAB
+      -- qW = ⊥ means pW = ⊤ (from IsCompl)
+      have hpW_top : pW = ⊤ := eq_top_of_isCompl_bot (h ▸ hcW)
+      -- pW = ⨆ ker(AB^n) = ⊤ means ker(AB^N) = ⊤ for some N (Noetherian stabilization)
+      have h_sup_top : ⨆ n, LinearMap.ker (AB ^ n) = ⊤ := hpW_top
+      obtain ⟨N, hN⟩ := Filter.Eventually.exists (LinearMap.eventually_iSup_ker_pow_eq AB)
+      rw [h_sup_top] at hN
+      exact ⟨N, LinearMap.ker_eq_top.mp hN.symm⟩
+    -- By indecomposability
+    rcases hρ.2 pV qV pW qW hcV hcW hApV hAqV hBpW hBqW with ⟨hpV, hpW⟩ | ⟨_, hqW⟩
+    · -- pV = ⊥, pW = ⊥: qV = ⊤, qW = ⊤
+      have hqV_top : qV = ⊤ := eq_top_of_bot_isCompl (hpV ▸ hcV)
+      have hqW_top : qW = ⊤ := eq_top_of_bot_isCompl (hpW ▸ hcW)
+      -- Dimension equality via injectivity (as in Problem6_9_1b)
+      have hFitV := hcV; have hFitW := hcW
+      set A' : ↥qV →ₗ[ℂ] ↥qW :=
+        (ρ.A.domRestrict qV).codRestrict qW (fun ⟨v, hv⟩ => hAqV v hv)
+      set B' : ↥qW →ₗ[ℂ] ↥qV :=
+        (ρ.B.domRestrict qW).codRestrict qV (fun ⟨w, hw⟩ => hBqW w hw)
+      have hA'_inj : Function.Injective A' := by
+        intro ⟨v₁, hv₁⟩ ⟨v₂, hv₂⟩ h
+        have h_eq : ρ.A v₁ = ρ.A v₂ := by
+          have := congr_arg Subtype.val h
+          simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
+        have h_diff : ρ.A (v₁ - v₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
+        have h_pV : v₁ - v₂ ∈ pV :=
+          Submodule.mem_iSup_of_mem 1 (by
+            rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
+        have h_qV : v₁ - v₂ ∈ qV := qV.sub_mem hv₁ hv₂
+        have h_bot : v₁ - v₂ ∈ pV ⊓ qV := Submodule.mem_inf.mpr ⟨h_pV, h_qV⟩
+        rw [hFitV.disjoint.eq_bot] at h_bot
+        exact Subtype.ext (sub_eq_zero.mp h_bot)
+      have hB'_inj : Function.Injective B' := by
+        intro ⟨w₁, hw₁⟩ ⟨w₂, hw₂⟩ h
+        have h_eq : ρ.B w₁ = ρ.B w₂ := by
+          have := congr_arg Subtype.val h
+          simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
+        have h_diff : ρ.B (w₁ - w₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
+        have h_pW : w₁ - w₂ ∈ pW :=
+          Submodule.mem_iSup_of_mem 1 (by
+            rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
+        have h_qW : w₁ - w₂ ∈ qW := qW.sub_mem hw₁ hw₂
+        have h_bot : w₁ - w₂ ∈ pW ⊓ qW := Submodule.mem_inf.mpr ⟨h_pW, h_qW⟩
+        rw [hFitW.disjoint.eq_bot] at h_bot
+        exact Subtype.ext (sub_eq_zero.mp h_bot)
+      -- dim V = dim qV ≤ dim qW = dim W and vice versa
+      apply le_antisymm
+      · calc Module.finrank ℂ ρ.V
+            = Module.finrank ℂ ↥(⊤ : Submodule ℂ ρ.V) := (finrank_top ℂ ρ.V).symm
+          _ = Module.finrank ℂ ↥qV := by rw [hqV_top]
+          _ ≤ Module.finrank ℂ ↥qW := LinearMap.finrank_le_finrank_of_injective hA'_inj
+          _ = Module.finrank ℂ ↥(⊤ : Submodule ℂ ρ.W) := by rw [hqW_top]
+          _ = Module.finrank ℂ ρ.W := finrank_top ℂ ρ.W
+      · calc Module.finrank ℂ ρ.W
+            = Module.finrank ℂ ↥(⊤ : Submodule ℂ ρ.W) := (finrank_top ℂ ρ.W).symm
+          _ = Module.finrank ℂ ↥qW := by rw [hqW_top]
+          _ ≤ Module.finrank ℂ ↥qV := LinearMap.finrank_le_finrank_of_injective hB'_inj
+          _ = Module.finrank ℂ ↥(⊤ : Submodule ℂ ρ.V) := by rw [hqV_top]
+          _ = Module.finrank ℂ ρ.V := finrank_top ℂ ρ.V
+    · -- qW = ⊥: contradiction with AB not nilpotent
+      exact absurd hqW hqW_ne
 
 /-- **Problem 6.9.1(c) (Etingof)**: When AB is nilpotent, the operator X on V ⊕ W
 defined by X(v,w) = (Bw, Av) is also nilpotent and admits a basis of chains
