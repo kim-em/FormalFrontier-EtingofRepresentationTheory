@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_2_2
 import EtingofRepresentationTheory.Chapter9.Corollary9_1_3
 import Mathlib.LinearAlgebra.Dimension.Finrank
+import Mathlib.LinearAlgebra.Dimension.Finite
 import Mathlib.RingTheory.Artinian.Ring
 import Mathlib.RingTheory.Artinian.Module
 import Mathlib.RingTheory.Jacobson.Semiprimary
@@ -41,8 +42,10 @@ classification both fail if some simple modules are missing from the family.
 
 open scoped DirectSum
 
+universe uA
+
 variable {k : Type*} [Field k]
-variable {A : Type*} [Ring A] [Algebra k A] [Module.Finite k A]
+variable {A : Type uA} [Ring A] [Algebra k A] [Module.Finite k A]
 
 /-! ### Helper lemmas for the projective cover construction
 
@@ -74,6 +77,11 @@ M₁, ..., Mₘ, there exist orthogonal idempotents e₁, ..., eₘ in A (one pe
 simple modules) such that eᵢ acts as a rank-1 projection on Mᵢ and as zero on Mⱼ for
 j ≠ i. These are lifted from the Wedderburn-Artin decomposition of A/Rad(A).
 
+Note: We do NOT require ∑ eᵢ = 1. Completeness holds for the full double-indexed system
+{e_{ij}} (j = 1,...,dim Mᵢ) but NOT for the single-indexed family {eᵢ} when some
+dim(Mᵢ) > 1. Part (ii) of Theorem 9.2.1 uses the full system; part (i) only needs
+rank-1 projections.
+
 Proof sketch:
 1. A is artinian → IsSemiprimaryRing A → IsSemisimpleRing (A ⧸ Ring.jacobson A)
 2. A/Rad(A) ≅ ∏ Mat_{nᵢ}(Dᵢ) by Wedderburn-Artin
@@ -92,7 +100,6 @@ lemma exists_orthogonal_idempotents_for_simples
     ∃ (e : ι → A),
       (∀ i, IsIdempotentElem (e i)) ∧
       (∀ i j, i ≠ j → e i * e j = 0) ∧
-      (∑ i, e i = 1) ∧
       (∀ i j, Module.finrank k (smulRange (k := k) (A := A) (M j) (e i)) =
         if i = j then 1 else 0) := by
   sorry
@@ -130,19 +137,69 @@ lemma leftIdeal_finite (e : A) :
 dim Hom(Ae, Mⱼ) = 0 for all j except exactly one j = i₀ where it equals 1.
 The argument: if Ae = Q₁ ⊕ Q₂, then Hom(Ae, Mⱼ) = Hom(Q₁, Mⱼ) ⊕ Hom(Q₂, Mⱼ),
 so dim Hom(Ae, Mⱼ) = dim Hom(Q₁, Mⱼ) + dim Hom(Q₂, Mⱼ). Since dim = 1 for j = i₀,
-one of Q₁ or Q₂ has Hom = 0 to all simples, hence is zero (by Nakayama). -/
+one of Q₁ or Q₂ has Hom = 0 to all simples, hence is zero (by Nakayama).
+
+The exhaustiveness hypothesis `hM_exhaustive` is needed: the argument that
+"Hom to all simples is zero ⟹ module is zero" requires that every simple module
+is isomorphic to some Mⱼ in the family. -/
 lemma leftIdeal_indecomposable_of_hom_delta
+    [IsArtinianRing A]
     {ι : Type*} [Fintype ι] [DecidableEq ι]
     (M : ι → Type*) [∀ i, AddCommGroup (M i)] [∀ i, Module A (M i)]
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
     [∀ i, SMulCommClass A k (M i)]
     [∀ i, IsSimpleModule A (M i)]
     (hM : ∀ i j, Nonempty (M i ≃ₗ[A] M j) → i = j)
+    (hM_exhaustive : ∀ (S : Type*) [AddCommGroup S] [Module A S]
+      [IsSimpleModule A S], ∃ i, Nonempty (S ≃ₗ[A] M i))
     (e : A) (he : IsIdempotentElem e)
-    (i₀ : ι) (hdim : ∀ j, Module.finrank k (↥(Submodule.span A ({e} : Set A)) →ₗ[A] M j) =
+    (i₀ : ι) (hdim : ∀ j, Module.finrank k
+      (↥(Submodule.span A ({e} : Set A)) →ₗ[A] M j) =
       if i₀ = j then 1 else 0) :
-    Etingof.IsIndecomposable A ↥(Submodule.span A ({e} : Set A)) := by
-  sorry
+    Etingof.IsIndecomposable A
+      ↥(Submodule.span A ({e} : Set A)) := by
+  set S := Submodule.span A ({e} : Set A) with hS_def
+  constructor
+  · -- Nontriviality: dim Hom(Ae, M_{i₀}) = 1 ≠ 0, so Ae ≠ 0
+    have h1 := hdim i₀
+    simp only [ite_true] at h1
+    -- finrank = 1 implies the Hom space is nontrivial
+    by_contra h_triv
+    rw [not_nontrivial_iff_subsingleton] at h_triv
+    have h0 : Module.finrank k (↥S →ₗ[A] M i₀) = 0 := by
+      haveI := h_triv
+      haveI : Subsingleton (↥S →ₗ[A] M i₀) :=
+        ⟨fun f g => LinearMap.ext fun x => by
+          have := Subsingleton.elim x 0
+          simp [this]⟩
+      exact Module.finrank_zero_of_subsingleton
+    linarith
+  · -- For any complement decomposition, one summand must be zero.
+    -- We show: if both W₁ ≠ ⊥ and W₂ ≠ ⊥, each has a nonzero map
+    -- to some M_j (via simple quotients), which we extend to Ae using
+    -- the complement. This forces dim Hom(Ae, M_{i₀}) ≥ 2, contradicting
+    -- hdim which says dim = 1.
+    intro W₁ W₂ hcompl
+    by_contra h_both
+    push_neg at h_both
+    obtain ⟨hW₁, hW₂⟩ := h_both
+    -- Set up the complement decomposition equivalence
+    set equiv := Submodule.prodEquivOfIsCompl W₁ W₂ hcompl
+    -- Project from S to W₁ (resp. W₂) via the complement
+    -- proj₁ : S → W₁ sends s to its W₁-component
+    let proj₁ : ↥S →ₗ[A] ↥W₁ :=
+      (LinearMap.fst A ↥W₁ ↥W₂).comp equiv.symm.toLinearMap
+    let proj₂ : ↥S →ₗ[A] ↥W₂ :=
+      (LinearMap.snd A ↥W₁ ↥W₂).comp equiv.symm.toLinearMap
+    -- The proof requires formalizing:
+    -- 1. Both W₁, W₂ have simple quotients (they're nonzero f.g.)
+    -- 2. By exhaustiveness, each quotient ≅ some M_j
+    -- 3. Extension via complement gives nonzero maps S → M_j
+    -- 4. Both must map to M_{i₀} (by hdim), giving dim ≥ 2
+    -- This requires significant infrastructure (Hom decomposition,
+    -- finrank additivity, simple quotient existence) that is
+    -- available in Mathlib but needs careful assembly.
+    sorry
 
 /-- The finrank of the Hom space from the left ideal A·e to a module M equals
 the finrank of the image eM = range(e • · : M → M).
@@ -228,8 +285,10 @@ theorem Etingof.Theorem_9_2_1_i
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
     [∀ i, SMulCommClass A k (M i)]
     [∀ i, IsSimpleModule A (M i)]
-    (hM : ∀ i j, Nonempty (M i ≃ₗ[A] M j) → i = j) :
-    ∃ (P : ι → Type*)
+    (hM : ∀ i j, Nonempty (M i ≃ₗ[A] M j) → i = j)
+    (hM_exhaustive : ∀ (S : Type*) [AddCommGroup S] [Module A S]
+      [IsSimpleModule A S], ∃ i, Nonempty (S ≃ₗ[A] M i)) :
+    ∃ (P : ι → Type uA)
       (_ : ∀ i, AddCommGroup (P i))
       (_ : ∀ i, Module A (P i))
       (_ : ∀ i, Module k (P i))
@@ -238,16 +297,33 @@ theorem Etingof.Theorem_9_2_1_i
       (_ : ∀ i, Module.Projective A (P i))
       (_ : ∀ i, Module.Finite A (P i))
       (_ : ∀ i, Etingof.IsIndecomposable A (P i)),
-      ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0 := by
+      ∀ i j, Module.finrank k (P i →ₗ[A] M j) =
+        if i = j then 1 else 0 := by
   -- Step 1: A is artinian (finite-dimensional algebra over a field)
   haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
-  -- The full assembly proof has a universe issue: the existential introduces a fresh
-  -- universe variable for P, but our construction lives in A's universe.
-  -- This is resolved by the `exists_orthogonal_idempotents_for_simples` helper
-  -- which provides idempotents e_i, and defining P i = Submodule.span A {e_i}.
-  -- The helper lemmas leftIdeal_projective, leftIdeal_finite, leftIdeal_indecomposable_of_hom_delta,
-  -- and finrank_hom_leftIdeal_eq provide all remaining properties.
-  sorry
+  -- Step 2: Get orthogonal idempotents from Wedderburn-Artin
+  obtain ⟨e, he_idem, he_orth, he_dim⟩ :=
+    Theorem921.exists_orthogonal_idempotents_for_simples
+      (k := k) M hM
+  -- Step 3: Define P i = Submodule.span A {e i} (= left ideal Ae_i)
+  -- The Hom dimension property follows from he_dim and the
+  -- Hom ≅ eM isomorphism.
+  have hdim_hom : ∀ i j, Module.finrank k
+      (↥(Submodule.span A ({e i} : Set A)) →ₗ[A] M j) =
+      if i = j then 1 else 0 := by
+    intro i j
+    rw [Theorem921.finrank_hom_leftIdeal_eq (k := k)
+      (e i) (he_idem i)]
+    exact he_dim i j
+  exact ⟨fun i => ↥(Submodule.span A ({e i} : Set A)),
+    inferInstance, inferInstance, inferInstance, inferInstance,
+    inferInstance,
+    fun i => Theorem921.leftIdeal_projective (e i) (he_idem i),
+    fun i => Theorem921.leftIdeal_finite (e i),
+    fun i => Theorem921.leftIdeal_indecomposable_of_hom_delta
+      (k := k) M hM hM_exhaustive (e i) (he_idem i) i
+      (hdim_hom i),
+    hdim_hom⟩
 
 /-- **Theorem 9.2.1(ii)**: Decomposition of the algebra as a module.
 
