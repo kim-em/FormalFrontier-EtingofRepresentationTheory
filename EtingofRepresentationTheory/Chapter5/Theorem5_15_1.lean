@@ -133,7 +133,7 @@ theorem coeff_vandermonde_mul (n : ℕ) (P : MvPolynomial (Fin n) ℂ)
     (α : Fin n →₀ ℕ) :
     MvPolynomial.coeff α (vandermondePoly n * P) =
       ∑ π : Equiv.Perm (Fin n),
-        (Equiv.Perm.sign π : ℤ) • (if h : permExponent n π ≤ α
+        (Equiv.Perm.sign π : ℤ) • (if _ : permExponent n π ≤ α
           then (MvPolynomial.coeff (α - permExponent n π) P : ℂ) else 0) := by
   -- Expand Vandermonde as alternating sum, distribute multiplication, extract coefficients
   rw [vandermondePoly_eq_sum_sign_monomial]
