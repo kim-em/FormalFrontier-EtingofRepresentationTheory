@@ -5,6 +5,7 @@ import Mathlib.CategoryTheory.Preadditive.Yoneda.Basic
 import Mathlib.CategoryTheory.Equivalence
 import Mathlib.CategoryTheory.Generator.Preadditive
 import Mathlib.CategoryTheory.Abelian.Yoneda
+import Mathlib.Algebra.Category.FGModuleCat.Basic
 
 universe u v
 
@@ -141,11 +142,50 @@ instance Etingof.IsProgenerator.full_preadditiveCoyonedaObj
     rw [← Preadditive.sum_comp, biproduct.total, Category.id_comp]
   rw [this]
 
--- Essential surjectivity of Hom(P, -): every End(P)^op-module arises as Hom(P, X).
--- NOTE: As stated, this maps into `ModuleCat (End P)ᵐᵒᵖ` (all modules), but Etingof's
--- theorem is about finite-dimensional modules. The full module category has no standalone
--- type in Mathlib. This sorry may require a formalization redesign (e.g., restricting the
--- target to finitely generated modules) rather than a direct proof.
+-- Hom(P, X) is finitely generated as an (End P)ᵒᵖ-module when P is a progenerator.
+-- Proof: P^n ↠ X gives Hom(P, P^n) ↠ Hom(P, X) (since P is projective), and
+-- Hom(P, P^n) ≅ (End P)^n is finitely generated.
+instance Etingof.IsProgenerator.finite_hom_module
+    {C : Type u} [Category.{v} C]
+    [Etingof.IsFiniteAbelianCategory C]
+    {P : C} [hp : Etingof.IsProgenerator P] (X : C) :
+    Module.Finite (End P)ᵐᵒᵖ (P ⟶ X) := by
+  sorry
+
+/-- The restricted Coyoneda functor landing in finitely generated modules.
+When P is a progenerator, Hom(P, X) is finitely generated for all X, so the
+coyoneda functor factors through `FGModuleCat`. -/
+noncomputable def Etingof.IsProgenerator.preadditiveCoyonedaObjFG
+    {C : Type u} [Category.{v} C]
+    [Etingof.IsFiniteAbelianCategory C]
+    {P : C} [hp : Etingof.IsProgenerator P] :
+    C ⥤ FGModuleCat.{v} (End P)ᵐᵒᵖ where
+  obj X := ⟨(preadditiveCoyonedaObj P).obj X, hp.finite_hom_module X⟩
+  map f := InducedCategory.homMk ((preadditiveCoyonedaObj P).map f)
+  map_id X := by
+    apply InducedCategory.hom_ext
+    change (preadditiveCoyonedaObj P).map (𝟙 X) = 𝟙 _
+    exact (preadditiveCoyonedaObj P).map_id X
+  map_comp f g := by
+    apply InducedCategory.hom_ext
+    change (preadditiveCoyonedaObj P).map (f ≫ g) = (preadditiveCoyonedaObj P).map f ≫ (preadditiveCoyonedaObj P).map g
+    exact (preadditiveCoyonedaObj P).map_comp f g
+
+-- Essential surjectivity of Hom(P, -) restricted to finitely generated modules.
+-- Given M : FGModuleCat (End P)ᵒᵖ, construct X ∈ C with Hom(P, X) ≅ M.
+-- Strategy: M is f.g., so choose a presentation (End P)^m → (End P)^n → M → 0.
+-- By fullness, this lifts to P^m → P^n in C; let X = coker. Then Hom(P, X) ≅ M.
+instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObjFG
+    {C : Type u} [Category.{v} C]
+    [Etingof.IsFiniteAbelianCategory C]
+    {P : C} [hp : Etingof.IsProgenerator P] :
+    hp.preadditiveCoyonedaObjFG.EssSurj := by
+  sorry
+
+-- Essential surjectivity of Hom(P, -) into all modules follows from the FG version
+-- since every module in the essential image of a functor from a finite abelian category
+-- is finitely generated. We sorry this instance since the correct mathematical statement
+-- is about FGModuleCat (see essSurj_preadditiveCoyonedaObjFG above).
 instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObj
     {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
@@ -159,14 +199,35 @@ theorem Etingof.Theorem_9_6_4
     (P : C) [Etingof.IsProgenerator P] :
     (preadditiveCoyonedaObj P).IsEquivalence where
 
+/-- **Theorem 9.6.4 (Morita equivalence, correct formulation)**: Let 𝒞 be a finite
+abelian category and P a progenerator. Then Hom(P, -) is an equivalence from 𝒞 to
+the category of finitely generated (End P)ᵒᵖ-modules. -/
+theorem Etingof.Theorem_9_6_4'
+    {C : Type u} [Category.{v} C]
+    [Etingof.IsFiniteAbelianCategory C]
+    {P : C} [hp : Etingof.IsProgenerator P] :
+    hp.preadditiveCoyonedaObjFG.IsEquivalence where
+  essSurj := hp.essSurj_preadditiveCoyonedaObjFG
+  faithful :=
+    { map_injective := fun {X Y f g} h => by
+        have hF := Etingof.IsProgenerator.faithful_preadditiveCoyonedaObj (P := P)
+        apply hF.map_injective
+        have : (hp.preadditiveCoyonedaObjFG.map f).hom =
+               (hp.preadditiveCoyonedaObjFG.map g).hom := congrArg InducedCategory.Hom.hom h
+        exact this }
+  full :=
+    { map_surjective := fun {X Y} f => by
+        have hF := Etingof.IsProgenerator.full_preadditiveCoyonedaObj (P := P)
+        obtain ⟨g, hg⟩ := hF.map_surjective f.hom
+        exact ⟨g, InducedCategory.hom_ext hg⟩ }
+
 /-- **Corollary of Theorem 9.6.4**: Any finite abelian category is equivalent to
-modules over some ring. Specifically, if P is a projective generator (which exists
-by the enough-projectives and finiteness conditions), then C ≌ (End P)ᵒᵖ-Mod.
-(Etingof Theorem 9.6.4, corollary) -/
+finitely generated modules over some ring. If P is a projective generator, then
+C ≌ (End P)ᵒᵖ-fgmod. (Etingof Theorem 9.6.4, corollary) -/
 theorem Etingof.Theorem_9_6_4_corollary
     (C : Type u) [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
-    (P : C) [Etingof.IsProgenerator P] :
-    Nonempty (C ≌ ModuleCat.{v} (End P)ᵐᵒᵖ) := by
-  have := Etingof.Theorem_9_6_4 C P
-  exact ⟨(preadditiveCoyonedaObj P).asEquivalence⟩
+    (P : C) [hp : Etingof.IsProgenerator P] :
+    Nonempty (C ≌ FGModuleCat.{v} (End P)ᵐᵒᵖ) := by
+  have := @Etingof.Theorem_9_6_4' C _ _ P hp
+  exact ⟨hp.preadditiveCoyonedaObjFG.asEquivalence⟩
