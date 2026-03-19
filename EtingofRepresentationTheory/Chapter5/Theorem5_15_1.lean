@@ -194,58 +194,96 @@ theorem symmetric_coeff_mapDomain_perm {n : ℕ}
   conv_lhs => rw [← hP σ]
   exact MvPolynomial.coeff_rename_mapDomain σ σ.injective P d
 
+/-! ### Multiplicity of Specht modules in permutation modules
+
+The multiplicity of V_ν in U_μ is dim Hom_{S_n}(U_μ, V_ν). By Maschke's
+theorem, ℂ[S_n]-modules are semisimple, so this equals the number of copies
+of V_ν in any direct sum decomposition of U_μ.
+
+Proposition 5.14.1 establishes:
+- `spechtMultiplicity n mu nu = 0` when mu strictly dominates nu
+- `spechtMultiplicity n la la = 1` (diagonal)
+
+These are the Kostka numbers K_{ν,μ} (though the SSYT connection is not
+proved here).
+-/
+
+/-- The multiplicity of V_ν in U_μ, defined as dim Hom_{S_n}(U_μ, V_ν).
+By Maschke + Schur, this equals the isotypic multiplicity. -/
+noncomputable def spechtMultiplicity (n : ℕ) (mu nu : Nat.Partition n) : ℕ :=
+  Module.finrank ℂ (PermutationModule n mu →ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu))
+
+/-- Multiplicity is zero when μ strictly dominates ν (Prop 5.14.1 vanishing). -/
+theorem spechtMultiplicity_vanishing (n : ℕ) (mu nu : Nat.Partition n)
+    (h : Nat.Partition.StrictDominates mu nu) :
+    spechtMultiplicity n mu nu = 0 := by
+  simp only [spechtMultiplicity]
+  have hall : ∀ f : PermutationModule n mu →ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu), f = 0 :=
+    Proposition5_14_1_vanishing n mu nu h
+  have : Subsingleton (PermutationModule n mu →ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) :=
+    ⟨fun f g => by rw [hall f, hall g]⟩
+  exact Module.finrank_zero_of_subsingleton
+
+/-- Multiplicity of V_λ in U_λ is 1 (Prop 5.14.1 diagonal). -/
+theorem spechtMultiplicity_diagonal (n : ℕ) (la : Nat.Partition n) :
+    spechtMultiplicity n la la = 1 :=
+  Proposition5_14_1_diagonal n la
+
 /-! ### Young's Rule (character decomposition)
 
-The Frobenius character formula requires **Young's Rule**, which states that
-the permutation module U_μ decomposes as:
+**Young's Rule**: χ_{U_μ}(σ) = Σ_ν m(μ,ν) · χ_{V_ν}(σ) where
+m(μ,ν) = `spechtMultiplicity n mu nu`.
 
-  U_μ ≅ ⊕_ν K_{ν,μ} · V_ν
+**Proof strategy**: By Maschke's theorem, ℂ[S_n] is semisimple, so U_μ
+decomposes as ⊕_ν V_ν^{⊕m(μ,ν)}. The character is additive on direct sums.
 
-where K_{ν,μ} are the **Kostka numbers** (the number of semistandard Young tableaux
-of shape ν with content μ), and V_ν is the Specht module.
+**What's needed to prove `youngsRule_character`**:
+1. Show PermutationModule is finite-dimensional over ℂ
+2. Show it's a semisimple ℂ[S_n]-module (Maschke)
+3. Express `permModuleCharacter` (fixed-point count) as a trace
+4. Use Mathlib's `FDRep.character` machinery or direct isotypic decomposition
+5. Connect isotypic multiplicities to `spechtMultiplicity` (Hom-space dims)
 
-In terms of characters:
+**Key Mathlib APIs**: `IsSemisimpleModule`, `isotypicComponent`,
+`IsIsotypicOfType.linearEquiv_finsupp`, `FDRep.character`,
+`FDRep.scalar_product_char_eq_finrank_equivariant`
+-/
 
-  χ_{U_μ}(σ) = Σ_ν K_{ν,μ} · χ_{V_ν}(σ)
+/-- **Young's Rule** (character identity): The permutation module character
+equals a linear combination of Specht module characters weighted by
+multiplicities m(μ,ν) = dim Hom_{S_n}(U_μ, V_ν).
 
-**Proof dependencies:**
-1. **Maschke's theorem** (in Mathlib): ℂ[S_n]-modules are semisimple → U_μ = ⊕ V_ν^{⊕m_ν}
-2. **Schur's lemma** (in Mathlib): m_ν = dim Hom(U_μ, V_ν)
-3. **Proposition 5.14.1** (proved): Hom(U_μ, V_ν) = 0 when μ > ν, dim = 1 when μ = ν
-4. **Kostka number interpretation**: m_ν = K_{ν,μ} (requires connecting Hom-space dimension
-   to semistandard Young tableaux count)
+With `spechtMultiplicity_vanishing` and `spechtMultiplicity_diagonal`, this
+gives the upper-triangular decomposition with 1s on the diagonal. -/
+theorem youngsRule_character (n : ℕ) (mu : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
+    (permModuleCharacter n mu σ : ℂ) =
+      ∑ nu : Nat.Partition n,
+        (spechtMultiplicity n mu nu : ℂ) * spechtModuleCharacter n nu σ := by
+  sorry
 
-**What's missing**: The bridge from "dim Hom = K_{ν,μ}" to the character identity. This requires
-formalizing the semisimple decomposition in terms of characters and connecting multiplicities
-to Hom-space dimensions. The infrastructure exists in Mathlib (`IsSemisimpleModule`,
-`isotypicComponent`) but the specific application to ℂ[S_n] representations and the
-connection to Kostka numbers has not been formalized.
+/-! ### Frobenius formula: alternating sum identity
 
-Once Young's Rule is proved as characters, the Frobenius formula follows by:
-1. Substituting χ_{U_μ} = Σ_ν K_{ν,μ} χ_{V_ν} into the alternating sum
-2. Using K_{ν,ν} = 1, K_{ν,μ} = 0 for μ < ν (upper triangularity)
-3. The alternating sum Σ_π sign(π) K_{ν, sort(λ+ρ-π(ρ))} = δ_{ν,λ}
-   (inverse of upper-triangular matrix with 1s on diagonal)
+The main theorem reduces to showing:
+  χ_{V_λ}(σ) = Σ_π sign(π) · coeff(x^{λ+ρ-π(ρ)}, ∏ p_m^{i_m})
+
+The proof uses:
+1. Theorem 5.14.3 + symmetry: coeff(x^α, ∏ p_m^{i_m}) relates to χ_{U_{sort(α)}}
+2. Young's Rule: substitute character decomposition
+3. Upper-triangular determinant identity gives δ_{λ,ν}
 -/
 
 /-- **Key representation-theoretic step**: The alternating sum
   Σ_π sign(π) · coeff(x^{λ+ρ-π(ρ)}, ∏ p_m^{i_m})
 equals the Specht module character χ_{V_λ}(σ).
 
-This is the core of the Frobenius formula proof and requires Young's Rule
-(decomposition of permutation modules into Specht modules via Kostka numbers)
-plus the alternating sum cancellation identity. See the detailed proof strategy
-in the module docstring above.
+**Proof outline** (Etingof, proof of Theorem 5.15.1):
+1. Via Theorem 5.14.3 and symmetry, the RHS = Σ_π sign(π) χ_{U_{⟨λ+ρ-π(ρ)⟩}}(σ)
+2. Via `youngsRule_character`: substitute χ_{U_μ} = Σ_ν m(μ,ν) χ_{V_ν}
+3. Exchange summation: RHS = Σ_ν (Σ_π sign(π) m(sort(λ+ρ-π(ρ)), ν)) χ_{V_ν}(σ)
+4. The inner sum = δ_{λ,ν} by the upper-triangular determinant identity
+5. Therefore RHS = χ_{V_λ}(σ)
 
-**Blocked on**: Young's Rule character identity — the decomposition
-  χ_{U_μ} = Σ_ν K_{ν,μ} · χ_{V_ν}
-requires connecting Mathlib's semisimple module infrastructure to the specific
-representation theory of S_n. Key Mathlib components:
-- `IsSemisimpleModule k[G] V` (Maschke's theorem)
-- `isotypicComponent` (decomposition into isotypic components)
-- `Theorem5_12_2_irreducible` (V_λ is simple)
-- `Proposition5_14_1_vanishing/diagonal` (Hom-space dimensions)
--/
+**Blocked on**: `youngsRule_character` and the alternating determinant identity. -/
 theorem spechtCharacter_eq_alternating_sum_permCharacter
     (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
     spechtModuleCharacter n la σ =
