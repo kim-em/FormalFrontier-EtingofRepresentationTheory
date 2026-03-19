@@ -17,6 +17,22 @@ where h(i,j) = λᵢ - j + λ'ⱼ - i - 1 is the hook length at cell (i,j)
 Mathlib has `YoungDiagram` but hook lengths are not defined. The hook length
 formula is a major combinatorial result connecting Young diagrams to
 representation dimensions.
+
+## Proof structure
+
+The hook length formula decomposes into two independent results:
+
+1. **Representation → combinatorics**: dim V_λ = |SYT(λ)|, the number of standard
+   Young tableaux of shape λ. This follows from exhibiting an explicit basis of
+   the Specht module indexed by standard Young tableaux (via the polytabloid
+   construction or the seminormal basis).
+
+2. **Frame–Robinson–Thrall (1954)**: |SYT(λ)| = n! / ∏ h(i,j). This is a purely
+   combinatorial identity. Standard proofs use either a direct inductive/bijective
+   argument, or the RSK correspondence combined with the hook-walk algorithm.
+
+Both results are deep and require substantial infrastructure not currently
+available in Mathlib.
 -/
 
 /-- The hook length at cell (i, j) of a Young diagram.
@@ -32,6 +48,42 @@ noncomputable def YoungDiagram.hookLengthProduct (μ : YoungDiagram) : ℕ :=
 
 namespace Etingof
 
+noncomputable section
+
+/-- The hook length product divides n!. This is a consequence of the
+Frame–Robinson–Thrall theorem: n!/∏h(i,j) = |SYT(λ)| is a positive integer. -/
+theorem hookLengthProduct_dvd_factorial (n : ℕ) (la : Nat.Partition n) :
+    la.toYoungDiagram.hookLengthProduct ∣ n.factorial := by
+  sorry
+
+/-- The dimension of V_λ equals the number of standard Young tableaux of shape λ.
+This is the core representation-theoretic content: the polytabloid basis of the
+Specht module is naturally indexed by SYT(λ).
+
+Proof sketch: For each standard Young tableau T, the polytabloid e_T = b_T · {T}
+(column antisymmetrizer applied to the tabloid) lies in V_λ. The set {e_T} forms
+a basis. This requires:
+- The polytabloid construction and its properties
+- Linear independence of polytabloids (via the straightening algorithm)
+- Spanning (via the Young symmetrizer generating the module) -/
+theorem finrank_spechtModule_eq_card_standardYoungTableau (n : ℕ) (la : Nat.Partition n) :
+    Module.finrank ℂ (SpechtModule n la) =
+      Nat.card (StandardYoungTableau n la) := by
+  sorry
+
+/-- Frame–Robinson–Thrall theorem (1954): the number of standard Young tableaux
+of shape λ equals n! / ∏ h(i,j), where the product is over all cells of the
+Young diagram and h(i,j) is the hook length.
+
+Standard proof approaches:
+1. Bijective proof via the hook walk algorithm (Greene–Nijenhuis–Wilf, 1979)
+2. Inductive proof using the branching rule for SYT
+3. Via the RSK correspondence and properties of the Plancherel measure -/
+theorem card_standardYoungTableau_eq (n : ℕ) (la : Nat.Partition n) :
+    Nat.card (StandardYoungTableau n la) =
+      n.factorial / la.toYoungDiagram.hookLengthProduct := by
+  sorry
+
 /-- Hook length formula: dim V_λ = n! / ∏ h(i,j).
 (Etingof Theorem 5.17.1)
 
@@ -41,6 +93,9 @@ theorem Theorem5_17_1
     (n : ℕ) (la : Nat.Partition n) :
     Module.finrank ℂ (SpechtModule n la) =
       n.factorial / la.toYoungDiagram.hookLengthProduct := by
-  sorry
+  rw [finrank_spechtModule_eq_card_standardYoungTableau,
+      card_standardYoungTableau_eq]
+
+end
 
 end Etingof
