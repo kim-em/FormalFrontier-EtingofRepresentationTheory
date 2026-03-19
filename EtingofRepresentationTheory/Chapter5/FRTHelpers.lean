@@ -152,27 +152,119 @@ theorem Nat.Partition.toYoungDiagram_card {n : ℕ} (la : Nat.Partition n) :
 
 /-! ## Key decomposition lemmas for FRT -/
 
+/-- The sum of row lengths of a Young diagram equals the number of cells. -/
+private lemma YoungDiagram.rowLens_sum (μ : YoungDiagram) :
+    μ.rowLens.sum = μ.cells.card := by
+  have h := cellsOfRowLens_card μ.rowLens
+  have : YoungDiagram.cellsOfRowLens μ.rowLens =
+    (YoungDiagram.ofRowLens μ.rowLens μ.rowLens_sorted).cells := rfl
+  rw [this] at h
+  rw [show YoungDiagram.ofRowLens μ.rowLens μ.rowLens_sorted = μ from
+    YoungDiagram.ofRowLens_to_rowLens_eq_self] at h
+  linarith
+
+/-! ## Partition-level corner removal -/
+
+/-- Remove an outer corner from a partition of n+1 to get a partition of n.
+The resulting partition has the same parts, except the row containing the
+corner has its length decreased by 1 (or removed if it was length 1).
+
+Implementation: take row lengths of the Young diagram after corner removal. -/
+noncomputable def Nat.Partition.removeOuterCorner {n : ℕ} (la : Nat.Partition (n + 1))
+    (c : ℕ × ℕ) (hc : la.toYoungDiagram.IsOuterCorner c.1 c.2) : Nat.Partition n where
+  parts := ((la.toYoungDiagram.removeCorner c.1 c.2 hc).rowLens : List ℕ)
+  parts_pos := fun {i} hi => YoungDiagram.pos_of_mem_rowLens _ _ hi
+  parts_sum := by
+    rw [Multiset.sum_coe]
+    rw [YoungDiagram.rowLens_sum]
+    rw [YoungDiagram.removeCorner_card]
+    rw [Nat.Partition.toYoungDiagram_card]
+    omega
+
+/-- The Young diagram of a removed-corner partition equals the
+Young diagram obtained by removing the corner directly. -/
+theorem Nat.Partition.toYoungDiagram_removeOuterCorner {n : ℕ} (la : Nat.Partition (n + 1))
+    (c : ℕ × ℕ) (hc : la.toYoungDiagram.IsOuterCorner c.1 c.2) :
+    (la.removeOuterCorner c hc).toYoungDiagram =
+      la.toYoungDiagram.removeCorner c.1 c.2 hc := by
+  sorry
+
 namespace Etingof
 
 noncomputable section
 
-/-- Base case: the unique partition of 0 has exactly one SYT (the empty tableau)
-and hook length product 1, so |SYT| * ∏h = 0! = 1. -/
+private lemma partition_zero_sortedParts (la : Nat.Partition 0) : la.sortedParts = [] := by
+  unfold Nat.Partition.sortedParts
+  rw [Nat.Partition.partition_zero_parts la]
+  simp
+
 theorem card_standardYoungTableau_mul_zero (la : Nat.Partition 0) :
     Nat.card (StandardYoungTableau 0 la) *
       la.toYoungDiagram.hookLengthProduct = Nat.factorial 0 := by
-  -- For n=0: the diagram has no cells (empty product = 1) and there
-  -- is exactly one SYT (the unique empty filling), so 1 * 1 = 0! = 1.
+  have h_empty : la.toYoungDiagram.cells = ∅ :=
+    Finset.card_eq_zero.mp la.toYoungDiagram_card
+  have h_hook : la.toYoungDiagram.hookLengthProduct = 1 := by
+    simp [YoungDiagram.hookLengthProduct, h_empty]
+  have h_sorted := partition_zero_sortedParts la
+  haveI : Unique (StandardYoungTableau 0 la) := by
+    unfold StandardYoungTableau
+    rw [h_sorted]
+    simp only [List.length_nil, List.getD_nil]
+    haveI : IsEmpty { c : ℕ × ℕ // c.1 < 0 ∧ c.2 < 0 } :=
+      ⟨fun c => absurd c.2.1 (by omega)⟩
+    exact {
+      toInhabited := ⟨⟨isEmptyElim, ⟨fun a => isEmptyElim a, fun b => Fin.elim0 b⟩,
+               fun c₁ _ _ _ => isEmptyElim c₁, fun c₁ _ _ _ => isEmptyElim c₁⟩⟩
+      uniq := fun ⟨f, _⟩ => by congr 1; exact funext fun c => isEmptyElim c
+    }
+  simp [h_hook, Nat.factorial]
+
+/-! ## Sub-lemmas for the inductive step -/
+
+/-- Branching rule: the number of SYT of shape λ (partition of n+1) equals the
+sum over outer corners c of the number of SYT of shape λ\c (partition of n).
+
+The largest entry n+1 in an SYT must occupy an outer corner. Removing it
+gives an SYT of the reduced partition. This bijection gives the identity. -/
+theorem syt_branching_rule (n : ℕ) (la : Nat.Partition (n + 1)) :
+    Nat.card (StandardYoungTableau (n + 1) la) =
+      la.toYoungDiagram.outerCorners.attach.sum (fun c =>
+        Nat.card (StandardYoungTableau n
+          (la.removeOuterCorner c.val
+            (YoungDiagram.mem_outerCorners.mp c.property)))) := by
+  -- Requires constructing the branching bijection:
+  -- SYT(n+1, λ) ≃ Σ_{c ∈ outerCorners} SYT(n, λ\c)
+  -- via "remove the cell containing the largest entry n+1"
+  sorry
+
+/-- Hook length product identity: for the inductive step, we need that
+multiplying the branching count by the hook product and using the IH gives (n+1)!.
+
+Specifically: ∑_c |SYT(n, λ\c)| × hookProd(λ) = (n+1) × n!
+This follows from the IH (|SYT(n, λ\c)| × hookProd(λ\c) = n!) and the
+hook quotient identity: ∑_c hookProd(λ)/hookProd(λ\c) = n+1. -/
+theorem hook_corner_sum (n : ℕ) (la : Nat.Partition (n + 1))
+    (ih : ∀ la' : Nat.Partition n,
+      Nat.card (StandardYoungTableau n la') *
+        la'.toYoungDiagram.hookLengthProduct = n.factorial) :
+    la.toYoungDiagram.outerCorners.attach.sum (fun c =>
+      Nat.card (StandardYoungTableau n
+        (la.removeOuterCorner c.val
+          (YoungDiagram.mem_outerCorners.mp c.property)))) *
+      la.toYoungDiagram.hookLengthProduct = (n + 1).factorial := by
+  -- Key steps:
+  -- 1. Distribute hookProd(λ) into the sum
+  -- 2. For each c: |SYT(n, λ\c)| × hookProd(λ)
+  --    = |SYT(n, λ\c)| × hookProd(λ\c) × (hookProd(λ) / hookProd(λ\c))
+  --    = n! × (hookProd(λ) / hookProd(λ\c))
+  -- 3. The hook quotient identity: ∑_c hookProd(λ)/hookProd(λ\c) = n+1
+  --    gives the final result (n+1) × n! = (n+1)!
   sorry
 
 /-- Inductive step: if the FRT formula holds for all partitions of n,
 then it holds for all partitions of n+1.
 
-This encapsulates both the branching rule for SYT and the hook length
-recurrence. The proof requires:
-1. The branching bijection: SYT(n+1, λ) ≅ Σ_c SYT(n, λ\c)
-2. The hook length recurrence for corner removal
-3. Summing the induction hypothesis over all corners -/
+Proved by combining the branching rule and the hook-corner-sum identity. -/
 theorem card_standardYoungTableau_mul_succ (n : ℕ)
     (ih : ∀ la' : Nat.Partition n,
       Nat.card (StandardYoungTableau n la') *
@@ -180,7 +272,8 @@ theorem card_standardYoungTableau_mul_succ (n : ℕ)
     (la : Nat.Partition (n + 1)) :
     Nat.card (StandardYoungTableau (n + 1) la) *
       la.toYoungDiagram.hookLengthProduct = (n + 1).factorial := by
-  sorry
+  rw [syt_branching_rule n la]
+  exact hook_corner_sum n la ih
 
 /-- Frame–Robinson–Thrall theorem, multiplicative form.
 Proved by induction on n using the base case and inductive step. -/
