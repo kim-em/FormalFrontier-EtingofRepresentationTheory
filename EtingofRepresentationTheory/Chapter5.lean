@@ -64,6 +64,8 @@ import EtingofRepresentationTheory.Chapter5.Lemma5_15_3
 import EtingofRepresentationTheory.Chapter5.Corollary5_15_4
 
 -- Section 5.17: Hook Length Formula
+import EtingofRepresentationTheory.Chapter5.SYTFintype
+import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
 import EtingofRepresentationTheory.Chapter5.Theorem5_17_1
 
 -- Section 5.18: Schur-Weyl Duality

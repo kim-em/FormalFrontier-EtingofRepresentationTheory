@@ -1,5 +1,6 @@
 import Mathlib
-import EtingofRepresentationTheory.Chapter5.Theorem5_17_1
+import EtingofRepresentationTheory.Chapter5.SYTFintype
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2
 
 /-!
 # Polytabloid Basis Infrastructure

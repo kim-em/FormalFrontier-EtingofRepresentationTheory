@@ -1,6 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_14_2
-import EtingofRepresentationTheory.Chapter5.Theorem5_12_2
+import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
 
 /-!
 # Theorem 5.17.1: Hook Length Formula
@@ -46,92 +46,9 @@ def YoungDiagram.hookLength (μ : YoungDiagram) (i j : ℕ) : ℕ :=
 noncomputable def YoungDiagram.hookLengthProduct (μ : YoungDiagram) : ℕ :=
   μ.cells.prod (fun c => μ.hookLength c.1 c.2)
 
-/-! ## Finiteness infrastructure for StandardYoungTableau -/
-
 namespace Etingof
 
-/-- Each row entry of a partition's sorted parts is bounded by the total sum. -/
-private lemma getD_le_sum (l : List ℕ) (i : ℕ) : l.getD i 0 ≤ l.sum := by
-  induction l generalizing i with
-  | nil => simp [List.getD]
-  | cons a as ih =>
-    cases i with
-    | zero =>
-      show (a :: as).getD 0 0 ≤ (a :: as).sum
-      rw [List.getD_cons_zero, List.sum_cons]
-      omega
-    | succ i =>
-      simp only [List.getD_cons_succ, List.sum_cons]
-      exact le_trans (ih i) (Nat.le_add_left _ _)
-
-/-- The sorted parts of a partition of n sum to n. -/
-private lemma sortedParts_sum' (n : ℕ) (la : Nat.Partition n) :
-    la.sortedParts.sum = n := by
-  have h := Multiset.sort_eq la.parts (· ≥ ·)
-  have : (la.sortedParts : Multiset ℕ).sum = la.parts.sum := congrArg Multiset.sum h
-  rw [Multiset.sum_coe] at this; rw [this, la.parts_sum]
-
-/-- The cell type of a Young diagram (pairs (i,j) with i < #rows, j < row_length(i))
-is finite, since all indices are bounded by n. -/
-noncomputable instance cellFintype (n : ℕ) (la : Nat.Partition n) :
-    Fintype { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧ c.2 < la.sortedParts.getD c.1 0 } := by
-  haveI : Fintype { c : ℕ × ℕ // c ∈ (Finset.range la.sortedParts.length ×ˢ Finset.range (n+1)) } :=
-    (Finset.range la.sortedParts.length ×ˢ Finset.range (n+1)).fintypeCoeSort
-  apply Fintype.ofInjective
-    (fun ⟨c, hc⟩ => (⟨c, by
-      simp only [Finset.mem_product, Finset.mem_range]
-      exact ⟨hc.1, by have := getD_le_sum la.sortedParts c.1; have := sortedParts_sum' n la; omega⟩
-    ⟩ : { c : ℕ × ℕ // c ∈ (Finset.range la.sortedParts.length ×ˢ Finset.range (n+1)) }))
-  intro ⟨a, _⟩ ⟨b, _⟩ h
-  exact Subtype.ext (Subtype.mk.inj h)
-
-/-- The type of standard Young tableaux of a given shape is finite.
-This follows from finiteness of the cell type and `Fin n`. -/
-noncomputable instance sytFintype (n : ℕ) (la : Nat.Partition n) :
-    Fintype (StandardYoungTableau n la) := by
-  unfold StandardYoungTableau
-  haveI := cellFintype n la
-  exact Subtype.fintype _
-
 noncomputable section
-
-/-- The cell type of a partition is finite: cells (i,j) with i < length, j < row width.
-Both coordinates are bounded (i < length, j < part i ≤ n), giving a finite set. -/
-noncomputable instance partitionCell_fintype (n : ℕ) (la : Nat.Partition n) :
-    Fintype { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
-      c.2 < la.sortedParts.getD c.1 0 } := by
-  classical
-  haveI : Finite { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
-      c.2 < la.sortedParts.getD c.1 0 } := by
-    refine Finite.of_injective
-      (fun (c : { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
-          c.2 < la.sortedParts.getD c.1 0 }) =>
-        show Fin la.sortedParts.length × Fin (n + 1) from
-        ⟨⟨c.1.1, c.2.1⟩, ⟨c.1.2, by
-          have hj := c.2.2
-          have hi := c.2.1
-          simp only [List.getD, List.getElem?_eq_getElem hi, Option.getD_some] at hj
-          have : la.sortedParts[c.1.1] ≤ n := by
-            calc la.sortedParts[c.1.1] ≤ la.sortedParts.sum :=
-                  List.single_le_sum (fun x _ => Nat.zero_le x) _ (List.getElem_mem hi)
-              _ = n := by
-                  unfold Nat.Partition.sortedParts
-                  rw [← Multiset.sum_coe, Multiset.sort_eq]; exact la.parts_sum
-          omega⟩⟩) ?_
-    intro ⟨⟨a1, a2⟩, ha⟩ ⟨⟨b1, b2⟩, hb⟩ h
-    simp only [Prod.mk.injEq, Fin.mk.injEq] at h
-    exact Subtype.ext (Prod.ext h.1 h.2)
-  exact Fintype.ofFinite _
-
-/-- StandardYoungTableau is a finite type: it is a subtype of functions
-from a finite cell set to Fin n. -/
-instance standardYoungTableau_finite (n : ℕ) (la : Nat.Partition n) :
-    Finite (StandardYoungTableau n la) := by
-  classical
-  unfold StandardYoungTableau
-  change Finite { f : { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
-    c.2 < la.sortedParts.getD c.1 0 } → Fin n // _ }
-  exact Subtype.finite
 
 /-- The hook length product divides n!. This is a consequence of the
 Frame–Robinson–Thrall theorem: n!/∏h(i,j) = |SYT(λ)| is a positive integer. -/
@@ -143,16 +60,14 @@ theorem hookLengthProduct_dvd_factorial (n : ℕ) (la : Nat.Partition n) :
 This is the core representation-theoretic content: the polytabloid basis of the
 Specht module is naturally indexed by SYT(λ).
 
-Proof sketch: For each standard Young tableau T, the polytabloid e_T = b_T · {T}
-(column antisymmetrizer applied to the tabloid) lies in V_λ. The set {e_T} forms
-a basis. This requires:
-- The polytabloid construction and its properties
-- Linear independence of polytabloids (via the straightening algorithm)
-- Spanning (via the Young symmetrizer generating the module) -/
+The proof delegates to `finrank_spechtModule_eq_card_syt` (which uses
+`Fintype.card`) and converts to `Nat.card`. The underlying proof constructs
+the polytabloid basis: linear independence + spanning of polytabloids. -/
 theorem finrank_spechtModule_eq_card_standardYoungTableau (n : ℕ) (la : Nat.Partition n) :
     Module.finrank ℂ (SpechtModule n la) =
       Nat.card (StandardYoungTableau n la) := by
-  sorry
+  rw [Nat.card_eq_fintype_card]
+  exact finrank_spechtModule_eq_card_syt n la
 
 /-- Frame–Robinson–Thrall theorem (1954): the number of standard Young tableaux
 of shape λ equals n! / ∏ h(i,j), where the product is over all cells of the
