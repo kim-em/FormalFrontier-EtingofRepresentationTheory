@@ -67,6 +67,40 @@ private noncomputable def reflFunctorPlus_equiv_ne
   | .isTrue hvi => exact absurd hvi hv
   | .isFalse _ => rw [hd]
 
+/-- Convert a reversed-quiver arrow between non-sink vertices back to original. -/
+private def reversedArrow_ne_ne
+    {Q : Type*} [DecidableEq Q] [Quiver Q] {i a b : Q}
+    (ha : a ≠ i) (hb : b ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b) : a ⟶ b := by
+  change Etingof.ReversedAtVertexHom Q i a b at e
+  unfold Etingof.ReversedAtVertexHom at e
+  simp only [ha, ite_false, hb] at e; exact e
+
+set_option maxHeartbeats 400000 in
+/-- At non-sink vertices, the F⁺ᵢ map between a and b (both ≠ i) equals
+the original ρ map, after transport through the equivAt_ne equivalences. -/
+private theorem reflFunctorPlus_mapLinear_ne_ne
+    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) {a b : Q}
+    (ha : a ≠ i) (hb : b ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b)
+    (w : @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) a) :
+    (Etingof.reflFunctorPlus_equivAt_ne hi ρ b hb)
+      (@Etingof.QuiverRepresentation.mapLinear k Q _
+        (Etingof.reversedAtVertex Q i)
+        (Etingof.reflectionFunctorPlus Q i hi ρ) a b e w) =
+    ρ.mapLinear (reversedArrow_ne_ne ha hb e)
+      ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a ha) w) := by
+  -- BLOCKED: reflectionFunctorPlus uses Classical.propDecidable for mapLinear
+  -- but inst v i (from DecidableEq) for obj. These different Decidable instances
+  -- produce Decidable.rec terms that can't be rewritten due to dependent types.
+  -- Fixing this requires refactoring reflectionFunctorPlus to use a consistent
+  -- Decidable instance for both obj and mapLinear fields.
+  sorry
+
 /-- Reflection functors preserve indecomposability at a sink:
 F⁺ᵢ(V) is either indecomposable or zero.
 
@@ -220,24 +254,78 @@ theorem Etingof.Proposition6_6_7_sink
       -- BLOCKED: The dependent type issues with Decidable.rec in reflectionFunctorPlus
       -- make the construction extremely painful to formalize.
       intro W₁ W₂ hW₁ hW₂ hcompl
-      -- The full proof requires constructing complementary subreps of V from W₁, W₂.
-      -- This involves transporting submodules through reflFunctorPlus_equiv_ne and
-      -- proving map commutativity + complementarity at vertex i.
-      -- The dependent type issues with Decidable.rec in reflectionFunctorPlus make
-      -- both the map commutativity and the complementarity at i extremely technical.
-      --
-      -- Infrastructure available:
-      -- - reflFunctorPlus_equiv_ne: LinearEquiv at v ≠ i (identity after Decidable reduction)
-      -- - reflFunctorPlus_obj_eq: F⁺(V).obj i = ker(sinkMap)
-      -- - hsurj: sinkMap is surjective
-      -- - hρ.2: V's indecomposability
-      --
-      -- The mathematical argument is spelled out in the comments above (lines 200-218).
-      -- A future attempt should use the generalize+cases pattern (as in the `by_cases`
-      -- branches of the zero case proof above) to reduce all Decidable instances
-      -- simultaneously, avoiding the instance synthesis issues that arise when trying
-      -- to state map commutativity as a standalone lemma.
-      sorry
+      -- Construct complementary subreps U₁, U₂ of V from W₁, W₂ of F⁺(V).
+      classical
+      let φ := ρ.sinkMap i
+      -- For arrows into i, the source vertex j ≠ i, so F⁺(V).obj j ≃ ρ.obj j
+      have arrow_ne : ∀ (a : Etingof.ArrowsInto Q i), a.1 ≠ i :=
+        fun ⟨j, e⟩ => sink_no_out e
+      -- Transport W_k at arrow sources to submodules of ρ.obj
+      let W₁_at : ∀ (a : Etingof.ArrowsInto Q i), Submodule k (ρ.obj a.1) :=
+        fun a => Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+          (W₁ a.1)
+      let W₂_at : ∀ (a : Etingof.ArrowsInto Q i), Submodule k (ρ.obj a.1) :=
+        fun a => Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+          (W₂ a.1)
+      -- U_k(v) for v ≠ i: transport W_k(v) via equiv
+      -- U_k(i): image under sinkMap of the W_k-part of the direct sum
+      let U₁ : ∀ v, Submodule k (ρ.obj v) := fun v =>
+        if hv : v = i then
+          hv ▸ Submodule.map φ (⨆ (a : Etingof.ArrowsInto Q i),
+            Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) a) (W₁_at a))
+        else
+          Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap (W₁ v)
+      let U₂ : ∀ v, Submodule k (ρ.obj v) := fun v =>
+        if hv : v = i then
+          hv ▸ Submodule.map φ (⨆ (a : Etingof.ArrowsInto Q i),
+            Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) a) (W₂_at a))
+        else
+          Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap (W₂ v)
+      -- Apply V's indecomposability
+      have hindecomp := hρ.2 U₁ U₂ (sorry) (sorry) (sorry)
+      -- Transport back: U_k = ⊥ everywhere → W_k = ⊥ everywhere
+      -- At v ≠ i: equiv is injective, so map = ⊥ → original = ⊥
+      -- At v = i: W_k(i) ⊆ ker(φ) ⊆ ⊕V_j, and the F⁺(V) maps from i
+      --   project to each V_j. Since W_k is a subrep, projections land in
+      --   W_k(j) = ⊥, so all components are 0, hence W_k(i) = ⊥.
+      suffices transport : ∀ (W : ∀ v, Submodule k
+            (@Etingof.QuiverRepresentation.obj k Q _
+              (Etingof.reversedAtVertex Q i)
+              (Etingof.reflectionFunctorPlus Q i hi ρ) v)),
+            (∀ {a b} (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b),
+              ∀ x ∈ W a,
+              @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i)
+                (Etingof.reflectionFunctorPlus Q i hi ρ) a b e x ∈ W b) →
+            (∀ v (hv : v ≠ i), Submodule.map
+              (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap
+              (W v) = ⊥) →
+            (∀ v, W v = ⊥) by
+        rcases hindecomp with h1 | h2
+        · left; exact transport W₁ hW₁ (fun v hv => by
+            have := h1 v; simp only [U₁, dif_neg hv] at this; exact this)
+        · right; exact transport W₂ hW₂ (fun v hv => by
+            have := h2 v; simp only [U₂, dif_neg hv] at this; exact this)
+      -- Prove the transport lemma
+      intro W hW hW_ne v
+      by_cases hv : v = i
+      · -- At i: use subrep structure + direct sum projections
+        subst hv
+        sorry
+      · -- At v ≠ i: injective map = ⊥ → original = ⊥
+        specialize hW_ne v hv
+        rw [eq_bot_iff]
+        intro x hx
+        rw [eq_bot_iff] at hW_ne
+        have hmem : (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv) x ∈
+            Submodule.map
+              (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap
+              (W v) :=
+          ⟨x, hx, rfl⟩
+        have h0 := hW_ne hmem
+        rw [Submodule.mem_bot] at h0 ⊢
+        exact (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).injective
+          (by rw [h0, map_zero])
 
 /-- Reflection functors preserve indecomposability at a source:
 F⁻ᵢ(V) is either indecomposable or zero.
