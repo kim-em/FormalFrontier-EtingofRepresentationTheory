@@ -111,3 +111,32 @@ At the start of every turn, read the most recent file in `progress/` (sorted alp
 lake exe cache get
 ```
 This downloads pre-built Mathlib oleans and avoids a full rebuild (1800+ jobs). Skipping this wastes significant time and compute.
+
+
+# Pod Agent Session
+
+You are running as an autonomous agent launched by `pod`. This is a
+non-interactive session via `claude -p` — there is no human to answer
+questions. Never ask for confirmation or approval. Just do the work.
+
+Each agent runs in its own git worktree on its own branch, coordinating
+via GitHub issues, labels, and PRs. The `coordination` script is already
+on your PATH — just run it directly (e.g. `coordination orient`,
+`coordination claim 42`). Do NOT search for it or try to locate it.
+
+Session UUID is available as `$POD_SESSION_ID`.
+
+## Agent Types
+
+- **Planners** (`/plan`): create work items as GitHub issues, then exit
+- **Workers** (`/feature`, `/review`, `/summarize`, `/meditate`): claim
+  and execute issues using the `agent-worker-flow` skill
+
+See your `/command` file and the `agent-worker-flow` skill for the full
+workflow.
+
+## Off-limits Files
+
+Agents must not modify the project's top-level CLAUDE.md (`.claude/CLAUDE.md`)
+or roadmap file (`PLAN.md`). PRs touching these files are rejected by
+`coordination create-pr`. Update skills and commands instead.

@@ -274,23 +274,117 @@ theorem permModuleCharacter_eq_trace (n : ℕ) (la : Nat.Partition n)
   rw [Nat.card_eq_fintype_card, Fintype.card_subtype]
   simp [MulAction.mem_fixedBy]
 
+/-! ### Isotypic decomposition infrastructure for Young's Rule
+
+The proof of Young's Rule proceeds via the isotypic decomposition of the
+semisimple module `PermutationModule n mu`. Since `ℂ[S_n]` is semisimple
+(Maschke's theorem), every `ℂ[S_n]`-module is semisimple, so `U_μ`
+decomposes as `⊕_ν V_ν^{⊕m(μ,ν)}`. The trace of `σ` on `U_μ` then
+decomposes as `Σ_ν m(μ,ν) · χ_{V_ν}(σ)`.
+
+We structure this as:
+1. The isotypic component of `U_μ` for type `V_ν` (as a ℂ-submodule)
+2. These form an internal direct sum decomposition
+3. The permutation action preserves each isotypic component
+4. The trace on each component equals `m(μ,ν) · χ_{V_ν}(σ)`
+-/
+
+/-- The ℂ-scalar action on `PermutationModule` is compatible with the `SymGroupAlgebra`-module
+structure: scalar multiplication by `c : ℂ` through the Finsupp structure agrees with
+the action of `algebraMap ℂ (SymGroupAlgebra n) c` through the representation.
+This is because the representation `ρ` is a ℂ-algebra homomorphism, so
+`ρ(c · 1) = c · id`, meaning the derived ℂ-action matches the Finsupp ℂ-action. -/
+private lemma permMod_smul_eq' (n : ℕ) (la : Nat.Partition n)
+    (a : SymGroupAlgebra n) (x : PermutationModule n la) :
+    a • x = (Representation.ofMulAction ℂ (G_n n) (Q_n n la)).asAlgebraHom a x := rfl
+
+noncomputable instance permModule_isScalarTower (n : ℕ) (la : Nat.Partition n) :
+    IsScalarTower ℂ (SymGroupAlgebra n) (PermutationModule n la) where
+  smul_assoc c a m := by
+    -- Need: c • (a • m) = (c • a) • m
+    -- Both sides reduce to applications of the representation algebra homomorphism
+    simp only [permMod_smul_eq']
+    -- Goal: c • (rep a m) = rep (c • a) m
+    -- Since rep is a ℂ-algebra hom: rep(c • a) = c • rep(a)
+    rw [map_smul (Representation.ofMulAction ℂ (G_n n) (Q_n n la)).asAlgebraHom c a]
+    -- Goal: c • (rep a m) = (c • rep a) m
+    simp [LinearMap.smul_apply]
+
+/-- The isotypic component of `PermutationModule n mu` corresponding to partition `nu`,
+viewed as a ℂ-submodule. This is the sum of all simple `SymGroupAlgebra n`-submodules
+of `U_μ` that are isomorphic (as `SymGroupAlgebra n`-modules) to `SpechtModule n nu`,
+restricted to a ℂ-submodule via the scalar tower. -/
+noncomputable def permModuleIsotypicComponent (n : ℕ) (mu nu : Nat.Partition n) :
+    Submodule ℂ (PermutationModule n mu) :=
+  (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu)).restrictScalars ℂ
+
+/-- The isotypic components form an internal direct sum decomposition of `U_μ` as
+ℂ-vector spaces. This follows from the semisimplicity of `ℂ[S_n]` and the
+fact that isotypic components for distinct simple types are independent. -/
+theorem permModule_isotypic_isInternal (n : ℕ) (mu : Nat.Partition n) :
+    DirectSum.IsInternal (fun nu : Nat.Partition n =>
+      permModuleIsotypicComponent n mu nu) := by
+  sorry
+
+/-- The permutation action `σ` on `U_μ` maps each isotypic component to itself.
+This is because `σ` acts as a `ℂ[S_n]`-module endomorphism (left multiplication
+by `of(σ)`), and isotypic components are fully invariant. -/
+private lemma permModuleEndomorphism_eq_smul (n : ℕ) (mu : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (v : PermutationModule n mu) :
+    permModuleEndomorphism n mu σ v =
+      (MonoidAlgebra.of ℂ _ σ : SymGroupAlgebra n) • v := by
+  simp only [permMod_smul_eq', permModuleEndomorphism]
+  -- Both sides are Finsupp.lmapDomain ℂ ℂ (σ • ·) v
+  -- rep.asAlgebraHom (of σ) = representation σ = lmapDomain (σ • ·)
+  change Finsupp.lmapDomain ℂ ℂ (fun q => σ • q) v =
+    (Representation.ofMulAction ℂ (G_n n) (Q_n n mu)).asAlgebraHom
+      (MonoidAlgebra.of ℂ _ σ) v
+  simp [Representation.asAlgebraHom_single, Representation.ofMulAction_single]
+  rfl
+
+theorem permModuleEndomorphism_mapsTo_isotypic (n : ℕ) (mu : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (nu : Nat.Partition n) :
+    Set.MapsTo (permModuleEndomorphism n mu σ)
+      (permModuleIsotypicComponent n mu nu) (permModuleIsotypicComponent n mu nu) := by
+  intro v hv
+  rw [permModuleEndomorphism_eq_smul]
+  exact (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+    (SpechtModule n nu)).smul_mem _ hv
+
+/-- Each isotypic component of a finite-dimensional module is finite-dimensional. -/
+instance permModuleIsotypicComponent_finite (n : ℕ) (mu nu : Nat.Partition n) :
+    Module.Finite ℂ (permModuleIsotypicComponent n mu nu) :=
+  inferInstance
+
+/-- Each isotypic component is a free ℂ-module (all ℂ-modules are free). -/
+instance permModuleIsotypicComponent_free (n : ℕ) (mu nu : Nat.Partition n) :
+    Module.Free ℂ (permModuleIsotypicComponent n mu nu) :=
+  inferInstance
+
+/-- The trace of `σ` restricted to the isotypic component of type `V_ν` equals
+`m(μ,ν) · χ_{V_ν}(σ)` where `m(μ,ν) = spechtMultiplicity n mu nu`.
+
+**Proof sketch**: The isotypic component has the form `V_ν^{⊕m}`. Under
+any such decomposition, `σ` acts as the "diagonal" map
+`(σ|_{V_ν}, σ|_{V_ν}, ..., σ|_{V_ν})`, so the trace is `m · tr(σ on V_ν)`.
+The multiplicity `m` equals `dim Hom_{S_n}(U_μ, V_ν)` by Schur's lemma. -/
+theorem trace_isotypic_eq_mult_character (n : ℕ) (mu nu : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) :
+    LinearMap.trace ℂ _ ((permModuleEndomorphism n mu σ).restrict
+      (permModuleEndomorphism_mapsTo_isotypic n mu σ nu)) =
+    (spechtMultiplicity n mu nu : ℂ) * spechtModuleCharacter n nu σ := by
+  sorry
+
 /-! ### Young's Rule (character decomposition)
 
 **Young's Rule**: χ_{U_μ}(σ) = Σ_ν m(μ,ν) · χ_{V_ν}(σ) where
 m(μ,ν) = `spechtMultiplicity n mu nu`.
 
-**Proof strategy**: By Maschke's theorem, ℂ[S_n] is semisimple, so U_μ
-decomposes as ⊕_ν V_ν^{⊕m(μ,ν)}. The character is additive on direct sums.
-
-**What's needed to prove `youngsRule_character`**:
-1. `permModuleCharacter_eq_trace` (done above)
-2. Isotypic decomposition: U_μ ≅ ⊕_ν V_ν^{⊕m(μ,ν)} as ℂ[S_n]-modules
-3. Trace additivity on direct sums
-4. Connect isotypic multiplicities to `spechtMultiplicity` (Hom-space dims)
-5. Connect Specht module trace to `spechtModuleCharacter`
-
-**Key Mathlib APIs**: `IsSemisimpleModule`, `IsSemisimpleRing`,
-`Theorem5_12_2_irreducible`, `Theorem5_12_2_classification`
+The proof combines:
+1. `permModuleCharacter_eq_trace`: LHS = trace of σ on U_μ
+2. `permModule_isotypic_isInternal`: U_μ = ⊕_ν (isotypic component)_ν
+3. `trace_eq_sum_trace_restrict`: trace decomposes over the direct sum
+4. `trace_isotypic_eq_mult_character`: each component contributes m(μ,ν)·χ_{V_ν}
 -/
 
 /-- **Young's Rule** (character identity): The permutation module character
@@ -303,7 +397,14 @@ theorem youngsRule_character (n : ℕ) (mu : Nat.Partition n) (σ : Equiv.Perm (
     (permModuleCharacter n mu σ : ℂ) =
       ∑ nu : Nat.Partition n,
         (spechtMultiplicity n mu nu : ℂ) * spechtModuleCharacter n nu σ := by
-  sorry
+  -- Step 1: Reduce LHS to trace of permutation action on U_μ
+  rw [permModuleCharacter_eq_trace]
+  -- Step 2: Decompose trace via isotypic components
+  rw [LinearMap.trace_eq_sum_trace_restrict (permModule_isotypic_isInternal n mu)
+    (permModuleEndomorphism_mapsTo_isotypic n mu σ)]
+  -- Step 3: Each component contributes multiplicity × character
+  congr 1; ext nu
+  exact trace_isotypic_eq_mult_character n mu nu σ
 
 /-! ### Frobenius formula: alternating sum identity
 
