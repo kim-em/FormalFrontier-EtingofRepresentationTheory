@@ -3389,7 +3389,7 @@
     "end_line": 2,
     "status": "proof_partial",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: All 3 parts have sorry. Active claimed issue #1002 working on part (i) adaptation from Aristotle proof. Parts (ii) and (iii) need separate work."
+    "notes": "Part (i) proved via Jacobson density theorem. Parts (ii) and (iii) still sorry."
   },
   {
     "id": "Chapter5/Discussion_before_Theorem5.18.2",
