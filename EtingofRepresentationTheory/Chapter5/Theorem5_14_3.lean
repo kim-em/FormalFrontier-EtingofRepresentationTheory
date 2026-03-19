@@ -471,12 +471,143 @@ private def invColorToFixed (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
     have := c.prop.1 (σ⁻¹ x); simp at this; exact this.symm
   rw [cinv', ← spec (g_inv.symm k), Equiv.apply_symm_apply]
 
+/-- An σ-invariant coloring is constant on σ-orbits (zpow version). -/
+private lemma invColor_const_zpow (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (c : InvColor n la σ) (x : Fin n) (i : ℤ) :
+    c.val ((σ ^ i) x) = c.val x := by
+  induction i using Int.induction_on with
+  | zero => simp
+  | succ k ih =>
+    rw [show (↑k + 1 : ℤ) = 1 + ↑k from by ring,
+      zpow_add, zpow_one, Equiv.Perm.mul_apply, c.prop.1, ih]
+  | pred k ih =>
+    have hinv : c.val (σ⁻¹ ((σ ^ (-(↑k : ℤ))) x)) =
+        c.val ((σ ^ (-(↑k : ℤ))) x) := by
+      have h := c.prop.1 (σ⁻¹ ((σ ^ (-(↑k : ℤ))) x))
+      simp only [Equiv.Perm.apply_inv_self] at h; exact h.symm
+    rw [show (-(↑k : ℤ) - 1 : ℤ) = -1 + -(↑k : ℤ) from by ring,
+      zpow_add, zpow_neg_one, Equiv.Perm.mul_apply, hinv, ih]
+
+/-- An σ-invariant coloring is constant on σ-orbits. -/
+private lemma invColor_orbit_const (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (c : InvColor n la σ) (x y : Fin n) (h : σ.SameCycle x y) :
+    c.val x = c.val y := by
+  obtain ⟨i, rfl⟩ := h
+  exact (invColor_const_zpow la σ c x i).symm
+
+/-- All entries of fullCycleType are positive. -/
+private lemma fullCycleType_pos (σ : Equiv.Perm (Fin n)) :
+    ∀ x ∈ fullCycleType n σ, 0 < x := by
+  intro x hx
+  simp only [fullCycleType, Multiset.mem_add, Multiset.mem_replicate] at hx
+  rcases hx with h | ⟨_, rfl⟩
+  · exact Nat.lt_of_lt_of_le (by norm_num) (Equiv.Perm.two_le_of_mem_cycleType h)
+  · exact Nat.one_pos
+
+/-- There exists an orbit-index assignment: a function π : Fin n → Fin L that groups
+elements by σ-orbit and has fiber sizes matching fullCycleType. -/
+private lemma exists_orbIdx (σ : Equiv.Perm (Fin n)) :
+    ∃ (π : Fin n → Fin (fullCycleType n σ).toList.length),
+      (∀ k₁ k₂ : Fin n, π k₁ = π k₂ ↔ σ.SameCycle k₁ k₂) ∧
+      (∀ i : Fin (fullCycleType n σ).toList.length,
+        (univ.filter (fun k => π k = i)).card =
+          (fullCycleType n σ).toList[i.val]) := by
+  sorry
+
 /-- InvColor bijects with MonochromaticColoring via the orbit decomposition.
 Each σ-invariant coloring assigns the same color to all elements in a cycle.
 This collapses to a cycle-to-row assignment (MonochromaticColoring). -/
 private def invColorEquivMC (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
     InvColor n la σ ≃ MonochromaticColoring n la σ := by
-  sorry
+  classical
+  let π := (exists_orbIdx σ).choose
+  have hπ_spec := (exists_orbIdx σ).choose_spec
+  have hπ_orbit := hπ_spec.1
+  have hπ_card := hπ_spec.2
+  -- Each orbit fiber is nonempty (cycle lengths ≥ 1)
+  have hne : ∀ i : Fin (fullCycleType n σ).toList.length,
+      (univ.filter (fun k : Fin n => π k = i)).Nonempty := by
+    intro i
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    have hcard := hπ_card i
+    rw [h, Finset.card_empty] at hcard
+    have hmem : (fullCycleType n σ).toList[i.val] ∈ (fullCycleType n σ).toList :=
+      List.getElem_mem i.isLt
+    have := fullCycleType_pos σ _ (Multiset.mem_toList.mp hmem)
+    omega
+  -- Pick a representative from each orbit
+  let rep : Fin (fullCycleType n σ).toList.length → Fin n :=
+    fun i => (univ.filter (fun k : Fin n => π k = i)).min' (hne i)
+  have hrep : ∀ i, π (rep i) = i := by
+    intro i
+    have h := Finset.min'_mem (univ.filter (fun k : Fin n => π k = i)) (hne i)
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at h
+    exact h
+  exact {
+    toFun := fun c => ⟨fun i => ⟨c.val (rep i), invColor_val_lt c (rep i)⟩, by
+      intro j
+      -- Need: Σ_{f(i)=j} w_i = λ_j where f(i) = ⟨c.val(rep i), _⟩, w_i = fullCycleType.toList[i]
+      -- Strategy: rewrite w_i = #{k | π k = i}, then reindex as #{k | c(k) = j}
+      -- First, replace summand using hπ_card
+      have hsub : (univ.filter (fun i =>
+            (⟨c.val (rep i), invColor_val_lt c _⟩ : Fin n) = j)).sum
+          (fun i => (fullCycleType n σ).toList[↑i]) =
+          (univ.filter (fun i =>
+            (⟨c.val (rep i), invColor_val_lt c _⟩ : Fin n) = j)).sum
+          (fun i => (univ.filter (fun k : Fin n => π k = i)).card) := by
+        apply Finset.sum_congr rfl; intro i _; exact (hπ_card i).symm
+      rw [hsub]
+      -- Now: Σ_{c(rep(i)) = j.val} #{k | π k = i} = #{k | c(k) = j.val}
+      rw [← Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij => by
+        apply Finset.disjoint_filter.mpr; intro k _ h₁ h₂; exact hij (h₁ ▸ h₂))]
+      -- biUnion of fibers = {k | c(k) = j.val}
+      have hbij : (univ.filter (fun i =>
+          (⟨c.val (rep i), invColor_val_lt c _⟩ : Fin n) = j)).biUnion
+          (fun i => univ.filter (fun k : Fin n => π k = i)) =
+          univ.filter (fun k : Fin n => c.val k = j.val) := by
+        ext k
+        simp only [mem_biUnion, mem_filter, mem_univ, true_and]
+        constructor
+        · rintro ⟨i, hi, hk⟩
+          have hsame : σ.SameCycle (rep i) k :=
+            (hπ_orbit _ _).mp (show π (rep i) = π k from (hrep i).symm ▸ hk.symm)
+          rw [← invColor_orbit_const la σ c _ _ hsame]
+          exact congr_arg Fin.val hi
+        · intro hk
+          have hsame : σ.SameCycle (rep (π k)) k := (hπ_orbit _ _).mp (hrep (π k))
+          exact ⟨π k, Fin.ext (show c.val (rep (π k)) = j.val by
+            rw [invColor_orbit_const la σ c _ _ hsame]; exact hk), rfl⟩
+      rw [hbij]; exact c.prop.2 j⟩,
+    invFun := fun f => ⟨fun k => (f.val (π k)).val, by
+      constructor
+      · -- σ-invariance
+        intro k; change (f.val (π (σ k))).val = (f.val (π k)).val
+        congr 1
+        exact congr_arg f.val ((hπ_orbit _ _).mpr (Equiv.Perm.SameCycle.refl σ k).apply_left)
+      · -- fiber size condition
+        intro j
+        -- #{k | (f.val(π k)).val = j.val} = Σ_{f(i) = j} #{k | π k = i}
+        -- = Σ_{f(i) = j} w_i = λ_j
+        have hset : (univ.filter (fun k : Fin n => (f.val (π k)).val = j.val)) =
+            (univ.filter (fun i => f.val i = j)).biUnion
+              (fun i => univ.filter (fun k : Fin n => π k = i)) := by
+          ext k; simp only [mem_biUnion, mem_filter, mem_univ, true_and]
+          constructor
+          · intro h; exact ⟨π k, Fin.ext h, rfl⟩
+          · rintro ⟨i, hi, hk⟩; subst hk; exact congr_arg Fin.val hi
+        rw [hset, Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij =>
+          Finset.disjoint_filter.mpr (fun k _ h₁ h₂ => hij (h₁ ▸ h₂)))]
+        conv_lhs => arg 2; ext i; rw [hπ_card i]
+        exact f.prop j⟩,
+    left_inv := fun c => by
+      apply Subtype.ext; funext k
+      change c.val (rep (π k)) = c.val k
+      exact invColor_orbit_const la σ c _ _ ((hπ_orbit _ _).mp (hrep (π k))),
+    right_inv := fun f => by
+      apply Subtype.ext; funext i
+      change (⟨(f.val (π (rep i))).val, _⟩ : Fin n) = f.val i
+      simp only [hrep, Fin.eta] }
 
 /-- If two representatives give the same row coloring, they're in the same coset. -/
 private lemma rowColorOf_eq_imp_coset (la : Nat.Partition n) (g₁ g₂ : Equiv.Perm (Fin n))
