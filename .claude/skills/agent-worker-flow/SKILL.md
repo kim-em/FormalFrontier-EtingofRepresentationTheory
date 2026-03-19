@@ -133,6 +133,11 @@ After each coherent chunk of changes:
 
 Each commit must compile. One logical change per commit.
 
+**Commit early and push often.** Commit after every compiling milestone (a
+definition added, a test passing, a function implemented). Push after every
+2-3 commits. WIP commits are acceptable — losing work to a terminated session
+is far worse than an extra commit.
+
 ### Commit Checkpoint Protocol (MANDATORY)
 
 **Wave 17 post-mortem: 13 sessions terminated with zero commits pushed, losing

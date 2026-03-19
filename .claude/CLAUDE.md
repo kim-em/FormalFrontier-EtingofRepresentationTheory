@@ -36,46 +36,12 @@ If the book's proof says "by Lemma X.Y.Z" or "the result follows from [earlier r
 
 **Never say "not in Mathlib" without first checking the book.** The book's proofs build on earlier results in the book. Those results are what you should be using — not searching Mathlib for advanced infrastructure like Schur functors or Schur-Weyl duality when the book uses an elementary lemma from the previous page.
 
-### Escalation ladder
-
-- **3 failed proof attempts**: escalate the proof to Aristotle (see below), then if that also fails, document in a GitHub issue and move on
-- **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on (Aristotle only handles proofs)
+- **3 failed proof attempts**: document in a GitHub issue and move on
+- **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on
 - **Dependency blocked:** Post an issue with `- [ ] depends on #X` and add the `blocked` label
 - **Definition seems wrong:** Post an issue describing the problem — don't silently work around bad definitions
-- **Missing Mathlib API:** First check whether the missing result is an earlier item in the book. If it is, that's a dependency — not a Mathlib gap. Only file a Mathlib gap issue for genuinely external prerequisites.
+- **Missing Mathlib API:** First check whether the missing result is an earlier item in the book. If it is, that's a dependency, not a missing Mathlib API. If genuinely missing from Mathlib, work around it or sorry the proof and move on.
 - **Ordering mistake in the plan:** Report it — request a replan rather than hacking around it
-
-## Aristotle Escalation
-
-Aristotle is an automated theorem prover. Escalate to it when Claude can't prove a theorem after 2-3 serious attempts.
-
-### When to use Aristotle
-
-- A proof is beyond Claude's ability after multiple attempts
-- Standard mathematical proofs (calculus, algebra, analysis) that follow well-known patterns
-- Batch proving: after Stage 3.1 scaffolding, submit all sorry'd theorems
-
-### When NOT to use Aristotle
-
-- Statement formalization (translating definitions/theorem statements from natural language) — Claude handles this
-- When the formalized statement might be wrong — fix the statement first
-- For discussion blobs or non-theorem items
-
-### Handoff protocol
-
-1. Create a temporary copy of the item's Lean file (preserving all imports, namespaces, notation). Keep exactly one `sorry` (the target proof); change all others to `admit`.
-2. Gather context files: sorry-free local Lean files from the import chain (skip Mathlib imports). If no local files are sorry-free yet, submit with no context files.
-3. Submit: `aristotle prove-from-file item_pending.lean --no-wait --no-auto-add-imports --context-files ...`
-4. Record the project ID in `progress/items.json` with status `sent_to_aristotle`
-5. Delete the temp file — never commit `admit`
-
-**Deduplication:** Before submitting, check that the item is not already in `sent_to_aristotle` status. Only one submission per item at a time.
-
-### After Aristotle returns
-
-- **Success:** Verify the proof compiles (`lake env lean`), copy into the item's Lean file, update status to `sorry_free` (if all sorries resolved) or `proof_formalized`
-- **False statement:** Mark `attention_needed`, post a GitHub issue with the counterexample — the formalized statement needs fixing
-- **Failure/timeout/version mismatch:** Mark `attention_needed`, move on
 
 ## PR Workflow
 

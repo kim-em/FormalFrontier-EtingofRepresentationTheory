@@ -4217,8 +4217,12 @@
     "end_page": "167",
     "start_line": 19,
     "end_line": 21,
-    "status": "proof_partial",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_projects": {
+      "Dn_bound": "9f0c4ab7-5906-4bd0-b188-410df0f4e548",
+      "Dn_count": "8ddbbbcd-d0a3-4e56-b203-af216ca628c4"
+    }
   },
   {
     "id": "Chapter6/Definition6.4.10",
