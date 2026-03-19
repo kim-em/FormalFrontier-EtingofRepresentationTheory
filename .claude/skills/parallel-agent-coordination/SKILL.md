@@ -179,7 +179,7 @@ In formalization, merge order affects what's available to downstream agents:
 3. **Changing definition signatures after dependents exist** — cascading breakage across all agents
 4. **Not checking `.refs.md` before starting** — may miss that Mathlib already has the result
 
-## Lessons from Stage 3.2 Proof Waves (90+ PRs, 14 waves)
+## Lessons from Stage 3.2 Proof Waves (110+ PRs, 17 waves)
 
 ### Cross-Validation Must Be Planned Upfront
 
@@ -286,11 +286,11 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 14:** 191/583 sorry-free (32.8%), 109 sorry occurrences across 41 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (65 sorries, 22 files). Planners should create mostly proof issues. Statement formalization is largely complete.
+**As of Wave 17:** 193/583 sorry-free (33.1%), 104 sorry occurrences across 39 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (63/104 sorries — 61% of all remaining). Planners should create mostly proof issues. Statement formalization is largely complete.
 
 ### Stalling Detection and Response
 
-**Pattern (waves 12-14):** 16 claimed issues without PRs after 24h. This indicates agents hitting items that resist standard tactics — the "easy wins are done" phase.
+**Pattern (waves 12-17):** Stale claims are a recurring problem — 16 in waves 12-14, 13 more in wave 17 (total 29 stale claims across 6 waves). Root cause: agents work for hours on difficulty 2-3 proofs, hit dead-ends, and terminate without committing any intermediate progress.
 
 **Planner response when stalling is detected:**
 1. Run `coordination release-stale-claims` more aggressively (reduce threshold to 2h for hard items)
@@ -298,6 +298,7 @@ print(f'Proof backlog: {backlog} items')
 3. If a common blocker exists, create an infrastructure issue to resolve it before re-planning the blocked items
 4. Reclassify stalled items: bump difficulty rating, add "This stalled in a previous attempt" to the issue body
 5. Consider splitting stalled items into smaller sub-issues (e.g., "prove part (i) only" instead of full theorem)
+6. For items that stalled twice: escalate to difficulty 3/3 and add "2 prior failed attempts" to the issue body. These may need a fundamentally different approach or new Mathlib infrastructure.
 
 ### PR Supersession Tracking
 
