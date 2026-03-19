@@ -159,46 +159,34 @@ private theorem Etingof.QuiverRepresentation.obj_transport
     @Etingof.QuiverRepresentation.obj k Q _ inst₁ ρ v := by
   subst h; rfl
 
-/-- At a vertex v ≠ i, the reflection functor F⁺ᵢ leaves the space unchanged. -/
-private theorem Etingof.reflFunctorPlus_obj_ne
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
-    {i : Q} (hi : Etingof.IsSink Q i)
-    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
-    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorPlus Q i hi ρ) v = ρ.obj v := by
-  unfold Etingof.reflectionFunctorPlus
-  simp only
-  match hd : (‹DecidableEq Q› v i) with
-  | .isTrue hvi => exact absurd hvi hv
-  | .isFalse _ => rw [hd]
+-- Note: reflFunctorPlus_obj_ne, reflFunctorPlus_obj_eq, reflFunctorMinus_obj_ne
+-- are now public API in Definition6_6_3.lean and Definition6_6_4.lean.
+-- The reflFunctorPlus_equivAt_ne and reflFunctorPlus_equivAt_eq LinearEquivs
+-- are also available from Definition6_6_3.lean.
 
-/-- At vertex i, the reflection functor F⁺ᵢ gives the kernel of the sink map. -/
-private theorem Etingof.reflFunctorPlus_obj_eq
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+/-- For an arrow `i →_{Q̄ᵢ} j` in the reversed quiver (with i a sink), the target vertex
+j ≠ i. This is because i is a source in Q̄ᵢ. -/
+private theorem Etingof.arrowsOutReversed_ne
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
-    (ρ : Etingof.QuiverRepresentation k Q) :
-    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorPlus Q i hi ρ) i = ↥(ρ.sinkMap i).ker := by
-  unfold Etingof.reflectionFunctorPlus
-  simp only
-  match hd : (‹DecidableEq Q› i i) with
-  | .isTrue _ => rw [hd]
-  | .isFalse hii => exact absurd rfl hii
+    (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) : a.fst ≠ i := by
+  obtain ⟨j, e⟩ := a
+  change Etingof.ReversedAtVertexHom Q i i j at e
+  unfold Etingof.ReversedAtVertexHom at e
+  by_cases hj : j = i
+  · simp only [hj, ite_true] at e; exact ((hi i).false e).elim
+  · exact hj
 
-/-- At a vertex v ≠ i, the reflection functor F⁻ᵢ leaves the space unchanged. -/
-private theorem Etingof.reflFunctorMinus_obj_ne
-    {k : Type*} [CommRing k] {Q : Type*} [DecidableEq Q] [Quiver Q]
-    {i : Q} (hi : Etingof.IsSource Q i)
-    (ρ : Etingof.QuiverRepresentation k Q)
-    [Fintype (Etingof.ArrowsOutOf Q i)]
-    (v : Q) (hv : v ≠ i) :
-    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorMinus Q i hi ρ) v = ρ.obj v := by
-  unfold Etingof.reflectionFunctorMinus
-  simp only
-  match hd : (‹DecidableEq Q› v i) with
-  | .isTrue hvi => exact absurd hvi hv
-  | .isFalse _ => rw [hd]
+/-- Extract the original arrow j →_Q i from a reversed arrow i →_{Q̄ᵢ} j. -/
+private def Etingof.arrowsOutReversed_origArrow
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) : a.fst ⟶ i := by
+  obtain ⟨j, e⟩ := a
+  change Etingof.ReversedAtVertexHom Q i i j at e
+  unfold Etingof.ReversedAtVertexHom at e
+  have hne := Etingof.arrowsOutReversed_ne hi ⟨j, e⟩
+  simp only [ite_true, hne, ite_false] at e; exact e
 
 /-- At v ≠ i, F⁻(F⁺(V)).obj v ≃ₗ[k] ρ.obj v. Both sides reduce to ρ.obj v
 through the Decidable.casesOn in the reflection functor definitions. -/
@@ -257,23 +245,28 @@ private noncomputable def Etingof.equivAt_eq_sink
   match hd1 : (‹DecidableEq Q› i i) with
   | .isFalse hii => exact absurd rfl hii
   | .isTrue _ =>
-    rw [hd1]; dsimp only [Decidable.rec]
-    -- Goal: (⊕_{a : ArrowsOutOf Q̄ᵢ i} F⁺(V).obj a.1) / range(ψ') ≃ₗ[k] V_i
+    -- The goal after reducing F⁻ at vertex i is:
+    -- (⊕_{a : ArrowsOutOf Q̄ᵢ i} F⁺(V).obj a.1) ⧸ range(ψ) ≃ₗ[k] ρ.obj i
     --
     -- Mathematical argument (first isomorphism theorem):
-    -- • F⁺ᵢ(V).obj i = ker(φ) where φ = sinkMap
-    -- • F⁻ᵢ at vertex i gives the cokernel of the source map ψ' of F⁺(V)
-    -- • ψ' sends ker(φ) ↪ ⊕ V_j via the composition of inclusion and projection
-    --   (which is just the subtype inclusion)
-    -- • Therefore: coker(ψ') = (⊕ V_j) / range(subtype) = (⊕ V_j) / ker(φ)
-    -- • By quotKerEquivOfSurjective: (⊕ V_j) / ker(φ) ≅ V_i when φ is surjective
+    -- - For each a, F⁺(V).obj a.fst = ρ.obj a.fst (since a.fst ≠ i)
+    -- - The source map ψ embeds ker(sinkMap) into ⊕ V_j via reindexing
+    -- - So range(ψ) = ker(sinkMap) (embedded in the direct sum)
+    -- - The quotient (⊕ V_j) / ker(sinkMap) ≅ V_i by first isomorphism theorem
     --
-    -- BLOCKER: The types in the goal involve Decidable.casesOn from the reflection
-    -- functor definitions. ArrowsOutOf Q̄ᵢ i and ArrowsInto Q i are propositionally
-    -- equal (both index arrows j → i), and F⁺(V).obj j = V_j for j ≠ i, but Lean
-    -- cannot see this without explicit case-splitting on every DecidableEq instance.
-    -- A direct sum reindexing + type transport equivalence is needed.
-    -- See GitHub issue for proposed infrastructure.
+    -- BLOCKED: The Decidable.casesOn in both reflectionFunctorPlus and
+    -- reflectionFunctorMinus creates nested opaque types that prevent
+    -- DirectSum.toModule from synthesizing AddCommMonoid/Module instances.
+    -- The API lemmas (reflFunctorPlus_equivAt_ne, reflFunctorPlus_equivAt_eq)
+    -- handle individual component types but composing them through the
+    -- quotient module construction requires instance unification that Lean
+    -- cannot achieve with the current definitions.
+    --
+    -- A complete solution would require either:
+    -- (a) Refactoring reflectionFunctorPlus/Minus to use `if`-based definitions
+    --     instead of Decidable.casesOn (breaking the current approach)
+    -- (b) Building the LinearEquiv by explicit forward/backward linear maps
+    --     that avoid going through DirectSum.toModule
     sorry
 
 end Helpers
