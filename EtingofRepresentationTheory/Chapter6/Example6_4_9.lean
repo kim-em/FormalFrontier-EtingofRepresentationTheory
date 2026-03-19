@@ -306,11 +306,14 @@ private lemma E8_qf (x : Fin 8 → ℤ) :
   ring
 
 set_option linter.style.maxHeartbeats false in
-set_option maxHeartbeats 800000 in
-/-- All positive roots of E₈ have each coordinate < 8. -/
+-- Integrality argument (c=7 → d=6 → no int e) needs extra heartbeats
+set_option maxHeartbeats 1600000 in
+/-- All positive roots of E₈ have each coordinate < 7.
+Tighter than the naive SOS bound (< 8) via an integrality argument:
+c = 7 forces d = 6 (unique integer in range), then no integer e exists. -/
 private lemma E8_bound (x : Fin 8 → ℤ)
     (hr : Etingof.IsRoot 8 Etingof.DynkinType.E8.adj x)
-    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 8 := by
+    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 7 := by
   have hq : 2*(x 0^2+x 1^2+x 2^2+x 3^2+x 4^2+
       x 5^2+x 6^2+x 7^2) -
       2*(x 0*x 1+x 1*x 2+x 2*x 3+x 3*x 4+
@@ -318,47 +321,79 @@ private lemma E8_bound (x : Fin 8 → ℤ)
     by have := hr.2; rw [E8_qf] at this; exact this
   set a := x 0; set b := x 1; set c := x 2; set d := x 3
   set e := x 4; set f := x 5; set g := x 6; set h := x 7
+  have ha0 : 0 ≤ a := hp 0; have hb0 : 0 ≤ b := hp 1
+  have hc0 : 0 ≤ c := hp 2; have hd0 : 0 ≤ d := hp 3
+  have he0 : 0 ≤ e := hp 4; have hf0 : 0 ≤ f := hp 5
+  have hg0 : 0 ≤ g := hp 6; have hh0 : 0 ≤ h := hp 7
   have hs : 30*(2*a-b)^2 + 30*(2*g-f)^2 +
       30*(2*h-c)^2 + 10*(3*b-2*c)^2 +
       10*(3*f-2*e)^2 + 5*(4*e-3*d)^2 +
       3*(5*d-4*c)^2 + 2*c^2 = 120 := by
     nlinarith [E8_sos a b c d e f g h]
-  have : c ≤ 7 := by
+  -- Step 1: c ≤ 7 from SOS alone (2c² ≤ 120)
+  have hc7 : c ≤ 7 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
       sq_nonneg (3*f-2*e), sq_nonneg (4*e-3*d),
       sq_nonneg (5*d-4*c), sq_nonneg (c-8)]
-  have : d ≤ 7 := by
+  -- Step 2: c ≤ 6 via integrality (c = 7 → d = 6 → no integer e)
+  have hc6 : c ≤ 6 := by
+    by_contra hc_ge7
+    push_neg at hc_ge7
+    have hc_eq : c = 7 := le_antisymm hc7 hc_ge7
+    -- Isolate the d-dependent term: 3*(5d-28)² ≤ 22
+    have h3sq : 3 * (5 * d - 28) ^ 2 ≤ 22 := by
+      nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
+        sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
+        sq_nonneg (3*f-2*e), sq_nonneg (4*e-3*d)]
+    -- Coarse bound on d for interval_cases
+    have hd_le : d ≤ 8 := by nlinarith [sq_nonneg (5*d-28-9)]
+    -- Check each integer d ∈ [0,8]: only d = 6 satisfies 3*(5d-28)² ≤ 22
+    -- For d = 6: continue to check e
+    -- For d ≠ 6: 3*(5d-28)² > 22, contradiction
+    have hd_eq : d = 6 := by interval_cases d <;> omega
+    -- Now isolate e-dependent term: 5*(4e-18)² ≤ 10
+    have h5sq : 5 * (4 * e - 18) ^ 2 ≤ 10 := by
+      nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
+        sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
+        sq_nonneg (3*f-2*e)]
+    -- Coarse bound on e for interval_cases
+    have he_le : e ≤ 7 := by nlinarith [sq_nonneg (4*e-18-6)]
+    -- Check each integer e ∈ [0,7]: 4e ∈ {17,18,19} has no solution
+    have : False := by interval_cases e <;> omega
+    exact this
+  -- Step 3: Chain bounds through the SOS decomposition using c ≤ 6
+  have hd6 : d ≤ 6 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
       sq_nonneg (3*f-2*e), sq_nonneg (4*e-3*d),
       sq_nonneg c, sq_nonneg (5*d-4*c-7)]
-  have : e ≤ 7 := by
+  have he5 : e ≤ 5 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
       sq_nonneg (3*f-2*e), sq_nonneg (5*d-4*c),
       sq_nonneg c, sq_nonneg (4*e-3*d-5)]
-  have : b ≤ 7 := by
+  have hb5 : b ≤ 5 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (2*h-c), sq_nonneg (3*f-2*e),
       sq_nonneg (4*e-3*d), sq_nonneg (5*d-4*c),
       sq_nonneg c, sq_nonneg (3*b-2*c-4)]
-  have : f ≤ 7 := by
+  have hf4 : f ≤ 4 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (2*h-c), sq_nonneg (3*b-2*c),
       sq_nonneg (4*e-3*d), sq_nonneg (5*d-4*c),
       sq_nonneg c, sq_nonneg (3*f-2*e-4)]
-  have : a ≤ 7 := by
+  have ha3 : a ≤ 3 := by
     nlinarith [sq_nonneg (2*g-f), sq_nonneg (2*h-c),
       sq_nonneg (3*b-2*c), sq_nonneg (3*f-2*e),
       sq_nonneg (4*e-3*d), sq_nonneg (5*d-4*c),
       sq_nonneg c, sq_nonneg (2*a-b-3)]
-  have : g ≤ 7 := by
+  have hg3 : g ≤ 3 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*h-c),
       sq_nonneg (3*b-2*c), sq_nonneg (3*f-2*e),
       sq_nonneg (4*e-3*d), sq_nonneg (5*d-4*c),
       sq_nonneg c, sq_nonneg (2*g-f-3)]
-  have : h ≤ 7 := by
+  have hh4 : h ≤ 4 := by
     nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*g-f),
       sq_nonneg (3*b-2*c), sq_nonneg (3*f-2*e),
       sq_nonneg (4*e-3*d), sq_nonneg (5*d-4*c),
@@ -366,10 +401,13 @@ private lemma E8_bound (x : Fin 8 → ℤ)
   intro i; fin_cases i <;> simp_all <;> omega
 
 set_option linter.style.nativeDecide false in
+set_option linter.style.maxHeartbeats false in
+-- native_decide over 7^8 ≈ 5.7M vectors needs extra heartbeats
+set_option maxHeartbeats 1600000 in
 private lemma E8_count :
-    (rootCountFinset 8 Etingof.DynkinType.E8.adj 8).card =
+    (rootCountFinset 8 Etingof.DynkinType.E8.adj 7).card =
       120 := by
-  sorry -- native_decide: 8^8 = 16.7M vectors, too slow for CI
+  native_decide
 
 /-- E₈ has 120 positive roots. (Etingof Example 6.4.9) -/
 theorem Etingof.Example_6_4_9_E8 :
