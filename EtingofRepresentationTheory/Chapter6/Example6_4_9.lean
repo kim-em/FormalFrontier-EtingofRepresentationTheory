@@ -20,7 +20,7 @@ def Etingof.positiveRoots (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) :
 theorem Etingof.Example_6_4_9_An (n : ℕ) (hn : 1 ≤ n) :
     (Etingof.positiveRoots n (Etingof.DynkinType.A n hn).adj).Finite ∧
     Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.A n hn).adj) =
-      n * (n + 1) / 2 := sorry
+      n * (n + 1) / 2 := sorry -- see An_result below; needs An_bound + An_count
 
 /-- The number of positive roots for Dₙ is n(n-1).
 (Etingof Example 6.4.9(2)) -/
@@ -417,5 +417,123 @@ theorem Etingof.Example_6_4_9_E8 :
       120 := by
   obtain ⟨hfin, hcard⟩ := positiveRoots_card_eq E8_bound
   exact ⟨hfin, hcard ▸ E8_count⟩
+
+/-! ### A_n root count
+
+The positive roots of A_n are exactly the "interval indicator" vectors: 1 on a
+contiguous block [a, b] and 0 elsewhere, for 0 ≤ a ≤ b < n. There are n(n+1)/2
+such intervals.
+-/
+
+/-- The Cartan matrix entry for A_n at (k, j). -/
+private lemma An_cartan_entry (n : ℕ) (hn : 1 ≤ n) (k j : Fin n) :
+    (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - (Etingof.DynkinType.A n hn).adj) k j =
+    if k = j then 2
+    else if (k.val + 1 = j.val) ∨ (j.val + 1 = k.val) then -1
+    else 0 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply,
+    Etingof.DynkinType.adj, smul_eq_mul]
+  split_ifs with h1 h2 <;> simp_all [Fin.ext_iff] <;> omega
+
+/-- Decomposition: q_{m+1}(x) = q_m(x|_{0..m-1}) + 2x_m² - 2x_{m-1}·x_m. -/
+private lemma An_qform_peel (m : ℕ) (hm : 1 ≤ m) (x : Fin (m + 1) → ℤ) :
+    dotProduct x ((2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.A (m + 1) (by omega)).adj).mulVec x) =
+    dotProduct (fun i : Fin m => x ⟨i.val, by omega⟩)
+      ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+        (Etingof.DynkinType.A m hm).adj).mulVec (fun i : Fin m => x ⟨i.val, by omega⟩)) +
+    2 * x ⟨m, by omega⟩ ^ 2 - 2 * x ⟨m - 1, by omega⟩ * x ⟨m, by omega⟩ := by
+  simp only [dotProduct, mulVec, An_cartan_entry]
+  -- Split outer and inner sums: ∑_{Fin(m+1)} = ∑_{Fin m} ∘ castSucc + last
+  rw [Fin.sum_univ_castSucc]
+  simp_rw [Fin.sum_univ_castSucc]
+  -- Simplify castSucc vs last comparisons
+  simp only [Fin.castSucc_inj, Fin.val_castSucc, Fin.val_last]
+  -- castSucc i ≠ last m, and last m ≠ castSucc i
+  have : ∀ i : Fin m, (i.castSucc = Fin.last m) = False :=
+    fun i => eq_false (Fin.castSucc_ne_last i)
+  have : ∀ i : Fin m, (Fin.last m = i.castSucc) = False :=
+    fun i => eq_false ((Fin.castSucc_ne_last i).symm)
+  simp only [*, eq_self_iff_true, ite_true, ite_false]
+  -- m + 1 = i.val impossible for i : Fin m
+  simp only [show ∀ i : Fin m, (m + 1 = i.val) = False from fun i => by
+    exact eq_false (by omega)]
+  simp only [false_or]
+  simp only [or_false]
+  -- Convert castSucc/last to val-based indexing
+  have hcast : ∀ i : Fin m, x i.castSucc = x ⟨i.val, by omega⟩ :=
+    fun i => congrArg x (Fin.ext rfl)
+  have hlast : x (Fin.last m) = x ⟨m, by omega⟩ :=
+    congrArg x (Fin.ext rfl)
+  simp_rw [hcast, hlast]
+  -- Distribute multiplication over addition in the outer sum
+  simp only [mul_add, Finset.sum_add_distrib]
+  -- The adjacency-to-m sums pick out x_{m-1}
+  have hm' : m - 1 < m := by omega
+  -- Rewrite adjacency condition i.val + 1 = m as i = ⟨m-1, ...⟩
+  have hadj : ∀ i : Fin m, (i.val + 1 = m) = (i = ⟨m - 1, hm'⟩) := by
+    intro i; apply propext; constructor
+    · intro h; ext; simp only [Fin.val_mk]; omega
+    · intro h; subst h; simp only [Fin.val_mk]; omega
+  simp_rw [hadj]
+  -- Evaluate sums with ite_eq: ∑ i, (if i = a then c else 0) * f i = c * f a
+  simp only [mul_ite, mul_zero, ite_mul, zero_mul,
+    Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  ring
+
+/-- The quadratic form q(x) ≥ x₀² + x_{n-1}² for A_n. -/
+private lemma An_qform_ge_endpoints : ∀ (n : ℕ) (hn : 1 ≤ n) (x : Fin n → ℤ),
+    dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.A n hn).adj).mulVec x) ≥
+    x ⟨0, by omega⟩ ^ 2 + x ⟨n - 1, by omega⟩ ^ 2 := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hn x
+    by_cases hm : m = 0
+    · -- n = 1: q(x) = 2x₀² = x₀² + x₀²
+      subst hm
+      show _ ≥ x 0 ^ 2 + x 0 ^ 2
+      simp only [dotProduct, mulVec, Etingof.DynkinType.adj, Matrix.sub_apply,
+        Matrix.smul_apply, Matrix.one_apply,
+        Finset.sum_fin_eq_sum_range, Finset.sum_range_succ, Finset.sum_range_zero]
+      norm_num [sq]
+      ring_nf
+      omega
+    · -- n ≥ 2: use decomposition + IH
+      have hm1 : 1 ≤ m := by omega
+      rw [An_qform_peel m hm1 x]
+      have hih := ih hm1 (fun i : Fin m => x ⟨i.val, by omega⟩)
+      -- IH: q_m(x|_m) ≥ x₀² + x_{m-1}²
+      -- Goal: q_m + 2x_m² - 2x_{m-1}x_m ≥ x₀² + x_m²
+      -- From IH: ≥ x₀² + x_{m-1}² + 2x_m² - 2x_{m-1}x_m
+      --        = x₀² + (x_{m-1} - x_m)² + x_m² ≥ x₀² + x_m²
+      -- Simplify the goal: (m+1)-1 = m
+      show _ ≥ x ⟨0, by omega⟩ ^ 2 + x ⟨m, by omega⟩ ^ 2
+      nlinarith [sq_nonneg (x ⟨m - 1, by omega⟩ - x ⟨m, by omega⟩),
+        show x ⟨(Fin.mk (m - 1) (by omega) : Fin m).val, by omega⟩ =
+          x ⟨m - 1, by omega⟩ from rfl]
+
+/-- All positive roots of A_n have each coordinate < 2. -/
+private lemma An_bound (n : ℕ) (hn : 1 ≤ n) (x : Fin n → ℤ)
+    (hr : Etingof.IsRoot n (Etingof.DynkinType.A n hn).adj x)
+    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 2 := by
+  -- From An_qform_ge_endpoints: q(x) ≥ x₀² + x_{n-1}² and q(x) = 2
+  -- So endpoints ∈ {0,1}. Peel decomposition + IH bounds all coords.
+  sorry
+
+/-- The count of rootCountFinset for A_n with bound 2 equals n(n+1)/2. -/
+private lemma An_count (n : ℕ) (hn : 1 ≤ n) :
+    (rootCountFinset n (Etingof.DynkinType.A n hn).adj 2).card =
+      n * (n + 1) / 2 := by
+  sorry
+
+lemma An_result (n : ℕ) (hn : 1 ≤ n) :
+    (Etingof.positiveRoots n (Etingof.DynkinType.A n hn).adj).Finite ∧
+    Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.A n hn).adj) =
+      n * (n + 1) / 2 := by
+  obtain ⟨hfin, hcard⟩ := positiveRoots_card_eq (An_bound n hn)
+  exact ⟨hfin, hcard ▸ An_count n hn⟩
 
 end ETypeRootCounts
