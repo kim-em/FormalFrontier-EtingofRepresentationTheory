@@ -107,7 +107,7 @@ private lemma Etingof.simpleRepresentation_finrank
     {n : ℕ} (p : Fin n) {Q : Quiver (Fin n)} (v : Fin n) :
     Module.finrank k ((Etingof.simpleRepresentation k p (Q := Q)).obj v) =
       if v = p then 1 else 0 := by
-  show Module.finrank k (Fin (if v = p then 1 else 0) → k) = _
+  change Module.finrank k (Fin (if v = p then 1 else 0) → k) = _
   split_ifs with h <;> simp_all [Module.finrank_pi_fintype]
 
 private lemma Etingof.simpleRepresentation_finrank_eq_simpleRoot
@@ -119,6 +119,8 @@ private lemma Etingof.simpleRepresentation_finrank_eq_simpleRoot
   simp only [Etingof.simpleRoot, Pi.single_apply]
   split_ifs <;> simp_all
 
+set_option maxHeartbeats 400000 in
+-- 1-dim space case analysis with finrank API needs extra heartbeats
 /-- The simple representation at p is indecomposable: nontrivial at p and
 any complementary sub-representations must have one component trivial. -/
 private lemma Etingof.simpleRepresentation_indecomposable
@@ -145,7 +147,6 @@ private lemma Etingof.simpleRepresentation_indecomposable
     have hcompl_p := hcompl p
     -- Use disjointness: W₁ ⊓ W₂ = ⊥, W₁ ⊔ W₂ = ⊤
     -- In a 1-dim space, if both are nonzero then both = ⊤, contradicting disjointness
-    set_option maxHeartbeats 400000 in
     have : W₁ p = ⊥ ∨ W₂ p = ⊥ := by
       -- upgrade to AddCommGroup for Submodule API
       letI : ∀ v, AddCommGroup ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
@@ -191,6 +192,7 @@ theorem Etingof.Corollary6_8_4_simpleRoot
    Etingof.simpleRepresentation_indecomposable k p,
    fun v => Etingof.simpleRepresentation_finrank_eq_simpleRoot k p v⟩
 
+universe u in
 /-- Every positive root of a Dynkin quiver is the dimension vector of some
 indecomposable representation.
 
@@ -199,7 +201,6 @@ diagram, and a positive root α (i.e., α ≠ 0, B(α, α) = 2, all coordinates
 nonneg), there exists an indecomposable quiver representation ρ over any field k
 such that `finrank k (ρ.obj v) = α v` at each vertex v.
 (Etingof Corollary 6.8.4) -/
-universe u in
 theorem Etingof.Corollary6_8_4
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
@@ -213,22 +214,29 @@ theorem Etingof.Corollary6_8_4
       ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v)) := by
   -- By Theorem 6.8.1, iterated simple reflections reduce α to a simple root αₚ.
   obtain ⟨vertices, p, hreduce⟩ := Etingof.Theorem6_8_1 hDynkin α hα.2 hα.1.1 hα.1.2
-  -- The proof proceeds by induction on the reflection sequence `vertices`.
-  --
-  -- BASE CASE (vertices = []): α = simpleRoot n p directly.
-  --   The simple representation k₍ₚ₎ (1-dim at p, 0 elsewhere) realizes this.
-  --   See `Corollary6_8_4_simpleRoot` above.
-  --
-  -- INDUCTIVE STEP (vertices = i :: rest):
-  --   Let α' = sᵢ(α). By the induction hypothesis (on the quiver
-  --   `reversedAtVertex Q i`), there exists an indecomposable representation ρ'
-  --   with dim vector α'. Apply F⁻ᵢ(ρ') to obtain ρ on Q.
-  --   Requires: F⁻ᵢ (Def 6.6.4), Prop 6.6.7 source (indecomposability),
-  --   Prop 6.6.8 source (dimension vector tracking).
-  --
-  -- The inductive step is blocked by:
-  -- 1. Proposition 6.6.7 source case is sorry'd.
-  -- 2. Chaining quiver reversals (each F⁻ᵢ changes the quiver via
-  --    `reversedAtVertex`) requires careful type-level tracking.
-  -- Note: `hQ : IsOrientationOf Q adj` now connects Q to the Dynkin diagram.
-  sorry
+  -- Induction on the reflection chain.
+  revert Q α hα hQ hreduce
+  induction vertices with
+  | nil =>
+    intro α hα Q _hQ hreduce
+    -- α = simpleRoot n p: the simple representation realizes it.
+    -- iteratedSimpleReflection [] α = α, so α = simpleRoot n p
+    change α = Etingof.simpleRoot n p at hreduce
+    subst hreduce
+    exact Etingof.Corollary6_8_4_simpleRoot p k
+  | cons i rest ih =>
+    intro α hα Q _hQ hreduce
+    -- Inductive step: apply F⁻ᵢ to reverse one reflection.
+    -- The reflected vector α' = sᵢ(α) satisfies:
+    --   iteratedSimpleReflection rest α' = simpleRoot n p
+    -- By IH on (reversedAtVertex Q i) with α', get an indecomposable ρ' on Q̄ᵢ.
+    -- Then F⁻ᵢ(ρ') lives on Q (since reversing at i twice recovers Q).
+    --
+    -- This step still requires:
+    -- - Showing i is a source or sink in Q (from the orientation + admissible ordering)
+    -- - Applying reflection functor F⁺ᵢ or F⁻ᵢ accordingly
+    -- - Proposition 6.6.7 (indecomposability preservation, sorry'd but usable)
+    -- - Proposition 6.6.8 (dimension vector tracking, sorry'd but usable)
+    -- - Double reversal identity
+    -- - Intermediate coordinate positivity (not exported from Thm 6.8.1)
+    sorry
