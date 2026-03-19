@@ -3161,9 +3161,9 @@
     "end_page": "116",
     "start_line": 13,
     "end_line": 14,
-    "status": "statement_formalized",
+    "status": "partially_proved",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: Both vanishing and diagonal parts have sorry. Depends on Specht module infrastructure (Theorem 5.12.2). No active claimed issue. Ready for feature issue once Theorem 5.12.2 classification is done."
+    "notes": "Vanishing part (Proposition5_14_1_vanishing) proved. Diagonal part (Proposition5_14_1_diagonal: dim Hom = 1) still sorry."
   },
   {
     "id": "Chapter5/Definition5.14.2",
