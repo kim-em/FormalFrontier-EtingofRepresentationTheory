@@ -316,15 +316,191 @@ of `U_μ` that are isomorphic (as `SymGroupAlgebra n`-modules) to `SpechtModule 
 restricted to a ℂ-submodule via the scalar tower. -/
 noncomputable def permModuleIsotypicComponent (n : ℕ) (mu nu : Nat.Partition n) :
     Submodule ℂ (PermutationModule n mu) :=
-  (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu)).restrictScalars ℂ
+  (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+    (SpechtModule n nu)).restrictScalars ℂ
 
-/-- The isotypic components form an internal direct sum decomposition of `U_μ` as
-ℂ-vector spaces. This follows from the semisimplicity of `ℂ[S_n]` and the
-fact that isotypic components for distinct simple types are independent. -/
-theorem permModule_isotypic_isInternal (n : ℕ) (mu : Nat.Partition n) :
+/-- Specht modules for distinct partitions are non-isomorphic as `SymGroupAlgebra n`-modules.
+This follows from the upper-triangular structure of the Kostka matrix: the multiplicity
+of `V_ν` in `U_μ` is zero when `μ` strictly dominates `ν`, and 1 when `μ = ν`. -/
+theorem spechtModule_noniso (n : ℕ) (nu₁ nu₂ : Nat.Partition n) (hne : nu₁ ≠ nu₂) :
+    IsEmpty (↥(SpechtModule n nu₁) ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu₂)) := by
+  sorry
+
+/-- Every simple `SymGroupAlgebra n`-submodule of a module is isomorphic to some Specht module.
+This is the completeness of the classification of S_n irreps: the Specht modules `{V_λ | λ ⊢ n}`
+form a complete set of pairwise non-isomorphic simple modules for `ℂ[S_n]`. -/
+theorem spechtModules_exhaust_simples (n : ℕ) (mu : Nat.Partition n)
+    (S : Submodule (SymGroupAlgebra n) (PermutationModule n mu))
+    [IsSimpleModule (SymGroupAlgebra n) S] :
+    ∃ nu : Nat.Partition n, Nonempty (↥S ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) := by
+  sorry
+
+/-- Isotypic components for non-isomorphic simple modules are disjoint.
+This follows from `sSupIndep_isotypicComponents`: the isotypic components (viewed as
+a set) are supremum-independent, which implies pairwise disjointness. Since Specht modules
+for distinct partitions are non-isomorphic, their isotypic components are distinct
+(when nonzero) and hence disjoint. -/
+private theorem isotypicComponent_disjoint_of_ne (n : ℕ) (mu : Nat.Partition n)
+    (nu₁ nu₂ : Nat.Partition n) (hne : nu₁ ≠ nu₂) :
+    Disjoint
+      (isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₁))
+      (isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₂)) := by
+  -- The intersection is a submodule of the semisimple PermutationModule,
+  -- hence semisimple. If nonzero, it contains a simple submodule S.
+  -- S ≤ isotypicComponent for nu₁ implies S ≃ SpechtModule nu₁.
+  -- S ≤ isotypicComponent for nu₂ implies S ≃ SpechtModule nu₂.
+  -- But SpechtModule nu₁ ≇ SpechtModule nu₂, contradiction.
+  rw [disjoint_iff]
+  set I := isotypicComponent (SymGroupAlgebra n)
+    (PermutationModule n mu) (SpechtModule n nu₁) ⊓
+    isotypicComponent (SymGroupAlgebra n)
+    (PermutationModule n mu) (SpechtModule n nu₂)
+  -- I is a submodule of a semisimple module, hence semisimple
+  haveI : IsSemisimpleModule (SymGroupAlgebra n) I :=
+    IsSemisimpleModule.of_injective
+      (Submodule.inclusion inf_le_left) (Submodule.inclusion_injective _)
+  -- Either I = ⊥ or I contains a simple submodule
+  rcases IsSemisimpleModule.eq_bot_or_exists_simple_le I with h | ⟨S, hS_le, hS_simple⟩
+  · exact h
+  · exfalso
+    -- S ≤ I ≤ isotypicComponent for nu₁
+    have hS_le₁ : S ≤ isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₁) :=
+      hS_le.trans inf_le_left
+    -- S ≤ I ≤ isotypicComponent for nu₂
+    have hS_le₂ : S ≤ isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₂) :=
+      hS_le.trans inf_le_right
+    -- By IsIsotypicOfType, S ≃ SpechtModule nu₁
+    haveI := hS_simple
+    haveI : IsSimpleModule (SymGroupAlgebra n) (SpechtModule n nu₁) :=
+      Theorem5_12_2_irreducible n nu₁
+    haveI : IsSimpleModule (SymGroupAlgebra n) (SpechtModule n nu₂) :=
+      Theorem5_12_2_irreducible n nu₂
+    have h₁ := isIsotypicOfType_submodule_iff.mp
+      (IsIsotypicOfType.isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₁)) S hS_le₁
+    have h₂ := isIsotypicOfType_submodule_iff.mp
+      (IsIsotypicOfType.isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu₂)) S hS_le₂
+    obtain ⟨e₁⟩ := h₁
+    obtain ⟨e₂⟩ := h₂
+    exact (spechtModule_noniso n nu₁ nu₂ hne).false (e₁.symm.trans e₂)
+
+/-- The isotypic components indexed by partitions span the entire
+module (as `SymGroupAlgebra n`-submodules). This follows from the
+classification: every simple `SymGroupAlgebra n`-module is isomorphic
+to some Specht module, so every isotypic component is covered. -/
+private theorem iSup_isotypicComponent_eq_top (n : ℕ) (mu : Nat.Partition n) :
+    ⨆ nu : Nat.Partition n,
+      isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu) = ⊤ := by
+  rw [eq_top_iff, ← sSup_isotypicComponents (SymGroupAlgebra n) (PermutationModule n mu)]
+  apply sSup_le
+  intro c hc
+  obtain ⟨S, hS_simple, rfl⟩ := hc
+  -- S is simple; by classification, S ≃ SpechtModule n nu
+  haveI := hS_simple
+  obtain ⟨nu, ⟨e⟩⟩ := spechtModules_exhaust_simples n mu S
+  rw [e.isotypicComponent_eq]
+  exact le_iSup (fun nu => isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+    (SpechtModule n nu)) nu
+
+/-- The indexed family of isotypic components is iSup-independent
+in the SymGroupAlgebra-submodule lattice. This bridges from
+`sSupIndep_isotypicComponents` (Mathlib) to the indexed version
+via the classification of simple modules. -/
+private theorem iSupIndep_isotypicComponent (n : ℕ)
+    (mu : Nat.Partition n) :
+    iSupIndep (fun nu : Nat.Partition n =>
+      isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu)) := by
+  -- Helper: non-bot isotypic component is in isotypicComponents
+  have mem_of_ne_bot : ∀ nu,
+      isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu) ≠ ⊥ →
+      isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu) ∈
+        isotypicComponents (SymGroupAlgebra n)
+          (PermutationModule n mu) := by
+    intro nu hbot
+    obtain ⟨S, hS_le, hS_simple⟩ :=
+      (IsSemisimpleModule.eq_bot_or_exists_simple_le _).resolve_left
+        hbot
+    haveI := hS_simple
+    haveI := Theorem5_12_2_irreducible n nu
+    obtain ⟨e⟩ := isIsotypicOfType_submodule_iff.mp
+      (IsIsotypicOfType.isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu)) S hS_le
+    exact ⟨S, hS_simple, e.symm.isotypicComponent_eq⟩
+  rw [iSupIndep_def]
+  intro nu
+  by_cases hbot : isotypicComponent (SymGroupAlgebra n)
+      (PermutationModule n mu) (SpechtModule n nu) = ⊥
+  · simp [hbot]
+  · -- Use sSupIndep_isotypicComponents: f nu is disjoint from
+    -- sSup (isotypicComponents \ {f nu}), and ⨆ j≠nu, f j ≤ that
+    apply (sSupIndep_isotypicComponents (SymGroupAlgebra n)
+      (PermutationModule n mu) (mem_of_ne_bot nu hbot)).mono_right
+    apply iSup₂_le
+    intro nu' hne
+    by_cases hbot' : isotypicComponent (SymGroupAlgebra n)
+        (PermutationModule n mu) (SpechtModule n nu') = ⊥
+    · simp [hbot']
+    · -- f nu' ≠ f nu by non-isomorphism of Specht modules
+      have hne_val : isotypicComponent (SymGroupAlgebra n)
+          (PermutationModule n mu) (SpechtModule n nu') ≠
+          isotypicComponent (SymGroupAlgebra n)
+            (PermutationModule n mu)
+            (SpechtModule n nu) := by
+        intro heq
+        obtain ⟨S, hS_le, hS_simple⟩ :=
+          (IsSemisimpleModule.eq_bot_or_exists_simple_le
+            _).resolve_left hbot
+        haveI := hS_simple
+        haveI := Theorem5_12_2_irreducible n nu
+        haveI := Theorem5_12_2_irreducible n nu'
+        obtain ⟨e₁⟩ := isIsotypicOfType_submodule_iff.mp
+          (IsIsotypicOfType.isotypicComponent (SymGroupAlgebra n)
+            (PermutationModule n mu) (SpechtModule n nu))
+          S hS_le
+        obtain ⟨e₂⟩ := isIsotypicOfType_submodule_iff.mp
+          (IsIsotypicOfType.isotypicComponent (SymGroupAlgebra n)
+            (PermutationModule n mu) (SpechtModule n nu'))
+          S (heq ▸ hS_le)
+        exact (spechtModule_noniso n nu nu' hne.symm).false
+          (e₁.symm.trans e₂)
+      exact le_sSup ⟨mem_of_ne_bot nu' hbot', hne_val⟩
+
+/-- The isotypic components form an internal direct sum
+decomposition of `U_μ` as ℂ-vector spaces. This follows from
+the semisimplicity of `ℂ[S_n]` and the fact that isotypic
+components for distinct simple types are independent. -/
+theorem permModule_isotypic_isInternal (n : ℕ)
+    (mu : Nat.Partition n) :
     DirectSum.IsInternal (fun nu : Nat.Partition n =>
       permModuleIsotypicComponent n mu nu) := by
-  sorry
+  rw [DirectSum.isInternal_submodule_iff_iSupIndep_and_iSup_eq_top]
+  refine ⟨?_, ?_⟩
+  · -- iSupIndep: transfer from A-lattice to ℂ-lattice
+    have h := iSupIndep_isotypicComponent n mu
+    rw [iSupIndep_def] at h ⊢
+    intro nu
+    simp only [permModuleIsotypicComponent]
+    specialize h nu
+    rw [disjoint_iff] at h ⊢
+    simp only [← Submodule.restrictScalars_iSup]
+    rw [← Submodule.restrictScalars_inf,
+        Submodule.restrictScalars_eq_bot_iff]
+    exact h
+  · -- iSup = ⊤: the isotypic components span everything
+    simp only [permModuleIsotypicComponent]
+    rw [← Submodule.restrictScalars_iSup,
+        show (⨆ i, isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+          (SpechtModule n i)) = (⊤ : Submodule (SymGroupAlgebra n) (PermutationModule n mu))
+          from iSup_isotypicComponent_eq_top n mu,
+        Submodule.restrictScalars_top]
 
 /-- The permutation action `σ` on `U_μ` maps each isotypic component to itself.
 This is because `σ` acts as a `ℂ[S_n]`-module endomorphism (left multiplication
@@ -339,7 +515,7 @@ private lemma permModuleEndomorphism_eq_smul (n : ℕ) (mu : Nat.Partition n)
   change Finsupp.lmapDomain ℂ ℂ (fun q => σ • q) v =
     (Representation.ofMulAction ℂ (G_n n) (Q_n n mu)).asAlgebraHom
       (MonoidAlgebra.of ℂ _ σ) v
-  simp [Representation.asAlgebraHom_single, Representation.ofMulAction_single]
+  simp [Representation.asAlgebraHom_single]
   rfl
 
 theorem permModuleEndomorphism_mapsTo_isotypic (n : ℕ) (mu : Nat.Partition n)
@@ -361,6 +537,30 @@ instance permModuleIsotypicComponent_free (n : ℕ) (mu nu : Nat.Partition n) :
     Module.Free ℂ (permModuleIsotypicComponent n mu nu) :=
   inferInstance
 
+/-- The isotypic component for `V_ν` in `U_μ` is isomorphic (as `ℂ`-vector space)
+to `Fin m → V_ν` where `m = spechtMultiplicity n mu nu`. This is the structural
+decomposition of the isotypic component as a direct sum of copies of the simple module. -/
+theorem isotypicComponent_linearEquiv_fun (n : ℕ) (mu nu : Nat.Partition n) :
+    Nonempty (↥(permModuleIsotypicComponent n mu nu) ≃ₗ[ℂ]
+      (Fin (spechtMultiplicity n mu nu) → ↥(SpechtModule n nu))) := by
+  sorry
+
+/-- On the isotypic component `V_ν^{⊕m}`, any `SymGroupAlgebra n`-endomorphism acts
+diagonally: the same endomorphism on each copy. In particular, for the permutation
+action `σ`, the restricted endomorphism is conjugate (via the isotypic decomposition)
+to the diagonal map `(σ|_{V_ν}, ..., σ|_{V_ν})`.
+
+This gives: `trace(σ|_{C_ν}) = m · trace(σ|_{V_ν})`. -/
+theorem trace_isotypic_eq_mult_trace (n : ℕ) (mu nu : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n))
+    (e : ↥(permModuleIsotypicComponent n mu nu) ≃ₗ[ℂ]
+      (Fin (spechtMultiplicity n mu nu) → ↥(SpechtModule n nu))) :
+    LinearMap.trace ℂ _ ((permModuleEndomorphism n mu σ).restrict
+      (permModuleEndomorphism_mapsTo_isotypic n mu σ nu)) =
+    (spechtMultiplicity n mu nu : ℂ) * LinearMap.trace ℂ _
+      (spechtModuleAction n nu σ) := by
+  sorry
+
 /-- The trace of `σ` restricted to the isotypic component of type `V_ν` equals
 `m(μ,ν) · χ_{V_ν}(σ)` where `m(μ,ν) = spechtMultiplicity n mu nu`.
 
@@ -373,7 +573,10 @@ theorem trace_isotypic_eq_mult_character (n : ℕ) (mu nu : Nat.Partition n)
     LinearMap.trace ℂ _ ((permModuleEndomorphism n mu σ).restrict
       (permModuleEndomorphism_mapsTo_isotypic n mu σ nu)) =
     (spechtMultiplicity n mu nu : ℂ) * spechtModuleCharacter n nu σ := by
-  sorry
+  obtain ⟨e⟩ := isotypicComponent_linearEquiv_fun n mu nu
+  rw [trace_isotypic_eq_mult_trace n mu nu σ e]
+  -- spechtModuleCharacter = trace of spechtModuleAction by definition
+  rfl
 
 /-! ### Young's Rule (character decomposition)
 
