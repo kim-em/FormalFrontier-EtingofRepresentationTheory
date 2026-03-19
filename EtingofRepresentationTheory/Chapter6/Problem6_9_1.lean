@@ -69,6 +69,13 @@ structure Q₂Rep (k : Type*) [Field k] where
 attribute [instance] Q₂Rep.instACV Q₂Rep.instModV Q₂Rep.instFDV
   Q₂Rep.instACW Q₂Rep.instModW Q₂Rep.instFDW
 
+/-- Swap V ↔ W and A ↔ B. -/
+def Q₂Rep.swap {k : Type*} [Field k] (ρ : Q₂Rep k) : Q₂Rep k where
+  V := ρ.W
+  W := ρ.V
+  A := ρ.B
+  B := ρ.A
+
 /-- A Q₂-representation is indecomposable if it is nontrivial and for any
 compatible decomposition V = V' ⊕ V'', W = W' ⊕ W'' (with A, B respecting
 the decomposition), one of the summands is zero. -/
@@ -415,6 +422,114 @@ theorem Etingof.Problem6_9_1b (ρ : Q₂Rep ℂ)
       (LinearMap.finrank_le_finrank_of_injective hA'_inj)
       (LinearMap.finrank_le_finrank_of_injective hB'_inj)
 
+/-- If v₀ ∈ ker A, v₀ ≠ 0, v₀ ∉ range B, and dim W > 0, then ρ is decomposable.
+Decomposition: (span{v₀}, ⊥) ⊕ (qV, ⊤) where qV contains range B. -/
+private lemma Q₂Rep.decomp_of_ker_A_not_range_B (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
+    (hW_pos : 0 < Module.finrank ℂ ρ.W)
+    (v₀ : ρ.V) (hv₀_ne : v₀ ≠ 0) (hv₀_kerA : ρ.A v₀ = 0)
+    (hv₀_not_rangeB : v₀ ∉ LinearMap.range ρ.B) : False := by
+  set V₁ := Submodule.span ℂ ({v₀} : Set ρ.V)
+  set S := LinearMap.range ρ.B
+  have h_disj : Disjoint V₁ S := by
+    rw [disjoint_comm]; exact (Submodule.disjoint_span_singleton' hv₀_ne).mpr hv₀_not_rangeB
+  obtain ⟨C, hTC⟩ := (V₁ ⊔ S).exists_isCompl
+  set qV := S ⊔ C
+  have hcV : IsCompl V₁ qV := by
+    constructor
+    · rw [disjoint_iff]
+      simp only [Submodule.eq_bot_iff]
+      intro x hx
+      have hx₁ : x ∈ V₁ := (Submodule.mem_inf.mp hx).1
+      have hx₂ : x ∈ qV := (Submodule.mem_inf.mp hx).2
+      obtain ⟨s, hs, c, hc, hsc⟩ := Submodule.mem_sup.mp hx₂
+      have hc_T : c ∈ V₁ ⊔ S := by
+        have heq : c = x - s := by rw [← hsc]; abel
+        rw [heq]; exact (V₁ ⊔ S).sub_mem (Submodule.mem_sup_left hx₁) (Submodule.mem_sup_right hs)
+      have hc0 : c = 0 := by
+        have h := Submodule.mem_inf.mpr ⟨hc_T, hc⟩
+        rwa [hTC.disjoint.eq_bot] at h
+      have hxs : x = s := by rw [← hsc, hc0, add_zero]
+      subst hxs
+      exact h_disj.le_bot (Submodule.mem_inf.mpr ⟨hx₁, hs⟩)
+    · simp only [codisjoint_iff]
+      calc V₁ ⊔ qV = V₁ ⊔ (S ⊔ C) := rfl
+        _ = (V₁ ⊔ S) ⊔ C := (sup_assoc _ _ _).symm
+        _ = ⊤ := hTC.codisjoint.eq_top
+  haveI : Nontrivial ρ.W := Module.finrank_pos_iff.mp hW_pos
+  rcases hρ.2 V₁ qV ⊥ ⊤ hcV isCompl_bot_top
+    (fun x hx => by
+      obtain ⟨c, rfl⟩ := Submodule.mem_span_singleton.mp hx
+      simp [hv₀_kerA])
+    (fun _ _ => Submodule.mem_top)
+    (fun x hx => by
+      have := (Submodule.mem_bot ℂ).mp hx
+      rw [this, map_zero]; exact Submodule.zero_mem _)
+    (fun x _ => (le_sup_left : S ≤ qV) (LinearMap.mem_range_self ρ.B x))
+  with ⟨hV₁_bot, _⟩ | ⟨_, hqW_bot⟩
+  · exact hv₀_ne (show v₀ ∈ (⊥ : Submodule ℂ ρ.V) from hV₁_bot ▸ Submodule.subset_span rfl)
+  · exact absurd hqW_bot (top_ne_bot (α := Submodule ℂ ρ.W))
+
+/-- Symmetric version: if w₀ ∈ ker B, w₀ ≠ 0, w₀ ∉ range A, and dim V > 0,
+then ρ is decomposable. -/
+private lemma Q₂Rep.decomp_of_ker_B_not_range_A (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
+    (hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (w₀ : ρ.W) (hw₀_ne : w₀ ≠ 0) (hw₀_kerB : ρ.B w₀ = 0)
+    (hw₀_not_rangeA : w₀ ∉ LinearMap.range ρ.A) : False := by
+  have hρ_swap : ρ.swap.Indecomposable := by
+    refine ⟨hρ.1.symm, fun pW qW pV qV hcW hcV hBpW hBqW hApV hAqV => ?_⟩
+    rcases hρ.2 pV qV pW qW hcV hcW hApV hAqV hBpW hBqW with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inl ⟨h2, h1⟩
+    · exact Or.inr ⟨h2, h1⟩
+  exact ρ.swap.decomp_of_ker_A_not_range_B hρ_swap hV_pos w₀ hw₀_ne hw₀_kerB hw₀_not_rangeA
+
+/-- If ρ is indecomposable with AB nilpotent and both dims > 0, then ker A ⊆ range B. -/
+private lemma Q₂Rep.ker_A_sub_range_B (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
+    (hAB : IsNilpotent (ρ.A.comp ρ.B))
+    (hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (hW_pos : 0 < Module.finrank ℂ ρ.W) :
+    LinearMap.ker ρ.A ≤ LinearMap.range ρ.B := by
+  intro v hv
+  by_contra h
+  exact ρ.decomp_of_ker_A_not_range_B hρ hW_pos v
+    (fun h0 => by simp [h0] at h) (LinearMap.mem_ker.mp hv) h
+
+/-- If ρ is indecomposable with AB nilpotent and both dims > 0, then ker B ⊆ range A. -/
+private lemma Q₂Rep.ker_B_sub_range_A (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
+    (hAB : IsNilpotent (ρ.A.comp ρ.B))
+    (hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (hW_pos : 0 < Module.finrank ℂ ρ.W) :
+    LinearMap.ker ρ.B ≤ LinearMap.range ρ.A := by
+  intro w hw
+  by_contra h
+  exact ρ.decomp_of_ker_B_not_range_A hρ hV_pos w
+    (fun h0 => by simp [h0] at h) (LinearMap.mem_ker.mp hw) h
+
+/-- Main nilpotent case: AB nilpotent + indecomposable + both dims > 0 → |dim V - dim W| ≤ 1.
+
+The proof strategy (from the book, Problem 6.9.1(c)):
+1. We showed ker A ⊆ range B and ker B ⊆ range A (via decomp_of_ker_A/B_not_range lemmas).
+2. The operator X(v,w) = (Bw, Av) on V ⊕ W is nilpotent.
+3. Indecomposability implies X has a single Jordan block, so dim(ker X) = 1.
+4. Since ker X = ker A × ker B, exactly one of nullity A, nullity B is 1 and the other is 0.
+5. If nullity A = 0 (A injective): dim V ≤ dim W, and rank B = dim W - 1, so dim W - 1 ≤ dim V.
+6. If nullity B = 0 (B injective): symmetrically dim W ≤ dim V and dim V - 1 ≤ dim W.
+
+Step 3 requires Jordan chain decomposition for nilpotent operators, which is not yet in Mathlib. -/
+private theorem Problem6_9_1_nilpotent_main (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
+    (hAB : IsNilpotent (ρ.A.comp ρ.B))
+    (hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (hW_pos : 0 < Module.finrank ℂ ρ.W) :
+    (Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W ∨
+     Module.finrank ℂ ρ.V = Module.finrank ℂ ρ.W + 1 ∨
+     Module.finrank ℂ ρ.W = Module.finrank ℂ ρ.V + 1) := by
+  -- Established: ker A ⊆ range B, ker B ⊆ range A
+  have _hkA := ρ.ker_A_sub_range_B hρ hAB hV_pos hW_pos
+  have _hkB := ρ.ker_B_sub_range_A hρ hAB hV_pos hW_pos
+  -- The dimension bound follows from: indecomposable ⟹ X has single Jordan block ⟹
+  -- nullity A + nullity B = 1 ⟹ |dim V - dim W| ≤ 1.
+  -- This requires Jordan chain decomposition for nilpotent operators (not in Mathlib).
+  sorry
+
 /-- **Problem 6.9.1(a) (Etingof)**: The four families E_{n,λ}, E_{n,∞}, H_n, K_n
 (as defined above) are indecomposable and pairwise nonisomorphic. Moreover, these
 are all the indecomposable representations of Q₂.
@@ -504,7 +619,8 @@ theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
         · exact hpV_ne h
         · exact hqV_ne h
       · -- Both dims positive: main case
-        sorry
+        exact Problem6_9_1_nilpotent_main ρ hρ hAB
+          (Nat.pos_of_ne_zero hV0) (Nat.pos_of_ne_zero hW0)
   · -- Non-nilpotent case: Fitting decomposition → dim V = dim W
     left
     -- Use Fitting decomposition directly
