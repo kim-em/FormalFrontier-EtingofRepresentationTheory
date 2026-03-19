@@ -99,11 +99,25 @@ theorem vandermondePoly_eq_sum_sign_monomial (n : ℕ) :
     vandermondePoly n =
       ∑ π : Equiv.Perm (Fin n),
         (Equiv.Perm.sign π : ℤ) • MvPolynomial.monomial (permExponent n π) (1 : ℂ) := by
-  -- vandermondePoly n = det(vandermonde(X)) by Matrix.det_vandermonde
-  -- det_apply expands as Σ_π sign(π) ∏_i M(π i, i)
-  -- (vandermonde X)(σ i, i) = X_{σ(i)}^i, reindex j = σ(i) gives X_j^{(σ⁻¹ j).val}
-  -- Then ∏_j X_j^{f(j)} = monomial f 1 by prod_X_pow_eq_monomial
-  sorry
+  -- Step 1: vandermondePoly n = det(vandermonde(X))
+  have hvand : vandermondePoly n =
+      (Matrix.vandermonde (fun i : Fin n => (MvPolynomial.X i : MvPolynomial (Fin n) ℂ))).det := by
+    simp only [vandermondePoly, Matrix.det_vandermonde]
+  rw [hvand, Matrix.det_apply]
+  apply Finset.sum_congr rfl
+  intro σ _
+  -- Goal: sign σ • ∏ i, (vandermonde X) (σ i) i = (↑(sign σ) : ℤ) • monomial ... 1
+  congr 1
+  simp only [Matrix.vandermonde_apply]
+  -- Goal: ∏ i, X (σ i) ^ i.val = monomial (permExponent n σ) 1
+  -- Reindex ∏_i X_{σ(i)}^i = ∏_j X_j^{(σ⁻¹ j).val}
+  rw [Fintype.prod_equiv σ
+    (fun i => MvPolynomial.X (σ i) ^ (i : ℕ))
+    (fun j => MvPolynomial.X j ^ (permExponent n σ) j)
+    (fun i => by simp [permExponent, Finsupp.equivFunOnFinite])]
+  -- Goal: ∏ j, X j ^ (permExponent n σ) j = monomial (permExponent n σ) 1
+  rw [MvPolynomial.monomial_eq, MvPolynomial.C_1, one_mul,
+    Finsupp.prod_fintype _ _ (fun i => by simp)]
 
 /-- Coefficient of x^{α+e} in (monomial e c) · P equals c · coeff(x^α, P).
 This is the shift property of polynomial multiplication by a monomial. -/
