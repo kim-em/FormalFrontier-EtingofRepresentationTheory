@@ -515,13 +515,185 @@ private lemma An_qform_ge_endpoints : ∀ (n : ℕ) (hn : 1 ≤ n) (x : Fin n �
         show x ⟨(Fin.mk (m - 1) (by omega) : Fin m).val, by omega⟩ =
           x ⟨m - 1, by omega⟩ from rfl]
 
+/-- If the A_n quadratic form vanishes on a nonneg vector, the vector is zero. -/
+private lemma An_qform_zero : ∀ (n : ℕ) (hn : 1 ≤ n) (x : Fin n → ℤ),
+    (∀ i, 0 ≤ x i) →
+    dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.A n hn).adj).mulVec x) = 0 →
+    x = 0 := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hn x hpos hq
+    by_cases hm : m = 0
+    · -- n = 1: 2x₀² = 0 → x₀ = 0
+      subst hm
+      ext i; fin_cases i
+      have : 2 * x 0 ^ 2 = 0 := by
+        have h := hq
+        simp only [dotProduct, mulVec, Etingof.DynkinType.adj, Matrix.sub_apply,
+          Matrix.smul_apply, Matrix.one_apply,
+          Finset.sum_fin_eq_sum_range, Finset.sum_range_succ, Finset.sum_range_zero] at h
+        nlinarith
+      nlinarith [sq_nonneg (x 0), hpos 0]
+    · -- n ≥ 2: use peel + induction
+      have hm1 : 1 ≤ m := by omega
+      rw [An_qform_peel m hm1 x] at hq
+      set x' := fun i : Fin m => x ⟨i.val, by omega⟩ with hx'
+      have hpos' : ∀ i, 0 ≤ x' i := fun i => hpos ⟨i.val, by omega⟩
+      have hge := An_qform_ge_endpoints m hm1 x'
+      -- q_m(x') ≥ 0 from An_qform_ge_endpoints (≥ x₀² + x_{m-1}² ≥ 0)
+      have hqm_nonneg : dotProduct x' ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+          (Etingof.DynkinType.A m hm1).adj).mulVec x') ≥ 0 := by
+        linarith [sq_nonneg (x' ⟨0, by omega⟩), sq_nonneg (x' ⟨m - 1, by omega⟩)]
+      -- 2x_m(x_m - x_{m-1}) = -q_m(x') ≤ 0
+      have hxm := hpos ⟨m, by omega⟩
+      have hxm1 := hpos ⟨m - 1, by omega⟩
+      -- From hq: q_m(x') + 2x_m² - 2x_{m-1}x_m = 0
+      -- So q_m(x') = 2x_{m-1}x_m - 2x_m² = -2x_m(x_m - x_{m-1})
+      -- Since q_m(x') ≥ 0: x_m(x_m - x_{m-1}) ≤ 0
+      -- Since x_m ≥ 0: either x_m = 0, or x_m ≤ x_{m-1}
+      by_cases hxm_zero : x ⟨m, by omega⟩ = 0
+      · -- x_m = 0: q_m(x') = 0, by IH x' = 0
+        have hqm_zero : dotProduct x' ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+            (Etingof.DynkinType.A m hm1).adj).mulVec x') = 0 := by linarith
+        have := ih hm1 x' hpos' hqm_zero
+        ext i
+        by_cases hi : i.val < m
+        · have := congr_fun this ⟨i.val, hi⟩
+          simp only [Pi.zero_apply] at this
+          exact this ▸ (congr_arg x (Fin.ext rfl) : x ⟨(⟨i.val, hi⟩ : Fin m).val, by omega⟩ = x i)
+        · have : i.val = m := by omega
+          rw [show i = ⟨m, by omega⟩ from Fin.ext this]
+          exact hxm_zero
+      · -- x_m ≥ 1: must have x_m ≤ x_{m-1}
+        -- Then q_m(x') = 0 and x_m(x_m - x_{m-1}) = 0
+        -- So x_m = x_{m-1}, q_m(x') = 0, x' = 0
+        -- But x_{m-1} = x'(m-1) = 0 and x_m = x_{m-1} = 0, contradiction
+        exfalso
+        have hxm_pos : x ⟨m, by omega⟩ ≥ 1 := by omega
+        -- q_m(x') + 2x_m² - 2x_{m-1}x_m = 0 and q_m(x') ≥ 0
+        -- So 2x_m² - 2x_{m-1}x_m ≤ 0, i.e., x_m ≤ x_{m-1}
+        have hle : x ⟨m, by omega⟩ ≤ x ⟨m - 1, by omega⟩ := by nlinarith
+        -- Both q_m(x') ≥ 0 and 2x_m(x_m - x_{m-1}) ≤ 0, sum = 0 → both = 0
+        have hqm_zero : dotProduct x' ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+            (Etingof.DynkinType.A m hm1).adj).mulVec x') = 0 := by nlinarith
+        have := ih hm1 x' hpos' hqm_zero
+        -- x' = 0, so x_{m-1} = 0
+        have : x' ⟨m - 1, by omega⟩ = 0 := by
+          have := congr_fun this ⟨m - 1, by omega⟩; simpa using this
+        -- But x_m ≤ x_{m-1} = 0 and x_m ≥ 1: contradiction
+        simp only [hx'] at this
+        omega
+
 /-- All positive roots of A_n have each coordinate < 2. -/
 private lemma An_bound (n : ℕ) (hn : 1 ≤ n) (x : Fin n → ℤ)
     (hr : Etingof.IsRoot n (Etingof.DynkinType.A n hn).adj x)
     (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 2 := by
-  -- From An_qform_ge_endpoints: q(x) ≥ x₀² + x_{n-1}² and q(x) = 2
-  -- So endpoints ∈ {0,1}. Peel decomposition + IH bounds all coords.
-  sorry
+  -- Strategy: induction on n using peel + An_qform_ge_endpoints + An_qform_zero
+  have hq := hr.2  -- q(x) = 2
+  have hne := hr.1  -- x ≠ 0
+  induction n with
+  | zero => omega
+  | succ m ih =>
+    by_cases hm : m = 0
+    · -- n = 1: 2x₀² = 2, x₀ = 1 < 2
+      subst hm; intro i; fin_cases i
+      have : 2 * x 0 ^ 2 = 2 := by
+        simp only [dotProduct, mulVec, Etingof.DynkinType.adj, Matrix.sub_apply,
+          Matrix.smul_apply, Matrix.one_apply,
+          Finset.sum_fin_eq_sum_range, Finset.sum_range_succ, Finset.sum_range_zero] at hq
+        nlinarith
+      nlinarith [sq_nonneg (x 0 - 1), hp 0]
+    · have hm1 : 1 ≤ m := by omega
+      rw [An_qform_peel m hm1 x] at hq
+      set x' := fun i : Fin m => x ⟨i.val, by omega⟩ with hx'
+      have hpos' : ∀ i, 0 ≤ x' i := fun i => hp ⟨i.val, by omega⟩
+      have hge := An_qform_ge_endpoints m hm1 x'
+      set r := dotProduct x' ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+          (Etingof.DynkinType.A m hm1).adj).mulVec x') with hr_def
+      -- r + 2x_m² - 2x_{m-1}x_m = 2
+      have hxm := hp ⟨m, by omega⟩
+      -- Cases on x_m
+      by_cases hxm0 : x ⟨m, by omega⟩ = 0
+      · -- x_m = 0: r = 2, x' is a root, use IH
+        have hr2 : r = 2 := by linarith
+        have hne' : x' ≠ 0 := by
+          intro heq
+          apply hne; ext i
+          by_cases hi : i.val < m
+          · have := congr_fun heq ⟨i.val, hi⟩
+            simp [Pi.zero_apply] at this
+            exact this ▸ (congr_arg x (Fin.ext rfl))
+          · have : i = ⟨m, by omega⟩ := Fin.ext (by omega)
+            rw [this]; exact hxm0
+        have hroot' : Etingof.IsRoot m (Etingof.DynkinType.A m hm1).adj x' :=
+          ⟨hne', hr2 ▸ hr_def ▸ rfl⟩
+        intro i
+        by_cases hi : i.val < m
+        · have := ih hm1 x' hroot' hpos' ⟨i.val, hi⟩
+          show x i < 2
+          have : x' ⟨i.val, hi⟩ < 2 := this
+          simp only [hx'] at this
+          exact (congr_arg x (Fin.ext rfl)).symm ▸ this
+        · rw [show i = ⟨m, by omega⟩ from Fin.ext (by omega), hxm0]; omega
+      · -- x_m ≥ 1
+        have hxm_pos : x ⟨m, by omega⟩ ≥ 1 := by omega
+        by_cases hle : x ⟨m, by omega⟩ ≤ x ⟨m - 1, by omega⟩
+        · -- x_m ≤ x_{m-1}: 2x_m(x_m - x_{m-1}) ≤ 0, so r ≥ 2
+          -- Also r ≥ 0 and r + 2x_m(x_m-x_{m-1}) = 2
+          -- r = 2 - 2x_m(x_m-x_{m-1}) ≥ 2. Since r ≤ 2 + 2x_m(x_{m-1}-x_m),
+          -- and r + 2x_m² - 2x_{m-1}x_m = 2 and r ≥ x₀²+x_{m-1}² ≥ 0
+          -- r = 2 requires x_m = x_{m-1}
+          have : 2 * x ⟨m, by omega⟩ ^ 2 - 2 * x ⟨m - 1, by omega⟩ * x ⟨m, by omega⟩ ≤ 0 := by
+            nlinarith
+          have hr_ge2 : r ≥ 2 := by linarith
+          have hr_eq2 : r = 2 := by
+            have : r ≤ 2 := by linarith
+            omega
+          have hxm_eq : x ⟨m, by omega⟩ = x ⟨m - 1, by omega⟩ := by nlinarith
+          have hne' : x' ≠ 0 := by
+            intro heq
+            have : x' ⟨m - 1, by omega⟩ = 0 := by
+              have := congr_fun heq ⟨m - 1, by omega⟩; simpa using this
+            simp only [hx'] at this
+            omega
+          have hroot' : Etingof.IsRoot m (Etingof.DynkinType.A m hm1).adj x' :=
+            ⟨hne', hr_eq2 ▸ hr_def ▸ rfl⟩
+          intro i
+          by_cases hi : i.val < m
+          · have := ih hm1 x' hroot' hpos' ⟨i.val, hi⟩
+            show x i < 2
+            simp only [hx'] at this
+            exact (congr_arg x (Fin.ext rfl)).symm ▸ this
+          · rw [show i = ⟨m, by omega⟩ from Fin.ext (by omega)]
+            have := ih hm1 x' hroot' hpos' ⟨m - 1, by omega⟩
+            simp only [hx'] at this; linarith
+        · -- x_m > x_{m-1}: x_m(x_m - x_{m-1}) ≥ 1, so r ≤ 0, so r = 0
+          push_neg at hle
+          have hgt : x ⟨m, by omega⟩ > x ⟨m - 1, by omega⟩ := hle
+          have hprod : x ⟨m, by omega⟩ * (x ⟨m, by omega⟩ - x ⟨m - 1, by omega⟩) ≥ 1 := by
+            nlinarith
+          have hr0 : r = 0 := by
+            have : r ≤ 0 := by nlinarith
+            have : r ≥ 0 := by
+              linarith [sq_nonneg (x' ⟨0, by omega⟩), sq_nonneg (x' ⟨m - 1, by omega⟩)]
+            omega
+          -- r = 0 → x' = 0 by An_qform_zero
+          have hx'_zero := An_qform_zero m hm1 x' hpos' (hr0 ▸ hr_def ▸ rfl)
+          -- From r + 2x_m² - 2x_{m-1}x_m = 2 and r = 0: x_m(x_m - x_{m-1}) = 1
+          -- x_{m-1} = 0 (from x' = 0), so x_m² = 1, x_m = 1
+          have hxm1_zero : x ⟨m - 1, by omega⟩ = 0 := by
+            have := congr_fun hx'_zero ⟨m - 1, by omega⟩
+            simp [Pi.zero_apply, hx'] at this; exact this
+          have hxm_val : x ⟨m, by omega⟩ = 1 := by nlinarith [sq_nonneg (x ⟨m, by omega⟩ - 1)]
+          intro i
+          by_cases hi : i.val < m
+          · have := congr_fun hx'_zero ⟨i.val, hi⟩
+            simp [Pi.zero_apply, hx'] at this
+            show x i < 2; rw [show i = ⟨i.val, by omega⟩ from Fin.ext rfl]; linarith
+          · rw [show i = ⟨m, by omega⟩ from Fin.ext (by omega), hxm_val]; omega
 
 /-- The count of rootCountFinset for A_n with bound 2 equals n(n+1)/2. -/
 private lemma An_count (n : ℕ) (hn : 1 ≤ n) :
