@@ -3161,7 +3161,7 @@
     "end_page": "116",
     "start_line": 13,
     "end_line": 14,
-    "status": "proved",
+    "status": "sorry_free",
     "needs_statement": false,
     "notes": "Both vanishing and diagonal parts fully proved (0 sorries in file)."
   },
