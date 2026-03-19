@@ -168,19 +168,383 @@ theorem coeff_psum_prod_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
   simp only [Nat.card_eq_fintype_card, Fintype.card_subtype, Finset.card_filter]
   congr
 
-/-- The number of fixed cosets equals the number of monochromatic colorings.
-This is the group action side of the bijection.
+/-! ## Helper infrastructure for fixedCosets_eq_card_colorings
 
-A coset gS_λ is fixed by σ iff g⁻¹σg ∈ RowSubgroup, meaning each cycle of σ
-lies in one row under g's relabeling. The coloring sends each cycle to its row.
+The proof proceeds through an intermediate type of σ-invariant row colorings:
+1. Fixed cosets biject with σ-invariant colorings (via coset representatives)
+2. σ-invariant colorings biject with MonochromaticColorings (via orbit decomposition)
+-/
 
-The proof constructs a bijection via σ-invariant row colorings:
-- Forward: fixed coset aP_λ ↦ coloring c(i) = rowOfPos(a⁻¹(i))
-- Backward: valid coloring → coset of any permutation implementing it -/
+noncomputable section fixedCosets_helpers
+
+open scoped Classical
+open Finset
+
+/-- Construct a fiber-matching bijection: given two functions with the same fiber
+cardinalities, build a bijection that maps fibers to corresponding fibers. -/
+private def fiberMatchEquiv' {N : ℕ} {T : Type*} [DecidableEq T]
+    (p₁ p₂ : Fin N → T)
+    (h : ∀ t : T, (univ.filter (fun k => p₁ k = t)).card =
+                   (univ.filter (fun k => p₂ k = t)).card) :
+    Fin N ≃ Fin N :=
+  (Equiv.sigmaFiberEquiv p₁).symm.trans
+    ((Equiv.sigmaCongrRight (fun t =>
+      Fintype.equivOfCardEq (by simp only [Fintype.card_subtype]; exact h t))).trans
+    (Equiv.sigmaFiberEquiv p₂))
+
+private lemma fiberMatchEquiv'_spec {N : ℕ} {T : Type*} [DecidableEq T]
+    (p₁ p₂ : Fin N → T) (h) (m : Fin N) :
+    p₂ (fiberMatchEquiv' p₁ p₂ h m) = p₁ m := by
+  simp only [fiberMatchEquiv', Equiv.trans_apply, Equiv.sigmaCongrRight_apply,
+    Equiv.sigmaFiberEquiv_apply]
+  exact ((Fintype.equivOfCardEq _ ((Equiv.sigmaFiberEquiv p₁).symm m).snd) :
+    {k // p₂ k = ((Equiv.sigmaFiberEquiv p₁).symm m).fst}).prop
+
+/-- The "row of position" function, mapping each Fin n to its row in the Young diagram,
+viewed as a natural number. This is the same as `rowOfPos` applied to the sorted parts. -/
+private abbrev rowFun (la : Nat.Partition n) (k : Fin n) : ℕ :=
+  rowOfPos la.sortedParts k.val
+
+/-- rowOfPos returns a value less than the list length when the position is valid. -/
+private lemma rowOfPos_lt_length (parts : List ℕ) (k : ℕ) (hk : k < parts.sum) :
+    rowOfPos parts k < parts.length := by
+  induction parts generalizing k with
+  | nil => simp at hk
+  | cons p ps ih =>
+    simp only [rowOfPos]; split
+    · simp
+    · next h =>
+      push_neg at h
+      have := ih (k - p) (by simp [List.sum_cons] at hk; omega)
+      simp; omega
+
+/-- The sorted parts of a partition sum to n. -/
+private lemma sortedParts_sum (n : ℕ) (la : Nat.Partition n) : la.sortedParts.sum = n := by
+  unfold Nat.Partition.sortedParts
+  have h : (↑(la.parts.sort (· ≥ ·)) : Multiset ℕ) = la.parts := Multiset.sort_eq _ _
+  calc (la.parts.sort (· ≥ ·)).sum
+      = (↑(la.parts.sort (· ≥ ·)) : Multiset ℕ).sum := by rw [Multiset.sum_coe]
+    _ = la.parts.sum := by rw [h]
+    _ = n := la.parts_sum
+
+/-- All parts of a partition are positive. -/
+private lemma sortedParts_pos (n : ℕ) (la : Nat.Partition n) :
+    ∀ x ∈ la.sortedParts, 1 ≤ x := by
+  intro x hx; unfold Nat.Partition.sortedParts at hx
+  have h : (↑(la.parts.sort (· ≥ ·)) : Multiset ℕ) = la.parts := Multiset.sort_eq _ _
+  exact Nat.Partition.parts_pos la (by rw [← h]; exact hx)
+
+/-- A list of positive numbers has length at most its sum. -/
+private lemma list_length_le_sum_of_pos (l : List ℕ) (h : ∀ x ∈ l, 1 ≤ x) :
+    l.length ≤ l.sum := by
+  induction l with
+  | nil => simp
+  | cons a t ih =>
+    simp [List.sum_cons]
+    have := h a (List.mem_cons.mpr (Or.inl rfl))
+    have := ih (fun x hx => h x (List.mem_cons.mpr (Or.inr hx)))
+    omega
+
+/-- The number of parts is at most n. -/
+private lemma sortedParts_length_le (n : ℕ) (la : Nat.Partition n) :
+    la.sortedParts.length ≤ n :=
+  calc la.sortedParts.length
+      ≤ la.sortedParts.sum := list_length_le_sum_of_pos _ (sortedParts_pos n la)
+    _ = n := sortedParts_sum n la
+
+/-- rowFun returns a value less than n. -/
+private lemma rowFun_lt (la : Nat.Partition n) (k : Fin n) : rowFun la k < n := by
+  calc rowFun la k
+      < la.sortedParts.length := rowOfPos_lt_length _ _ (by rw [sortedParts_sum]; exact k.isLt)
+    _ ≤ n := sortedParts_length_le n la
+
+/-- rowOfPos (p :: ps) k = 0 iff k < p. -/
+private lemma rowOfPos_cons_eq_zero (p : ℕ) (ps : List ℕ) (k : ℕ) :
+    rowOfPos (p :: ps) k = 0 ↔ k < p := by
+  simp [rowOfPos]
+
+/-- Counting elements less than p in Fin (p + q). -/
+private lemma card_filter_lt (p q : ℕ) :
+    (univ.filter (fun k : Fin (p + q) => k.val < p)).card = p := by
+  trans (Finset.univ : Finset (Fin p)).card
+  · apply Finset.card_bij (fun k _ => ⟨k.val, by
+      simp only [mem_filter, mem_univ, true_and] at *; assumption⟩)
+    · intro k _; exact mem_univ _
+    · intro a _ b _ h; ext; exact Fin.mk.inj h
+    · intro k _; exact ⟨⟨k.val, by omega⟩, by simp [mem_filter, k.isLt], by ext; simp⟩
+  · exact Fintype.card_fin p
+
+/-- Shifting filter indices by p. -/
+private lemma card_filter_shift (p q : ℕ) (f : ℕ → ℕ) (j : ℕ) :
+    (univ.filter (fun k : Fin (p + q) => ¬(k.val < p) ∧ f (k.val - p) = j)).card =
+    (univ.filter (fun k : Fin q => f k.val = j)).card := by
+  set S := univ.filter (fun k : Fin (p + q) => ¬(k.val < p) ∧ f (k.val - p) = j)
+  set T := univ.filter (fun k : Fin q => f k.val = j)
+  apply Finset.card_bij (fun k _ => (⟨k.val - p, by
+    have := k.isLt; have hk := (mem_filter.mp ‹k ∈ S›).2.1; omega⟩ : Fin q))
+  · intro k hk; simp only [S, mem_filter, mem_univ, true_and] at hk
+    simp only [T, mem_filter, mem_univ, true_and]; exact hk.2
+  · intro k₁ hk₁ k₂ hk₂ heq
+    simp only [S, mem_filter, mem_univ, true_and] at hk₁ hk₂
+    simp only [Fin.mk.injEq] at heq; ext; omega
+  · intro k hk; simp only [T, mem_filter, mem_univ, true_and] at hk
+    refine ⟨⟨k.val + p, by omega⟩, ?_, ?_⟩
+    · simp only [S, mem_filter, mem_univ, true_and]
+      exact ⟨by omega, by show f (↑k + p - p) = j; simp [hk]⟩
+    · ext; simp
+
+/-- General counting lemma: #{k ∈ Fin parts.sum | rowOfPos parts k = j} = parts.getD j 0. -/
+private lemma card_filter_rowOfPos_gen (parts : List ℕ) (j : ℕ) :
+    (univ.filter (fun k : Fin parts.sum => rowOfPos parts k.val = j)).card =
+    parts.getD j 0 := by
+  induction parts generalizing j with
+  | nil => simp [rowOfPos]
+  | cons p ps ih =>
+    cases j with
+    | zero =>
+      simp only [List.getD_cons_zero, List.sum_cons]
+      have : (univ.filter (fun k : Fin (p + ps.sum) => rowOfPos (p :: ps) k.val = 0)) =
+             (univ.filter (fun k : Fin (p + ps.sum) => k.val < p)) := by
+        ext k; simp only [mem_filter, mem_univ, true_and]; exact rowOfPos_cons_eq_zero p ps k.val
+      rw [this]; exact card_filter_lt p ps.sum
+    | succ j =>
+      simp only [List.getD_cons_succ, List.sum_cons]
+      have : (univ.filter (fun k : Fin (p + ps.sum) => rowOfPos (p :: ps) k.val = j + 1)) =
+             (univ.filter (fun k : Fin (p + ps.sum) =>
+               ¬(k.val < p) ∧ rowOfPos ps (k.val - p) = j)) := by
+        ext ⟨v, hv⟩; simp only [mem_filter, mem_univ, true_and, rowOfPos]; split_ifs with h
+        · simp [h]
+        · exact ⟨fun h1 => ⟨h, by omega⟩, fun ⟨_, h2⟩ => by omega⟩
+      rw [this, card_filter_shift p ps.sum (rowOfPos ps) j]; exact ih j
+
+/-- The key counting lemma: the number of positions in row j equals the j-th part. -/
+private lemma card_filter_rowFun (la : Nat.Partition n) (j : ℕ) :
+    (univ.filter (fun k : Fin n => rowFun la k = j)).card = la.sortedParts.getD j 0 := by
+  have h := card_filter_rowOfPos_gen la.sortedParts j
+  rw [sortedParts_sum] at h; exact h
+
+/-- Sum of getD over Fin n equals list sum. -/
+private lemma list_sum_eq_fin_sum_getD : ∀ (l : List ℕ) (m : ℕ), l.length ≤ m →
+    ∑ j : Fin m, l.getD j.val 0 = l.sum := by
+  intro l; induction l with
+  | nil => intro m _; simp [List.getD]
+  | cons h t ih =>
+    intro m hm; cases m with
+    | zero => simp at hm
+    | succ m =>
+      rw [Fin.sum_univ_succ]
+      simp only [Fin.val_zero, List.getD_cons_zero, Fin.val_succ, List.getD_cons_succ,
+        List.sum_cons]
+      congr 1; exact ih m (by simp at hm; omega)
+
+/-- InvColor coloring values are bounded by n. -/
+private lemma invColor_val_lt {n : ℕ} {la : Nat.Partition n} {σ : Equiv.Perm (Fin n)}
+    (c : { c : Fin n → ℕ //
+      (∀ k : Fin n, c (σ k) = c k) ∧
+      (∀ j : Fin n, (univ.filter (fun k => c k = j.val)).card =
+        la.sortedParts.getD j.val 0) })
+    (k : Fin n) : c.val k < n := by
+  by_contra h; push_neg at h
+  have hdisj : ∀ i j : Fin n, i ≠ j →
+      Disjoint (univ.filter (fun k => c.val k = i.val))
+               (univ.filter (fun k => c.val k = j.val)) := by
+    intro i j hij
+    simp only [Finset.disjoint_filter]
+    intro x _ hi hj
+    exact hij (Fin.val_injective (hi.symm.trans hj))
+  have hsum : ∑ j : Fin n, (univ.filter (fun k' : Fin n => c.val k' = j.val)).card = n := by
+    simp_rw [c.prop.2]
+    rw [list_sum_eq_fin_sum_getD la.sortedParts n (sortedParts_length_le n la)]
+    exact sortedParts_sum n la
+  have hcard := card_biUnion (fun i (_ : i ∈ univ) j (_ : j ∈ univ) hij => hdisj i j hij)
+  have hk₀_not : k ∉ univ.biUnion (fun j : Fin n =>
+      univ.filter (fun k' => c.val k' = j.val)) := by
+    simp only [mem_biUnion, mem_filter, mem_univ, true_and, not_exists]; intro j; omega
+  have hstrict : univ.biUnion (fun j : Fin n =>
+      univ.filter (fun k' => c.val k' = j.val)) ⊂ univ :=
+    ⟨subset_univ _, fun hall => hk₀_not (hall (mem_univ k))⟩
+  have hlt := card_lt_card hstrict
+  rw [Finset.card_univ, Fintype.card_fin] at hlt
+  omega
+
+/-- The row coloring induced by a permutation: c(m) = rowOfPos(parts, g⁻¹(m)). -/
+private abbrev rowColorOf (la : Nat.Partition n) (g : Equiv.Perm (Fin n)) (m : Fin n) : ℕ :=
+  rowFun la (g⁻¹ m)
+
+/-- The row coloring from a fixed coset is σ-invariant. -/
+private lemma rowColorOf_invariant (la : Nat.Partition n) (σ g : Equiv.Perm (Fin n))
+    (hfix : σ • (QuotientGroup.mk g : Equiv.Perm (Fin n) ⧸ RowSubgroup n la) =
+            QuotientGroup.mk g)
+    (m : Fin n) : rowColorOf la g (σ m) = rowColorOf la g m := by
+  -- σ • mk g = mk (σ * g), so (σ * g)⁻¹ * g ∈ RowSubgroup
+  have hmem : (σ * g)⁻¹ * g ∈ RowSubgroup n la := by
+    rw [show σ • (QuotientGroup.mk g : Equiv.Perm (Fin n) ⧸ RowSubgroup n la) =
+         QuotientGroup.mk (σ * g) from rfl, QuotientGroup.eq] at hfix
+    exact hfix
+  -- Specialize at g⁻¹(σ m): ((σ*g)⁻¹ * g)(g⁻¹(σ m)) = g⁻¹ m
+  have hpred := hmem (g⁻¹ (σ m))
+  have hsimp : ((σ * g)⁻¹ * g) (g⁻¹ (σ m)) = g⁻¹ m := by
+    simp [Equiv.Perm.mul_apply, Equiv.Perm.inv_def, Equiv.symm_apply_apply,
+      Equiv.apply_symm_apply, mul_inv_rev]
+  rw [hsimp] at hpred
+  exact hpred.symm
+
+/-- Two permutations in the same coset give the same row coloring. -/
+private lemma rowColorOf_coset_eq (la : Nat.Partition n) (g₁ g₂ : Equiv.Perm (Fin n))
+    (hcoset : (QuotientGroup.mk g₁ : Equiv.Perm (Fin n) ⧸ RowSubgroup n la) =
+              QuotientGroup.mk g₂) (m : Fin n) :
+    rowColorOf la g₁ m = rowColorOf la g₂ m := by
+  rw [QuotientGroup.eq] at hcoset
+  have hpred := hcoset (g₂⁻¹ m)
+  have hsimp : (g₁⁻¹ * g₂) (g₂⁻¹ m) = g₁⁻¹ m := by
+    simp [Equiv.Perm.mul_apply, Equiv.apply_symm_apply]
+  rw [hsimp] at hpred
+  exact hpred
+
+/-- The row coloring has the correct fiber sizes: #{m | rowColorOf g m = j} = λ_j. -/
+private lemma card_rowColorOf (la : Nat.Partition n) (g : Equiv.Perm (Fin n)) (j : ℕ) :
+    (univ.filter (fun m : Fin n => rowColorOf la g m = j)).card =
+    la.sortedParts.getD j 0 := by
+  have : (univ.filter (fun m => rowColorOf la g m = j)) =
+         (univ.filter (fun k => rowFun la k = j)).image g := by
+    ext m; simp only [Finset.mem_filter, Finset.mem_image, Finset.mem_univ, true_and]
+    constructor
+    · intro h; exact ⟨g⁻¹ m, h, by simp⟩
+    · rintro ⟨k, hk, rfl⟩; simp [rowColorOf, hk]
+  rw [this, Finset.card_image_of_injective _ g.injective]
+  exact card_filter_rowFun la j
+
+/-- An σ-invariant row coloring with correct sizes. -/
+private def InvColor (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) : Type :=
+  { c : Fin n → ℕ //
+    (∀ k : Fin n, c (σ k) = c k) ∧
+    (∀ j : Fin n, (univ.filter (fun k => c k = j.val)).card = la.sortedParts.getD j.val 0) }
+
+/-- Forward direction: fixed coset → InvColor -/
+private def fixedToInvColor (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (q : MulAction.fixedBy (Equiv.Perm (Fin n) ⧸ RowSubgroup n la) σ) :
+    InvColor n la σ := by
+  refine ⟨rowColorOf la (Quotient.out q.val), ?_, ?_⟩
+  · intro k
+    apply rowColorOf_invariant la σ (Quotient.out q.val)
+    rw [QuotientGroup.out_eq']
+    exact q.prop
+  · intro j
+    exact card_rowColorOf la (Quotient.out q.val) j.val
+
+/-- The fiber sizes of an InvColor coloring match those of rowFun. -/
+private lemma invColor_fiber_eq (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (c : InvColor n la σ) (t : ℕ) :
+    (univ.filter (fun k : Fin n => c.val k = t)).card =
+    (univ.filter (fun k : Fin n => rowFun la k = t)).card := by
+  by_cases ht : t < n
+  · exact (c.prop.2 ⟨t, ht⟩).trans (card_filter_rowFun la t).symm
+  · -- Both filters are empty for t ≥ n
+    have h1 : (univ.filter (fun k : Fin n => c.val k = t)).card = 0 := by
+      rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+      intro k _; exact ne_of_lt (lt_of_lt_of_le (invColor_val_lt c k) (not_lt.mp ht))
+    have h2 : (univ.filter (fun k : Fin n => rowFun la k = t)).card = 0 := by
+      rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+      intro k _; exact ne_of_lt (lt_of_lt_of_le (rowFun_lt la k) (not_lt.mp ht))
+    omega
+
+/-- Backward direction: InvColor → fixed coset. -/
+private def invColorToFixed (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (c : InvColor n la σ) :
+    MulAction.fixedBy (Equiv.Perm (Fin n) ⧸ RowSubgroup n la) σ := by
+  set g_inv := fiberMatchEquiv' c.val (fun k => rowFun la k) (invColor_fiber_eq la σ c)
+  have spec : ∀ m, rowFun la (g_inv m) = c.val m := fun m =>
+    fiberMatchEquiv'_spec c.val _ _ m
+  refine ⟨QuotientGroup.mk g_inv.symm, ?_⟩
+  rw [MulAction.mem_fixedBy]
+  change QuotientGroup.mk (σ * g_inv.symm) = QuotientGroup.mk g_inv.symm
+  rw [QuotientGroup.eq]
+  intro k
+  change rowOfPos la.sortedParts (((σ * g_inv.symm)⁻¹ * g_inv.symm) k).val =
+       rowOfPos la.sortedParts k.val
+  have hperm : ((σ * g_inv.symm)⁻¹ * g_inv.symm) k =
+               g_inv (σ⁻¹ (g_inv.symm k)) := by simp [mul_assoc]
+  rw [hperm]
+  change rowFun la (g_inv (σ⁻¹ (g_inv.symm k))) = rowFun la k
+  rw [spec]
+  have cinv' : ∀ x, c.val (σ⁻¹ x) = c.val x := fun x => by
+    have := c.prop.1 (σ⁻¹ x); simp at this; exact this.symm
+  rw [cinv', ← spec (g_inv.symm k), Equiv.apply_symm_apply]
+
+/-- InvColor bijects with MonochromaticColoring via the orbit decomposition.
+Each σ-invariant coloring assigns the same color to all elements in a cycle.
+This collapses to a cycle-to-row assignment (MonochromaticColoring). -/
+private def invColorEquivMC (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
+    InvColor n la σ ≃ MonochromaticColoring n la σ := by
+  sorry
+
+/-- If two representatives give the same row coloring, they're in the same coset. -/
+private lemma rowColorOf_eq_imp_coset (la : Nat.Partition n) (g₁ g₂ : Equiv.Perm (Fin n))
+    (h : ∀ m : Fin n, rowColorOf la g₁ m = rowColorOf la g₂ m) :
+    (QuotientGroup.mk g₁ : Equiv.Perm (Fin n) ⧸ RowSubgroup n la) = QuotientGroup.mk g₂ := by
+  rw [QuotientGroup.eq]
+  intro k
+  -- rowColorOf la g m = rowFun la (g⁻¹ m), so h says rowFun la (g₁⁻¹ m) = rowFun la (g₂⁻¹ m)
+  -- We need rowOfPos parts ((g₁⁻¹ * g₂) k).val = rowOfPos parts k.val
+  -- (g₁⁻¹ * g₂) k = g₁⁻¹ (g₂ k), and with m = g₂ k:
+  -- rowFun la (g₁⁻¹ (g₂ k)) = rowFun la (g₂⁻¹ (g₂ k)) = rowFun la k
+  have hk := h (g₂ k)
+  -- hk : rowColorOf la g₁ (g₂ k) = rowColorOf la g₂ (g₂ k)
+  -- rowColorOf la g₂ (g₂ k) = rowFun la (g₂⁻¹ (g₂ k)) = rowFun la k
+  have hrhs : rowColorOf la g₂ (g₂ k) = rowFun la k := by
+    change rowFun la (g₂⁻¹ (g₂ k)) = rowFun la k
+    congr 1; exact g₂.symm_apply_apply k
+  rw [hrhs] at hk
+  -- hk : rowColorOf la g₁ (g₂ k) = rowFun la k
+  -- = rowFun la (g₁⁻¹ (g₂ k)) = rowFun la k
+  -- goal : rowFun la ((g₁⁻¹ * g₂) k) = rowFun la k
+  have hmul : (g₁⁻¹ * g₂) k = g₁⁻¹ (g₂ k) := by simp [Equiv.Perm.mul_apply]
+  rw [hmul]; exact hk
+
+/-- Injectivity of fixedToInvColor: different cosets give different colorings. -/
+private lemma fixedToInvColor_injective (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
+    Function.Injective (fixedToInvColor la σ) := by
+  intro q₁ q₂ heq
+  apply Subtype.ext
+  have hcolor : ∀ m, rowColorOf la (Quotient.out q₁.val) m =
+      rowColorOf la (Quotient.out q₂.val) m :=
+    fun m => congr_fun (congr_arg Subtype.val heq) m
+  have := rowColorOf_eq_imp_coset la (Quotient.out q₁.val) (Quotient.out q₂.val) hcolor
+  rwa [QuotientGroup.out_eq', QuotientGroup.out_eq'] at this
+
+/-- Surjectivity helper: the right inverse property of fixedToInvColor ∘ invColorToFixed. -/
+private lemma fixedToInvColor_rightInv (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (c : InvColor n la σ) :
+    fixedToInvColor la σ (invColorToFixed la σ c) = c := by
+  apply Subtype.ext; funext k
+  set g := fiberMatchEquiv' c.val (fun k => rowFun la k) (invColor_fiber_eq la σ c)
+  have hspec : ∀ m, (fun k => rowFun la k) (g m) = c.val m := fun m =>
+    fiberMatchEquiv'_spec c.val _ _ m
+  have hcoset := rowColorOf_coset_eq la
+    (Quotient.out (QuotientGroup.mk g.symm : Equiv.Perm (Fin n) ⧸ RowSubgroup n la))
+    g.symm (QuotientGroup.out_eq' _) k
+  have hgsym : g.symm⁻¹ = g := by ext x; simp
+  trans (rowColorOf la g.symm k)
+  · exact hcoset
+  · change rowFun la (g.symm⁻¹ k) = c.val k
+    rw [hgsym]
+    exact hspec k
+
+/-- The fixedBy ≃ InvColor equivalence, via bijection of fixedToInvColor. -/
+private def fixedByEquivInvColor (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
+    MulAction.fixedBy (Equiv.Perm (Fin n) ⧸ RowSubgroup n la) σ ≃
+    InvColor n la σ :=
+  Equiv.ofBijective (fixedToInvColor la σ)
+    ⟨fixedToInvColor_injective la σ,
+     fun c => ⟨invColorToFixed la σ c, fixedToInvColor_rightInv la σ c⟩⟩
+
+end fixedCosets_helpers
+
 theorem fixedCosets_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     permModuleCharacter n la σ = Nat.card (MonochromaticColoring n la σ) := by
-  sorry
+  unfold permModuleCharacter
+  exact Nat.card_congr ((fixedByEquivInvColor la σ).trans (invColorEquivMC la σ))
 
 /-- **Theorem 5.14.3** (Character formula via power sums): The character of the permutation
 module U_λ at a permutation σ with cycle type i = (i₁, i₂, ...) equals the coefficient

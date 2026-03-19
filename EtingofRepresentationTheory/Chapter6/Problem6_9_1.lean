@@ -436,8 +436,75 @@ theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
      Module.finrank ℂ ρ.W = Module.finrank ℂ ρ.V + 1) := by
   by_cases hAB : IsNilpotent (ρ.A.comp ρ.B)
   · -- Nilpotent case: AB nilpotent → |dim V - dim W| ≤ 1
-    -- This requires the chain/Jordan structure argument for nilpotent Q₂ reps
-    sorry
+    -- Tactic for showing all elements are zero when finrank = 0 over a field
+    have allz_V : Module.finrank ℂ ρ.V = 0 → ∀ x : ρ.V, x = 0 := fun h0 x => by
+      obtain ⟨c, hc, hcx⟩ := (Module.finrank_eq_zero_iff (R := ℂ) (M := ρ.V)).mp h0 x
+      exact (smul_eq_zero.mp hcx).resolve_left hc
+    have allz_W : Module.finrank ℂ ρ.W = 0 → ∀ x : ρ.W, x = 0 := fun h0 x => by
+      obtain ⟨c, hc, hcx⟩ := (Module.finrank_eq_zero_iff (R := ℂ) (M := ρ.W)).mp h0 x
+      exact (smul_eq_zero.mp hcx).resolve_left hc
+    by_cases hV0 : Module.finrank ℂ ρ.V = 0
+    · -- dim V = 0: show dim W = 1
+      right; right; rw [hV0, zero_add]
+      have hW_pos : 0 < Module.finrank ℂ ρ.W := by rcases hρ.1 with h | h <;> omega
+      haveI hV_ss : Subsingleton ρ.V :=
+        ⟨fun a b => by rw [allz_V hV0 a, allz_V hV0 b]⟩
+      by_contra hW_ne1
+      have : Nontrivial ρ.W := by
+        by_contra h; rw [not_nontrivial_iff_subsingleton] at h
+        exact absurd (Module.finrank_zero_of_subsingleton (R := ℂ) (M := ρ.W)) (by omega)
+      obtain ⟨w, hw⟩ := exists_ne (0 : ρ.W)
+      set pW := Submodule.span ℂ ({w} : Set ρ.W)
+      obtain ⟨qW, hcW⟩ := pW.exists_isCompl
+      have hpW_ne : pW ≠ ⊥ := by
+        intro h; apply hw
+        have : w ∈ pW := Submodule.subset_span rfl
+        rw [h] at this; simpa [Submodule.mem_bot] using this
+      have hqW_ne : qW ≠ ⊥ := by
+        intro h
+        have h1 : Module.finrank ℂ ↥pW ≤ 1 :=
+          (finrank_span_le_card ({w} : Set ρ.W)).trans (by simp)
+        have h2 : pW = ⊤ := eq_top_of_isCompl_bot (h ▸ hcW)
+        rw [h2, finrank_top] at h1; omega
+      rcases hρ.2 ⊥ ⊤ pW qW isCompl_bot_top hcW
+        (fun x _ => by rw [allz_V hV0 x, map_zero]; exact zero_mem _)
+        (fun x _ => by rw [allz_V hV0 x, map_zero]; exact zero_mem _)
+        (fun x _ => by rw [allz_V hV0 (ρ.B x)]; exact zero_mem _)
+        (fun x _ => Submodule.mem_top) with ⟨_, h⟩ | ⟨_, h⟩
+      · exact hpW_ne h
+      · exact hqW_ne h
+    · by_cases hW0 : Module.finrank ℂ ρ.W = 0
+      · -- dim W = 0: show dim V = 1 (symmetric)
+        right; left; rw [hW0, zero_add]
+        have hV_pos : 0 < Module.finrank ℂ ρ.V := by rcases hρ.1 with h | h <;> omega
+        haveI hW_ss : Subsingleton ρ.W :=
+          ⟨fun a b => by rw [allz_W hW0 a, allz_W hW0 b]⟩
+        by_contra hV_ne1
+        have : Nontrivial ρ.V := by
+          by_contra h; rw [not_nontrivial_iff_subsingleton] at h
+          exact absurd (Module.finrank_zero_of_subsingleton (R := ℂ) (M := ρ.V)) (by omega)
+        obtain ⟨v, hv⟩ := exists_ne (0 : ρ.V)
+        set pV := Submodule.span ℂ ({v} : Set ρ.V)
+        obtain ⟨qV, hcV⟩ := pV.exists_isCompl
+        have hpV_ne : pV ≠ ⊥ := by
+          intro h; apply hv
+          have : v ∈ pV := Submodule.subset_span rfl
+          rw [h] at this; simpa [Submodule.mem_bot] using this
+        have hqV_ne : qV ≠ ⊥ := by
+          intro h
+          have h1 : Module.finrank ℂ ↥pV ≤ 1 :=
+            (finrank_span_le_card ({v} : Set ρ.V)).trans (by simp)
+          have h2 : pV = ⊤ := eq_top_of_isCompl_bot (h ▸ hcV)
+          rw [h2, finrank_top] at h1; omega
+        rcases hρ.2 pV qV ⊥ ⊤ hcV isCompl_bot_top
+          (fun x _ => by rw [allz_W hW0 (ρ.A x)]; exact zero_mem _)
+          (fun x _ => Submodule.mem_top)
+          (fun x _ => by rw [allz_W hW0 x, map_zero]; exact zero_mem _)
+          (fun x _ => by rw [allz_W hW0 x, map_zero]; exact zero_mem _) with ⟨h, _⟩ | ⟨h, _⟩
+        · exact hpV_ne h
+        · exact hqV_ne h
+      · -- Both dims positive: main case
+        sorry
   · -- Non-nilpotent case: Fitting decomposition → dim V = dim W
     left
     -- Use Fitting decomposition directly

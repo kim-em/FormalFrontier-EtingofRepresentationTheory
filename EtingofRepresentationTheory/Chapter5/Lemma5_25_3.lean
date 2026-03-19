@@ -229,9 +229,89 @@ theorem Etingof.Lemma5_25_3_innerProduct
 /-- **Lemma 5.25.3 (part 2)**: The complementary series virtual character
 satisfies χ(1) = q - 1 > 0, confirming it has positive dimension.
 (Etingof Lemma 5.25.3) -/
+private lemma Etingof.charW₁_one :
+    Etingof.GL2.charW₁ p n 1 =
+      (@Fintype.card (GaloisField p n) (Fintype.ofFinite _) : ℂ) := by
+  unfold GL2.charW₁
+  simp only [Matrix.GeneralLinearGroup.coe_one, Matrix.one_apply]
+  norm_num
+
 theorem Etingof.Lemma5_25_3_dimension
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : 0 < n) :
     Etingof.GL2.complementarySeriesChar p n nu 1 = (p ^ n : ℂ) - 1 ∧
     (0 : ℝ) < (p ^ n : ℝ) - 1 := by
-  sorry
+  constructor
+  · -- Part 1: χ(1) = q - 1
+    -- At g = 1, x⁻¹·1·x = 1 for all x
+    have h1x : ∀ x : GL2 p n, x⁻¹ * 1 * x = 1 := by intro x; simp
+    -- Unfold and simplify the character at identity
+    change GL2.complementarySeriesChar p n nu 1 = (p ^ n : ℂ) - 1
+    unfold GL2.complementarySeriesChar GL2.charW₁ GL2.charVα₁
+    simp only [Matrix.GeneralLinearGroup.coe_one, Matrix.one_apply, h1x]
+    -- Simplify nu at identity: nu(⟨1, _⟩) = nu(1) = 1, scalarToElliptic(1) = 1
+    have hnu_sub : ∀ h, nu (⟨1, h⟩ : ↥(GL2.ellipticSubgroup p n)) = 1 :=
+      fun h => (congrArg nu (Subtype.ext rfl)).trans (map_one nu)
+    simp only [hnu_sub, Units.val_one]
+    -- Resolve Fin 2 if-conditions and simplify 0*t²+0*t-0=0
+    norm_num
+    -- Goal: q * (q⁻¹ * (q-1)²⁻¹ * |G|) - q⁻¹ * (q-1)²⁻¹ * |G| - |K|⁻¹ * |G| = p^n - 1
+    -- where q = p^n, |G| = |GL₂(𝔽_q)|, |K| = |𝔽_{q²}×|
+    -- Factor out |G|: ((q-1) * q⁻¹ * (q-1)²⁻¹ - q⁻¹ * (q-1)²⁻¹ - |K|⁻¹) * |G|
+    -- = ((q-1)/((q-1)²q) - 1/((q-1)²q) - 1/|K|) * |G|
+    -- = (1/((q-1)q) - 1/|K|) * |G|  -- since (q-1-1)/((q-1)²q) = ... wait
+    -- Actually: (q-1)/(q(q-1)²) = 1/(q(q-1))
+    -- And 1/(q(q-1)²) = 1/(q(q-1)²) stays.
+    -- So: q/(q(q-1)²) - 1/(q(q-1)²) - 1/(q²-1) = (q-1)/(q(q-1)²) - 1/(q²-1)
+    --   = 1/(q(q-1)) - 1/((q-1)(q+1))  = ((q+1) - q) / (q(q-1)(q+1)) = 1/(q(q-1)(q+1))
+    -- Then 1/(q(q-1)(q+1)) * q(q-1)²(q+1) = q-1. ✓
+    -- This needs |GL₂| = q(q²-1)(q-1) and |K| = q²-1
+    -- Now the goal is arithmetic with cardinalities.
+    haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+    haveI : Fintype (GL2 p n) := Fintype.ofFinite _
+    haveI : Fintype ↥(GL2.ellipticSubgroup p n) := Fintype.ofFinite _
+    -- Set variables for readability
+    set q := (Fintype.card (GaloisField p n) : ℂ) with hq_def
+    set G := (Fintype.card (GL2 p n) : ℂ) with hG_def
+    set Kc := (Fintype.card ↥(GL2.ellipticSubgroup p n) : ℂ) with hKc_def
+    -- Need: q * (q⁻¹ * (q-1)²⁻¹ * G) - q⁻¹ * (q-1)²⁻¹ * G - Kc⁻¹ * G = p^n - 1
+    -- Establish q = p^n
+    have hn_ne : n ≠ 0 := by omega
+    have hq_val : (Fintype.card (GaloisField p n) : ℕ) = p ^ n := by
+      rw [← Nat.card_eq_fintype_card]
+      exact GaloisField.card p n hn_ne
+    -- q > 0 and q - 1 > 0 (as naturals)
+    have hq_pos : 0 < Fintype.card (GaloisField p n) := Fintype.card_pos
+    have hq1 : 1 < Fintype.card (GaloisField p n) := by
+      rw [hq_val]; exact Nat.one_lt_pow hn_ne hp.out.one_lt
+    -- q ≠ 0 and (q-1) ≠ 0 in ℂ
+    have hqC : q ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
+    have hq1C : q - 1 ≠ 0 := by
+      simp only [hq_def, Ne, sub_eq_zero]
+      exact_mod_cast Nat.ne_of_gt hq1
+    -- |GL₂(𝔽_q)| = ∏ i : Fin 2, (q² - q^i) = (q²-1)(q²-q)
+    -- |K| relates to 𝔽_{q²}× (need injectivity of fieldExtEmbed)
+    -- Kc ≠ 0
+    have hKc_pos : 0 < Fintype.card ↥(GL2.ellipticSubgroup p n) := Fintype.card_pos
+    have hKcC : Kc ≠ 0 := Nat.cast_ne_zero.mpr (by omega)
+    -- The key equation after field_simp:
+    -- q * G / (q * (q-1)²) - G / (q * (q-1)²) - G / Kc = q - 1
+    -- i.e. (q-1) * G / (q * (q-1)²) - G / Kc = q - 1
+    -- i.e. G / (q * (q-1)) - G / Kc = q - 1
+    -- With G = q(q-1)²(q+1) and Kc = q²-1 = (q-1)(q+1):
+    -- q(q-1)²(q+1) / (q(q-1)) - q(q-1)²(q+1) / ((q-1)(q+1)) = q - 1
+    -- (q-1)(q+1) - q(q-1) = (q-1)(q+1-q) = q-1 ✓
+    -- Establish G = q(q-1)²(q+1) via card_GL_field
+    -- Establish Kc = q²-1 (|K| = |𝔽_{q²}×| since fieldExtEmbed is injective)
+    -- Then field_simp and ring
+    -- These cardinality computations are non-trivial infrastructure;
+    -- Aristotle has been submitted for this proof.
+    sorry
+  · -- Part 2: q - 1 > 0
+    have hp_pos := hp.out.pos
+    have h1 : 1 < p ^ n := by
+      calc p ^ n ≥ p ^ 1 := Nat.pow_le_pow_right hp_pos hn
+        _ = p := pow_one p
+        _ ≥ 2 := hp.out.two_le
+    have h2 : (1 : ℝ) < (p ^ n : ℝ) := by exact_mod_cast h1
+    linarith
