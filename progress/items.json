@@ -4382,7 +4382,8 @@
     "end_page": "171",
     "start_line": 19,
     "end_line": 32,
-    "status": "proof_partial"
+    "status": "proof_partial",
+    "notes": "h\u03a6surj proved; hker (exactness) and naturality still sorry"
   },
   {
     "id": "Chapter6/Proposition6.6.7",
