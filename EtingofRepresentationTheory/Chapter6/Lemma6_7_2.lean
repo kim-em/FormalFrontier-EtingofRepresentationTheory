@@ -100,7 +100,63 @@ private lemma coxeterActionIter_preserves_B
 private theorem finite_lattice_points_with_B_value
     (hDynkin : IsDynkinDiagram n adj) (K : ℤ) :
     Set.Finite {v : Fin n → ℤ | dotProduct v ((cartanMatrix n adj).mulVec v) = K} := by
-  sorry
+  set A := cartanMatrix n adj with hA_def
+  -- cartanMatrix = 2 • 1 - adj
+  have hA_eq : A = 2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj := rfl
+  -- A.mulVec is injective (from positive definiteness)
+  have hA_inj : Function.Injective A.mulVec := by
+    intro x y hxy
+    by_contra hne
+    have hpos := hDynkin.2.2.2.2 (x - y) (sub_ne_zero.mpr hne)
+    have hzero : A.mulVec (x - y) = 0 := by
+      rw [Matrix.mulVec_sub]; exact sub_eq_zero.mpr hxy
+    have : dotProduct (x - y) (A.mulVec (x - y)) = 0 := by
+      rw [hzero]; simp [dotProduct]
+    rw [hA_eq] at this; linarith
+  -- Positive semi-definiteness
+  have hB_nonneg : ∀ w : Fin n → ℤ, 0 ≤ dotProduct w (A.mulVec w) := by
+    intro w; by_cases hw : w = 0
+    · subst hw; simp [dotProduct, Matrix.mulVec]
+    · have := hDynkin.2.2.2.2 w hw; rw [← hA_eq] at this; linarith
+  -- A is symmetric
+  have hA_symm := cartanMatrix_isSymm hDynkin.1
+  -- Symmetry: v ⋅ A *ᵥ eᵢ = (Av)ᵢ
+  have hB_coord : ∀ (v : Fin n → ℤ) (i : Fin n),
+      dotProduct v (A.mulVec (Pi.single i 1)) = A.mulVec v i := by
+    intro v i
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply,
+      mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact Finset.sum_congr rfl fun j _ => by
+      rw [show A j i = A i j from congr_fun (congr_fun hA_symm i) j]; ring
+  -- eᵢ ⋅ A *ᵥ v = (Av)ᵢ
+  have hB_coord' : ∀ (v : Fin n → ℤ) (i : Fin n),
+      dotProduct (Pi.single i 1) (A.mulVec v) = A.mulVec v i := by
+    intro v i
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply]
+    simp only [ite_mul, one_mul, zero_mul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  -- B(eᵢ, eᵢ) = 2
+  have hBei : ∀ i : Fin n,
+      dotProduct (Pi.single i 1) (A.mulVec (Pi.single i 1)) = 2 :=
+    simpleRoot_B_eq_two hDynkin
+  -- Key bound: for B(v,v) = K, |(Av)ᵢ| ≤ K + 2
+  have hAv_bound : ∀ v : Fin n → ℤ, dotProduct v (A.mulVec v) = K →
+      ∀ i, -(K + 2) ≤ A.mulVec v i ∧ A.mulVec v i ≤ K + 2 := by
+    intro v hv i
+    have hplus := hB_nonneg (v + Pi.single i 1)
+    have hminus := hB_nonneg (v - Pi.single i 1)
+    rw [Matrix.mulVec_add, add_dotProduct, dotProduct_add, dotProduct_add] at hplus
+    rw [Matrix.mulVec_sub, sub_dotProduct, dotProduct_sub, dotProduct_sub] at hminus
+    rw [hv, hBei, hB_coord v i, hB_coord' v i] at hplus hminus
+    constructor <;> omega
+  -- Inject into finite Icc via A.mulVec
+  apply Set.Finite.subset
+    ((Set.finite_Icc (fun _ : Fin n => -(K + 2)) (fun _ => K + 2)).preimage
+      (Set.InjOn.mono (Set.subset_univ _) (Set.injOn_of_injective hA_inj)))
+  intro v hv
+  simp only [Set.mem_setOf_eq] at hv
+  simp only [Set.mem_preimage, Set.mem_Icc, Pi.le_def]
+  exact ⟨fun i => (hAv_bound v hv i).1, fun i => (hAv_bound v hv i).2⟩
 
 /-- The orbit of any vector under the Coxeter action is finite. -/
 private theorem coxeterAction_orbit_finite
