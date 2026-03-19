@@ -23,6 +23,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
 1. **Check Known Dead-Ends.** Scan the "Known Dead-Ends" section below. If your proof requires any of these patterns, sorry it immediately and move on:
    - ExteriorAlgebra ↔ PiTensorProduct bridging
    - `if`-branching `obj` fields in QuiverRepresentation-like structures
+   - `Decidable.casesOn` map compatibility in `reflectionFunctorPlus` proofs
 
 2. **Search for existing definitions.** Before defining any concept, search the codebase:
    ```bash
@@ -696,6 +697,18 @@ These are proof approaches that multiple agents have attempted and failed. Don't
 **Problem:** When a `QuiverRepresentation`-like structure has `obj v := if v = i then T₁ else T₂`, filling `Module` instance fields fails because the `AddCommMonoid` instance becomes opaque after filling.
 
 **Status:** Documented in detail above (Type-Level If/Else Diamond Issue). The workaround is to sorry the `instModule` field. Don't attempt to solve the diamond — it requires a structural refactor.
+
+### Decidable.casesOn Opacity in reflectionFunctorPlus Proofs
+
+**Problem:** `reflectionFunctorPlus` (Definition 6.6.3) defines vertex objects and maps using `Decidable.casesOn` on the `DecidableEq` instance. Any proof that needs to relate the F⁺ maps to the underlying representation maps requires reducing this `casesOn`, but:
+- `rw`/`simp` with `inst a i = .isFalse ha` fails: "motive is not type correct"
+- `generalize` on `inst a i` fails: "result is not type correct"
+- Term-mode `match` on `inst a i` resolves the outer match but does NOT substitute `inst a i` in the inner goal (non-dependent motive inferred)
+- `exact rfl` fails: types are not definitionally equal across the casesOn boundary
+
+**Affected items:** Prop 6.6.7 (all sink-case sorry's), Prop 6.6.6 (equivAt lemmas), any proof composing reflection functor maps.
+
+**What to do:** If your proof requires showing `equivAt_ne(F⁺.mapLinear(e)(w)) = ρ.mapLinear(e')(equivAt_ne(w))` or similar map compatibility, **sorry it immediately**. Don't try tactic variations — they ALL hit the same dependent type wall. The fix requires refactoring `reflectionFunctorPlus` to avoid `Decidable.casesOn`.
 
 ## Common Failure Modes
 
