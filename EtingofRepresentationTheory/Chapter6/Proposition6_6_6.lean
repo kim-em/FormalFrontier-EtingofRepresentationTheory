@@ -254,19 +254,23 @@ private noncomputable def Etingof.equivAt_eq_sink
     -- - So range(ψ) = ker(sinkMap) (embedded in the direct sum)
     -- - The quotient (⊕ V_j) / ker(sinkMap) ≅ V_i by first isomorphism theorem
     --
-    -- BLOCKED: The Decidable.casesOn in both reflectionFunctorPlus and
-    -- reflectionFunctorMinus creates nested opaque types that prevent
-    -- DirectSum.toModule from synthesizing AddCommMonoid/Module instances.
-    -- The API lemmas (reflFunctorPlus_equivAt_ne, reflFunctorPlus_equivAt_eq)
-    -- handle individual component types but composing them through the
-    -- quotient module construction requires instance unification that Lean
-    -- cannot achieve with the current definitions.
+    -- BLOCKED: Lean 4's instance synthesis check prevents working with two
+    -- different Quiver Q instances (inst and reversedAtVertex Q i) in the
+    -- same proof context. Every reference to quiver-dependent types
+    -- (ArrowsOutOf, mapLinear, etc.) triggers "synthesized type class
+    -- instance is not definitionally equal" errors because the goal uses
+    -- the reversed quiver while the ambient context has the original.
     --
-    -- A complete solution would require either:
-    -- (a) Refactoring reflectionFunctorPlus/Minus to use `if`-based definitions
-    --     instead of Decidable.casesOn (breaking the current approach)
-    -- (b) Building the LinearEquiv by explicit forward/backward linear maps
-    --     that avoid going through DirectSum.toModule
+    -- After `rw [hd1]; dsimp only []`, the goal cleanly reduces to:
+    --   (⊕_{a : ArrowsOutOf_{Q̄ᵢ} i} F⁺(V).obj a.fst) ⧸ range(ψ) ≃ₗ[k] ρ.obj i
+    -- The mathematical argument (first isomorphism theorem) is clear:
+    --   Φ(x) = ∑_a ρ.mapLinear(origArrow_a)(equivAt_ne(x_a))
+    --   ker(Φ) = range(ψ), Φ surjective from hsurj
+    --   → quotKerEquivOfSurjective gives the result
+    --
+    -- Resolution requires refactoring reflectionFunctorPlus/Minus to
+    -- avoid Decidable.casesOn at the type level, e.g., by parameterizing
+    -- on a function `objAt : Q → Type*` directly rather than case-splitting.
     sorry
 
 end Helpers
