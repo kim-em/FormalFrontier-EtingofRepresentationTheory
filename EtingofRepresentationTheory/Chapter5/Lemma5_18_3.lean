@@ -482,13 +482,116 @@ private lemma diag_le_fullDiag [CharZero k] :
         rw [piecewise_erase_eq]] at h_target
     exact h_target
 
--- ⊇ direction: fullDiag ≤ diag via Newton's identity
--- (requires Newton's identity for commuting elements in a noncommutative ring,
--- which is not in Mathlib and involves substantial infrastructure)
+-- ⊇ direction: fullDiag ≤ diag via Newton's identity for commuting position operators
+-- Position operator B_i(f) acts as f on tensor position i, identity elsewhere.
+-- These pairwise commute, and their product Π_i B_i = f^⊗n (full diagonal generator).
+-- Newton's identity expresses Π_i B_i as a polynomial in power sums
+-- p_m = Σ_i B_i^m = Δ_n(f^m), which are generators of diag.
+omit [Module.Finite k V] in
 private lemma fullDiag_le_diag [CharZero k] :
     fullDiagonalSubalgebra k V n ≤ diagonalSubalgebra k V n := by
-  sorry
+  apply Algebra.adjoin_le
+  rintro _ ⟨f, rfl⟩
+  -- Need: PiTensorProduct.map (fun _ => f) ∈ diagonalSubalgebra
+  -- Define position operators B_i(f) = map(fun j => if j = i then f else id)
+  set B : Fin n → Module.End k (⨂[k] (_ : Fin n), V) :=
+    fun i => PiTensorProduct.map (fun j => if j = i then f else LinearMap.id)
+  -- B_i commute (they act on independent positions)
+  have hcomm : ∀ i j, Commute (B i) (B j) := by
+    intro i j
+    change B i * B j = B j * B i
+    simp only [B, ← PiTensorProduct.map_mul]
+    congr 1; ext x
+    dsimp only [Pi.mul_apply]
+    by_cases hi : x = i <;> by_cases hj : x = j <;> simp_all
+  -- B_i^m = map(fun j => if j = i then f^m else id) (position operator of f^m)
+  have hpow : ∀ i m, B i ^ m = PiTensorProduct.map
+      (fun j => if j = i then f ^ m else LinearMap.id) := by
+    intro i m; simp only [B, ← PiTensorProduct.map_pow]
+    congr 1; ext x; by_cases h : x = i <;> simp [h]
+  -- Power sum p_m = Σ_i B_i^m = Δ_n(f^m) ∈ diag
+  have hpsum : ∀ m, 0 < m → ∑ i, B i ^ m ∈ (diagonalSubalgebra k V n : Set _) := by
+    intro m _; simp_rw [hpow]; exact Algebra.subset_adjoin ⟨f ^ m, rfl⟩
+  -- Elementary symmetric function: e_m = Σ_{|S|=m} noncommProd_S(B)
+  set e : ℕ → Module.End k (⨂[k] (_ : Fin n), V) := fun m =>
+    ∑ S ∈ (Finset.univ : Finset (Fin n)).powersetCard m,
+      S.noncommProd B (fun i _ j _ _ => hcomm i j)
+  -- e_n = map(fun _ => f) (the full diagonal generator)
+  suffices heq : e n = PiTensorProduct.map (fun _ => f) by
+    change PiTensorProduct.map (fun _ => f) ∈ _
+    rw [← heq]
+    -- By strong induction, show e m ∈ diag for all m
+    suffices ∀ m, e m ∈ diagonalSubalgebra k V n from this n
+    intro m
+    induction m using Nat.strongRecOn with | ind m ih => ?_
+    by_cases hm : m = 0
+    · subst hm; simp [e, Finset.powersetCard_zero]
+    · -- For m ≥ 1: use Newton's identity
+        -- m • e_m = Σ_{j < m} (-1)^j • (e_j * p_{m-j})
+        have hm' : 0 < m := Nat.pos_of_ne_zero hm
+        have hcast : (m : k) ≠ 0 := Nat.cast_ne_zero.mpr hm
+        -- Newton's identity (sorry'd — substantial infrastructure needed)
+        have newton : (m : k) • e m =
+            ∑ j ∈ Finset.range m,
+              ((-1 : k) ^ j) • (e j * ∑ i : Fin n, B i ^ (m - j)) := by
+          sorry
+        rw [show e m = (m : k)⁻¹ • ((m : k) • e m) from (inv_smul_smul₀ hcast _).symm,
+          newton]
+        apply Subalgebra.smul_mem
+        apply Subalgebra.sum_mem
+        intro j hj
+        have hjm : j < m := Finset.mem_range.mp hj
+        apply Subalgebra.smul_mem
+        apply Subalgebra.mul_mem
+        · exact ih j hjm
+        · exact hpsum (m - j) (Nat.sub_pos_of_lt hjm)
+  -- Proof that e_n = map(fun _ => f):
+  -- e_n has exactly one summand (S = univ) since powersetCard n univ = {univ}
+  simp only [e]
+  have hcard : (Finset.univ : Finset (Fin n)).card = n :=
+    Finset.card_univ.trans (Fintype.card_fin n)
+  have huniv : (Finset.univ : Finset (Fin n)).powersetCard n = {Finset.univ} := by
+    have := Finset.powersetCard_self (Finset.univ : Finset (Fin n))
+    rwa [hcard] at this
+  rw [huniv, Finset.sum_singleton]
+  -- noncommProd of B over univ = map(fun _ => f)
+  -- Strategy: pull PiTensorProduct.map out of noncommProd, reduce to Pi-level identity
+  -- First show via map_noncommProd that mapMonoidHom commutes with noncommProd
+  set piF : Fin n → (Fin n → Module.End k V) :=
+    fun i j => if j = i then f else LinearMap.id with hpiF_def
+  have hpiFcomm : ∀ i ∈ (Finset.univ : Finset (Fin n)),
+      ∀ j ∈ (Finset.univ : Finset (Fin n)), i ≠ j →
+      Commute (piF i) (piF j) := by
+    intro i _ j _ _
+    ext x; simp only [Pi.mul_apply, piF]
+    by_cases hi : x = i <;> by_cases hj : x = j <;> simp_all
+  -- The Pi-level product: for each position j, ∏_i piF(i)(j) = f
+  have piF_prod : Finset.univ.noncommProd piF hpiFcomm = fun _ => f := by
+    funext j
+    change (Pi.evalMonoidHom (fun _ : Fin n => Module.End k V) j)
+      (Finset.univ.noncommProd piF hpiFcomm) = f
+    rw [Finset.map_noncommProd _ _ _ (Pi.evalMonoidHom (fun _ : Fin n => Module.End k V) j)]
+    change Finset.univ.noncommProd (fun i => piF i j) _ = f
+    simp only [piF]
+    conv_lhs => rw [← Finset.mul_noncommProd_erase _ (Finset.mem_univ j)]
+    simp only [ite_true]
+    suffices h : (Finset.univ.erase j).noncommProd
+        (fun i => if j = i then f else LinearMap.id) _ = 1 by
+      rw [h, mul_one]
+    rw [Finset.noncommProd_eq_pow_card _ _ _ (1 : Module.End k V)
+      (fun i hi => by simp only [Ne.symm (Finset.mem_erase.mp hi).1, ite_false]; rfl), one_pow]
+  -- Now connect: B i = mapMonoidHom (piF i), so noncommProd B = mapMonoidHom (noncommProd piF)
+  have key := Finset.map_noncommProd Finset.univ piF hpiFcomm PiTensorProduct.mapMonoidHom
+  -- key : mapMonoidHom (noncommProd piF _) = noncommProd (fun i => mapMonoidHom (piF i)) _
+  rw [piF_prod] at key
+  -- key : map (fun _ => f) = noncommProd (fun i => map (piF i)) _
+  -- Goal: noncommProd B _ = map (fun _ => f)
+  -- B i = mapMonoidHom (piF i), so noncommProd B = noncommProd (mapMonoidHom ∘ piF)
+  have hBeq : ∀ i ∈ Finset.univ, B i = PiTensorProduct.mapMonoidHom (piF i) := by
+    intro i _; simp [B, piF]
+  rw [Finset.noncommProd_congr rfl hBeq, ← key]; rfl
 
+omit [Module.Finite k V] in
 theorem diagonalSubalgebra_eq_fullDiagonal [CharZero k] :
     diagonalSubalgebra k V n = fullDiagonalSubalgebra k V n :=
   le_antisymm (diag_le_fullDiag k V n) (fullDiag_le_diag k V n)
