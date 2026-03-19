@@ -318,13 +318,71 @@ noncomputable def permModuleIsotypicComponent (n : ℕ) (mu nu : Nat.Partition n
     Submodule ℂ (PermutationModule n mu) :=
   (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu)).restrictScalars ℂ
 
+/-- Specht modules for distinct partitions are non-isomorphic as `SymGroupAlgebra n`-modules.
+This follows from the upper-triangular structure of the Kostka matrix: the multiplicity
+of `V_ν` in `U_μ` is zero when `μ` strictly dominates `ν`, and 1 when `μ = ν`. -/
+theorem spechtModule_noniso (n : ℕ) (nu₁ nu₂ : Nat.Partition n) (hne : nu₁ ≠ nu₂) :
+    IsEmpty (↥(SpechtModule n nu₁) ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu₂)) := by
+  sorry
+
+/-- Every simple `SymGroupAlgebra n`-submodule of a module is isomorphic to some Specht module.
+This is the completeness of the classification of S_n irreps: the Specht modules `{V_λ | λ ⊢ n}`
+form a complete set of pairwise non-isomorphic simple modules for `ℂ[S_n]`. -/
+theorem spechtModules_exhaust_simples (n : ℕ) (mu : Nat.Partition n)
+    (S : Submodule (SymGroupAlgebra n) (PermutationModule n mu))
+    [IsSimpleModule (SymGroupAlgebra n) S] :
+    ∃ nu : Nat.Partition n, Nonempty (↥S ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) := by
+  sorry
+
+/-- Isotypic components for non-isomorphic simple modules are disjoint.
+This follows from `sSupIndep_isotypicComponents`: the isotypic components (viewed as
+a set) are supremum-independent, which implies pairwise disjointness. Since Specht modules
+for distinct partitions are non-isomorphic, their isotypic components are distinct
+(when nonzero) and hence disjoint. -/
+private theorem isotypicComponent_disjoint_of_ne (n : ℕ) (mu : Nat.Partition n)
+    (nu₁ nu₂ : Nat.Partition n) (hne : nu₁ ≠ nu₂) :
+    Disjoint (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu₁))
+             (isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu₂)) := by
+  sorry
+
+/-- The isotypic components indexed by partitions span the entire module (as `SymGroupAlgebra n`-submodules).
+This follows from the classification: every simple `SymGroupAlgebra n`-module is isomorphic to
+some Specht module, so every isotypic component is covered. -/
+private theorem iSup_isotypicComponent_eq_top (n : ℕ) (mu : Nat.Partition n) :
+    ⨆ nu : Nat.Partition n,
+      isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu) (SpechtModule n nu) = ⊤ := by
+  rw [eq_top_iff, ← sSup_isotypicComponents (SymGroupAlgebra n) (PermutationModule n mu)]
+  apply sSup_le
+  intro c hc
+  obtain ⟨S, hS_simple, rfl⟩ := hc
+  -- S is a simple submodule of PermutationModule; by classification, S ≃ SpechtModule n nu for some nu
+  haveI := hS_simple
+  obtain ⟨nu, ⟨e⟩⟩ := spechtModules_exhaust_simples n mu S
+  rw [e.isotypicComponent_eq]
+  exact le_iSup (fun nu => isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+    (SpechtModule n nu)) nu
+
 /-- The isotypic components form an internal direct sum decomposition of `U_μ` as
 ℂ-vector spaces. This follows from the semisimplicity of `ℂ[S_n]` and the
 fact that isotypic components for distinct simple types are independent. -/
 theorem permModule_isotypic_isInternal (n : ℕ) (mu : Nat.Partition n) :
     DirectSum.IsInternal (fun nu : Nat.Partition n =>
       permModuleIsotypicComponent n mu nu) := by
-  sorry
+  rw [DirectSum.isInternal_submodule_iff_iSupIndep_and_iSup_eq_top]
+  refine ⟨?_, ?_⟩
+  · -- iSupIndep: follows from pairwise disjointness of isotypic components
+    -- for non-isomorphic simple modules (Specht modules for distinct partitions)
+    -- and sSupIndep_isotypicComponents from Mathlib.
+    -- Proof: isotypicComponent_disjoint_of_ne gives pairwise disjointness,
+    -- and the semisimple structure ensures full independence.
+    sorry
+  · -- iSup = ⊤: the isotypic components span everything
+    simp only [permModuleIsotypicComponent]
+    rw [← Submodule.restrictScalars_iSup,
+        show (⨆ i, isotypicComponent (SymGroupAlgebra n) (PermutationModule n mu)
+          (SpechtModule n i)) = (⊤ : Submodule (SymGroupAlgebra n) (PermutationModule n mu))
+          from iSup_isotypicComponent_eq_top n mu,
+        Submodule.restrictScalars_top]
 
 /-- The permutation action `σ` on `U_μ` maps each isotypic component to itself.
 This is because `σ` acts as a `ℂ[S_n]`-module endomorphism (left multiplication
