@@ -3161,9 +3161,9 @@
     "end_page": "116",
     "start_line": 13,
     "end_line": 14,
-    "status": "partially_proved",
+    "status": "proved",
     "needs_statement": false,
-    "notes": "Vanishing part (Proposition5_14_1_vanishing) proved. Diagonal part (Proposition5_14_1_diagonal: dim Hom = 1) still sorry."
+    "notes": "Both vanishing and diagonal parts fully proved (0 sorries in file)."
   },
   {
     "id": "Chapter5/Definition5.14.2",
