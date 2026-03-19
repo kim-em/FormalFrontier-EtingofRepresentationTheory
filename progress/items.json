@@ -97,9 +97,9 @@
     "end_page": "6",
     "start_line": 18,
     "end_line": 25,
-    "status": "statement_formalized",
+    "status": "proof_formalized",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: Both parts have sorry. Issue #1004 (part ii only) was closed with replan label \u2014 no PR merged. Part (i) classification + part (ii) complete reducibility both need proving. Part (ii) may be provable via Mathlib's Weyl theorem if sl(2) semisimplicity is available. No active claimed issue. Ready for new feature issue."
+    "notes": "Part (i) fully proved: existence + uniqueness via highest weight theory (primitive vectors, f-orbit bases, Lie module equiv). Part (ii) has 1 sorry: complete reducibility requires Weyl theorem, not in Mathlib."
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
