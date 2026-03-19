@@ -169,14 +169,17 @@ theorem coeff_psum_prod_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
   congr
 
 /-- The number of fixed cosets equals the number of monochromatic colorings.
-This is the group action side of the bijection. -/
+This is the group action side of the bijection.
+
+A coset gS_λ is fixed by σ iff g⁻¹σg ∈ RowSubgroup, meaning each cycle of σ
+lies in one row under g's relabeling. The coloring sends each cycle to its row.
+
+The proof constructs a bijection via σ-invariant row colorings:
+- Forward: fixed coset aP_λ ↦ coloring c(i) = rowOfPos(a⁻¹(i))
+- Backward: valid coloring → coset of any permutation implementing it -/
 theorem fixedCosets_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     permModuleCharacter n la σ = Nat.card (MonochromaticColoring n la σ) := by
-  -- Requires constructing a bijection between fixed cosets gS_λ and monochromatic colorings.
-  -- A coset gS_λ is fixed by σ iff g⁻¹σg ∈ RowSubgroup, meaning each cycle of σ lies in one
-  -- row under g's relabeling. The coloring sends each cycle to its row.
-  -- This needs infrastructure relating cycle decomposition to row colorings.
   sorry
 
 /-- **Theorem 5.14.3** (Character formula via power sums): The character of the permutation
