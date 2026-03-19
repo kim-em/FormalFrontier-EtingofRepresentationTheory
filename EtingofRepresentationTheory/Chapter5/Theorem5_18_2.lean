@@ -143,8 +143,17 @@ private lemma map_conjugate_reindex (g : Fin n → Module.End k V)
       PiTensorProduct.map g *
       ((PiTensorProduct.reindex k (fun _ => V) σ).symm : TnsPow k V n →ₗ[k] TnsPow k V n) =
     PiTensorProduct.map (fun i => g (σ.symm i)) := by
-  -- Follows from map_comp_reindex_eq and reindex σ ∘ reindex(σ)⁻¹ = id
-  sorry
+  -- From map_comp_reindex_eq: map(g ∘ σ⁻¹) ∘ₗ reindex σ = reindex σ ∘ₗ map g
+  -- Rearranging: reindex σ ∘ map g ∘ reindex(σ)⁻¹ = map(g ∘ σ⁻¹)
+  rw [Module.End.mul_eq_comp, Module.End.mul_eq_comp,
+    ← PiTensorProduct.map_comp_reindex_eq (R := k) (s := fun _ => V)
+      (t := fun _ => V) g σ, LinearMap.comp_assoc]
+  -- Goal: map(g ∘ σ⁻¹) ∘ₗ (↑(reindex σ) ∘ₗ ↑(reindex σ).symm) = map(g ∘ σ⁻¹)
+  have : (↑(PiTensorProduct.reindex k (fun _ => V) σ) :
+      TnsPow k V n →ₗ[k] TnsPow k V n) ∘ₗ
+    ↑(PiTensorProduct.reindex k (fun _ => V) σ).symm = LinearMap.id :=
+    LinearMap.ext fun v => (PiTensorProduct.reindex k (fun _ => V) σ).apply_symm_apply v
+  rw [this, LinearMap.comp_id]
 
 omit [Module.Finite k V] in
 /-- Polarization identity for PiTensorProduct.map:
@@ -219,13 +228,106 @@ theorem centralizer_eq_universalEnvelopingImage [CharZero k] :
       -- Since End(V^⊗n) = span{map g}, avg(End(V^⊗n)) ⊆ fullDiag.
       -- Therefore φ = avg(φ) ∈ fullDiag.
       --
-      -- Detailed proof: For φ in centralizer, write φ as a linear combination
-      -- of map(g) using map_span_eq_top. Then n!·φ = ∑_σ conj(σ)(φ)
-      -- = ∑_j a_j ∑_σ conj(σ)(map(g_j)) = ∑_j a_j ∑_σ map(g_j ∘ σ⁻¹).
-      -- By polarization, each ∑_σ map(g_j ∘ σ⁻¹) is a linear combination
-      -- of map(fun _ => f), which are generators of fullDiag.
-      -- Since n! ≠ 0, φ ∈ fullDiag.
-      sorry
+      -- Detailed proof: We show the averaging operator
+      -- avg(ψ) = (1/n!) ∑_σ conj(σ)(ψ) sends all of End(V^⊗n) into fullDiag.
+      -- Since φ = avg(φ) for centralizer elements, the result follows.
+      --
+      -- Step 1: avg(map g) ∈ fullDiag by the polarization identity.
+      -- Step 2: End(V^⊗n) = span{map g} by map_span_eq_top.
+      -- Step 3: avg is linear, so avg(End(V^⊗n)) ⊆ fullDiag.
+      -- Step 4: φ = avg(φ) ∈ fullDiag.
+      --
+      -- Abbreviations for the proof
+      set reindexV := fun (σ : Equiv.Perm (Fin n)) =>
+        (PiTensorProduct.reindex k (fun _ => V) σ : TnsPow k V n →ₗ[k] TnsPow k V n) with hreindexV
+      set reindexVinv := fun (σ : Equiv.Perm (Fin n)) =>
+        ((PiTensorProduct.reindex k (fun _ => V) σ).symm : TnsPow k V n →ₗ[k] TnsPow k V n)
+        with hreindexVinv
+      -- The averaging/conjugation operator
+      set conj := fun (σ : Equiv.Perm (Fin n)) (ψ : Module.End k (TnsPow k V n)) =>
+        reindexV σ * ψ * reindexVinv σ with hconj
+      -- Define the averaging linear map: avg(ψ) = ∑_σ conj(σ)(ψ)
+      set avg : Module.End k (TnsPow k V n) →ₗ[k] Module.End k (TnsPow k V n) :=
+        { toFun := fun ψ => ∑ σ : Equiv.Perm (Fin n), conj σ ψ
+          map_add' := fun x y => by
+            simp only [hconj, mul_add, add_mul, ← Finset.sum_add_distrib]
+          map_smul' := fun c x => by
+            simp only [hconj, mul_smul_comm, smul_mul_assoc, ← Finset.smul_sum,
+              RingHom.id_apply] } with havg
+      -- Key fact: avg(map g) ∈ fullDiag for any g
+      have avg_map_mem : ∀ g : Fin n → Module.End k V,
+          avg (PiTensorProduct.map g) ∈
+          (Lemma5_18_3.fullDiagonalSubalgebra k V n).toSubmodule := by
+        intro g
+        change ∑ σ : Equiv.Perm (Fin n), conj σ (PiTensorProduct.map g) ∈ _
+        -- By map_conjugate_reindex: conj σ (map g) = map (g ∘ σ⁻¹)
+        have hconj_eq : ∀ σ : Equiv.Perm (Fin n),
+            conj σ (PiTensorProduct.map g) =
+            PiTensorProduct.map (fun i => g (σ.symm i)) :=
+          fun σ => map_conjugate_reindex k V n g σ
+        simp_rw [hconj_eq]
+        -- Change of variables σ ↦ σ⁻¹
+        rw [show ∑ σ : Equiv.Perm (Fin n),
+              PiTensorProduct.map (fun i => g (σ.symm i)) =
+            ∑ σ : Equiv.Perm (Fin n),
+              PiTensorProduct.map (R := k) (s := fun _ => V) (t := fun _ => V)
+                (fun i => g (σ i)) from
+          Finset.sum_nbij (fun σ => σ⁻¹) (fun _ _ => Finset.mem_univ _)
+            (fun _ _ _ _ h => inv_injective h) (fun σ _ => ⟨σ⁻¹, Finset.mem_univ _, by simp⟩)
+            (fun σ _ => by simp)]
+        rw [map_polarization k V n g]
+        -- Each summand is a scalar multiple of a generator of fullDiag
+        apply Submodule.sum_mem
+        intro S _
+        apply Submodule.smul_mem
+        exact Algebra.subset_adjoin ⟨∑ i ∈ S, g i, rfl⟩
+      -- avg maps span{map g} into fullDiag (by linearity)
+      have avg_span_le : ∀ ψ ∈ Submodule.span k (Set.range fun g : Fin n → Module.End k V =>
+          PiTensorProduct.map (R := k) (s := fun _ => V) (t := fun _ => V) g),
+          avg ψ ∈ (Lemma5_18_3.fullDiagonalSubalgebra k V n).toSubmodule := by
+        intro ψ hψ
+        -- avg is a linear map, so avg maps submodules to submodules
+        -- We need: avg(span{generators}) ⊆ fullDiag.toSubmodule
+        -- Since fullDiag.toSubmodule is a submodule, avg⁻¹(fullDiag.toSubmodule) is a submodule
+        -- It contains all generators (by avg_map_mem), so it contains the span
+        have : Submodule.span k (Set.range fun g : Fin n → Module.End k V =>
+            PiTensorProduct.map (R := k) (s := fun _ => V) (t := fun _ => V) g) ≤
+            (Lemma5_18_3.fullDiagonalSubalgebra k V n).toSubmodule.comap avg := by
+          apply Submodule.span_le.mpr
+          rintro _ ⟨g, rfl⟩
+          exact avg_map_mem g
+        exact this hψ
+      -- Step: centralizer elements are fixed by averaging
+      intro φ hφ
+      rw [Subalgebra.mem_centralizer_iff] at hφ
+      -- φ commutes with all reindex operators
+      have hφ_comm : ∀ σ : Equiv.Perm (Fin n), conj σ φ = φ := by
+        intro σ
+        have hgen : reindexV σ ∈ (symGroupImage k V n : Set (Module.End k (TnsPow k V n))) :=
+          Algebra.subset_adjoin ⟨σ, rfl⟩
+        have hcomm := hφ (reindexV σ) hgen
+        have hinv : reindexV σ * reindexVinv σ = 1 := by
+          ext v; simp [Module.End.mul_eq_comp, hreindexV, hreindexVinv]
+        calc reindexV σ * φ * reindexVinv σ
+            = φ * reindexV σ * reindexVinv σ := by rw [hcomm]
+          _ = φ * (reindexV σ * reindexVinv σ) := by rw [mul_assoc]
+          _ = φ := by rw [hinv, mul_one]
+      have hfact : (Nat.factorial n : k) ≠ 0 :=
+        Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)
+      -- avg(φ) = n! • φ (since conj σ φ = φ for each σ)
+      have havg_eq : avg φ = (↑(Nat.factorial n) : k) • φ := by
+        change ∑ σ : Equiv.Perm (Fin n), conj σ φ = _
+        simp only [hφ_comm, Finset.sum_const, Finset.card_univ, Fintype.card_perm,
+          Fintype.card_fin]
+        rw [← Nat.cast_smul_eq_nsmul k]
+      -- φ = (n!)⁻¹ • avg(φ)
+      have hφ_eq : φ = (↑(Nat.factorial n) : k)⁻¹ • avg φ := by
+        rw [havg_eq, smul_smul, inv_mul_cancel₀ hfact, one_smul]
+      rw [hφ_eq]
+      apply (Lemma5_18_3.fullDiagonalSubalgebra k V n).smul_mem
+      -- Goal: avg(φ) ∈ fullDiag
+      -- By map_span_eq_top, φ ∈ span{map g}, so avg(φ) ∈ fullDiag
+      exact avg_span_le φ (map_span_eq_top k V n ▸ Submodule.mem_top)
     -- Step 2: S^n End(V) ⊆ subalgebra generated by Δ_n(b) (Lemma 5.18.3 part ii)
     -- Note: diagonalSubalgebra_eq_fullDiagonal requires CharZero k
     have h_full_diag : Lemma5_18_3.fullDiagonalSubalgebra k V n ≤
