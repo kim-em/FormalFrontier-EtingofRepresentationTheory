@@ -783,7 +783,6 @@ private lemma proj_recover (n : ℕ) (D : IrrepDecomp ℂ (G' n)) (j₀ : Fin D.
     D.projRingHom j₀ (D.iso.symm (Pi.single j₀ m)) = m := by
   simp [IrrepDecomp.projRingHom, Pi.evalRingHom, Pi.single_eq_same]
 
-
 /-- Two simple left ideals of A'(n) in the same Wedderburn block are isomorphic.
 The proof projects both to simple left ideals of Mat_{j₀}(ℂ) via projRingHom,
 uses IsSimpleRing.isIsotypic to get a Mat-linear isomorphism, then constructs

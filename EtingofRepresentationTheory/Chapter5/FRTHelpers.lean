@@ -243,6 +243,17 @@ theorem syt_branching_rule (n : ℕ) (la : Nat.Partition (n + 1)) :
   -- via "remove the cell containing the largest entry n+1"
   sorry
 
+/-- The hook quotient identity: for a partition λ of n+1, the sum over outer
+corners c of hookProd(λ)/hookProd(λ\c) equals n+1. Individual terms may be
+non-integer, so this is stated over ℚ. -/
+private lemma hook_quotient_identity (n : ℕ) (la : Nat.Partition (n + 1)) :
+    la.toYoungDiagram.outerCorners.attach.sum (fun c =>
+      (la.toYoungDiagram.hookLengthProduct : ℚ) /
+        ((la.removeOuterCorner c.val
+          (YoungDiagram.mem_outerCorners.mp c.property)).toYoungDiagram.hookLengthProduct)) =
+      (n + 1 : ℚ) := by
+  sorry
+
 /-- Hook length product identity: for the inductive step, we need that
 multiplying the branching count by the hook product and using the IH gives (n+1)!.
 
@@ -258,14 +269,43 @@ theorem hook_corner_sum (n : ℕ) (la : Nat.Partition (n + 1))
         (la.removeOuterCorner c.val
           (YoungDiagram.mem_outerCorners.mp c.property)))) *
       la.toYoungDiagram.hookLengthProduct = (n + 1).factorial := by
-  -- Key steps:
-  -- 1. Distribute hookProd(λ) into the sum
-  -- 2. For each c: |SYT(n, λ\c)| × hookProd(λ)
-  --    = |SYT(n, λ\c)| × hookProd(λ\c) × (hookProd(λ) / hookProd(λ\c))
-  --    = n! × (hookProd(λ) / hookProd(λ\c))
-  -- 3. The hook quotient identity: ∑_c hookProd(λ)/hookProd(λ\c) = n+1
-  --    gives the final result (n+1) × n! = (n+1)!
-  sorry
+  -- Cast to ℚ where division is exact (Nat.cast is injective since CharZero)
+  suffices hq : ((la.toYoungDiagram.outerCorners.attach.sum (fun c =>
+      Nat.card (StandardYoungTableau n
+        (la.removeOuterCorner c.val
+          (YoungDiagram.mem_outerCorners.mp c.property)))) *
+      la.toYoungDiagram.hookLengthProduct : ℕ) : ℚ) =
+      (((n + 1).factorial : ℕ) : ℚ) by exact_mod_cast hq
+  push_cast [Finset.sum_mul]
+  -- Goal: ∑_c ↑|SYT(n,λ\c)| * ↑H = ↑(n+1)!
+  -- Rewrite each summand using IH: ↑|SYT| * ↑H = ↑n! * (↑H / ↑hp(c))
+  have hsummand : ∀ (x : { c // c ∈ la.toYoungDiagram.outerCorners }),
+      (Nat.card (StandardYoungTableau n (la.removeOuterCorner ↑x
+        (YoungDiagram.mem_outerCorners.mp x.property))) : ℚ) *
+      (la.toYoungDiagram.hookLengthProduct : ℚ) =
+      (n.factorial : ℚ) * ((la.toYoungDiagram.hookLengthProduct : ℚ) /
+        ((la.removeOuterCorner ↑x
+          (YoungDiagram.mem_outerCorners.mp x.property)).toYoungDiagram.hookLengthProduct : ℚ)) := by
+    intro x
+    set la' := la.removeOuterCorner ↑x (YoungDiagram.mem_outerCorners.mp x.property)
+    have ih_c := ih la'
+    have hne : (la'.toYoungDiagram.hookLengthProduct : ℚ) ≠ 0 := by
+      exact_mod_cast (YoungDiagram.hookLengthProduct_pos la'.toYoungDiagram).ne'
+    have hsyt : (Nat.card (StandardYoungTableau n la') : ℚ) =
+        (n.factorial : ℚ) / (la'.toYoungDiagram.hookLengthProduct : ℚ) := by
+      rw [eq_div_iff hne]
+      exact_mod_cast ih_c
+    rw [hsyt]
+    ring
+  simp_rw [hsummand]
+  -- Goal: ∑_c ↑n! * (↑H / ↑hp(c)) = ↑(n+1)!
+  -- Factor out ↑n!
+  rw [← Finset.mul_sum]
+  -- Goal: ↑n! * ∑_c (↑H / ↑hp(c)) = ↑(n+1)!
+  rw [hook_quotient_identity]
+  -- Goal: ↑n! * ↑(n+1) = ↑(n+1)!
+  push_cast [Nat.factorial_succ]
+  ring
 
 /-- Inductive step: if the FRT formula holds for all partitions of n,
 then it holds for all partitions of n+1.
