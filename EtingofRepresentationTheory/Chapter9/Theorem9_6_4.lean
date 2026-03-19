@@ -6,6 +6,7 @@ import Mathlib.CategoryTheory.Equivalence
 import Mathlib.CategoryTheory.Generator.Preadditive
 import Mathlib.CategoryTheory.Abelian.Yoneda
 import Mathlib.Algebra.Category.FGModuleCat.Basic
+import Mathlib.RingTheory.Noetherian.Basic
 
 universe u v
 
@@ -226,26 +227,213 @@ noncomputable def Etingof.IsProgenerator.preadditiveCoyonedaObjFG
       (preadditiveCoyonedaObj P).map f ≫ (preadditiveCoyonedaObj P).map g
     exact (preadditiveCoyonedaObj P).map_comp f g
 
+noncomputable instance Etingof.IsFiniteAbelianCategory.hasFiniteBiproducts
+    {C : Type u} [Category.{v} C] [h : Etingof.IsFiniteAbelianCategory C] :
+    HasFiniteBiproducts C := Abelian.hasFiniteBiproducts
+
+private lemma Etingof.unop_mul_eq_comp {C : Type u} [Category.{v} C] {P : C}
+    (s r : (End P)ᵐᵒᵖ) : (s * r).unop = s.unop ≫ r.unop := by
+  rw [MulOpposite.unop_mul]; rfl
+
+/-- Linear equivalence between the free (End P)ᵒᵖ-module (Fin n → (End P)ᵒᵖ)
+and Hom(P, P^n). The forward map sends a tuple v to biproduct.lift (unop ∘ v). -/
+private noncomputable def Etingof.freeModuleIsoHom
+    {C : Type u} [Category.{v} C] [Preadditive C]
+    (P : C) (n : ℕ) [HasBiproduct (fun _ : Fin n => P)] :
+    (Fin n → (End P)ᵐᵒᵖ) ≃ₗ[(End P)ᵐᵒᵖ] (P ⟶ ⨁ (fun _ : Fin n => P)) where
+  toFun v := biproduct.lift (fun i => (v i).unop)
+  invFun g := fun i => MulOpposite.op (g ≫ biproduct.π _ i)
+  left_inv v := by ext i; simp [biproduct.lift_π]
+  right_inv g := by apply biproduct.hom_ext; intro i; simp [biproduct.lift_π]
+  map_add' a b := by
+    apply biproduct.hom_ext; intro i
+    simp [biproduct.lift_π, MulOpposite.unop_add, Preadditive.add_comp]
+  map_smul' s v := by
+    apply biproduct.hom_ext; intro i
+    simp only [biproduct.lift_π, RingHom.id_apply]
+    show (s * v i).unop = (s.unop ≫ biproduct.lift fun j => (v j).unop) ≫ biproduct.π _ i
+    rw [Category.assoc, biproduct.lift_π, Etingof.unop_mul_eq_comp]
+
 -- Essential surjectivity of Hom(P, -) restricted to finitely generated modules.
 -- Given M : FGModuleCat (End P)ᵒᵖ, construct X ∈ C with Hom(P, X) ≅ M.
--- Strategy: M is f.g., so choose a presentation (End P)^m → (End P)^n → M → 0.
--- By fullness, this lifts to P^m → P^n in C; let X = coker. Then Hom(P, X) ≅ M.
+-- Strategy: M is f.g., so choose a surjection (End P)^n → M → 0. The kernel is
+-- f.g. (End P is Noetherian), giving (End P)^m → (End P)^n → M → 0.
+-- By fullness, lift to P^m → P^n in C; let X = coker. Then Hom(P, X) ≅ M.
+set_option maxHeartbeats 400000 in
 instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObjFG
     {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
-    {P : C} [hp : Etingof.IsProgenerator P] :
+    {P : C} [hp : Etingof.IsProgenerator P]
+    [IsNoetherianRing (End P)ᵐᵒᵖ] :
     hp.preadditiveCoyonedaObjFG.EssSurj := by
   constructor
   intro M
-  -- M is a finitely generated (End P)ᵒᵖ-module.
-  -- Strategy: choose a finite presentation of M:
-  --   (End P)^m → (End P)^n → M → 0
-  -- Use fullness of Hom(P,-) to lift to maps in C:
-  --   P^m → P^n
-  -- Set X = coker of P^m → P^n. Then Hom(P, X) ≅ M.
-  -- This requires substantial infrastructure that is beyond
-  -- what can be done in a single session.
-  sorry
+  -- Abbreviations
+  let R := (End P)ᵐᵒᵖ
+  haveI : Projective P := hp.toProjective
+  -- Step 1: Surjection R^n ↠ M
+  haveI : Module.Finite R ↑M.obj := M.property
+  obtain ⟨n, φ, hφ⟩ := Module.Finite.exists_fin' R ↑M.obj
+  -- Step 2: Kernel is f.g. (End P is Noetherian)
+  haveI : Module.Finite R (LinearMap.ker φ) :=
+    IsNoetherian.noetherian (LinearMap.ker φ) |>.choose_spec ▸ inferInstance
+  obtain ⟨m, ψ, hψ⟩ := Module.Finite.exists_fin' R (LinearMap.ker φ)
+  -- Step 3: Compose to get α : R^m → R^n with image = ker φ
+  let α : (Fin m → R) →ₗ[R] (Fin n → R) := (LinearMap.ker φ).subtype.comp ψ
+  -- Step 4: Transport α through freeModuleIsoHom to get α' on Hom(P, P^k)
+  let Fm := fun _ : Fin m => P
+  let Fn := fun _ : Fin n => P
+  let βm := Etingof.freeModuleIsoHom P m
+  let βn := Etingof.freeModuleIsoHom P n
+  let α' : (P ⟶ ⨁ Fm) →ₗ[R] (P ⟶ ⨁ Fn) :=
+    βn.toLinearMap.comp (α.comp βm.symm.toLinearMap)
+  -- Step 5: Lift α' to a morphism f : ⨁ Fm ⟶ ⨁ Fn using fullness
+  have hFull := Etingof.IsProgenerator.full_preadditiveCoyonedaObj (P := P)
+  -- α' is a module map (P ⟶ ⨁Fm) → (P ⟶ ⨁Fn), i.e. an element of
+  -- Hom in ModuleCat. Fullness gives a lift.
+  obtain ⟨f, hf⟩ := hFull.map_surjective
+    (ModuleCat.ofHom α' : (preadditiveCoyonedaObj P).obj (⨁ Fm) ⟶
+      (preadditiveCoyonedaObj P).obj (⨁ Fn))
+  -- Step 6: X = cokernel f
+  let X := cokernel f
+  -- Step 7: Build the isomorphism Hom(P, X) ≅ M
+  -- We have:
+  --   ε : Hom(P, ⨁Fn) → ↑M.obj  defined as  φ ∘ βn⁻¹  (surjective)
+  --   π★ : Hom(P, ⨁Fn) → Hom(P, X) defined as post-composition with cokernel.π
+  -- Both have the same kernel, giving Hom(P, X) ≅ ↑M.obj
+  let ε : (P ⟶ ⨁ Fn) →ₗ[R] ↑M.obj := φ.comp βn.symm.toLinearMap
+  have hε_surj : Function.Surjective ε := by
+    intro x; obtain ⟨y, hy⟩ := hφ x
+    exact ⟨βn y, by change φ (βn.symm (βn y)) = x; rw [LinearEquiv.symm_apply_apply]; exact hy⟩
+  let π_star : (P ⟶ ⨁ Fn) →ₗ[R] (P ⟶ X) :=
+    ((preadditiveCoyonedaObj P).map (cokernel.π f)).hom
+  have hπ_surj : Function.Surjective π_star := by
+    intro g; exact ⟨Projective.factorThru g (cokernel.π f),
+      Projective.factorThru_comp g (cokernel.π f)⟩
+  -- Key: ker ε = ker π_star
+  have hker_eq : LinearMap.ker ε = LinearMap.ker π_star := by
+    ext g
+    constructor
+    · -- ker ε ⊆ ker π_star: if ε(g) = 0 then g ∈ Im(α') so g ≫ cokernel.π = 0
+      intro hg
+      simp only [LinearMap.mem_ker] at hg ⊢
+      -- g ∈ ker ε means φ(βn⁻¹(g)) = 0, i.e. βn⁻¹(g) ∈ ker φ = Im ψ
+      have hg_ker : βn.symm g ∈ LinearMap.ker φ := by
+        rw [LinearMap.mem_ker]; simp only [FGModuleCat.obj_carrier] at hg; exact hg
+      obtain ⟨w, hw⟩ := hψ ⟨βn.symm g, hg_ker⟩
+      -- So g = βn(α(w)) = α'(βm(w)) = (F.map f)(βm(w))
+      -- α' = F.map f on elements (post-composition with f)
+      have hα'_eq : ∀ k, α' k = k ≫ f := by
+        intro k
+        change α' k = ((preadditiveCoyonedaObj P).map f).hom k
+        conv_rhs => rw [hf]; simp [ModuleCat.hom_ofHom]
+      have hg_eq : g = α' (βm w) := by
+        change g = βn (α (βm.symm (βm w)))
+        simp only [LinearEquiv.symm_apply_apply]
+        change g = βn ((LinearMap.ker φ).subtype (ψ w))
+        rw [hw]; simp [Submodule.coe_subtype, LinearEquiv.apply_symm_apply]
+      rw [hg_eq, hα'_eq]
+      -- goal: π_star (βm w ≫ f) = 0, i.e., (βm w ≫ f) ≫ cokernel.π f = 0
+      change (βm w ≫ f) ≫ cokernel.π f = 0
+      rw [Category.assoc, cokernel.condition, comp_zero]
+    · -- ker π_star ⊆ ker ε: if g ≫ cokernel.π = 0 then g factors through f
+      intro hg
+      simp only [LinearMap.mem_ker] at hg ⊢
+      -- g ≫ cokernel.π = 0, so g factors through kernel of cokernel.π
+      -- In an abelian category, image f = kernel (cokernel.π f)
+      -- g ∈ ker(cokernel.π) = image(f), so g = h ≫ f for some h
+      -- Actually: g factors through Abelian.image f via the factorization
+      have hg_zero : g ≫ cokernel.π f = 0 := hg
+      -- g factors through the kernel of cokernel.π
+      let g_lift := kernel.lift (cokernel.π f) g hg_zero
+      -- kernel of cokernel.π = image of f (abelian category)
+      -- Abelian.image.ι f : Abelian.image f ⟶ ⨁Fn
+      -- Abelian.factorThruImage f : ⨁Fm ⟶ Abelian.image f  (epi)
+      -- kernel.ι (cokernel.π f) = Abelian.image.ι f (up to iso)
+      -- Use that imageSubobject = kernel of cokernel.π
+      -- Since P is projective: lift g_lift through factorThruImage
+      let img_iso := Abelian.imageIsoImage f
+      -- img_iso : Abelian.image f ≅ image f (the categorical image)
+      -- image.ι f : image f ⟶ ⨁Fn
+      -- We need to connect kernel.ι (cokernel.π f) with image
+      -- In an abelian category: image f ≅ kernel (cokernel.π f)
+      -- Use imageIsoKernelCokernelπ
+      -- Actually, let's use a more direct approach:
+      -- Abelian.factorThruImage f ≫ Abelian.image.ι f = f
+      -- and factorThruImage is epi
+      -- P is projective, so lift g_lift through factorThruImage
+      -- Actually, kernel.ι (cokernel.π f) factors through Abelian.image.ι f
+      -- Let's use: g = g_lift ≫ kernel.ι (cokernel.π f)
+      --          = g_lift ≫ ... ≫ image.ι f
+      -- Simpler: just note that in abelian categories, f = factorThruImage f ≫ image.ι f
+      -- and image.ι f = imageSubobject.arrow = ...
+      -- This is getting complex. Let me use the direct characterization:
+      -- g ≫ cokernel.π f = 0  implies  g ∈ range of (· ≫ f) as End(P)^op-module maps
+      -- i.e., there exists h : P ⟶ ⨁Fm with h ≫ f = g
+      -- This follows from: P projective + abelian image factorization
+      -- In an abelian category: f = factorThruImage f ≫ image.ι f
+      --   factorThruImage f is epi, image.ι f is mono
+      --   kernel (cokernel.π f) = image f  (this IS the abelian category axiom)
+      -- So kernel.ι (cokernel.π f) factors through image.ι f and vice versa
+      -- Using Abelian.image approach:
+      -- Abelian.image.ι f = kernel.ι (cokernel.π f) (definitionally in Mathlib!)
+      -- So g_lift ≫ kernel.ι (cokernel.π f) = g
+      -- means g_lift ≫ Abelian.image.ι f = g  (wrong: different types)
+      -- Actually in Mathlib: Abelian.image f is defined as kernel (cokernel.π f)
+      -- So Abelian.image.ι f = kernel.ι (cokernel.π f) definitionally
+      -- and Abelian.factorThruImage f : ⨁Fm ⟶ Abelian.image f
+      -- with Abelian.factorThruImage f ≫ Abelian.image.ι f = f
+      -- Since P is projective, lift g_lift : P ⟶ Abelian.image f
+      -- through Abelian.factorThruImage f (which is epi)
+      let h := Projective.factorThru g_lift (Abelian.factorThruImage f)
+      -- h : P ⟶ ⨁Fm with h ≫ Abelian.factorThruImage f = g_lift
+      -- So h ≫ f = h ≫ (factorThruImage f ≫ image.ι f)
+      --          = g_lift ≫ image.ι f = g_lift ≫ kernel.ι (cokernel.π f) = g
+      have hh : h ≫ f = g := by
+        have h1 := Projective.factorThru_comp g_lift (Abelian.factorThruImage f)
+        have h2 := Abelian.image.fac f
+        -- h2 : Abelian.factorThruImage f ≫ Abelian.image.ι f = f
+        calc h ≫ f = h ≫ (Abelian.factorThruImage f ≫ Abelian.image.ι f) := by rw [h2]
+          _ = (h ≫ Abelian.factorThruImage f) ≫ Abelian.image.ι f := by rw [Category.assoc]
+          _ = g_lift ≫ Abelian.image.ι f := by rw [h1]
+          _ = g_lift ≫ kernel.ι (cokernel.π f) := rfl
+          _ = g := kernel.lift_ι (cokernel.π f) g hg_zero
+      -- Now: ε(g) = ε(h ≫ f) = φ(βn⁻¹(α'(βm.symm⁻¹(h))))
+      -- Since α = subtype ∘ ψ and ε = φ ∘ βn⁻¹:
+      -- ε(h ≫ f) = φ(βn⁻¹(h ≫ f))
+      -- h ≫ f = α'(h) (since F.map f = α' by hf)
+      -- So βn⁻¹(α'(h)) = α(βm⁻¹(h)) = subtype(ψ(βm⁻¹(h))) ∈ ker φ
+      -- Hence φ(βn⁻¹(h ≫ f)) = 0
+      rw [← hh]
+      -- goal: ε (h ≫ f) = 0, i.e., φ (βn.symm (h ≫ f)) = 0
+      change φ (βn.symm (h ≫ f)) = 0
+      -- h ≫ f = α' h (since F.map f = ofHom α')
+      have hα'_eq : ∀ k, α' k = k ≫ f := by
+        intro k
+        change α' k = ((preadditiveCoyonedaObj P).map f).hom k
+        conv_rhs => rw [hf]; simp [ModuleCat.hom_ofHom]
+      rw [← hα'_eq]
+      change φ (βn.symm (βn (α (βm.symm h)))) = 0
+      rw [LinearEquiv.symm_apply_apply]
+      -- α (βm.symm h) = subtype (ψ (βm.symm h)) ∈ ker φ
+      exact LinearMap.mem_ker.mp (ψ (βm.symm h)).property
+  -- Build the LinearEquiv via quotient kernels
+  let iso1 := ε.quotKerEquivOfSurjective hε_surj
+  -- iso1 : (P ⟶ ⨁Fn) ⧸ ker ε ≃ₗ[R] ↑M.obj
+  let iso2 := Submodule.quotEquivOfEq _ _ hker_eq
+  -- iso2 : (P ⟶ ⨁Fn) ⧸ ker ε ≃ₗ[R] (P ⟶ ⨁Fn) ⧸ ker π_star
+  let iso3 := π_star.quotKerEquivOfSurjective hπ_surj
+  -- iso3 : (P ⟶ ⨁Fn) ⧸ ker π_star ≃ₗ[R] (P ⟶ X)
+  -- Full chain: (P ⟶ X) ←(iso3)← quot/ker π_star ←(iso2)← quot/ker ε →(iso1)→ ↑M.obj
+  let full_iso : (P ⟶ X) ≃ₗ[R] ↑M.obj := iso3.symm.trans (iso2.symm.trans iso1)
+  -- Package as FGModuleCat iso
+  -- full_iso : (P ⟶ X) ≃ₗ[R] ↑M.obj
+  exact ⟨cokernel f, ⟨{
+    hom := InducedCategory.homMk (ModuleCat.ofHom full_iso.toLinearMap)
+    inv := InducedCategory.homMk (ModuleCat.ofHom full_iso.symm.toLinearMap)
+    hom_inv_id := by apply InducedCategory.hom_ext; ext x; exact full_iso.left_inv x
+    inv_hom_id := by apply InducedCategory.hom_ext; ext x; exact full_iso.right_inv x
+  }⟩⟩
 
 /-- **Theorem 9.6.4 (Morita equivalence)**: Let 𝒞 be a finite
 abelian category and P a progenerator. Then Hom(P, -) is an equivalence from 𝒞 to
@@ -253,7 +441,8 @@ the category of finitely generated (End P)ᵒᵖ-modules. -/
 theorem Etingof.Theorem_9_6_4
     {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
-    {P : C} [hp : Etingof.IsProgenerator P] :
+    {P : C} [hp : Etingof.IsProgenerator P]
+    [IsNoetherianRing (End P)ᵐᵒᵖ] :
     hp.preadditiveCoyonedaObjFG.IsEquivalence where
   essSurj := hp.essSurj_preadditiveCoyonedaObjFG
   faithful :=
@@ -275,7 +464,8 @@ C ≌ (End P)ᵒᵖ-fgmod. (Etingof Theorem 9.6.4, corollary) -/
 theorem Etingof.Theorem_9_6_4_corollary
     (C : Type u) [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
-    (P : C) [hp : Etingof.IsProgenerator P] :
+    (P : C) [hp : Etingof.IsProgenerator P]
+    [IsNoetherianRing (End P)ᵐᵒᵖ] :
     Nonempty (C ≌ FGModuleCat.{v} (End P)ᵐᵒᵖ) := by
-  have := @Etingof.Theorem_9_6_4 C _ _ P hp
+  have := @Etingof.Theorem_9_6_4 C _ _ P hp _
   exact ⟨hp.preadditiveCoyonedaObjFG.asEquivalence⟩

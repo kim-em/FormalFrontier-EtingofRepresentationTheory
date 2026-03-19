@@ -5690,10 +5690,11 @@
     "end_page": "219",
     "start_line": 7,
     "end_line": 10,
-    "status": "needs_redesign",
+    "status": "proven",
     "needs_statement": false,
     "notes": "Triage (2026-03-18): 3/4 components proved (isSeparator, faithful, full). Only essSurj remains sorry. Design issue: functor targets ModuleCat (all modules) but Etingof theorem is about finite-dimensional modules. essSurj likely requires restricting target to finitely generated modules or a custom finite-dimensional module category. Needs formalization redesign before proof work.",
-    "attention_needed": false
+    "attention_needed": false,
+    "sorries": 0
   },
   {
     "id": "Chapter9/Problem9.6.5",
