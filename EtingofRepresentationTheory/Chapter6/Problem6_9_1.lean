@@ -80,6 +80,102 @@ def Q₂Rep.Indecomposable {k : Type*} [Field k] (ρ : Q₂Rep k) : Prop :=
     (∀ x ∈ pW, ρ.B x ∈ pV) → (∀ x ∈ qW, ρ.B x ∈ qV) →
     (pV = ⊥ ∧ pW = ⊥) ∨ (qV = ⊥ ∧ qW = ⊥)
 
+/-! ## Shared Fitting decomposition infrastructure for Q₂ representations -/
+
+/-- Intertwining identity: (AB)^n ∘ A = A ∘ (BA)^n -/
+private lemma Q₂Rep.intertwine_AB_A (ρ : Q₂Rep ℂ) (n : ℕ) (v : ρ.V) :
+    ((ρ.A.comp ρ.B) ^ n) (ρ.A v) = ρ.A (((ρ.B.comp ρ.A) ^ n) v) := by
+  induction n generalizing v with
+  | zero => simp
+  | succ n ih =>
+    simp only [pow_succ, Module.End.mul_apply]
+    rw [show (ρ.A.comp ρ.B) (ρ.A v) = ρ.A ((ρ.B.comp ρ.A) v) from rfl, ih]
+
+/-- Intertwining identity: (BA)^n ∘ B = B ∘ (AB)^n -/
+private lemma Q₂Rep.intertwine_BA_B (ρ : Q₂Rep ℂ) (n : ℕ) (w : ρ.W) :
+    ((ρ.B.comp ρ.A) ^ n) (ρ.B w) = ρ.B (((ρ.A.comp ρ.B) ^ n) w) := by
+  induction n generalizing w with
+  | zero => simp
+  | succ n ih =>
+    simp only [pow_succ, Module.End.mul_apply]
+    rw [show (ρ.B.comp ρ.A) (ρ.B w) = ρ.B ((ρ.A.comp ρ.B) w) from rfl, ih]
+
+private lemma Q₂Rep.ker_AB_pow_directed (ρ : Q₂Rep ℂ) :
+    Directed (· ≤ ·) (fun n => LinearMap.ker ((ρ.A.comp ρ.B) ^ n)) :=
+  Monotone.directed_le fun m n hmn x hx => by
+    rw [LinearMap.mem_ker] at hx ⊢
+    rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+
+private lemma Q₂Rep.ker_BA_pow_directed (ρ : Q₂Rep ℂ) :
+    Directed (· ≤ ·) (fun n => LinearMap.ker ((ρ.B.comp ρ.A) ^ n)) :=
+  Monotone.directed_le fun m n hmn x hx => by
+    rw [LinearMap.mem_ker] at hx ⊢
+    rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+
+/-- A maps the generalized kernel of BA into the generalized kernel of AB -/
+private lemma Q₂Rep.fitting_A_ker_to_ker (ρ : Q₂Rep ℂ) (x : ρ.V)
+    (hx : x ∈ ⨆ n, LinearMap.ker ((ρ.B.comp ρ.A) ^ n)) :
+    ρ.A x ∈ ⨆ n, LinearMap.ker ((ρ.A.comp ρ.B) ^ n) := by
+  rw [Submodule.mem_iSup_of_directed _ ρ.ker_BA_pow_directed] at hx
+  rw [Submodule.mem_iSup_of_directed _ ρ.ker_AB_pow_directed]
+  obtain ⟨n, hn⟩ := hx
+  exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [ρ.intertwine_AB_A, hn, map_zero]⟩
+
+/-- A maps the eventual range of BA into the eventual range of AB -/
+private lemma Q₂Rep.fitting_A_range_to_range (ρ : Q₂Rep ℂ) (x : ρ.V)
+    (hx : x ∈ ⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n)) :
+    ρ.A x ∈ ⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n) := by
+  rw [Submodule.mem_iInf] at hx ⊢; intro n
+  obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+  exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, ρ.intertwine_AB_A]⟩
+
+/-- B maps the generalized kernel of AB into the generalized kernel of BA -/
+private lemma Q₂Rep.fitting_B_ker_to_ker (ρ : Q₂Rep ℂ) (w : ρ.W)
+    (hw : w ∈ ⨆ n, LinearMap.ker ((ρ.A.comp ρ.B) ^ n)) :
+    ρ.B w ∈ ⨆ n, LinearMap.ker ((ρ.B.comp ρ.A) ^ n) := by
+  rw [Submodule.mem_iSup_of_directed _ ρ.ker_AB_pow_directed] at hw
+  rw [Submodule.mem_iSup_of_directed _ ρ.ker_BA_pow_directed]
+  obtain ⟨n, hn⟩ := hw
+  exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [ρ.intertwine_BA_B, hn, map_zero]⟩
+
+/-- B maps the eventual range of AB into the eventual range of BA -/
+private lemma Q₂Rep.fitting_B_range_to_range (ρ : Q₂Rep ℂ) (w : ρ.W)
+    (hw : w ∈ ⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n)) :
+    ρ.B w ∈ ⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n) := by
+  rw [Submodule.mem_iInf] at hw ⊢; intro n
+  obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hw n)
+  exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, ρ.intertwine_BA_B]⟩
+
+/-- A is injective on the eventual range of BA (modulo the Fitting decomposition) -/
+private lemma Q₂Rep.fitting_A_injective_on_range (ρ : Q₂Rep ℂ) {v₁ v₂ : ρ.V}
+    (hv₁ : v₁ ∈ ⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n))
+    (hv₂ : v₂ ∈ ⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n))
+    (h : ρ.A v₁ = ρ.A v₂) : v₁ = v₂ := by
+  have h_diff : ρ.A (v₁ - v₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h]
+  have h_pV : v₁ - v₂ ∈ ⨆ n, LinearMap.ker ((ρ.B.comp ρ.A) ^ n) :=
+    Submodule.mem_iSup_of_mem 1 (by
+      rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
+  have h_qV : v₁ - v₂ ∈ ⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n) :=
+    (⨅ n, LinearMap.range ((ρ.B.comp ρ.A) ^ n)).sub_mem hv₁ hv₂
+  have h_bot := Submodule.mem_inf.mpr ⟨h_pV, h_qV⟩
+  rw [(LinearMap.isCompl_iSup_ker_pow_iInf_range_pow (ρ.B.comp ρ.A)).disjoint.eq_bot] at h_bot
+  exact sub_eq_zero.mp h_bot
+
+/-- B is injective on the eventual range of AB (modulo the Fitting decomposition) -/
+private lemma Q₂Rep.fitting_B_injective_on_range (ρ : Q₂Rep ℂ) {w₁ w₂ : ρ.W}
+    (hw₁ : w₁ ∈ ⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n))
+    (hw₂ : w₂ ∈ ⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n))
+    (h : ρ.B w₁ = ρ.B w₂) : w₁ = w₂ := by
+  have h_diff : ρ.B (w₁ - w₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h]
+  have h_pW : w₁ - w₂ ∈ ⨆ n, LinearMap.ker ((ρ.A.comp ρ.B) ^ n) :=
+    Submodule.mem_iSup_of_mem 1 (by
+      rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
+  have h_qW : w₁ - w₂ ∈ ⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n) :=
+    (⨅ n, LinearMap.range ((ρ.A.comp ρ.B) ^ n)).sub_mem hw₁ hw₂
+  have h_bot := Submodule.mem_inf.mpr ⟨h_pW, h_qW⟩
+  rw [(LinearMap.isCompl_iSup_ker_pow_iInf_range_pow (ρ.A.comp ρ.B)).disjoint.eq_bot] at h_bot
+  exact sub_eq_zero.mp h_bot
+
 /-- **Problem 6.9.1(a), Family E_{n,λ} (Etingof)**: For n ≥ 1 and λ ∈ ℂ,
 the Q₂-representation with V = W = ℂⁿ, A = Jordan block J_n(λ), B = Id is
 indecomposable. This family is parameterized by (n, λ) ∈ ℕ₊ × ℂ. -/
@@ -288,119 +384,33 @@ theorem Etingof.Problem6_9_1b (ρ : Q₂Rep ℂ)
   set qW := ⨅ n, LinearMap.range (AB ^ n)
   set pV := ⨆ n, LinearMap.ker (BA ^ n)
   set qV := ⨅ n, LinearMap.range (BA ^ n)
-  -- Key intertwining identity: (AB)^n ∘ A = A ∘ (BA)^n
-  have intertwine_A : ∀ n : ℕ, ∀ v, (AB ^ n) (ρ.A v) = ρ.A ((BA ^ n) v) := by
-    intro n; induction n with
-    | zero => intro v; simp
-    | succ n ih =>
-      intro v
-      have h1 : (AB ^ (n + 1)) (ρ.A v) = (AB ^ n) (AB (ρ.A v)) := by
-        simp only [pow_succ, Module.End.mul_apply]
-      have h2 : AB (ρ.A v) = ρ.A (BA v) := rfl
-      have h3 : (BA ^ (n + 1)) v = (BA ^ n) (BA v) := by
-        simp only [pow_succ, Module.End.mul_apply]
-      rw [h1, h2, ih, h3]
-  -- Key intertwining identity: (BA)^n ∘ B = B ∘ (AB)^n
-  have intertwine_B : ∀ n : ℕ, ∀ w, (BA ^ n) (ρ.B w) = ρ.B ((AB ^ n) w) := by
-    intro n; induction n with
-    | zero => intro w; simp
-    | succ n ih =>
-      intro w
-      have h1 : (BA ^ (n + 1)) (ρ.B w) = (BA ^ n) (BA (ρ.B w)) := by
-        simp only [pow_succ, Module.End.mul_apply]
-      have h2 : BA (ρ.B w) = ρ.B (AB w) := rfl
-      have h3 : (AB ^ (n + 1)) w = (AB ^ n) (AB w) := by
-        simp only [pow_succ, Module.End.mul_apply]
-      rw [h1, h2, ih, h3]
-  -- Kernels form a directed family (monotone)
-  have ker_dir_AB : Directed (· ≤ ·) (fun n => LinearMap.ker (AB ^ n)) :=
-    Monotone.directed_le fun m n hmn => by
-      intro x hx; rw [LinearMap.mem_ker] at hx ⊢
-      rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
-  have ker_dir_BA : Directed (· ≤ ·) (fun n => LinearMap.ker (BA ^ n)) :=
-    Monotone.directed_le fun m n hmn => by
-      intro x hx; rw [LinearMap.mem_ker] at hx ⊢
-      rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
   refine ⟨pV, qV, pW, qW, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
   -- 1. IsCompl pV qV (Fitting for BA)
   · exact LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
   -- 2. IsCompl pW qW (Fitting for AB)
   · exact LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
-  -- 3. ∀ x ∈ pV, ρ.A x ∈ pW
-  · intro x hx
-    rw [Submodule.mem_iSup_of_directed _ ker_dir_BA] at hx
-    rw [Submodule.mem_iSup_of_directed _ ker_dir_AB]
-    obtain ⟨n, hn⟩ := hx
-    exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_A, hn, map_zero]⟩
-  -- 4. ∀ x ∈ qV, ρ.A x ∈ qW
-  · intro x hx
-    rw [Submodule.mem_iInf] at hx ⊢
-    intro n
-    obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-    exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
-  -- 5. ∀ x ∈ pW, ρ.B x ∈ pV
-  · intro x hx
-    rw [Submodule.mem_iSup_of_directed _ ker_dir_AB] at hx
-    rw [Submodule.mem_iSup_of_directed _ ker_dir_BA]
-    obtain ⟨n, hn⟩ := hx
-    exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_B, hn, map_zero]⟩
-  -- 6. ∀ x ∈ qW, ρ.B x ∈ qV
-  · intro x hx
-    rw [Submodule.mem_iInf] at hx ⊢
-    intro n
-    obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-    exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
-  -- 7. dim qV = dim qW
-  · -- A is injective on qV: if Av = 0 for v ∈ qV, then BAv = 0, so v ∈ ker(BA) ⊆ pV,
-    -- but v ∈ qV and pV ⊓ qV = ⊥, so v = 0.
-    have hFitV := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
-    have hFitW := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
-    have hA_qV : ∀ x ∈ qV, ρ.A x ∈ qW := by
-      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
-      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-      exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
-    have hB_qW : ∀ x ∈ qW, ρ.B x ∈ qV := by
-      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
-      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-      exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
-    -- Restricted maps
-    set A' : ↥qV →ₗ[ℂ] ↥qW :=
-      (ρ.A.domRestrict qV).codRestrict qW (fun ⟨v, hv⟩ => hA_qV v hv)
+  -- 3-6. A and B map Fitting subspaces to Fitting subspaces
+  · exact fun x hx => ρ.fitting_A_ker_to_ker x hx
+  · exact fun x hx => ρ.fitting_A_range_to_range x hx
+  · exact fun x hx => ρ.fitting_B_ker_to_ker x hx
+  · exact fun x hx => ρ.fitting_B_range_to_range x hx
+  -- 7. dim qV = dim qW (via injectivity of restricted A and B on eventual ranges)
+  · set A' : ↥qV →ₗ[ℂ] ↥qW :=
+      (ρ.A.domRestrict qV).codRestrict qW (fun ⟨v, hv⟩ =>
+        ρ.fitting_A_range_to_range v hv)
     set B' : ↥qW →ₗ[ℂ] ↥qV :=
-      (ρ.B.domRestrict qW).codRestrict qV (fun ⟨w, hw⟩ => hB_qW w hw)
-    -- A' is injective
+      (ρ.B.domRestrict qW).codRestrict qV (fun ⟨w, hw⟩ =>
+        ρ.fitting_B_range_to_range w hw)
     have hA'_inj : Function.Injective A' := by
       intro ⟨v₁, hv₁⟩ ⟨v₂, hv₂⟩ h
-      have h_eq : ρ.A v₁ = ρ.A v₂ := by
-        have := congr_arg Subtype.val h
-        simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
-      have h_diff : ρ.A (v₁ - v₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
-      have h_ker : v₁ - v₂ ∈ LinearMap.ker BA := by
-        rw [LinearMap.mem_ker]; simp [BA, LinearMap.comp_apply, h_diff]
-      have h_pV : v₁ - v₂ ∈ pV := by
-        rw [show pV = ⨆ n, LinearMap.ker (BA ^ n) from rfl]
-        exact Submodule.mem_iSup_of_mem 1 (by rwa [pow_one])
-      have h_qV : v₁ - v₂ ∈ qV := qV.sub_mem hv₁ hv₂
-      have h_bot : v₁ - v₂ ∈ pV ⊓ qV := Submodule.mem_inf.mpr ⟨h_pV, h_qV⟩
-      rw [hFitV.disjoint.eq_bot] at h_bot
-      exact Subtype.ext (sub_eq_zero.mp h_bot)
-    -- B' is injective
+      exact Subtype.ext (ρ.fitting_A_injective_on_range hv₁ hv₂ (by
+        simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply]
+          using congr_arg Subtype.val h))
     have hB'_inj : Function.Injective B' := by
       intro ⟨w₁, hw₁⟩ ⟨w₂, hw₂⟩ h
-      have h_eq : ρ.B w₁ = ρ.B w₂ := by
-        have := congr_arg Subtype.val h
-        simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
-      have h_diff : ρ.B (w₁ - w₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
-      have h_ker : w₁ - w₂ ∈ LinearMap.ker AB := by
-        rw [LinearMap.mem_ker]; simp [AB, LinearMap.comp_apply, h_diff]
-      have h_pW : w₁ - w₂ ∈ pW := by
-        rw [show pW = ⨆ n, LinearMap.ker (AB ^ n) from rfl]
-        exact Submodule.mem_iSup_of_mem 1 (by rwa [pow_one])
-      have h_qW : w₁ - w₂ ∈ qW := qW.sub_mem hw₁ hw₂
-      have h_bot : w₁ - w₂ ∈ pW ⊓ qW := Submodule.mem_inf.mpr ⟨h_pW, h_qW⟩
-      rw [hFitW.disjoint.eq_bot] at h_bot
-      exact Subtype.ext (sub_eq_zero.mp h_bot)
-    -- dim qV ≤ dim qW and dim qW ≤ dim qV
+      exact Subtype.ext (ρ.fitting_B_injective_on_range hw₁ hw₂ (by
+        simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply]
+          using congr_arg Subtype.val h))
     exact le_antisymm
       (LinearMap.finrank_le_finrank_of_injective hA'_inj)
       (LinearMap.finrank_le_finrank_of_injective hB'_inj)
@@ -439,58 +449,11 @@ theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
     set qV := ⨅ n, LinearMap.range (BA ^ n)
     have hcV := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
     have hcW := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
-    -- Intertwining identities (reuse via inline proof)
-    have intertwine_A : ∀ n : ℕ, ∀ v, (AB ^ n) (ρ.A v) = ρ.A ((BA ^ n) v) := by
-      intro n; induction n with
-      | zero => intro v; simp
-      | succ n ih =>
-        intro v
-        have h1 : (AB ^ (n + 1)) (ρ.A v) = (AB ^ n) (AB (ρ.A v)) := by
-          simp only [pow_succ, Module.End.mul_apply]
-        have h2 : AB (ρ.A v) = ρ.A (BA v) := rfl
-        have h3 : (BA ^ (n + 1)) v = (BA ^ n) (BA v) := by
-          simp only [pow_succ, Module.End.mul_apply]
-        rw [h1, h2, ih, h3]
-    have intertwine_B : ∀ n : ℕ, ∀ w, (BA ^ n) (ρ.B w) = ρ.B ((AB ^ n) w) := by
-      intro n; induction n with
-      | zero => intro w; simp
-      | succ n ih =>
-        intro w
-        have h1 : (BA ^ (n + 1)) (ρ.B w) = (BA ^ n) (BA (ρ.B w)) := by
-          simp only [pow_succ, Module.End.mul_apply]
-        have h2 : BA (ρ.B w) = ρ.B (AB w) := rfl
-        have h3 : (AB ^ (n + 1)) w = (AB ^ n) (AB w) := by
-          simp only [pow_succ, Module.End.mul_apply]
-        rw [h1, h2, ih, h3]
-    have ker_dir_AB : Directed (· ≤ ·) (fun n => LinearMap.ker (AB ^ n)) :=
-      Monotone.directed_le fun m n hmn => by
-        intro x hx; rw [LinearMap.mem_ker] at hx ⊢
-        rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
-    have ker_dir_BA : Directed (· ≤ ·) (fun n => LinearMap.ker (BA ^ n)) :=
-      Monotone.directed_le fun m n hmn => by
-        intro x hx; rw [LinearMap.mem_ker] at hx ⊢
-        rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
-    -- Compatibility
-    have hApV : ∀ x ∈ pV, ρ.A x ∈ pW := by
-      intro x hx
-      rw [Submodule.mem_iSup_of_directed _ ker_dir_BA] at hx
-      rw [Submodule.mem_iSup_of_directed _ ker_dir_AB]
-      obtain ⟨n, hn⟩ := hx
-      exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_A, hn, map_zero]⟩
-    have hAqV : ∀ x ∈ qV, ρ.A x ∈ qW := by
-      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
-      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-      exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
-    have hBpW : ∀ x ∈ pW, ρ.B x ∈ pV := by
-      intro x hx
-      rw [Submodule.mem_iSup_of_directed _ ker_dir_AB] at hx
-      rw [Submodule.mem_iSup_of_directed _ ker_dir_BA]
-      obtain ⟨n, hn⟩ := hx
-      exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_B, hn, map_zero]⟩
-    have hBqW : ∀ x ∈ qW, ρ.B x ∈ qV := by
-      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
-      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
-      exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
+    -- Fitting compatibility (via shared lemmas)
+    have hApV : ∀ x ∈ pV, ρ.A x ∈ pW := fun x hx => ρ.fitting_A_ker_to_ker x hx
+    have hAqV : ∀ x ∈ qV, ρ.A x ∈ qW := fun x hx => ρ.fitting_A_range_to_range x hx
+    have hBpW : ∀ x ∈ pW, ρ.B x ∈ pV := fun x hx => ρ.fitting_B_ker_to_ker x hx
+    have hBqW : ∀ x ∈ qW, ρ.B x ∈ qV := fun x hx => ρ.fitting_B_range_to_range x hx
     -- qW ≠ ⊥ (since AB not nilpotent, the eventual range is nontrivial)
     have hqW_ne : qW ≠ ⊥ := by
       intro h
@@ -507,38 +470,21 @@ theorem Etingof.Problem6_9_1 (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable) :
     · -- pV = ⊥, pW = ⊥: qV = ⊤, qW = ⊤
       have hqV_top : qV = ⊤ := eq_top_of_bot_isCompl (hpV ▸ hcV)
       have hqW_top : qW = ⊤ := eq_top_of_bot_isCompl (hpW ▸ hcW)
-      -- Dimension equality via injectivity (as in Problem6_9_1b)
-      have hFitV := hcV; have hFitW := hcW
+      -- Dimension equality via injectivity (using shared Fitting injectivity lemmas)
       set A' : ↥qV →ₗ[ℂ] ↥qW :=
         (ρ.A.domRestrict qV).codRestrict qW (fun ⟨v, hv⟩ => hAqV v hv)
       set B' : ↥qW →ₗ[ℂ] ↥qV :=
         (ρ.B.domRestrict qW).codRestrict qV (fun ⟨w, hw⟩ => hBqW w hw)
       have hA'_inj : Function.Injective A' := by
         intro ⟨v₁, hv₁⟩ ⟨v₂, hv₂⟩ h
-        have h_eq : ρ.A v₁ = ρ.A v₂ := by
-          have := congr_arg Subtype.val h
-          simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
-        have h_diff : ρ.A (v₁ - v₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
-        have h_pV : v₁ - v₂ ∈ pV :=
-          Submodule.mem_iSup_of_mem 1 (by
-            rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
-        have h_qV : v₁ - v₂ ∈ qV := qV.sub_mem hv₁ hv₂
-        have h_bot : v₁ - v₂ ∈ pV ⊓ qV := Submodule.mem_inf.mpr ⟨h_pV, h_qV⟩
-        rw [hFitV.disjoint.eq_bot] at h_bot
-        exact Subtype.ext (sub_eq_zero.mp h_bot)
+        exact Subtype.ext (ρ.fitting_A_injective_on_range hv₁ hv₂ (by
+          simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply]
+            using congr_arg Subtype.val h))
       have hB'_inj : Function.Injective B' := by
         intro ⟨w₁, hw₁⟩ ⟨w₂, hw₂⟩ h
-        have h_eq : ρ.B w₁ = ρ.B w₂ := by
-          have := congr_arg Subtype.val h
-          simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
-        have h_diff : ρ.B (w₁ - w₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
-        have h_pW : w₁ - w₂ ∈ pW :=
-          Submodule.mem_iSup_of_mem 1 (by
-            rw [pow_one, LinearMap.mem_ker, LinearMap.comp_apply, h_diff, map_zero])
-        have h_qW : w₁ - w₂ ∈ qW := qW.sub_mem hw₁ hw₂
-        have h_bot : w₁ - w₂ ∈ pW ⊓ qW := Submodule.mem_inf.mpr ⟨h_pW, h_qW⟩
-        rw [hFitW.disjoint.eq_bot] at h_bot
-        exact Subtype.ext (sub_eq_zero.mp h_bot)
+        exact Subtype.ext (ρ.fitting_B_injective_on_range hw₁ hw₂ (by
+          simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply]
+            using congr_arg Subtype.val h))
       -- dim V = dim qV ≤ dim qW = dim W and vice versa
       apply le_antisymm
       · calc Module.finrank ℂ ρ.V
