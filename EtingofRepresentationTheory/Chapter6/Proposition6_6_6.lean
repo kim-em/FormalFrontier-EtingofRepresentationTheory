@@ -222,6 +222,21 @@ private def Etingof.arrowsInto_to_arrowsOutReversed
     intro heq; rw [heq] at e; exact (hi i).false e
   rw [Etingof.ReversedAtVertexHom_eq_ne rfl hji]; exact e
 
+/-- Round-trip: extracting the original arrow from a converted ArrowsInto
+gives back the original arrow. -/
+private theorem Etingof.origArrow_arrowsInto_to_arrowsOutReversed
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (b : Etingof.ArrowsInto Q i) :
+    Etingof.arrowsOutReversed_origArrow hi
+      (Etingof.arrowsInto_to_arrowsOutReversed hi b) = b.2 := by
+  obtain ⟨j, e⟩ := b
+  simp only [arrowsInto_to_arrowsOutReversed, arrowsOutReversed_origArrow, id]
+  -- Goal reduces to cast round-trip through ReversedAtVertexHom_eq_ne
+  -- The .mp and .mpr from the Eq cast cancel
+  change cast _ (cast _ e) = e
+  simp [cast_cast]
+
 /-- The component of `arrowsInto_to_arrowsOutReversed` at j gives the original arrow j ⟶ i. -/
 private theorem Etingof.arrowsInto_to_arrowsOutReversed_fst
     {Q : Type*} [DecidableEq Q] [Quiver Q]
@@ -258,6 +273,52 @@ private noncomputable def Etingof.equivAt_ne_sink
     match hd2 : (‹DecidableEq Q› v i) with
     | .isTrue hvi => exact absurd hvi hv
     | .isFalse _ => rw [hd2]
+
+/-- The reindexed map Φ : ⊕_{ArrowsOutOf Q̄ᵢ i} F⁺(V).obj a.fst →ₗ ρ.obj i
+is surjective when sinkMap is surjective.
+
+Φ is essentially sinkMap after reindexing through the
+ArrowsInto ↔ ArrowsOutOf correspondence and equivAt_ne.
+
+The Φ parameter must be `DirectSum.toModule k _ _ Φ_component` where
+Φ_component a = mapLinear(origArrow a) ∘ equivAt_ne. We take it as a parameter
+to avoid type class synthesis issues with multiple quiver instances. -/
+private theorem Etingof.sinkMap_reindex_surj
+    {k : Type*} [Field k] {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)]
+    (hsurj : Function.Surjective (ρ.sinkMap i))
+    {M : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i → Type*}
+    [∀ a, AddCommMonoid (M a)] [∀ a, Module k (M a)]
+    (Φ : DirectSum (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) M →ₗ[k] ρ.obj i)
+    (hΦ_basic : ∀ (b : @Etingof.ArrowsInto Q inst i) (v : ρ.obj b.fst),
+      ∃ z, Φ z = ρ.mapLinear b.2 v) :
+    Function.Surjective Φ := by
+  classical
+  -- Prove: sinkMap x ∈ range(Φ) for all x, hence Φ is surjective
+  suffices h : ∀ x, (ρ.sinkMap i) x ∈ Set.range Φ by
+    intro y
+    obtain ⟨x, hx⟩ := hsurj y
+    obtain ⟨z, hz⟩ := h x
+    exact ⟨z, by rw [hz, hx]⟩
+  intro x
+  induction x using DirectSum.induction_on with
+  | zero => exact ⟨0, by simp [map_zero]⟩
+  | of b v =>
+    obtain ⟨z, hz⟩ := hΦ_basic b v
+    refine ⟨z, ?_⟩
+    -- Goal: sinkMap (of b v) = Φ z = mapLinear b.2 v (by hz)
+    rw [hz]
+    -- Goal: sinkMap (of b v) = mapLinear b.2 v
+    -- sinkMap is DirectSum.toModule (after classical), so toModule_lof applies
+    delta Etingof.QuiverRepresentation.sinkMap
+    erw [DirectSum.toModule_lof]
+  | add x₁ x₂ ih₁ ih₂ =>
+    rw [map_add]
+    obtain ⟨z₁, hz₁⟩ := ih₁
+    obtain ⟨z₂, hz₂⟩ := ih₂
+    exact ⟨z₁ + z₂, by rw [map_add, hz₁, hz₂]⟩
 
 set_option maxHeartbeats 800000 in
 /-- At vertex i, F⁻(F⁺(V)).obj i ≃ₗ[k] ρ.obj i when the sink map is surjective.
@@ -325,14 +386,49 @@ private noncomputable def Etingof.equivAt_eq_sink
     -- Component transport: equivAt_ne gives F⁺(V)_j ≃ V_j for j ≠ i
     -- So Φ_component a = ρ.mapLinear(origArrow) ∘ equivAt_ne
     --                   = sinkMap component at (reindex a)
-    have hΦsurj : Function.Surjective Φ := by
-      sorry
+    have hΦsurj : Function.Surjective Φ :=
+      @Etingof.sinkMap_reindex_surj k _ Q _ inst i hi ρ _ hsurj
+        (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)
+        (fun a => ρ'.instAddCommMonoid a.fst) (fun a => ρ'.instModule a.fst) Φ
+        (fun b v => by
+          -- Construct preimage: lof a (equivAt_ne.symm v) where a = arrowsInto_to_arrowsOutReversed b
+          let a := @Etingof.arrowsInto_to_arrowsOutReversed Q _ inst i hi b
+          let hne := @Etingof.arrowsOutReversed_ne Q _ inst i hi a
+          let v' := (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst hne).symm v
+          refine ⟨DirectSum.lof k _ _ a v', ?_⟩
+          simp only [Φ, Φ_component, DirectSum.toModule_lof, LinearMap.comp_apply,
+            LinearEquiv.coe_toLinearMap, v']
+          -- Goal: mapLinear (origArrow a) (equivAt_ne ⋯ (equivAt_ne hne).symm v) = mapLinear b.2 v
+          -- Two equivAt_ne have different proof args; apply_symm_apply still works
+          have heq_proof : @Etingof.arrowsOutReversed_ne Q _ inst i hi a =
+              @Etingof.arrowsOutReversed_ne Q _ inst i hi
+                (@Etingof.arrowsInto_to_arrowsOutReversed Q _ inst i hi b) := rfl
+          conv_lhs =>
+            rw [show ∀ h, (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst h)
+                ((@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst hne).symm v) = v
+              from fun h => by exact LinearEquiv.apply_symm_apply _ v]
+          exact congrArg (fun e => @Etingof.QuiverRepresentation.mapLinear k Q _ inst ρ _ i e v)
+            (@Etingof.origArrow_arrowsInto_to_arrowsOutReversed Q _ inst i hi b))
     -- Step 2: Show range(source map) = ker(Φ)
     have hker : (∑ a : @Etingof.ArrowsOutOf Q instR i,
         (DirectSum.lof k (@Etingof.ArrowsOutOf Q instR i)
           (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) a).comp
           (@Etingof.QuiverRepresentation.mapLinear k Q _ instR ρ' i a.fst a.snd)).range =
         LinearMap.ker Φ := by
+      -- BLOCKED: Proving range(source_map) = ker(Φ) requires a
+      -- reflFunctorPlus_mapLinear_eq_ne API lemma that reduces the
+      -- Decidable.casesOn in the mapLinear definition for the (a=i, b≠i) case.
+      -- The Decidable.casesOn-based definitions resist unfolding/rewriting
+      -- due to dependent type issues with the motive.
+      --
+      -- Forward direction: range(source_map) ≤ ker(Φ)
+      --   Φ(source_map v) = ∑_a Φ_component a (ρ'.mapLinear a.snd v)
+      --     = sinkMap(subtype(equivAt_eq v)) = 0 since v ∈ ker(sinkMap)
+      --   Needs: reflFunctorPlus_mapLinear_eq_ne to unfold ρ'.mapLinear a.snd
+      --
+      -- Reverse direction: ker(Φ) ≤ range(source_map)
+      --   If Φ(x) = 0, then sinkMap(reindex(x)) = 0, so reindex(x) ∈ ker(sinkMap),
+      --   and x = source_map(equivAt_eq.symm(reindex(x)))
       sorry
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
