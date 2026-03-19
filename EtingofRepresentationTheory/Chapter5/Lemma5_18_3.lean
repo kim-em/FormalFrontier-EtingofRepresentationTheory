@@ -530,13 +530,95 @@ private lemma fullDiag_le_diag [CharZero k] :
         -- m • e_m = Σ_{j < m} (-1)^j • (e_j * p_{m-j})
         have hm' : 0 < m := Nat.pos_of_ne_zero hm
         have hcast : (m : k) ≠ 0 := Nat.cast_ne_zero.mpr hm
-        -- Newton's identity (sorry'd — substantial infrastructure needed)
+        -- Newton's identity via commutative subalgebra transfer
         have newton : (m : k) • e m =
-            ∑ j ∈ Finset.range m,
+            (-1 : k) ^ (m + 1) • ∑ j ∈ Finset.range m,
               ((-1 : k) ^ j) • (e j * ∑ i : Fin n, B i ^ (m - j)) := by
-          sorry
+          -- Build a commutative subalgebra from pairwise-commuting generators
+          set A := Algebra.adjoin k (Set.range B)
+          have hBA : ∀ i, B i ∈ A := fun i => Algebra.subset_adjoin ⟨i, rfl⟩
+          -- All elements of A commute (generators commute, closure properties)
+          have hcommA : ∀ (a b : A), a * b = b * a := by
+            intro a b; apply Subtype.ext; show a.val * b.val = b.val * a.val
+            exact Algebra.adjoin_induction₂
+              (fun _ _ ⟨i, hi⟩ ⟨j, hj⟩ => hi ▸ hj ▸ hcomm i j)
+              (fun r₁ r₂ => by rw [← map_mul, mul_comm, map_mul])
+              (fun r _ _ => Algebra.commutes r _)
+              (fun r _ _ => (Algebra.commutes r _).symm)
+              (fun _ _ _ _ _ _ h₁ h₂ => by rw [add_mul, mul_add, h₁, h₂])
+              (fun _ _ _ _ _ _ h₁ h₂ => by rw [mul_add, add_mul, h₁, h₂])
+              (fun _ _ _ _ _ _ h₁ h₂ => by rw [mul_assoc, h₂, ← mul_assoc, h₁, mul_assoc])
+              (fun _ _ _ _ _ _ h₁ h₂ => by rw [← mul_assoc, h₁, mul_assoc, h₂, ← mul_assoc])
+              a.property b.property
+          -- CommRing instance on A
+          letI : CommRing A := { show Ring A from inferInstance with mul_comm := hcommA }
+          -- Lift B into A
+          set B' : Fin n → A := fun i => ⟨B i, hBA i⟩
+          -- Evaluation algebra homomorphism
+          set ψ : MvPolynomial (Fin n) k →ₐ[k] A := MvPolynomial.aeval B' with hψ_def
+          -- Product in A coerces to noncommProd in End
+          have prod_val : ∀ S : Finset (Fin n),
+              (∏ i ∈ S, B' i : A).val =
+                S.noncommProd B (fun i _ j _ _ => hcomm i j) := by
+            intro S
+            induction S using Finset.cons_induction_on with
+            | empty => simp [Finset.noncommProd_empty]
+            | cons a s ha ih =>
+              rw [Finset.prod_cons, Finset.noncommProd_cons]
+              show (B' a * ∏ i ∈ s, B' i).val = B a * s.noncommProd B _
+              simp only [Subalgebra.coe_mul]; rw [ih]
+          -- ψ maps esymm to e
+          have esymm_val : ∀ j,
+              (ψ (MvPolynomial.esymm (Fin n) k j) : Module.End k _) = e j := by
+            intro j
+            simp only [MvPolynomial.esymm, map_sum, map_prod, MvPolynomial.aeval_X, hψ_def, e]
+            rw [AddSubmonoidClass.coe_finset_sum]
+            exact Finset.sum_congr rfl (fun T _ => prod_val T)
+          -- ψ maps psum to power sum
+          have psum_val : ∀ d,
+              (ψ (MvPolynomial.psum (Fin n) k d) : Module.End k _) =
+                ∑ i : Fin n, B i ^ d := by
+            intro d
+            simp only [MvPolynomial.psum, map_sum, map_pow, MvPolynomial.aeval_X, hψ_def]
+            simp only [AddSubmonoidClass.coe_finset_sum, SubmonoidClass.coe_pow, B']
+          -- Composite evaluation: MvPolynomial → A → End
+          set Φ : MvPolynomial (Fin n) k →ₐ[k] Module.End k (⨂[k] (_ : Fin n), V) :=
+            A.val.comp ψ
+          have Φ_esymm : ∀ j, Φ (MvPolynomial.esymm (Fin n) k j) = e j := esymm_val
+          have Φ_psum : ∀ d, Φ (MvPolynomial.psum (Fin n) k d) = ∑ i : Fin n, B i ^ d :=
+            psum_val
+          -- Apply Φ to Mathlib's Newton identity
+          have h := congr_arg Φ (MvPolynomial.mul_esymm_eq_sum (Fin n) k m)
+          simp only [map_mul, map_pow, map_neg, map_one, map_sum,
+            Φ_esymm, Φ_psum] at h
+          rw [map_natCast Φ m] at h
+          -- h : ↑m * e m = (-1)^(m+1) * ∑ antidiag, (-1)^x.1 * e x.1 * ∑ i, B i ^ x.2
+          -- Convert antidiagonal sum to range sum in h
+          rw [show (Finset.antidiagonal m).filter (fun x => x.1 < m) =
+              (Finset.range m).map ⟨fun j => (j, m - j), fun a b h => by
+                simp [Prod.ext_iff] at h; exact h.1⟩ from by
+            ext ⟨a, b⟩; simp [Finset.mem_antidiagonal, Finset.mem_range]; omega,
+            Finset.sum_map] at h
+          simp only [Function.Embedding.coeFn_mk] at h
+          -- h : ↑m * e m = (-1)^(m+1) * ∑ j ∈ range m, (-1)^j * e j * ∑ i, B i ^ (m-j)
+          -- Convert goal from • to *, then use h
+          rw [Nat.cast_smul_eq_nsmul k m (e m), nsmul_eq_mul, h]
+          -- Goal: (-1)^(m+1) * ∑ ... = (-1:k)^(m+1) • ∑ j, (-1:k)^j • (e j * ∑ ...)
+          -- Convert (-1 : End)^p to algebraMap and * to •
+          have neg_pow_smul : ∀ (p : ℕ)
+              (x : Module.End k (⨂[k] (_ : Fin n), V)),
+              (-1 : Module.End k (⨂[k] (_ : Fin n), V)) ^ p * x = (-1 : k) ^ p • x := by
+            intro p x
+            have : (-1 : Module.End k (⨂[k] (_ : Fin n), V)) =
+                algebraMap k _ (-1 : k) := by
+              simp [map_neg, map_one]
+            rw [this, ← map_pow, Algebra.smul_def]
+          rw [neg_pow_smul]; congr 1
+          apply Finset.sum_congr rfl; intro j _
+          rw [mul_assoc, neg_pow_smul]
         rw [show e m = (m : k)⁻¹ • ((m : k) • e m) from (inv_smul_smul₀ hcast _).symm,
           newton]
+        apply Subalgebra.smul_mem
         apply Subalgebra.smul_mem
         apply Subalgebra.sum_mem
         intro j hj
