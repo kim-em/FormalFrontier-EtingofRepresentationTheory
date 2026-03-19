@@ -504,15 +504,257 @@ private lemma fullCycleType_pos (σ : Equiv.Perm (Fin n)) :
   · exact Nat.lt_of_lt_of_le (by norm_num) (Equiv.Perm.two_le_of_mem_cycleType h)
   · exact Nat.one_pos
 
-/-- There exists an orbit-index assignment: a function π : Fin n → Fin L that groups
-elements by σ-orbit and has fiber sizes matching fullCycleType. -/
+/-- Given two functions with the same value multiset, there's a permutation matching them.
+Uses `Equiv.sigmaFiberEquiv` to decompose both sides fiber-by-fiber. -/
+private lemma exists_perm_matching {m : ℕ} (f g : Fin m → ℕ)
+    (h : Finset.univ.val.map f = Finset.univ.val.map g) :
+    ∃ p : Equiv.Perm (Fin m), ∀ i, f (p i) = g i := by
+  have hcount : ∀ v : ℕ, (univ.filter (fun i => g i = v)).card =
+                     (univ.filter (fun j => f j = v)).card := by
+    intro v
+    suffices ∀ (h' : Fin m → ℕ), (univ.filter (fun i => h' i = v)).card =
+        Multiset.count v (univ.val.map h') by rw [this g, ← h, ← this f]
+    intro h'
+    rw [Multiset.count_map]
+    show (univ.filter (fun i => h' i = v)).card = (univ.val.filter (fun a => v = h' a)).card
+    congr 1; rw [← Finset.filter_val]; congr 1; ext i; simp [eq_comm]
+  -- Use the existing fiberMatchEquiv' which builds a fiber-matching bijection
+  exact ⟨fiberMatchEquiv' g f hcount, fun i => fiberMatchEquiv'_spec g f hcount i⟩
+
+/-- The orbit-assignment function: maps each k : Fin n to its orbit, using
+`σ.SameCycle` as a filter predicate. Two elements are in the same orbit iff
+they get the same Finset value. -/
+private abbrev orbOf (σ : Equiv.Perm (Fin n)) (k : Fin n) : Finset (Fin n) :=
+  univ.filter (σ.SameCycle k)
+
+/-- orbOf agrees on SameCycle elements. -/
+private lemma orbOf_eq_iff (σ : Equiv.Perm (Fin n)) (k₁ k₂ : Fin n) :
+    orbOf σ k₁ = orbOf σ k₂ ↔ σ.SameCycle k₁ k₂ := by
+  constructor
+  · intro h
+    have : k₂ ∈ orbOf σ k₂ := by simp [orbOf, Equiv.Perm.SameCycle.refl]
+    rw [← h] at this; simp [orbOf] at this; exact this
+  · intro h; ext x; simp [orbOf]
+    exact ⟨fun hx => h.symm.trans hx, fun hx => h.trans hx⟩
+
+/-- The distinct orbits as a Finset of orbit-Finsets. -/
+private abbrev orbitSet (σ : Equiv.Perm (Fin n)) : Finset (Finset (Fin n)) :=
+  univ.image (orbOf σ)
+
+/-- Orbit cardinalities, as a multiset. -/
+private abbrev orbitSizes (σ : Equiv.Perm (Fin n)) : Multiset ℕ :=
+  (orbitSet σ).val.map Finset.card
+
+/-- The multiset of orbit sizes equals fullCycleType. -/
+private lemma orbitSizes_eq_fullCycleType (σ : Equiv.Perm (Fin n)) :
+    orbitSizes σ = fullCycleType n σ := by
+  classical
+  -- Characterize orbOf for support vs non-support elements
+  have horbS : ∀ x, x ∈ σ.support → orbOf σ x = (σ.cycleOf x).support := by
+    intro x hx; ext y; simp only [orbOf, mem_filter, mem_univ, true_and]
+    exact (Equiv.Perm.mem_support_cycleOf_iff' (Equiv.Perm.mem_support.mp hx)).symm
+  have horbF : ∀ x, x ∉ σ.support → orbOf σ x = {x} := by
+    intro x hx; ext y; simp only [orbOf, mem_filter, mem_univ, true_and, mem_singleton]
+    exact ⟨fun h => (h.eq_of_left (Equiv.Perm.notMem_support.mp hx)).symm,
+           fun h => h ▸ Equiv.Perm.SameCycle.refl σ x⟩
+  -- Two parts of the orbit set
+  set F := σ.cycleFactorsFinset.image (fun c => c.support) with hF_def
+  set G := (univ \ σ.support).image (fun x => ({x} : Finset (Fin n))) with hG_def
+  -- orbitSet σ = F ∪ G
+  have horbit_eq : univ.image (orbOf σ) = F ∪ G := by
+    ext S; simp only [mem_image, mem_univ, true_and, mem_union, hF_def, hG_def]
+    constructor
+    · rintro ⟨x, rfl⟩
+      by_cases hx : x ∈ σ.support
+      · left; rw [horbS x hx]
+        exact ⟨σ.cycleOf x, Equiv.Perm.cycleOf_mem_cycleFactorsFinset_iff.mpr hx, rfl⟩
+      · right; rw [horbF x hx]
+        exact ⟨x, mem_sdiff.mpr ⟨mem_univ _, hx⟩, rfl⟩
+    · rintro (⟨c, hc, rfl⟩ | ⟨x, hx, rfl⟩)
+      · obtain ⟨y, hy⟩ := (Equiv.Perm.mem_cycleFactorsFinset_iff.mp hc).1.nonempty_support
+        refine ⟨y, ?_⟩
+        rw [horbS y (Equiv.Perm.mem_cycleFactorsFinset_support_le hc hy)]
+        exact congr_arg Equiv.Perm.support (Equiv.Perm.cycle_is_cycleOf hy hc).symm
+      · exact ⟨x, horbF x (mem_sdiff.mp hx).2⟩
+  -- Disjointness: cycle supports have card ≥ 2, singletons have card 1
+  have hdisj : Disjoint F G := by
+    rw [Finset.disjoint_left]; intro S hSF hSG
+    simp only [hF_def, mem_image] at hSF; obtain ⟨c, hc, rfl⟩ := hSF
+    simp only [hG_def, mem_image, mem_sdiff, mem_univ, true_and] at hSG
+    obtain ⟨x, _, hx_eq⟩ := hSG
+    have := (Equiv.Perm.mem_cycleFactorsFinset_iff.mp hc).1.two_le_card_support
+    rw [← hx_eq] at this; simp at this
+  -- Compute orbitSizes via the decomposition
+  show (univ.image (orbOf σ)).val.map Finset.card = fullCycleType n σ
+  rw [horbit_eq, Finset.union_val,
+    ← Multiset.add_eq_union_iff_disjoint.mpr (Finset.disjoint_val.mpr hdisj),
+    Multiset.map_add]
+  -- Injectivity for F (distinct cycles have distinct supports)
+  have hF_inj : Set.InjOn (fun c : Equiv.Perm (Fin n) => c.support) ↑σ.cycleFactorsFinset := by
+    intro c₁ hc₁ c₂ hc₂ heq
+    have hc₁' : c₁ ∈ σ.cycleFactorsFinset := Finset.mem_coe.mp hc₁
+    have hc₂' : c₂ ∈ σ.cycleFactorsFinset := Finset.mem_coe.mp hc₂
+    have ⟨y, hy⟩ := (Equiv.Perm.mem_cycleFactorsFinset_iff.mp hc₁').1.nonempty_support
+    have heq' : c₁.support = c₂.support := heq
+    exact (Equiv.Perm.cycle_is_cycleOf hy hc₁').trans
+      (Equiv.Perm.cycle_is_cycleOf (heq' ▸ hy) hc₂').symm
+  -- Injectivity for G (singletons are injective)
+  have hG_inj : Set.InjOn (fun x : Fin n => ({x} : Finset (Fin n))) ↑(univ \ σ.support) := by
+    intro x _ y _ h; simpa using h
+  rw [Finset.image_val_of_injOn hF_inj, Multiset.map_map,
+    Finset.image_val_of_injOn hG_inj, Multiset.map_map]
+  simp only [Function.comp, Finset.card_singleton]
+  unfold fullCycleType
+  congr 1
+  -- (univ \ σ.support).val.map (fun _ => 1) = replicate (n - σ.support.card) 1
+  rw [Multiset.map_const']
+  congr 1
+  simp [Finset.card_sdiff_of_subset (Finset.subset_univ _), Fintype.card_fin]
+
+/-- The number of orbits equals the length of fullCycleType.toList. -/
+private lemma orbitSet_card (σ : Equiv.Perm (Fin n)) :
+    (orbitSet σ).card = (fullCycleType n σ).toList.length := by
+  rw [Multiset.length_toList]
+  have h := congr_arg Multiset.card (orbitSizes_eq_fullCycleType σ)
+  simp only [orbitSizes, Multiset.card_map] at h
+  exact h
+
 private lemma exists_orbIdx (σ : Equiv.Perm (Fin n)) :
     ∃ (π : Fin n → Fin (fullCycleType n σ).toList.length),
       (∀ k₁ k₂ : Fin n, π k₁ = π k₂ ↔ σ.SameCycle k₁ k₂) ∧
       (∀ i : Fin (fullCycleType n σ).toList.length,
         (univ.filter (fun k => π k = i)).card =
           (fullCycleType n σ).toList[i.val]) := by
-  sorry
+  classical
+  set L := (fullCycleType n σ).toList.length
+  set list := (fullCycleType n σ).toList
+  -- Step 1: Enumerate orbits via orbitSet
+  -- Get a bijection orbitSet σ ≃ Fin (orbitSet σ).card
+  set OS := orbitSet σ
+  have hOScard : OS.card = L := orbitSet_card σ
+  -- Step 2: orbOf maps Fin n → orbitSet
+  have horbMem : ∀ k : Fin n, orbOf σ k ∈ OS := fun k => Finset.mem_image_of_mem _ (mem_univ k)
+  -- Step 3: Build an initial indexing of orbits
+  -- We have OS ≃ Fin OS.card via orderIsoOfFin or equivFin
+  set e₀ : OS ≃ Fin OS.card := OS.equivFin
+  -- Initial π₀ : Fin n → Fin OS.card
+  set π₀ : Fin n → Fin OS.card := fun k => e₀ ⟨orbOf σ k, horbMem k⟩
+  -- Step 4: π₀ satisfies the SameCycle condition
+  have hπ₀_orbit : ∀ k₁ k₂, π₀ k₁ = π₀ k₂ ↔ σ.SameCycle k₁ k₂ := by
+    intro k₁ k₂
+    simp only [π₀]
+    constructor
+    · intro h
+      have := e₀.injective h
+      simp only [Subtype.mk.injEq] at this
+      exact (orbOf_eq_iff σ k₁ k₂).mp this
+    · intro h
+      congr 1; exact Subtype.ext ((orbOf_eq_iff σ k₁ k₂).mpr h)
+  -- Step 5: The fiber sizes of π₀ give the orbit sizes in some order
+  -- We need to match them to the specific list ordering
+  -- The function (fun i => (e₀.symm i).val.card) : Fin OS.card → ℕ
+  -- has value multiset = orbitSizes σ = fullCycleType n σ
+  -- And (fun i => list[i]) : Fin L → ℕ has value multiset = fullCycleType n σ (from toList)
+  -- Use exists_perm_matching to get a permutation p : Fin L ≃ Fin L
+  set sizes₀ : Fin OS.card → ℕ := fun i => (e₀.symm i).val.card
+  set listFun : Fin L → ℕ := fun i => list[i.val]
+  -- Cast sizes₀ to Fin L → ℕ using hOScard
+  set sizes : Fin L → ℕ := fun i => sizes₀ (i.cast hOScard.symm)
+  -- Both multisets equal fullCycleType n σ
+  have hListMultiset : Finset.univ.val.map listFun = fullCycleType n σ := by
+    simp only [listFun, Fin.univ_val_map]
+    rw [List.ofFn_getElem (l := list)]
+    exact Multiset.coe_toList _
+  have hSizesMultiset : Finset.univ.val.map sizes = fullCycleType n σ := by
+    rw [← orbitSizes_eq_fullCycleType]
+    -- Factor sizes through the bijection Fin L ≃ ↥OS
+    let bij : Fin L ≃ ↥OS := (finCongr hOScard.symm).trans e₀.symm
+    have hsizes_comp : sizes = (fun x : ↥OS => (↑x : Finset (Fin n)).card) ∘ bij := by
+      ext i; simp [sizes, sizes₀, bij, finCongr]
+    rw [hsizes_comp, ← Multiset.map_map]
+    -- Reindex univ through the bijection
+    have huniv : Finset.univ.val.map bij = (Finset.univ : Finset ↥OS).val := by
+      change (Finset.univ.map bij.toEmbedding).val = (Finset.univ : Finset ↥OS).val
+      rw [Finset.map_univ_equiv]
+    rw [huniv, Finset.univ_eq_attach, Finset.attach_val]
+    exact Multiset.attach_map_val' OS.val Finset.card
+  have hsizes_multiset : Finset.univ.val.map sizes = Finset.univ.val.map listFun :=
+    hSizesMultiset.trans hListMultiset.symm
+  obtain ⟨perm, hperm⟩ := exists_perm_matching sizes listFun hsizes_multiset
+  -- Step 6: Define π = perm.symm ∘ (cast of π₀)
+  -- Using perm.symm ensures fiber sizes match: #{k | π k = i} = sizes(perm i) = list[i]
+  set π : Fin n → Fin L := fun k => perm.symm (π₀ k |>.cast hOScard)
+  refine ⟨π, ?_, ?_⟩
+  -- SameCycle condition
+  · intro k₁ k₂
+    simp only [π]
+    constructor
+    · intro h
+      have := perm.symm.injective h
+      have : π₀ k₁ = π₀ k₂ := Fin.ext (by simpa using congr_arg Fin.val this)
+      exact (hπ₀_orbit k₁ k₂).mp this
+    · intro h
+      have := (hπ₀_orbit k₁ k₂).mpr h
+      congr 1; exact Fin.ext (by simpa using congr_arg Fin.val this)
+  -- Fiber size condition: #{k | π k = i} = list[i]
+  · intro i
+    -- Key helper: #{k | orbOf σ k = S} = |S| for any orbit S ∈ OS
+    have horbCard : ∀ S : OS, (univ.filter (fun k : Fin n => orbOf σ k = S.val)).card =
+        S.val.card := by
+      intro ⟨S, hS⟩
+      obtain ⟨x, _, hx⟩ := Finset.mem_image.mp hS
+      subst hx
+      -- #{k | orbOf σ k = orbOf σ x} = #{k | SameCycle x k} = |orbOf σ x|
+      have hiff : ∀ k, (orbOf σ k = orbOf σ x) ↔ k ∈ orbOf σ x := by
+        intro k; constructor
+        · intro h
+          have hk : k ∈ orbOf σ k := mem_filter.mpr ⟨mem_univ _,
+            Equiv.Perm.SameCycle.refl σ k⟩
+          rw [h] at hk; exact hk
+        · intro hk; simp only [orbOf, mem_filter, mem_univ, true_and] at hk
+          exact (orbOf_eq_iff σ k x).mpr hk.symm
+      rw [show (univ.filter (fun k => orbOf σ k = orbOf σ x)) =
+        (univ.filter (fun k => k ∈ orbOf σ x)) from by ext k; simp [hiff k]]
+      simp
+    -- #{k | π₀ k = j} = (e₀.symm j).val.card
+    have hfibπ₀ : ∀ j : Fin OS.card, (univ.filter (fun k : Fin n => π₀ k = j)).card =
+        (e₀.symm j).val.card := by
+      intro j
+      have hiff : ∀ k, (π₀ k = j) ↔ (orbOf σ k = (e₀.symm j).val) := by
+        intro k; simp only [π₀]; constructor
+        · intro h
+          -- From e₀ ⟨orbOf σ k, _⟩ = j, get ⟨orbOf σ k, _⟩ = e₀.symm j
+          have h1 : (⟨orbOf σ k, horbMem k⟩ : OS) = e₀.symm j := by
+            rw [← e₀.symm_apply_apply ⟨orbOf σ k, horbMem k⟩, h]
+          exact congr_arg Subtype.val h1
+        · intro h
+          have h1 : (⟨orbOf σ k, horbMem k⟩ : OS) = e₀.symm j := Subtype.ext h
+          rw [show (⟨orbOf σ k, horbMem k⟩ : OS) = e₀.symm j from h1,
+            e₀.apply_symm_apply]
+      rw [show (univ.filter (fun k => π₀ k = j)) =
+        (univ.filter (fun k => orbOf σ k = (e₀.symm j).val)) from by ext k; simp [hiff k]]
+      exact horbCard ⟨(e₀.symm j).val, (e₀.symm j).prop⟩
+    -- π k = i iff π₀ k = cast (perm i)
+    have hfibπ : (univ.filter (fun k => π k = i)).card =
+        (univ.filter (fun k => π₀ k = Fin.cast hOScard.symm (perm i))).card := by
+      congr 1; ext k; simp only [π, mem_filter, mem_univ, true_and]
+      constructor
+      · intro h
+        -- h : perm.symm (cast (π₀ k)) = i, so cast (π₀ k) = perm i
+        have h1 : Fin.cast hOScard (π₀ k) = perm i := by
+          have := congr_arg (⇑perm) h
+          rwa [perm.apply_symm_apply] at this
+        exact Fin.ext (by simp [Fin.ext_iff] at h1 ⊢; exact h1)
+      · intro h
+        show perm.symm (Fin.cast hOScard (π₀ k)) = i
+        have h1 : Fin.cast hOScard (π₀ k) = perm i :=
+          Fin.ext (by simp [Fin.ext_iff] at h ⊢; exact h)
+        rw [h1, perm.symm_apply_apply]
+    rw [hfibπ, hfibπ₀]
+    -- (e₀.symm (cast (perm i))).val.card = sizes (perm i) = list[i]
+    change sizes₀ (Fin.cast hOScard.symm (perm i)) = listFun i
+    change sizes (perm i) = listFun i
+    exact hperm i
 
 /-- InvColor bijects with MonochromaticColoring via the orbit decomposition.
 Each σ-invariant coloring assigns the same color to all elements in a cycle.
