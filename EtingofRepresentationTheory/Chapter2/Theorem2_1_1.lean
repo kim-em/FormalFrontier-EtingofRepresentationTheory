@@ -3,6 +3,7 @@ import Mathlib.Algebra.Lie.Sl2
 import Mathlib.Data.Complex.Basic
 import Mathlib.LinearAlgebra.Dimension.Finrank
 import Mathlib.LinearAlgebra.Dimension.Finite
+import Mathlib.LinearAlgebra.Eigenspace.Triangularizable
 import EtingofRepresentationTheory.Chapter2.Sl2Defs
 import EtingofRepresentationTheory.Chapter2.Sl2Irrep
 
@@ -35,6 +36,7 @@ finite-dimensional Lie module over sl(2, ℂ) has a complemented lattice of Lie 
 -/
 
 open scoped Matrix
+open LieModule Module
 
 namespace Etingof
 
@@ -59,8 +61,12 @@ theorem Theorem_2_1_1_i (d : ℕ+) :
       Sl2Irrep.irrepLieRingModule d, Sl2Irrep.irrepLieModule d,
       Sl2Irrep.irrep_finrank d, Sl2Irrep.irrep_isIrreducible d⟩
   · -- Uniqueness: any two irreducible sl(2)-representations of the same dimension
-    -- are isomorphic. This requires highest weight theory for sl(2), which is not
-    -- yet in Mathlib.
+    -- are isomorphic. This requires highest weight theory for sl(2).
+    -- The standard proof constructs a primitive vector (highest weight vector) in each
+    -- irreducible module, shows its weight equals d-1, and builds an explicit isomorphism
+    -- mapping f^k(v₀) to f^k(w₀). This infrastructure (existence of primitive vectors
+    -- in arbitrary irreducible modules, weight-dimension correspondence, and isomorphism
+    -- construction) is not yet available in Mathlib.
     sorry
 
 /-- Part (ii): Any finite-dimensional representation of sl(2, ℂ) is completely reducible.
@@ -70,6 +76,11 @@ decomposes as a direct sum of irreducible representations.
 (Etingof Theorem 2.1.1(ii)) -/
 theorem Theorem_2_1_1_ii (V : Type*) [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     [LieRingModule sl2 V] [LieModule ℂ sl2 V] :
-    ComplementedLattice (LieSubmodule ℂ sl2 V) := sorry
+    ComplementedLattice (LieSubmodule ℂ sl2 V) :=
+  -- Complete reducibility for sl(2) follows from Weyl's theorem: every finite-dimensional
+  -- representation of a semisimple Lie algebra over a field of characteristic zero is
+  -- completely reducible. sl(2) is simple hence semisimple. Weyl's theorem is not yet
+  -- in Mathlib.
+  sorry
 
 end Etingof
