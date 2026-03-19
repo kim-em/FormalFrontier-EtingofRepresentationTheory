@@ -23,9 +23,11 @@ of finite dimensional modules over some finite dimensional k-algebra.
 ## Mathlib correspondence
 
 The functor F = Hom(P, −) sending X to the `(End P)ᵐᵒᵖ`-module `Hom(P, X)` is
-`CategoryTheory.preadditiveCoyonedaObj P` in Mathlib. The theorem asserts that this
-functor is an equivalence of categories when P is a projective generator in a
-finite abelian category. We state this as `Functor.IsEquivalence`.
+`CategoryTheory.preadditiveCoyonedaObj P` in Mathlib. We define a restricted version
+`preadditiveCoyonedaObjFG` landing in `FGModuleCat (End P)ᵐᵒᵖ` (finitely generated
+modules), since the unrestricted functor into all modules cannot be essentially
+surjective. The theorem asserts that this restricted functor is an equivalence when
+P is a projective generator in a finite abelian category.
 -/
 
 open CategoryTheory CategoryTheory.Limits
@@ -245,27 +247,10 @@ instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObjFG
   -- what can be done in a single session.
   sorry
 
--- Essential surjectivity of Hom(P, -) into all modules follows from the FG version
--- since every module in the essential image of a functor from a finite abelian category
--- is finitely generated. We sorry this instance since the correct mathematical statement
--- is about FGModuleCat (see essSurj_preadditiveCoyonedaObjFG above).
-instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObj
-    {C : Type u} [Category.{v} C]
-    [Etingof.IsFiniteAbelianCategory C]
-    {P : C} [Etingof.IsProgenerator P] :
-    (preadditiveCoyonedaObj P).EssSurj := by
-  sorry
-
-theorem Etingof.Theorem_9_6_4
-    (C : Type u) [Category.{v} C]
-    [Etingof.IsFiniteAbelianCategory C]
-    (P : C) [Etingof.IsProgenerator P] :
-    (preadditiveCoyonedaObj P).IsEquivalence where
-
-/-- **Theorem 9.6.4 (Morita equivalence, correct formulation)**: Let 𝒞 be a finite
+/-- **Theorem 9.6.4 (Morita equivalence)**: Let 𝒞 be a finite
 abelian category and P a progenerator. Then Hom(P, -) is an equivalence from 𝒞 to
 the category of finitely generated (End P)ᵒᵖ-modules. -/
-theorem Etingof.Theorem_9_6_4'
+theorem Etingof.Theorem_9_6_4
     {C : Type u} [Category.{v} C]
     [Etingof.IsFiniteAbelianCategory C]
     {P : C} [hp : Etingof.IsProgenerator P] :
@@ -292,5 +277,5 @@ theorem Etingof.Theorem_9_6_4_corollary
     [Etingof.IsFiniteAbelianCategory C]
     (P : C) [hp : Etingof.IsProgenerator P] :
     Nonempty (C ≌ FGModuleCat.{v} (End P)ᵐᵒᵖ) := by
-  have := @Etingof.Theorem_9_6_4' C _ _ P hp
+  have := @Etingof.Theorem_9_6_4 C _ _ P hp
   exact ⟨hp.preadditiveCoyonedaObjFG.asEquivalence⟩
