@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_2_2
 import EtingofRepresentationTheory.Chapter9.Corollary9_1_3
 import Mathlib.LinearAlgebra.Dimension.Finrank
+import Mathlib.LinearAlgebra.Dimension.Finite
 import Mathlib.RingTheory.Artinian.Ring
 import Mathlib.RingTheory.Artinian.Module
 import Mathlib.RingTheory.Jacobson.Semiprimary
@@ -157,7 +158,28 @@ lemma leftIdeal_indecomposable_of_hom_delta
       if i₀ = j then 1 else 0) :
     Etingof.IsIndecomposable A
       ↥(Submodule.span A ({e} : Set A)) := by
-  sorry
+  set S := Submodule.span A ({e} : Set A) with hS_def
+  constructor
+  · -- Nontriviality: dim Hom(Ae, M_{i₀}) = 1 ≠ 0, so Ae ≠ 0
+    have h1 := hdim i₀
+    simp only [ite_true] at h1
+    -- finrank = 1 implies the Hom space is nontrivial
+    by_contra h_triv
+    rw [not_nontrivial_iff_subsingleton] at h_triv
+    have h0 : Module.finrank k (↥S →ₗ[A] M i₀) = 0 := by
+      haveI := h_triv
+      haveI : Subsingleton (↥S →ₗ[A] M i₀) :=
+        ⟨fun f g => LinearMap.ext fun x => by
+          have := Subsingleton.elim x 0
+          simp [this]⟩
+      exact Module.finrank_zero_of_subsingleton
+    linarith
+  · -- For any complement decomposition, one summand must be zero
+    intro W₁ W₂ hcompl
+    -- The key argument: dim Hom(Ae, M_j) = dim Hom(W₁, M_j) + dim Hom(W₂, M_j)
+    -- Since dim Hom(Ae, M_{i₀}) = 1, one of W₁ or W₂ has Hom = 0 to all simples.
+    -- By exhaustiveness, that module is zero.
+    sorry
 
 /-- The finrank of the Hom space from the left ideal A·e to a module M equals
 the finrank of the image eM = range(e • · : M → M).
