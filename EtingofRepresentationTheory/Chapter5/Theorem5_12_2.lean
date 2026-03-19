@@ -332,11 +332,51 @@ private lemma card_conjClasses_le_card_partition (n : ℕ) :
 /-- The center of a group algebra ℂ[G] has dimension at most |ConjClasses G|.
 This is because the center is spanned by the conjugacy class sums
 {∑_{g ∈ C} g | C ∈ ConjClasses G}, giving at most |ConjClasses G| generators. -/
+private lemma center_coeff_conj_invariant'
+    {G : Type*} [Group G]
+    {a : MonoidAlgebra ℂ G} (ha : a ∈ Subalgebra.center ℂ (MonoidAlgebra ℂ G))
+    (g h : G) : a (g * h * g⁻¹) = a h := by
+  rw [Subalgebra.mem_center_iff] at ha
+  have key := congr_fun (congr_arg (⇑) (ha (MonoidAlgebra.of ℂ G g))) (g * h)
+  simp only [MonoidAlgebra.of, MonoidHom.coe_mk, OneHom.coe_mk,
+    MonoidAlgebra.single_mul_apply, MonoidAlgebra.mul_single_apply,
+    one_mul, mul_one, inv_mul_cancel_left] at key
+  exact key.symm
+
 private lemma finrank_center_monoidAlgebra_le_card_conjClasses
     {G : Type*} [Group G] [Fintype G] [DecidableEq G] :
     Module.finrank ℂ (Subalgebra.center ℂ (MonoidAlgebra ℂ G)) ≤
       Fintype.card (ConjClasses G) := by
-  sorry
+  -- Inject center into (ConjClasses G → ℂ) by evaluating at representatives
+  let f : ↥(Subalgebra.center ℂ (MonoidAlgebra ℂ G)) →ₗ[ℂ] (ConjClasses G → ℂ) :=
+    { toFun := fun a C => (a : MonoidAlgebra ℂ G) (Quotient.out C)
+      map_add' := fun _ _ => funext fun _ => Finsupp.add_apply _ _ _
+      map_smul' := fun _ _ => funext fun _ => Finsupp.smul_apply _ _ _ }
+  have hf : Function.Injective f := by
+    intro ⟨a, ha⟩ ⟨b, hb⟩ hab
+    ext g
+    have h : (a : MonoidAlgebra ℂ G) (Quotient.out (ConjClasses.mk g)) =
+        (b : MonoidAlgebra ℂ G) (Quotient.out (ConjClasses.mk g)) := by
+      exact congr_fun hab (ConjClasses.mk g)
+    -- a and b agree at representative of g's class; show they agree at g
+    have hconj_a : a (Quotient.out (ConjClasses.mk g)) = a g := by
+      have hc := Quotient.out_eq (ConjClasses.mk g)
+      rw [ConjClasses.quotient_mk_eq_mk] at hc
+      obtain ⟨c, hc'⟩ := isConj_iff.mp (ConjClasses.mk_eq_mk_iff_isConj.mp hc)
+      rw [show a (Quotient.out (ConjClasses.mk g)) =
+          a (c * Quotient.out (ConjClasses.mk g) * c⁻¹) from
+        (center_coeff_conj_invariant' ha c _).symm, hc']
+    have hconj_b : b (Quotient.out (ConjClasses.mk g)) = b g := by
+      have hc := Quotient.out_eq (ConjClasses.mk g)
+      rw [ConjClasses.quotient_mk_eq_mk] at hc
+      obtain ⟨c, hc'⟩ := isConj_iff.mp (ConjClasses.mk_eq_mk_iff_isConj.mp hc)
+      rw [show b (Quotient.out (ConjClasses.mk g)) =
+          b (c * Quotient.out (ConjClasses.mk g) * c⁻¹) from
+        (center_coeff_conj_invariant' hb c _).symm, hc']
+    rw [← hconj_a, h, hconj_b]
+  calc Module.finrank ℂ (Subalgebra.center ℂ (MonoidAlgebra ℂ G))
+      ≤ Module.finrank ℂ (ConjClasses G → ℂ) := LinearMap.finrank_le_finrank_of_injective hf
+    _ = Fintype.card (ConjClasses G) := Module.finrank_fintype_fun_eq_card ℂ
 
 /-- The center of ∏ᵢ Mat_{dᵢ}(ℂ) has dimension k (one scalar matrix per block).
 This uses: center(Mat_d(ℂ)) = scalar matrices ≅ ℂ, and center(∏ Rᵢ) = ∏ center(Rᵢ). -/
@@ -344,7 +384,64 @@ private lemma finrank_center_pi_matrix
     {k : ℕ} {d : Fin k → ℕ} (hd : ∀ i, NeZero (d i)) :
     Module.finrank ℂ
       (Subalgebra.center ℂ (Π i : Fin k, Matrix (Fin (d i)) (Fin (d i)) ℂ)) = k := by
-  sorry
+  let PiMat := (∀ i : Fin k, Matrix (Fin (d i)) (Fin (d i)) ℂ)
+  -- Forward: extract (0,0) entry from each block
+  let fwd : ↥(Subalgebra.center ℂ PiMat) →ₗ[ℂ] (Fin k → ℂ) :=
+    { toFun := fun a i =>
+        haveI := hd i
+        (a : PiMat) i ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩
+          ⟨0, Nat.pos_of_ne_zero (NeZero.ne _)⟩
+      map_add' := fun _ _ => funext fun _ => rfl
+      map_smul' := fun _ _ => funext fun _ => rfl }
+  -- Backward: embed scalars as scalar matrices
+  let bwd_fun : (Fin k → ℂ) → PiMat :=
+    fun c i => c i • (1 : Matrix (Fin (d i)) (Fin (d i)) ℂ)
+  have bwd_mem : ∀ c, bwd_fun c ∈ Subalgebra.center ℂ PiMat := fun c => by
+    rw [Subalgebra.mem_center_iff]; intro N; ext i : 1
+    change N i * (c i • 1) = (c i • 1) * N i
+    rw [mul_smul_comm, smul_mul_assoc, mul_one, one_mul]
+  let bwd : (Fin k → ℂ) →ₗ[ℂ] ↥(Subalgebra.center ℂ PiMat) :=
+    { toFun := fun c => ⟨bwd_fun c, bwd_mem c⟩
+      map_add' := fun c₁ c₂ => by
+        apply Subtype.ext; funext i
+        change (c₁ i + c₂ i) • (1 : Matrix _ _ ℂ) = _
+        rw [add_smul]; rfl
+      map_smul' := fun r c => by
+        apply Subtype.ext; funext i
+        change (r * c i) • (1 : Matrix _ _ ℂ) = _
+        rw [mul_smul]; rfl }
+  -- Forward ∘ backward = id
+  have hfb : ∀ c, fwd (bwd c) = c := fun c => funext fun i => by
+    simp only [fwd, bwd, bwd_fun, LinearMap.coe_mk, AddHom.coe_mk]
+    simp [Matrix.smul_apply]
+  -- Backward ∘ forward = id
+  have hbf : ∀ x : ↥(Subalgebra.center ℂ PiMat), bwd (fwd x) = x := fun ⟨f, hf⟩ => by
+    apply Subtype.ext; ext i a b
+    simp only [fwd, bwd, bwd_fun, LinearMap.coe_mk, AddHom.coe_mk]
+    -- f i is central in its matrix block
+    have hfc : f i ∈ Subalgebra.center ℂ (Matrix (Fin (d i)) (Fin (d i)) ℂ) := by
+      rw [Subalgebra.mem_center_iff]; intro M
+      have hf' : ∀ b : PiMat, b * f = f * b := Subalgebra.mem_center_iff.mp hf
+      have h := hf' (Pi.single (M := fun j => Matrix (Fin (d j)) (Fin (d j)) ℂ) i M)
+      have lhs : (Pi.single (M := fun j => Matrix (Fin (d j)) (Fin (d j)) ℂ) i M * f) i =
+          M * f i := by rw [Pi.mul_apply, Pi.single_eq_same]
+      have rhs : (f * Pi.single (M := fun j => Matrix (Fin (d j)) (Fin (d j)) ℂ) i M) i =
+          f i * M := by rw [Pi.mul_apply, Pi.single_eq_same]
+      rw [show M * f i = (Pi.single
+        (M := fun j => Matrix (Fin (d j)) (Fin (d j)) ℂ) i M * f) i from lhs.symm, h, rhs]
+    -- Center of matrix algebra = ⊥ by IsCentral
+    rw [Algebra.IsCentral.center_eq_bot] at hfc
+    rw [Algebra.mem_bot] at hfc
+    obtain ⟨c, hc⟩ := Set.mem_range.mp hfc
+    have hfi : f i = c • (1 : Matrix (Fin (d i)) (Fin (d i)) ℂ) := by
+      rw [← hc, Algebra.algebraMap_eq_smul_one]
+    rw [hfi]; simp [Matrix.smul_apply, Matrix.one_apply]
+  -- Combine
+  have e : ↥(Subalgebra.center ℂ PiMat) ≃ₗ[ℂ] (Fin k → ℂ) :=
+    { fwd with invFun := bwd, left_inv := hbf, right_inv := hfb }
+  have : Module.finrank ℂ (Fin k → ℂ) = k := by
+    rw [Module.finrank_fintype_fun_eq_card ℂ, Fintype.card_fin]
+  linarith [e.finrank_eq]
 
 /-- For ℂ[S_n] with k Wedderburn blocks, we have k ≤ |Nat.Partition n|.
 The chain of inequalities is: k = dim Z(∏ Mat_{dᵢ}(ℂ)) = dim Z(ℂ[S_n])
