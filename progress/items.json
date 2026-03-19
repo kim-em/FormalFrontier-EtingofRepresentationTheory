@@ -3795,8 +3795,12 @@
     "end_page": "144",
     "start_line": 22,
     "end_line": 14,
-    "status": "proof_partial",
-    "needs_statement": false
+    "status": "sent_to_aristotle",
+    "needs_statement": false,
+    "aristotle_projects": {
+      "innerProduct": "962da88d-5e9e-4e8a-a792-1550f1974c1c",
+      "dimension": "bac04687-4c34-403d-a286-e4ff06f529e3"
+    }
   },
   {
     "id": "Chapter5/Discussion_complementary_series_summary",
