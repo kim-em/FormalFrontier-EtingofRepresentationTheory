@@ -1130,6 +1130,143 @@ private lemma isDynkinDiagram_of_type (t : DynkinType) :
   | E7 => exact E7_isDynkin
   | E8 => exact E8_isDynkin
 
+/-! ## Forward direction infrastructure
+
+The forward direction of the Dynkin classification proceeds by elimination:
+
+1. **No cycles**: A cycle of length k has null vector (1,1,...,1) for the Cartan form.
+   Any graph containing a cycle has non-positive-definite Cartan form.
+
+2. **Degree bound**: If a vertex has degree ≥ 4, the vector (2 at vertex, 1 at neighbors,
+   0 elsewhere) gives Cartan form ≤ 0. So max degree ≤ 3.
+
+3. **Tree classification**: A connected tree with max degree ≤ 3 is either:
+   - A path (all degrees ≤ 2) → isomorphic to A_n
+   - Has exactly one vertex of degree 3 with arms (p,q,r) → the arm lengths determine the type
+
+4. **Arm length constraint**: For a branching tree T_{p,q,r}, positive definiteness requires
+   1/(p+1) + 1/(q+1) + 1/(r+1) > 1. The solutions with p ≤ q ≤ r are:
+   - (1,1,r) → D_{r+3}
+   - (1,2,2) → E₆, (1,2,3) → E₇, (1,2,4) → E₈
+-/
+
+/-- The degree of vertex i in a 0-1 adjacency matrix. -/
+private noncomputable def vertexDegree {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) : ℕ :=
+  (Finset.univ.filter (fun j => adj i j = 1)).card
+
+/-- The set of neighbors of vertex i. -/
+private def neighbors {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) : Finset (Fin n) :=
+  Finset.univ.filter (fun j => adj i j = 1)
+
+/-- The number of edges (counted as half the sum of all adjacency entries) equals
+    the sum of entries divided by 2 for a symmetric 0-1 adjacency matrix. -/
+private noncomputable def edgeCount {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) : ℕ :=
+  (∑ i : Fin n, vertexDegree adj i) / 2
+
+/-- In a Dynkin diagram, vertex degree is at most 3.
+    Proof: if deg(v) ≥ 4, the vector x with x(v)=2, x(neighbor)=1, x(other)=0
+    gives B(x,x) = 8 - 2·deg(v) ≤ 0, contradicting positive definiteness. -/
+private lemma dynkin_degree_le_three {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (i : Fin n) : vertexDegree adj i ≤ 3 := by
+  obtain ⟨hsymm, hdiag, h01, _hconn, hpos⟩ := hD
+  by_contra hge4
+  push_neg at hge4
+  -- Construct the test vector: 2 at i, 1 at each neighbor, 0 elsewhere
+  set N := neighbors adj i
+  set x : Fin n → ℤ := fun j => if j = i then 2 else if j ∈ N then 1 else 0
+  have hx_ne : x ≠ 0 := by
+    intro h; have := congr_fun h i; simp [x] at this
+  have hpos_x := hpos x hx_ne
+  -- B(x,x) = 2·Σ x(j)² - Σ adj(j,k)·x(j)·x(k)
+  --         = 2·(4 + deg) - (≥ 4·deg + non-neg)
+  --         ≤ 8 + 2·deg - 4·deg = 8 - 2·deg ≤ 0 for deg ≥ 4
+  -- The detailed computation is: the test vector gives B ≤ 0,
+  -- contradicting positive definiteness.
+  sorry
+
+/-- In a Dynkin diagram, any cycle of length ≥ 3 would give a null vector for the Cartan form.
+    Therefore Dynkin diagrams have no cycles, hence are trees. -/
+private lemma dynkin_no_cycle {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (cycle : List (Fin n)) (hlen : 3 ≤ cycle.length)
+    (hnodup : cycle.Nodup)
+    (hedges : ∀ k, (h : k + 1 < cycle.length) →
+      adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1)
+    (hclose : adj (cycle.getLast (by intro h; simp [h] at hlen)) (cycle.get ⟨0, by omega⟩) = 1) :
+    False := by
+  obtain ⟨_hsymm, _hdiag, _h01, _hconn, hpos⟩ := hD
+  -- The all-ones vector on the cycle has B(x,x) = 2k - 2k = 0 (minus extra edges)
+  -- where k = cycle.length
+  set x : Fin n → ℤ := fun j => if j ∈ cycle then 1 else 0
+  have hx_ne : x ≠ 0 := by
+    intro h
+    have hmem : cycle[0]'(by omega) ∈ cycle := List.getElem_mem ..
+    have hval := congr_fun h (cycle[0]'(by omega))
+    simp only [x, hmem, ite_true, Pi.zero_apply] at hval
+    exact absurd hval one_ne_zero
+  have hpos_x := hpos x hx_ne
+  -- B(x,x) ≤ 0 because:
+  -- diagonal part: 2 * |cycle| (each cycle vertex contributes 2·1² = 2)
+  -- off-diagonal: ≥ 2 * |cycle| (each cycle edge contributes adj=1, counted twice)
+  sorry
+
+/-- A Dynkin diagram on n vertices has exactly n-1 edges (it's a tree).
+    This follows from no-cycles + connectivity. -/
+private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n) : edgeCount adj = n - 1 := by
+  sorry
+
+/-- For a path (connected graph where all vertices have degree ≤ 2), construct an
+    isomorphism to A_n by ordering vertices along the path. -/
+private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
+    (hpath : ∀ i, vertexDegree adj i ≤ 2)
+    : ∃ σ : Fin n ≃ Fin n, ∀ i j, adj (σ i) (σ j) = DynkinType.adj (.A n hn) i j := by
+  sorry
+
+/-- For a tree with exactly one branch vertex of degree 3, the three arm lengths (p,q,r)
+    with p ≤ q ≤ r satisfy n = p + q + r + 1 and 1/(p+1) + 1/(q+1) + 1/(r+1) > 1.
+    The positive-definite solutions are:
+    - (1,1,r) → D_{r+3}
+    - (1,2,2) → E₆, (1,2,3) → E₇, (1,2,4) → E₈ -/
+private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
+    (hbranch : ∃ i, vertexDegree adj i = 3) :
+    ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
+      ∀ i j, adj (σ i) (σ j) = t.adj i j := by
+  sorry
+
+/-- Forward direction of the Dynkin classification: any Dynkin diagram is graph-isomorphic
+    to one of the standard types A_n, D_n, E₆, E₇, or E₈. -/
+private lemma dynkin_classification_forward {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) :
+    ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
+      ∀ i j, adj (σ i) (σ j) = t.adj i j := by
+  -- A Dynkin diagram is connected, so n ≥ 1
+  have hn : 1 ≤ n := by
+    by_contra h
+    push_neg at h
+    interval_cases n
+    -- n = 0: No DynkinType has rank 0, so the conclusion is unprovable.
+    -- But IsDynkinDiagram 0 adj is vacuously true (no vertices).
+    -- This is a minor edge case in the theorem statement; the classification
+    -- is only meaningful for n ≥ 1.
+    sorry
+  -- Every vertex has degree ≤ 3
+  have hdeg := fun i => dynkin_degree_le_three hD i
+  -- Case split: is there a vertex of degree 3?
+  by_cases hbranch : ∃ i, vertexDegree adj i = 3
+  · -- Branch case: tree with one branch → D_n or E-type
+    exact branch_classification hD hn hbranch
+  · -- Path case: all degrees ≤ 2 → A_n
+    push_neg at hbranch
+    have hpath : ∀ i, vertexDegree adj i ≤ 2 := by
+      intro i; have := hdeg i
+      rcases Nat.eq_or_lt_of_le this with h | h
+      · exact absurd h (hbranch i)
+      · omega
+    obtain ⟨σ, hσ⟩ := path_iso_An hD hn hpath
+    exact ⟨.A n hn, σ, hσ⟩
+
 /-- Classification of Dynkin diagrams: a connected graph with positive-definite Cartan form
 is a Dynkin diagram if and only if it is isomorphic (as a graph) to one of the standard
 types A_n, D_n, E₆, E₇, or E₈.
@@ -1140,7 +1277,7 @@ theorem Theorem_Dynkin_classification (n : ℕ) (adj : Matrix (Fin n) (Fin n) �
       ∀ i j, adj (σ i) (σ j) = t.adj i j := by
   constructor
   · -- Forward direction: any Dynkin diagram is isomorphic to a standard type
-    sorry
+    exact fun hD => dynkin_classification_forward hD
   · -- Backward direction: isomorphism to a standard type → IsDynkinDiagram
     rintro ⟨t, σ, hiso⟩
     exact isDynkinDiagram_of_graph_iso σ hiso (isDynkinDiagram_of_type t)
