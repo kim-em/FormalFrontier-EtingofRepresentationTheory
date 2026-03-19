@@ -8,6 +8,7 @@ import Mathlib.RingTheory.Jacobson.Semiprimary
 import Mathlib.RingTheory.SimpleModule.WedderburnArtin
 import Mathlib.RingTheory.Idempotents
 import Mathlib.RingTheory.HopkinsLevitzki
+import Mathlib.FieldTheory.IsAlgClosed.Basic
 
 /-!
 # Theorem 9.2.1: Classification of indecomposable projective modules
@@ -90,8 +91,12 @@ Proof sketch:
 4. Each Wedderburn block corresponds to one iso class of simples
 5. Pick rank-1 diagonal idempotents E₁₁ in each block
 6. Lift from A/Rad(A) to A using Corollary 9.1.3 -/
+/- Note: `IsAlgClosed k` is required because the rank-1 condition `finrank k (e_i · M_j) = δ_{ij}`
+   needs End_A(M_i) = k (Schur + algebraic closure). Over non-algebraically-closed fields,
+   End_A(M_i) can be a nontrivial division algebra D_i, and the minimal idempotent action
+   on M_i has k-dimension [D_i : k] > 1. Counterexample: A = ℍ (quaternions) over k = ℝ. -/
 lemma exists_orthogonal_idempotents_for_simples
-    [IsArtinianRing A]
+    [IsAlgClosed k] [IsArtinianRing A]
     {ι : Type*} [Fintype ι] [DecidableEq ι]
     (M : ι → Type*) [∀ i, AddCommGroup (M i)] [∀ i, Module A (M i)]
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
@@ -103,6 +108,17 @@ lemma exists_orthogonal_idempotents_for_simples
       (∀ i j, i ≠ j → e i * e j = 0) ∧
       (∀ i j, Module.finrank k (smulRange (k := k) (A := A) (M j) (e i)) =
         if i = j then 1 else 0) := by
+  -- Step 1: A is semiprimary (automatic from artinian)
+  haveI : IsSemiprimaryRing A := inferInstance
+  haveI hss : IsSemisimpleRing (A ⧸ Ring.jacobson A) := IsSemiprimaryRing.isSemisimpleRing
+  have hnil := IsSemiprimaryRing.isNilpotent (R := A)
+  -- Step 2: Jacobson radical annihilates simple modules
+  have hann : ∀ i, Ring.jacobson A ≤ Module.annihilator A (M i) :=
+    fun i => IsSemisimpleModule.jacobson_le_annihilator A (M i)
+  -- Step 3-6: Construction of orthogonal idempotents with rank-1 action
+  -- This requires the full Wedderburn-Artin decomposition of A/Rad(A) ≅ ∏ End_k(M_i),
+  -- extracting E₁₁ diagonal idempotents from each block, and lifting via Corollary 9.1.3.
+  -- The rank-1 property uses IsAlgClosed to ensure End_A(M_i) = k.
   sorry
 
 /-- The left ideal A·e for an idempotent e is a projective A-module.
@@ -447,6 +463,7 @@ for each index `i` there exists a type `P i` carrying the structure of an indeco
 projective A-module, together with a proof that dim_k Hom_A(P i, M j) = if i = j then 1 else 0.
 (Etingof Theorem 9.2.1(i)) -/
 theorem Etingof.Theorem_9_2_1_i
+    [IsAlgClosed k]
     {ι : Type*} [Fintype ι] [DecidableEq ι]
     (M : ι → Type uA) [∀ i, AddCommGroup (M i)] [∀ i, Module A (M i)]
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
@@ -499,6 +516,7 @@ That is, if `P` is the family of projective covers from part (i), then A is isom
 as an A-module to the direct sum over `i` of `(finrank k (M i))` copies of `P i`.
 (Etingof Theorem 9.2.1(ii)) -/
 theorem Etingof.Theorem_9_2_1_ii
+    [IsAlgClosed k]
     {ι : Type*} [Fintype ι] [DecidableEq ι]
     (M : ι → Type uA) [∀ i, AddCommGroup (M i)] [∀ i, Module A (M i)]
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
@@ -524,6 +542,7 @@ a direct summand of A (since A is projective and decomposes into the Pᵢ by par
 so by Krull–Schmidt it must be isomorphic to one of them.
 (Etingof Theorem 9.2.1(iii)) -/
 theorem Etingof.Theorem_9_2_1_iii
+    [IsAlgClosed k]
     {ι : Type*} [Fintype ι] [DecidableEq ι]
     (M : ι → Type uA) [∀ i, AddCommGroup (M i)] [∀ i, Module A (M i)]
     [∀ i, Module k (M i)] [∀ i, IsScalarTower k A (M i)]
