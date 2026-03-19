@@ -3161,9 +3161,10 @@
     "end_page": "116",
     "start_line": 13,
     "end_line": 14,
-    "status": "partially_proved",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Vanishing part (Proposition5_14_1_vanishing) proved. Diagonal part (Proposition5_14_1_diagonal: dim Hom = 1) still sorry."
+    "notes": "Both vanishing and diagonal parts proved. Vanishing: Hom=0 when mu < la. Diagonal: dim Hom=1 when mu=la.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Definition5.14.2",
