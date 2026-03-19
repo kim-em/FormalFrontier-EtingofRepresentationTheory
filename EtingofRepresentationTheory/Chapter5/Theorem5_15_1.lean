@@ -229,6 +229,51 @@ theorem spechtMultiplicity_diagonal (n : ℕ) (la : Nat.Partition n) :
     spechtMultiplicity n la la = 1 :=
   Proposition5_14_1_diagonal n la
 
+/-! ### Helper lemmas for Young's Rule
+
+The proof of Young's Rule requires connecting three different perspectives:
+1. `permModuleCharacter` (fixed-point count) = trace of the permutation representation
+2. The trace decomposes via isotypic decomposition of the semisimple module
+3. The multiplicities match `spechtMultiplicity` (Hom-space dimensions)
+-/
+
+private abbrev G_n (n : ℕ) := Equiv.Perm (Fin n)
+private abbrev Q_n (n : ℕ) (la : Nat.Partition n) := G_n n ⧸ RowSubgroup n la
+
+/-- The linear endomorphism of `PermutationModule n la` induced by left multiplication
+by σ, viewed as a ℂ-linear map. This is the representation action. -/
+noncomputable def permModuleEndomorphism (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) : PermutationModule n la →ₗ[ℂ] PermutationModule n la :=
+  Finsupp.lmapDomain ℂ ℂ (fun q : Q_n n la => σ • q)
+
+/-- The trace of the permutation action on `PermutationModule` equals
+`permModuleCharacter` (the fixed-point count). This is the standard fact that
+the trace of a permutation matrix equals the number of fixed points.
+
+**Proof**: Using the canonical basis `{single q 1 | q ∈ Q}`, the matrix of
+`lmapDomain (σ • ·)` has entry 1 at (σ•q, q) and 0 elsewhere. The trace
+is `∑_q [σ•q = q] = card(fixedBy Q σ)`. -/
+theorem permModuleCharacter_eq_trace (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) :
+    (permModuleCharacter n la σ : ℂ) =
+      LinearMap.trace ℂ _ (permModuleEndomorphism n la σ) := by
+  classical
+  simp only [permModuleCharacter, permModuleEndomorphism]
+  rw [LinearMap.trace_eq_matrix_trace ℂ (Finsupp.basisSingleOne)]
+  simp only [Matrix.trace, Matrix.diag, LinearMap.toMatrix_apply,
+    Finsupp.lmapDomain_apply]
+  have hb : ∀ q : Q_n n la,
+      (Finsupp.basisSingleOne (R := ℂ) (ι := Q_n n la) q) = Finsupp.single q 1 :=
+    fun q => rfl
+  have hr : ∀ v : Q_n n la →₀ ℂ,
+      (Finsupp.basisSingleOne (R := ℂ) (ι := Q_n n la)).repr v = v :=
+    fun v => rfl
+  simp only [hb, hr, Finsupp.mapDomain_single, Finsupp.single_apply,
+    Finset.sum_boole]
+  push_cast
+  rw [Nat.card_eq_fintype_card, Fintype.card_subtype]
+  simp [MulAction.mem_fixedBy]
+
 /-! ### Young's Rule (character decomposition)
 
 **Young's Rule**: χ_{U_μ}(σ) = Σ_ν m(μ,ν) · χ_{V_ν}(σ) where
@@ -238,15 +283,14 @@ m(μ,ν) = `spechtMultiplicity n mu nu`.
 decomposes as ⊕_ν V_ν^{⊕m(μ,ν)}. The character is additive on direct sums.
 
 **What's needed to prove `youngsRule_character`**:
-1. Show PermutationModule is finite-dimensional over ℂ
-2. Show it's a semisimple ℂ[S_n]-module (Maschke)
-3. Express `permModuleCharacter` (fixed-point count) as a trace
-4. Use Mathlib's `FDRep.character` machinery or direct isotypic decomposition
-5. Connect isotypic multiplicities to `spechtMultiplicity` (Hom-space dims)
+1. `permModuleCharacter_eq_trace` (done above)
+2. Isotypic decomposition: U_μ ≅ ⊕_ν V_ν^{⊕m(μ,ν)} as ℂ[S_n]-modules
+3. Trace additivity on direct sums
+4. Connect isotypic multiplicities to `spechtMultiplicity` (Hom-space dims)
+5. Connect Specht module trace to `spechtModuleCharacter`
 
-**Key Mathlib APIs**: `IsSemisimpleModule`, `isotypicComponent`,
-`IsIsotypicOfType.linearEquiv_finsupp`, `FDRep.character`,
-`FDRep.scalar_product_char_eq_finrank_equivariant`
+**Key Mathlib APIs**: `IsSemisimpleModule`, `IsSemisimpleRing`,
+`Theorem5_12_2_irreducible`, `Theorem5_12_2_classification`
 -/
 
 /-- **Young's Rule** (character identity): The permutation module character
