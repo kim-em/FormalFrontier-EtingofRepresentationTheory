@@ -187,7 +187,13 @@ theorem Nat.Partition.toYoungDiagram_removeOuterCorner {n : ℕ} (la : Nat.Parti
     (c : ℕ × ℕ) (hc : la.toYoungDiagram.IsOuterCorner c.1 c.2) :
     (la.removeOuterCorner c hc).toYoungDiagram =
       la.toYoungDiagram.removeCorner c.1 c.2 hc := by
-  sorry
+  set μ' := la.toYoungDiagram.removeCorner c.1 c.2 hc
+  unfold Nat.Partition.toYoungDiagram Nat.Partition.removeOuterCorner
+  convert YoungDiagram.ofRowLens_to_rowLens_eq_self (μ := μ') using 2
+  -- Goal: sort of already-sorted rowLens = rowLens
+  show (μ'.rowLens : Multiset ℕ).sort (· ≥ ·) = μ'.rowLens
+  rw [Multiset.coe_sort]
+  exact List.mergeSort_eq_self _ (List.sortedGE_iff_pairwise.mp μ'.rowLens_sorted)
 
 namespace Etingof
 
