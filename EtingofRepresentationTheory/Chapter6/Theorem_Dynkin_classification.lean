@@ -106,17 +106,31 @@ private lemma isDynkinDiagram_of_graph_iso {n m : ℕ} {adj : Matrix (Fin n) (Fi
       | nil => exact absurd hhead (by simp)
       | cons a _ => simp only [List.map, List.head?]; rw [List.head?] at hhead; exact congr_arg _ (Option.some.inj hhead ▸ σ.apply_symm_apply i)
     · -- last
-      sorry
+      rw [List.getLast?_map]
+      rw [hlast]; simp [σ.apply_symm_apply]
     · -- edges
-      sorry
-  · -- Positive definiteness
+      intro k hk
+      have hk' : k + 1 < path.length := by rwa [List.length_map] at hk
+      -- Convert List.get to getElem notation, then use getElem_map
+      show adj' (path.map σ)[k] (path.map σ)[k + 1] = 1
+      rw [List.getElem_map, List.getElem_map, hiso]
+      exact hedges k hk'
+  · -- Positive definiteness: quadratic form is invariant under graph isomorphism
     intro x hx
     have hx' : x ∘ σ ≠ 0 := by
       intro h; apply hx; ext i
       have := congr_fun h (σ.symm i); simp [Function.comp] at this; exact this
     specialize hpos (x ∘ σ) hx'
-    -- Show the quadratic form values agree
-    sorry
+    -- Show xᵀ(2I - adj')x = (x∘σ)ᵀ(2I - adj)(x∘σ) by reindexing sums via σ
+    suffices heq : dotProduct x ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) - adj').mulVec x) =
+        dotProduct (x ∘ σ) ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec (x ∘ σ)) by
+      linarith
+    simp only [dotProduct, mulVec, Finset.sum_apply, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply, Function.comp]
+    symm
+    apply Fintype.sum_equiv σ; intro i; congr 1
+    apply Fintype.sum_equiv σ; intro j
+    simp only [hiso, σ.injective.eq_iff]
 
 /-! ## A_n is a Dynkin diagram
 
