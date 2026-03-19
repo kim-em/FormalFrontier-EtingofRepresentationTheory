@@ -214,6 +214,14 @@ noncomputable def Etingof.GL2.complementarySeriesChar
           then (nu ⟨x⁻¹ * g * x, h⟩).val
           else 0
 
+/-- Arithmetic identity: contributions from scalar, parabolic, and elliptic conjugacy classes
+sum to |GL₂(𝔽_q)|. Specifically:
+  (q-1)³ + (q-1)(q²-1) + q(q-1)³ = q(q-1)²(q+1) = (q²-1)(q²-q) -/
+private lemma Etingof.innerProduct_arith_identity (q : ℂ) :
+    (q - 1) ^ 3 + (q - 1) * (q ^ 2 - 1) + q * (q - 1) ^ 3 =
+    (q ^ 2 - 1) * (q ^ 2 - q) := by
+  ring
+
 /-- The inner product sum ∑_{g∈G} |χ(g)|² equals |G| = q(q-1)²(q+1).
 
 The proof splits the sum over GL₂(𝔽_q) by conjugacy class type:
@@ -232,6 +240,24 @@ private lemma Etingof.innerProduct_sum_eq_card
       Etingof.GL2.complementarySeriesChar p n nu x *
       starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu x) : ℂ) =
     (Fintype.card (GL2 p n) : ℂ) := by
+  -- Strategy: partition GL₂(𝔽_q) by conjugacy class type and compute |χ|² on each.
+  -- Step 1: Express |G| in terms of q = p^n
+  have hn_ne : n ≠ 0 := by omega
+  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
+  set q := Fintype.card (GaloisField p n) with hq_def
+  have hq_val : q = p ^ n := by
+    rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn_ne]
+  have hq1 : 1 < q := by rw [hq_val]; exact Nat.one_lt_pow hn_ne hp.out.one_lt
+  -- |GL₂(𝔽_q)| = (q²-1)(q²-q)
+  have hG : Fintype.card (GL2 p n) = (q ^ 2 - 1) * (q ^ 2 - q) := by
+    have := @Matrix.card_GL_field (GaloisField p n) _ _ 2
+    simp only [Fin.prod_univ_two, Fin.val_zero, Fin.val_one, pow_zero, pow_one,
+               ← Nat.card_eq_fintype_card] at this
+    rw [← Nat.card_eq_fintype_card, this, Nat.card_eq_fintype_card]
+  -- Step 2: The core computation requires splitting the sum by conjugacy class type.
+  -- This needs conjugacy class infrastructure for GL₂(𝔽_q) and explicit character
+  -- value computations on each class, plus character orthogonality for cyclic groups.
   sorry
 
 /-- **Lemma 5.25.3 (part 1)**: The complementary series virtual character
