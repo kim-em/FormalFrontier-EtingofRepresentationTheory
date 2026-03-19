@@ -94,11 +94,19 @@ private theorem reflFunctorPlus_mapLinear_ne_ne
         (Etingof.reflectionFunctorPlus Q i hi ρ) a b e w) =
     ρ.mapLinear (reversedArrow_ne_ne ha hb e)
       ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a ha) w) := by
-  -- BLOCKED: reflectionFunctorPlus uses Classical.propDecidable for mapLinear
-  -- but inst v i (from DecidableEq) for obj. These different Decidable instances
-  -- produce Decidable.rec terms that can't be rewritten due to dependent types.
-  -- Fixing this requires refactoring reflectionFunctorPlus to use a consistent
-  -- Decidable instance for both obj and mapLinear fields.
+  -- BLOCKED: Both equivAt_ne and mapLinear use Decidable.casesOn/match on the same
+  -- instance (inst a i, inst b i). After unfolding, the equivAt_ne terms have
+  -- `match hd : inst v i with | .isFalse _ => Eq.mpr ... (LinearEquiv.refl ...)`,
+  -- while mapLinear has `match inst a i, inst b i, e' with ...`. These create
+  -- different Decidable.rec terms that don't compose definitionally.
+  -- `rw`/`simp` can't rewrite inst v i because w's type depends on inst a i
+  -- (through objAt). `generalize` fails for the same reason. `split` can only
+  -- reduce one match at a time, leaving the others unreduced.
+  -- Fixing this requires either:
+  -- 1. Defining equivAt_ne in term mode with explicit AddCommMonoid/Module instances
+  --    matching reflectionFunctorPlus's internal let-bindings, OR
+  -- 2. Restructuring reflectionFunctorPlus to expose a cleaner API for mapLinear,
+  --    e.g. a separate `reflFunctorPlus_mapLinear` that case-splits consistently.
   sorry
 
 /-- Reflection functors preserve indecomposability at a sink:

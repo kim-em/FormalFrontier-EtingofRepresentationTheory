@@ -53,9 +53,7 @@ noncomputable def Etingof.reflectionFunctorPlus
     (V : Type*) [inst : DecidableEq V] [Quiver V]
     (i : V) (hi : Etingof.IsSink V i)
     (ρ : Etingof.QuiverRepresentation k V) :
-    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
-  classical
-  exact
+    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) :=
   -- φ : ⊕_{j→i} ρ_j → ρ_i, the canonical sink map
   let φ := ρ.sinkMap i
   -- Use Decidable.casesOn with the [DecidableEq V] instance to construct
@@ -74,45 +72,30 @@ noncomputable def Etingof.reflectionFunctorPlus
     (fun v => objAt v (dp v))
     (fun v => acmAt v (dp v))
     (fun v => modAt v (dp v))
-    (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
-      change Etingof.ReversedAtVertexHom V i a b at e
-      unfold Etingof.ReversedAtVertexHom at e
-      by_cases ha : a = i
-      · by_cases hb : b = i
-        · -- a = i, b = i: self-loop; vacuous since i is a sink
-          simp only [ha, hb] at e; exact ((hi i).false e).elim
-        · -- a = i, b ≠ i: reversed arrow, ker φ ↪ ⊕ → proj_b
-          simp only [ha, hb, ite_true, ite_false] at e
-          -- Beta-reduce and generalize to make Decidable.casesOn reduce
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isFalse h => exact absurd ha h
-          | isTrue _ =>
-            cases db with
-            | isTrue h => exact absurd h hb
-            | isFalse _ =>
-              intro e
-              exact (DirectSum.component k (Etingof.ArrowsInto V i)
-                (fun x => ρ.obj x.1) ⟨b, e⟩).comp
-                (LinearMap.ker φ).subtype
-      · by_cases hb : b = i
-        · -- a ≠ i, b = i: arrow i → a, vacuous since i is a sink
-          simp only [ha, hb] at e; exact ((hi a).false e).elim
-        · -- a ≠ i, b ≠ i: unchanged arrow
-          simp only [ha, hb] at e
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isTrue h => exact absurd h ha
-          | isFalse _ =>
-            cases db with
-            | isTrue h => exact absurd h hb
-            | isFalse _ =>
-              intro e
-              exact ρ.mapLinear e)
+    (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) =>
+      -- Reinterpret e's type to explicitly use dp (= inst · i), so that
+      -- matching dp a, dp b, e' simultaneously puts dp in the motive.
+      -- This avoids Eq.mpr casts and ensures mapLinear uses the same
+      -- Decidable instance as obj.
+      show objAt a (dp a) →ₗ[k] objAt b (dp b) from
+      let e' : @ite _ (a = i) (dp a)
+          (@ite _ (b = i) (dp b) (a ⟶ b) (b ⟶ i))
+          (@ite _ (b = i) (dp b) (i ⟶ a) (a ⟶ b)) := e
+      match dp a, dp b, e' with
+      | .isFalse _, .isFalse _, e =>
+        -- a ≠ i, b ≠ i: unchanged arrow, pass through ρ.mapLinear
+        ρ.mapLinear e
+      | .isTrue _, .isFalse _, e =>
+        -- a = i, b ≠ i: reversed arrow, ker φ ↪ ⊕ → proj_b
+        (DirectSum.component k (Etingof.ArrowsInto V i)
+          (fun x => ρ.obj x.1) ⟨b, e⟩).comp
+          (LinearMap.ker φ).subtype
+      | .isFalse _, .isTrue _, e =>
+        -- a ≠ i, b = i: arrow i → a, vacuous since i is a sink
+        ((hi a).false e).elim
+      | .isTrue ha, .isTrue _, e =>
+        -- a = i, b = i: self-loop at i, vacuous since i is a sink
+        by subst ha; exact ((hi b).false e).elim)
 
 section ReflectionFunctorPlusAPI
 
