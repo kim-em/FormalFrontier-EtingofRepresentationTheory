@@ -67,14 +67,19 @@ private noncomputable def reflFunctorPlus_equiv_ne
   | .isTrue hvi => exact absurd hvi hv
   | .isFalse _ => rw [hd]
 
-/-- Convert a reversed-quiver arrow between non-sink vertices back to original. -/
+/-- Convert a reversed-quiver arrow between non-sink vertices back to original.
+Uses match on the DecidableEq instance for clean definitional reduction. -/
 private def reversedArrow_ne_ne
-    {Q : Type*} [DecidableEq Q] [Quiver Q] {i a b : Q}
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q] {i a b : Q}
     (ha : a ≠ i) (hb : b ≠ i)
     (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b) : a ⟶ b := by
-  change Etingof.ReversedAtVertexHom Q i a b at e
+  change @Etingof.ReversedAtVertexHom Q inst _ i a b at e
   unfold Etingof.ReversedAtVertexHom at e
-  simp only [ha, ite_false, hb] at e; exact e
+  revert e
+  exact match inst a i, inst b i with
+  | .isTrue h, _ => absurd h ha
+  | .isFalse _, .isTrue h => absurd h hb
+  | .isFalse _, .isFalse _ => fun e => e
 
 set_option maxHeartbeats 400000 in
 /-- At non-sink vertices, the F⁺ᵢ map between a and b (both ≠ i) equals
@@ -94,11 +99,12 @@ private theorem reflFunctorPlus_mapLinear_ne_ne
         (Etingof.reflectionFunctorPlus Q i hi ρ) a b e w) =
     ρ.mapLinear (reversedArrow_ne_ne ha hb e)
       ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a ha) w) := by
-  -- BLOCKED: reflectionFunctorPlus uses Classical.propDecidable for mapLinear
-  -- but inst v i (from DecidableEq) for obj. These different Decidable instances
-  -- produce Decidable.rec terms that can't be rewritten due to dependent types.
-  -- Fixing this requires refactoring reflectionFunctorPlus to use a consistent
-  -- Decidable instance for both obj and mapLinear fields.
+  -- The Decidable instance mismatch in reflectionFunctorPlus has been fixed (#1165):
+  -- obj and mapLinear now share the same instance. The remaining difficulty is that
+  -- equivAt_ne and reversedArrow_ne_ne each bring their own instance copies after
+  -- unfolding, preventing rfl from reducing the inner matches.
+  -- TODO: Rewrite equivAt_ne/reversedArrow_ne_ne with match-based definitions
+  -- that share the same inst, then this becomes rfl.
   sorry
 
 /-- Reflection functors preserve indecomposability at a sink:

@@ -53,9 +53,7 @@ noncomputable def Etingof.reflectionFunctorPlus
     (V : Type*) [inst : DecidableEq V] [Quiver V]
     (i : V) (hi : Etingof.IsSink V i)
     (ρ : Etingof.QuiverRepresentation k V) :
-    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
-  classical
-  exact
+    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) :=
   -- φ : ⊕_{j→i} ρ_j → ρ_i, the canonical sink map
   let φ := ρ.sinkMap i
   -- Use Decidable.casesOn with the [DecidableEq V] instance to construct
@@ -75,44 +73,27 @@ noncomputable def Etingof.reflectionFunctorPlus
     (fun v => acmAt v (dp v))
     (fun v => modAt v (dp v))
     (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
-      change Etingof.ReversedAtVertexHom V i a b at e
+      -- Use inst a i / inst b i (same Decidable instance as obj/AddCommMonoid/Module fields)
+      -- to ensure match reduces consistently across all fields.
+      change objAt a (inst a i) →ₗ[k] objAt b (inst b i)
+      change @Etingof.ReversedAtVertexHom V inst _ i a b at e
       unfold Etingof.ReversedAtVertexHom at e
-      by_cases ha : a = i
-      · by_cases hb : b = i
-        · -- a = i, b = i: self-loop; vacuous since i is a sink
-          simp only [ha, hb] at e; exact ((hi i).false e).elim
-        · -- a = i, b ≠ i: reversed arrow, ker φ ↪ ⊕ → proj_b
-          simp only [ha, hb, ite_true, ite_false] at e
-          -- Beta-reduce and generalize to make Decidable.casesOn reduce
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isFalse h => exact absurd ha h
-          | isTrue _ =>
-            cases db with
-            | isTrue h => exact absurd h hb
-            | isFalse _ =>
-              intro e
-              exact (DirectSum.component k (Etingof.ArrowsInto V i)
-                (fun x => ρ.obj x.1) ⟨b, e⟩).comp
-                (LinearMap.ker φ).subtype
-      · by_cases hb : b = i
-        · -- a ≠ i, b = i: arrow i → a, vacuous since i is a sink
-          simp only [ha, hb] at e; exact ((hi a).false e).elim
-        · -- a ≠ i, b ≠ i: unchanged arrow
-          simp only [ha, hb] at e
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isTrue h => exact absurd h ha
-          | isFalse _ =>
-            cases db with
-            | isTrue h => exact absurd h hb
-            | isFalse _ =>
-              intro e
-              exact ρ.mapLinear e)
+      revert e
+      -- Use match (not generalize+cases) for better definitional reduction
+      exact match inst a i, inst b i with
+      | .isTrue ha, .isTrue hb =>
+          -- a = i, b = i: vacuous since i is a sink
+          fun e => ((hi b).false (show i ⟶ b from ha ▸ e)).elim
+      | .isTrue ha, .isFalse _ =>
+          -- a = i, b ≠ i: reversed arrow, ker φ ↪ ⊕ → proj_b
+          fun e => (DirectSum.component k (Etingof.ArrowsInto V i)
+            (fun x => ρ.obj x.1) ⟨b, ha ▸ e⟩).comp (LinearMap.ker φ).subtype
+      | .isFalse _, .isTrue hb =>
+          -- a ≠ i, b = i: vacuous since i is a sink
+          fun e => ((hi a).false (hb ▸ e)).elim
+      | .isFalse _, .isFalse _ =>
+          -- a ≠ i, b ≠ i: unchanged arrow
+          fun e => ρ.mapLinear e)
 
 section ReflectionFunctorPlusAPI
 
@@ -150,31 +131,33 @@ theorem Etingof.reflFunctorPlus_obj_eq
   | .isFalse hii => exact absurd rfl hii
 
 /-- `LinearEquiv` at vertex v ≠ i: `F⁺ᵢ(ρ).obj v ≃ₗ[k] ρ.obj v`.
-This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition. -/
+This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition.
+Uses term-mode match for clean definitional reduction. -/
 noncomputable def Etingof.reflFunctorPlus_equivAt_ne
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {k : Type*} [CommSemiring k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
     @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
       (Etingof.reflectionFunctorPlus Q i hi ρ) v ≃ₗ[k] ρ.obj v := by
   unfold Etingof.reflectionFunctorPlus
   simp only
-  match hd : (‹DecidableEq Q› v i) with
-  | .isTrue hvi => exact absurd hvi hv
-  | .isFalse _ => rw [hd]
+  exact match inst v i with
+  | .isTrue hvi => absurd hvi hv
+  | .isFalse _ => LinearEquiv.refl k (ρ.obj v)
 
 /-- `LinearEquiv` at vertex i: `F⁺ᵢ(ρ).obj i ≃ₗ[k] ker(sinkMap i)`.
-This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition. -/
+This reduces the `Decidable.casesOn` in the `reflectionFunctorPlus` definition.
+Uses term-mode match for clean definitional reduction. -/
 noncomputable def Etingof.reflFunctorPlus_equivAt_eq
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {k : Type*} [CommSemiring k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q) :
     @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
       (Etingof.reflectionFunctorPlus Q i hi ρ) i ≃ₗ[k] ↥(ρ.sinkMap i).ker := by
   unfold Etingof.reflectionFunctorPlus
   simp only
-  match hd : (‹DecidableEq Q› i i) with
-  | .isTrue _ => rw [hd]
-  | .isFalse hii => exact absurd rfl hii
+  exact match inst i i with
+  | .isTrue _ => LinearEquiv.refl k ↥(ρ.sinkMap i).ker
+  | .isFalse hii => absurd rfl hii
 
 end ReflectionFunctorPlusAPI
