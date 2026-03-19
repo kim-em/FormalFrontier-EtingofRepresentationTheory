@@ -298,23 +298,176 @@ private theorem coxeterAction_sum_range
   | succ k ih =>
     rw [Finset.sum_range_succ, Finset.sum_range_succ, coxeterAction_add, ih]
 
+/-- The result of applying reflections s_k, s_{k+1}, ..., s_{n-1} to v.
+    tailApply k = s_k(s_{k+1}(...(s_{n-1}(v))...)). -/
+private def tailApply
+    (A : Matrix (Fin n) (Fin n) ℤ) (v : Fin n → ℤ) (k : ℕ) : Fin n → ℤ :=
+  if h : k < n then
+    simpleReflection n A ⟨k, h⟩ (tailApply A v (k + 1))
+  else v
+termination_by n - k
+
+/-- tailApply at index ≥ n is just v. -/
+private theorem tailApply_ge (A : Matrix (Fin n) (Fin n) ℤ)
+    (v : Fin n → ℤ) (k : ℕ) (hk : k ≥ n) :
+    tailApply A v k = v := by
+  conv_lhs => unfold tailApply
+  exact dif_neg (by omega)
+
+/-- tailApply step: tailApply k = s_k(tailApply (k+1)) for k < n. -/
+private theorem tailApply_step (A : Matrix (Fin n) (Fin n) ℤ)
+    (v : Fin n → ℤ) (k : ℕ) (hk : k < n) :
+    tailApply A v k = simpleReflection n A ⟨k, hk⟩ (tailApply A v (k + 1)) := by
+  conv_lhs => unfold tailApply
+  exact dif_pos hk
+
+/-- tailApply 0 equals the coxeterAction. -/
+private theorem tailApply_zero_eq_coxeter
+    (v : Fin n → ℤ) :
+    tailApply (cartanMatrix n adj) v 0 = coxeterAction n adj v := by
+  set A := cartanMatrix n adj
+  rw [coxeterAction_eq_fold]
+  -- We prove: tailApply k = (drop k of list).foldr (· ∘ ·) id v
+  -- by induction on m = n - k (downward from n)
+  suffices ∀ m : ℕ, ∀ k : ℕ, k + m = n →
+      tailApply A v k =
+        ((List.ofFn (fun i : Fin n => simpleReflection n A i)).drop k).foldr
+          (· ∘ ·) id v by
+    have h := this n 0 (by omega)
+    simpa using h
+  intro m
+  induction m with
+  | zero =>
+    intro k hk
+    -- k = n
+    rw [tailApply_ge A v k (by omega)]
+    have hdrop : (List.ofFn (fun i : Fin n => simpleReflection n A i)).drop k = [] := by
+      apply List.drop_eq_nil_of_le; rw [List.length_ofFn]; omega
+    rw [hdrop]; simp
+  | succ m ih =>
+    intro k hk
+    -- k < n since k + m + 1 = n
+    have hlt : k < n := by omega
+    rw [tailApply_step A v k hlt]
+    have hlen : k < (List.ofFn (fun i : Fin n => simpleReflection n A i)).length := by
+      rw [List.length_ofFn]; exact hlt
+    rw [List.drop_eq_getElem_cons hlen]
+    simp only [List.foldr_cons, Function.comp_apply, List.getElem_ofFn]
+    congr 1
+    exact ih (k + 1) (by omega)
+
+/-- For k < j, tailApply at coord j equals tailApply (k+1) at coord j
+    (because s_k doesn't touch coord j when k ≠ j). -/
+private theorem tailApply_coord_skip
+    (A : Matrix (Fin n) (Fin n) ℤ) (v : Fin n → ℤ)
+    (k : ℕ) (hk : k < n) (j : Fin n) (hkj : k < j.val) :
+    tailApply A v k j = tailApply A v (k + 1) j := by
+  rw [tailApply_step A v k hk]
+  exact simpleReflection_apply_ne A ⟨k, hk⟩ _ j (by
+    intro h; exact absurd (congr_arg Fin.val h) (by simp; omega))
+
+/-- For k₁ ≤ k₂ ≤ j, tailApply k₁ at coord j equals tailApply k₂ at coord j. -/
+private theorem tailApply_coord_range
+    (A : Matrix (Fin n) (Fin n) ℤ) (v : Fin n → ℤ)
+    (k₁ k₂ : ℕ) (j : Fin n) (hle : k₁ ≤ k₂) (hk₂ : k₂ ≤ j.val) :
+    tailApply A v k₁ j = tailApply A v k₂ j := by
+  induction k₂ with
+  | zero => simp [Nat.le_zero.mp hle]
+  | succ k₂ ih =>
+    by_cases heq : k₁ = k₂ + 1
+    · rw [heq]
+    · rw [← tailApply_coord_skip A v k₂ (by omega) j (by omega)]
+      exact ih (by omega) (by omega)
+
+/-- Simple reflection at coordinate i: sᵢ(w)(i) = w(i) - (Aw)ᵢ when A is symmetric. -/
+private theorem simpleReflection_apply_self
+    (hAsymm : (cartanMatrix n adj).IsSymm)
+    (i : Fin n) (w : Fin n → ℤ) :
+    simpleReflection n (cartanMatrix n adj) i w i =
+      w i - (cartanMatrix n adj).mulVec w i := by
+  set A := cartanMatrix n adj
+  unfold simpleReflection rootReflection
+  simp only [Pi.sub_apply, Pi.smul_apply, Pi.single_apply, smul_eq_mul]
+  congr 1
+  simp only [dotProduct, Matrix.mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+    Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  exact Finset.sum_congr rfl fun k _ => by
+    rw [show A k i = A i k from congr_fun (congr_fun hAsymm i) k]; ring
+
 /-- Key lemma: The Coxeter element has no nonzero fixed point.
 
 If c(v) = v, then since c = s₀ ∘ s₁ ∘ ... ∘ sₙ₋₁ and each sᵢ only modifies
 coordinate i, applying these in sequence and getting back v requires each sᵢ
 to fix the intermediate vector. This means (A·v)ᵢ = 0 for all i, so A·v = 0.
-But A is positive definite, so v = 0.
-
-The proof proceeds by induction: sₙ₋₁ is applied first to v and only modifies
-coordinate n-1. Since no subsequent reflection touches coordinate n-1, the
-final result at coord n-1 equals sₙ₋₁(v)(n-1). For c(v) = v, this must equal
-v(n-1), forcing sₙ₋₁(v) = v. Then sₙ₋₂ acts on v (not some intermediate),
-and the same argument gives sₙ₋₂(v) = v, etc. -/
+But A is positive definite, so v = 0. -/
 private theorem coxeterAction_no_fixed_point
     (hDynkin : IsDynkinDiagram n adj) (v : Fin n → ℤ)
     (hfixed : coxeterAction n adj v = v) :
     v = 0 := by
-  sorry
+  set A := cartanMatrix n adj with hA_def
+  have hAsymm := dynkin_cartan_symm hDynkin
+  -- Step 1: Show A.mulVec v = 0
+  suffices hAv : A.mulVec v = 0 by
+    by_contra hv
+    have hpos := hDynkin.2.2.2.2 v hv
+    rw [show (2 • (1 : Matrix _ _ ℤ) - adj) = A from hA_def.symm] at hpos
+    rw [hAv, dotProduct_zero] at hpos
+    exact lt_irrefl 0 hpos
+  -- Step 2: Prove s_j(v) = v for all j by descending induction.
+  -- The argument: c(v)(j) = tailApply 0 j = tailApply j j = s_j(tailApply (j+1))(j).
+  -- Reflections before j don't touch coord j (tailApply_coord_range).
+  -- By IH: s_k(v) = v for k > j, so tailApply (j+1) = v at relevant positions.
+  suffices hsv : ∀ j : Fin n, simpleReflection n A j v = v by
+    ext j; simp only [Pi.zero_apply]
+    have h := congr_fun (hsv j) j
+    rw [simpleReflection_apply_self hAsymm j v] at h; linarith
+  -- Prove by descending induction: ∀ m, ∀ j, n-1-j < m → s_j(v) = v
+  suffices ∀ m : ℕ, ∀ j : Fin n, n - 1 - j.val < m → simpleReflection n A j v = v from
+    fun j => this (n - j.val) j (by omega)
+  intro m
+  induction m with
+  | zero => intro j hj; omega
+  | succ m ih =>
+    intro j hj
+    by_cases hm : n - 1 - j.val < m
+    · exact ih j hm
+    · -- j.val = n - 1 - m, this is the new case
+      -- IH gives s_k(v) = v for k > j
+      have hrest : ∀ k : Fin n, k.val > j.val → simpleReflection n A k v = v :=
+        fun k hk => ih k (by omega)
+      -- c(v)(j) = v(j) from hfixed
+      have hcv : coxeterAction n adj v j = v j := by rw [hfixed]
+      rw [← tailApply_zero_eq_coxeter] at hcv
+      -- tailApply 0 j = tailApply j j (prefix doesn't touch coord j)
+      rw [tailApply_coord_range A v 0 j.val j (Nat.zero_le _) le_rfl] at hcv
+      -- tailApply j = s_j(tailApply (j+1))
+      rw [tailApply_step A v j.val j.isLt] at hcv
+      simp only [Fin.eta] at hcv
+      -- tailApply (j+1) = v (because s_k(v) = v for all k > j)
+      -- We prove tailApply k = v for k > j by downward induction from n
+      have htail_v : tailApply A v (j.val + 1) = v := by
+        -- Downward induction on p where k + p = n
+        suffices ∀ p : ℕ, ∀ k : ℕ, k + p = n → k ≥ j.val + 1 →
+            tailApply A v k = v by
+          exact this (n - j.val - 1) (j.val + 1) (by omega) le_rfl
+        intro p
+        induction p with
+        | zero => intro k hk _; exact tailApply_ge A v k (by omega)
+        | succ p ihp =>
+          intro k hk hkj
+          have hkn : k < n := by omega
+          have hkgt : k > j.val := by omega
+          rw [tailApply_step A v k hkn]
+          rw [ihp (k + 1) (by omega) (by omega)]
+          exact hrest ⟨k, hkn⟩ hkgt
+      rw [htail_v] at hcv
+      -- hcv: s_j(v)(j) = v(j), so (Av)_j = 0
+      have hAv_j : A.mulVec v j = 0 := by
+        have := simpleReflection_apply_self hAsymm j v; linarith
+      ext k
+      by_cases hk : k = j
+      · rw [hk, simpleReflection_apply_self hAsymm j v, hAv_j, sub_zero]
+      · exact simpleReflection_apply_ne A j v k hk
 
 end CoxeterHelpers
 
