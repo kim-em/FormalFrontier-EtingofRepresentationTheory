@@ -81,7 +81,34 @@ private def reversedArrow_ne_ne
   | .isFalse _, .isTrue h => absurd h hb
   | .isFalse _, .isFalse _ => fun e => e
 
+/-! ## Decidable instance helpers
+
+`reflectionFunctorPlus` is defined using `Decidable.casesOn`, creating opaque type-level
+terms. These helpers normalize `Decidable` instances to known constructors, enabling
+`simp`-based reduction in proof contexts where `rw`/`generalize` fail due to dependent
+type constraints.
+
+**Known blocker**: Even with these helpers, `simp` cannot rewrite `inst a i` inside
+`Decidable.rec` terms in the goal when the motive involves dependent types. A future
+refactor of `reflectionFunctorPlus` to use explicit vertex-indexed data (avoiding
+`Decidable.casesOn`) would resolve this. -/
+
+/-- A `Decidable p` with proof of `¬p` must be `.isFalse`. Uses proof irrelevance. -/
+private lemma decidable_eq_isFalse {p : Prop} (h : ¬p) (d : Decidable p) :
+    d = .isFalse h := by
+  cases d with
+  | isTrue hp => exact absurd hp h
+  | isFalse _ => rfl
+
+/-- A `Decidable p` with proof of `p` must be `.isTrue`. Uses proof irrelevance. -/
+private lemma decidable_eq_isTrue {p : Prop} (h : p) (d : Decidable p) :
+    d = .isTrue h := by
+  cases d with
+  | isTrue _ => rfl
+  | isFalse hp => exact absurd h hp
+
 set_option maxHeartbeats 400000 in
+-- reason: unfolding reflectionFunctorPlus + rewriting Decidable instances
 /-- At non-sink vertices, the F⁺ᵢ map between a and b (both ≠ i) equals
 the original ρ map, after transport through the equivAt_ne equivalences. -/
 private theorem reflFunctorPlus_mapLinear_ne_ne
@@ -99,12 +126,10 @@ private theorem reflFunctorPlus_mapLinear_ne_ne
         (Etingof.reflectionFunctorPlus Q i hi ρ) a b e w) =
     ρ.mapLinear (reversedArrow_ne_ne ha hb e)
       ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a ha) w) := by
-  -- The Decidable instance mismatch in reflectionFunctorPlus has been fixed (#1165):
-  -- obj and mapLinear now share the same instance. The remaining difficulty is that
-  -- equivAt_ne and reversedArrow_ne_ne each bring their own instance copies after
-  -- unfolding, preventing rfl from reducing the inner matches.
-  -- TODO: Rewrite equivAt_ne/reversedArrow_ne_ne with match-based definitions
-  -- that share the same inst, then this becomes rfl.
+  -- BLOCKED: The Decidable.casesOn in reflectionFunctorPlus creates opaque type-level
+  -- terms that rw/simp/generalize cannot rewrite due to dependent type constraints.
+  -- The proper fix is to refactor reflectionFunctorPlus to avoid Decidable.casesOn
+  -- (e.g., using a structure with explicit vertex-wise data instead of case-splitting).
   sorry
 
 /-- Reflection functors preserve indecomposability at a sink:
@@ -268,10 +293,12 @@ theorem Etingof.Proposition6_6_7_sink
         fun ⟨j, e⟩ => sink_no_out e
       -- Transport W_k at arrow sources to submodules of ρ.obj
       let W₁_at : ∀ (a : Etingof.ArrowsInto Q i), Submodule k (ρ.obj a.1) :=
-        fun a => Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+        fun a => Submodule.map
+          (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
           (W₁ a.1)
       let W₂_at : ∀ (a : Etingof.ArrowsInto Q i), Submodule k (ρ.obj a.1) :=
-        fun a => Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+        fun a => Submodule.map
+          (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
           (W₂ a.1)
       -- U_k(v) for v ≠ i: transport W_k(v) via equiv
       -- U_k(i): image under sinkMap of the W_k-part of the direct sum
