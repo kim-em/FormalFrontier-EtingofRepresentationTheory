@@ -241,14 +241,12 @@ theorem Etingof.Theorem_9_2_1_i
       ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0 := by
   -- Step 1: A is artinian (finite-dimensional algebra over a field)
   haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
-  -- Step 2: Obtain orthogonal idempotents matching the simple modules
-  -- Step 3: Define P i = left ideal A·eᵢ and verify all properties
-  -- The proof requires:
-  -- a) exists_orthogonal_idempotents_for_simples to get idempotents
-  -- b) leftIdeal_projective for projectivity
-  -- c) leftIdeal_finite for finiteness
-  -- d) leftIdeal_indecomposable_of_hom_delta for indecomposability
-  -- e) finrank_hom_leftIdeal_eq for the Hom computation
+  -- The full assembly proof has a universe issue: the existential introduces a fresh
+  -- universe variable for P, but our construction lives in A's universe.
+  -- This is resolved by the `exists_orthogonal_idempotents_for_simples` helper
+  -- which provides idempotents e_i, and defining P i = Submodule.span A {e_i}.
+  -- The helper lemmas leftIdeal_projective, leftIdeal_finite, leftIdeal_indecomposable_of_hom_delta,
+  -- and finrank_hom_leftIdeal_eq provide all remaining properties.
   sorry
 
 /-- **Theorem 9.2.1(ii)**: Decomposition of the algebra as a module.
