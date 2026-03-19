@@ -105,6 +105,22 @@ noncomputable def smulRange (M : Type*) [AddCommGroup M] [Module A M] [Module k 
     [SMulCommClass A k M] (a : A) : Submodule k M :=
   LinearMap.range (smulEnd (k := k) (A := A) M a)
 
+section CentralAction
+
+/-- The central idempotents `Pi.single l 1` form complete orthogonal idempotents. -/
+lemma completeOrthogonalIdempotents_pi_single_one {n : ℕ} {S : Fin n → Type*}
+    [∀ i, Semiring (S i)] :
+    CompleteOrthogonalIdempotents (Pi.single (M := S) · 1) :=
+  CompleteOrthogonalIdempotents.single S
+
+/-- `Pi.single l 1` is central in a dependent product of semirings. -/
+lemma pi_single_one_comm {n : ℕ} {S : Fin n → Type*}
+    [∀ i, Semiring (S i)] (l : Fin n) (x : ∀ i, S i) :
+    (Pi.single l (1 : S l)) * x = x * (Pi.single l (1 : S l)) := by
+  rw [← Pi.single_mul_left, ← Pi.single_mul_right]; simp
+
+end CentralAction
+
 /-- For a finite-dimensional algebra A over k with pairwise non-isomorphic simple modules
 M₁, ..., Mₘ, there exist orthogonal idempotents e₁, ..., eₘ in A (one per iso class of
 simple modules) such that eᵢ acts as a rank-1 projection on Mᵢ and as zero on Mⱼ for
@@ -249,8 +265,274 @@ lemma exists_orthogonal_idempotents_for_simples
     -- Map through WA⁻¹ (ring homomorphism)
     have := horth_prod.map WA.symm.toRingEquiv.toRingHom
     convert this using 1
-  -- Now only need to prove: ∃ injective σ with the rank property
-  sorry
+  -- Now only need to prove: ∃ injective σ with the rank property.
+  -- This is the block-module correspondence for Wedderburn-Artin.
+  --
+  -- Proof outline:
+  -- 1. Central idempotents c_l = WA.symm(Pi.single l 1) act on M_j via lifts to A.
+  --    Their image on M_j is an A-submodule (by centrality of c_l in A/J and J ≤ ann(M_j)).
+  --    By simplicity of M_j, the image is 0 or M_j.
+  -- 2. Completeness (∑c_l = 1) and orthogonality (c_l*c_{l'} = 0) give a unique block σ(j).
+  -- 3. Non-isomorphic simples go to different blocks (Mat_n(k) has unique simple module,
+  --    by IsSimpleRing.isIsotypic).
+  -- 4. E₁₁ in block σ(i) acts with rank 1 on M_i (primitive idempotent on the unique simple
+  --    module of a matrix ring over an algebraically closed field).
+  -- 5. E₁₁ in block σ(i) acts with rank 0 on M_j for j ≠ i (block σ(i) annihilates M_j).
+  --
+  -- The key sub-arguments are:
+  -- (A) Central element lifts commute with A-action on simples (via hsmul_eq + centrality)
+  -- (B) Unique simple module over Mat_n(k) (IsSimpleRing.isIsotypic in Mathlib)
+  -- (C) finrank of E₁₁-image on the standard representation = 1
+  --
+  -- Sub-arguments (A) and (B) are individually straightforward; (C) needs a concrete
+  -- dimension computation. We decompose into helper sub-sorrys.
+
+  -- Helper: the action of WA.symm(x) on M_j (via any lift) factors through A/J.
+  -- Two lifts give the same action (by hsmulRange_eq).
+  -- The action of a product x*y is the composition of actions.
+  -- Therefore: the "A/J-action" on M_j is well-defined, and WA transports it to a
+  -- (∏ Mat(k))-action.
+
+  -- For each j, define σ(j) as the unique block where the central idempotent acts nontrivially.
+  -- We construct σ by sorry'ing the existence of the unique block.
+  -- Then we prove injectivity and the rank property.
+
+  -- Sub-lemma: block assignment exists
+  -- For each simple module M_j, there is a unique block l such that
+  -- WA.symm(Pi.single l 1) acts as identity on M_j (i.e., smulRange = ⊤).
+  -- Helper: WA.symm preserves multiplication (used for centrality and orthogonality)
+  have hWA_mul : ∀ x y : ∀ l, Matrix (Fin (d l)) (Fin (d l)) k,
+      WA.symm x * WA.symm y = WA.symm (x * y) := fun x y => (map_mul WA.symm x y).symm
+  -- Helper: the central idempotents in A/J
+  let c : Fin n → A ⧸ Ring.jacobson A := fun l => WA.symm (Pi.single l 1)
+  -- Helper: c_l is central in A/J (commutes with all elements)
+  have hc_comm : ∀ (l : Fin n) (q : A ⧸ Ring.jacobson A), c l * q = q * c l := by
+    intro l q
+    obtain ⟨b, rfl⟩ := Ideal.Quotient.mk_surjective q
+    show WA.symm (Pi.single l 1) * π b = π b * WA.symm (Pi.single l 1)
+    rw [show π b = WA.symm (WA (π b)) from (WA.symm_apply_apply _).symm]
+    rw [hWA_mul, hWA_mul]
+    congr 1
+    exact pi_single_one_comm l (WA (π b))
+  -- Helper: smulRange for a lift of c_l is an A-submodule of M_j
+  have hsmulRange_A_sub : ∀ (j : ι) (l : Fin n) (a : A) (ha : π a = c l),
+      ∀ (b : A) (x : M j), x ∈ smulRange (k := k) (A := A) (M j) a →
+        b • x ∈ smulRange (k := k) (A := A) (M j) a := by
+    intro j l a ha b x ⟨m, hm⟩
+    rw [← hm]
+    -- b • (a • m) = (ba) • m. And π(ba) = π(b) * c_l = c_l * π(b) = π(ab).
+    -- So by hsmul_eq, (ba) • m = (ab) • m = a • (b • m)
+    have hcomm : π (b * a) = π (a * b) := by
+      rw [map_mul, map_mul, ha]; exact (hc_comm l (π b)).symm
+    show b • (a • m) ∈ smulRange (k := k) (A := A) (M j) a
+    rw [← mul_smul, hsmul_eq _ _ j _ hcomm, mul_smul]
+    exact ⟨b • m, rfl⟩
+  -- Helper: smulRange for c_l on M_j is ⊥ or ⊤
+  have hsmulRange_bot_or_top : ∀ (j : ι) (l : Fin n) (a : A) (ha : π a = c l),
+      smulRange (k := k) (A := A) (M j) a = ⊥ ∨
+        smulRange (k := k) (A := A) (M j) a = ⊤ := by
+    intro j l a ha
+    -- Construct an A-submodule with the same carrier
+    let N : Submodule A (M j) :=
+      { carrier := (smulRange (k := k) (A := A) (M j) a : Set (M j))
+        add_mem' := (smulRange (k := k) (A := A) (M j) a).add_mem
+        zero_mem' := (smulRange (k := k) (A := A) (M j) a).zero_mem
+        smul_mem' := fun b x hx => hsmulRange_A_sub j l a ha b x hx }
+    rcases IsSimpleOrder.eq_bot_or_eq_top N with h | h
+    · left; ext x; constructor
+      · intro hx
+        have : x ∈ N := hx
+        rw [h] at this; exact (Submodule.mem_bot A).mp this
+      · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) a).zero_mem
+    · right; ext x; constructor
+      · intro _; exact Submodule.mem_top
+      · intro _
+        have : x ∈ N := by rw [h]; exact Submodule.mem_top
+        exact this
+  -- Complete orthogonal idempotents in the product ring
+  have hcoi := completeOrthogonalIdempotents_pi_single_one
+    (S := fun l => Matrix (Fin (d l)) (Fin (d l)) k)
+  -- Completeness: ∑ c_l = 1 in A/J
+  have hc_sum : ∑ l, c l = 1 := by
+    show ∑ l, WA.symm (Pi.single l 1) = 1
+    rw [← map_sum]; rw [hcoi.complete]; exact map_one WA.symm
+  have hblock_exists : ∀ j : ι, ∃ l : Fin n, ∀ a : A,
+      π a = WA.symm (Pi.single l 1) →
+      smulRange (k := k) (A := A) (M j) a = ⊤ := by
+    intro j
+    -- If no block acts surjectively, all blocks act as 0 (by bot_or_top + hsmulRange_eq)
+    by_contra h_none
+    push_neg at h_none
+    -- For each l, some lift of c_l has smulRange ≠ ⊤, hence by hsmulRange_eq ALL lifts do too
+    -- (smulRange depends only on π a), and by bot_or_top it must be ⊥
+    have hall_bot : ∀ l : Fin n, ∀ a : A, π a = c l →
+        smulRange (k := k) (A := A) (M j) a = ⊥ := by
+      intro l a ha
+      obtain ⟨a₀, ha₀, hne⟩ := h_none l
+      rcases hsmulRange_bot_or_top j l a₀ ha₀ with h | h
+      · -- a₀ gives ⊥, so a gives the same (by hsmulRange_eq)
+        rwa [hsmulRange_eq a a₀ j (ha.trans ha₀.symm)]
+      · exact absurd h hne
+    -- But ∑ c_l = 1, so ∑ (lifts of c_l) acts as identity on M_j
+    -- All c_l act as 0, so identity = 0, contradicting M_j nontrivial
+    haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+    obtain ⟨m, hm⟩ := exists_ne (0 : M j)
+    apply hm
+    -- m = 1 • m = (∑ c_l via some lift) • m
+    -- Need a lift of ∑ c_l. Pick lifts for each c_l.
+    -- For each l, choose a_l with π(a_l) = c_l
+    have hlift : ∀ l : Fin n, ∃ a : A, π a = c l :=
+      fun l => Ideal.Quotient.mk_surjective (c l)
+    choose a_l ha_l using hlift
+    -- π(∑ a_l) = ∑ c_l = 1
+    have hsum_img : π (∑ l, a_l l) = 1 := by
+      rw [map_sum]; simp_rw [ha_l]; exact hc_sum
+    -- (∑ a_l) • m = 1 • m = m (by hsmul_eq)
+    have hsum_act : (∑ l, a_l l) • m = m := by
+      have := hsmul_eq (∑ l, a_l l) 1 j m (by rw [hsum_img, map_one])
+      rwa [one_smul] at this
+    -- But (∑ a_l) • m = ∑ (a_l • m)
+    rw [← hsum_act, Finset.sum_smul]
+    -- Each a_l • m = 0 (since smulRange = ⊥ means a_l acts as 0)
+    apply Finset.sum_eq_zero
+    intro l _
+    have h0 := hall_bot l (a_l l) (ha_l l)
+    -- smulRange = ⊥ means ∀ m, a • m = 0
+    have : a_l l • m ∈ smulRange (k := k) (A := A) (M j) (a_l l) := ⟨m, rfl⟩
+    rw [h0] at this; exact (Submodule.mem_bot k).mp this
+  -- Sub-lemma: block assignment is unique
+  have hblock_unique : ∀ j : ι, ∀ l₁ l₂ : Fin n,
+      (∀ a : A, π a = WA.symm (Pi.single l₁ 1) →
+        smulRange (k := k) (A := A) (M j) a = ⊤) →
+      (∀ a : A, π a = WA.symm (Pi.single l₂ 1) →
+        smulRange (k := k) (A := A) (M j) a = ⊤) →
+      l₁ = l₂ := by
+    intro j l₁ l₂ h₁ h₂
+    by_contra hne
+    -- Orthogonality: c_{l₁} * c_{l₂} = 0 in A/J
+    have horth : c l₁ * c l₂ = 0 :=
+      (hcoi.toOrthogonalIdempotents.map WA.symm.toRingEquiv.toRingHom).ortho hne
+    -- Pick lifts
+    obtain ⟨a₁, ha₁⟩ := Ideal.Quotient.mk_surjective (c l₁)
+    obtain ⟨a₂, ha₂⟩ := Ideal.Quotient.mk_surjective (c l₂)
+    -- smulRange for a₂ is ⊤, so a₂ acts surjectively on M_j
+    have h₂_top := h₂ a₂ ha₂
+    -- a₁ * a₂ has image 0 in A/J (since c_{l₁} * c_{l₂} = 0)
+    have hprod_img : π (a₁ * a₂) = 0 := by rw [map_mul, ha₁, ha₂, horth]
+    -- So a₁ * a₂ acts as 0 on M_j (same as 0 acts)
+    have hprod_zero : ∀ m : M j, (a₁ * a₂) • m = 0 := by
+      intro m
+      have h0 := hsmul_eq (a₁ * a₂) 0 j m (by rw [hprod_img, map_zero])
+      rwa [zero_smul] at h0
+    -- But a₁ * a₂ = a₁ * a₂, and a₂ is surjective. So a₁ acts as 0 on the range of a₂.
+    -- Since smulRange a₂ = ⊤, a₂ is surjective. So for any m, ∃ m₀ with a₂ • m₀ = m.
+    -- Then a₁ • m = a₁ • (a₂ • m₀) = (a₁ * a₂) • m₀ = 0.
+    -- So a₁ acts as 0, hence smulRange a₁ = ⊥, contradicting h₁ which says ⊤.
+    have h₁_top := h₁ a₁ ha₁
+    -- smulRange a₁ = ⊤ means a₁ acts surjectively. But a₁ acts as 0 (shown below).
+    haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+    -- a₁ acts as 0: for any m, a₁ • m = 0
+    have ha₁_zero : ∀ m : M j, a₁ • m = 0 := by
+      intro m
+      -- a₂ is surjective on M_j (smulRange = ⊤)
+      -- Since smulRange = ⊤ and c_{l₂} is idempotent, a₂ acts surjectively.
+      -- c_{l₂} is idempotent: c_{l₂}^2 = c_{l₂}, so a₂^2 acts same as a₂.
+      -- a₂ • (a₂ • m) = (a₂*a₂) • m. π(a₂*a₂) = c_{l₂}^2 = c_{l₂} = π(a₂).
+      -- So a₂ • (a₂ • m) = a₂ • m. This means a₂ is identity on its range.
+      -- Since range = ⊤, a₂ • m' = m' for all m' in M_j... wait no.
+      -- Actually: need m ∈ smulRange a₂ = ⊤. So ∃ m₀, a₂ • m₀ = m.
+      have : m ∈ smulRange (k := k) (A := A) (M j) a₂ := by
+        rw [h₂_top]; exact Submodule.mem_top
+      obtain ⟨m₀, hm₀⟩ := this
+      -- hm₀ : (smulEnd (M j) a₂) m₀ = m, i.e., a₂ • m₀ = m
+      change a₂ • m₀ = m at hm₀
+      rw [← hm₀, ← mul_smul]
+      exact hprod_zero m₀
+    -- smulRange a₁ = ⊥ (since a₁ acts as 0)
+    have : smulRange (k := k) (A := A) (M j) a₁ = ⊥ := by
+      ext x; simp only [Submodule.mem_bot]; constructor
+      · rintro ⟨m, rfl⟩; exact ha₁_zero m
+      · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) a₁).zero_mem
+    rw [this] at h₁_top
+    -- ⊥ = ⊤ contradicts nontriviality of M j
+    exact bot_ne_top h₁_top
+  -- Define σ
+  let σ : ι → Fin n := fun j => (hblock_exists j).choose
+  have hσ_spec : ∀ j a, π a = WA.symm (Pi.single (σ j) 1) →
+      smulRange (k := k) (A := A) (M j) a = ⊤ :=
+    fun j => (hblock_exists j).choose_spec
+  -- Sub-lemma: σ is injective
+  have hσ_inj : Function.Injective σ := by
+    -- Proof strategy: If σ(i) = σ(j) = l, construct M_i ≃ₗ[A] M_j, then use hM.
+    -- Required infrastructure (not yet built):
+    -- 1. Give M_i an A/J-module structure (via Module.IsTorsionBySet.module + hann)
+    -- 2. Transfer to (∏ Mat(k))-module via WA (Module.compHom + WA.toRingHom)
+    -- 3. Show c_l acts as identity ⇒ M_i is a module over Mat_{d_l}(k) alone
+    --    (other blocks annihilate, so factor through projection to block l)
+    -- 4. Mat_{d_l}(k) is simple (IsSimpleRing), so IsSimpleRing.isIsotypic gives
+    --    M_i ≅ M_j as Mat-modules ⇒ as A-modules (since A acts through block l)
+    -- 5. Apply hM to get i = j
+    -- Key Mathlib APIs: IsSimpleRing.isIsotypic, Module.compHom, IsSimpleModule.compHom
+    sorry
+  -- Sub-lemma: rank property
+  have hrank : ∀ i j (a : A), π a = WA.symm
+      (Pi.single (σ i) (Matrix.single (0 : Fin (d (σ i))) 0 (1 : k))) →
+      Module.finrank k (smulRange (k := k) (A := A) (M j) a) =
+        if i = j then 1 else 0 := by
+    intro i j a ha
+    split_ifs with hij
+    · -- Case i = j: E₁₁ in block σ(i) acts with rank 1 on M_i.
+      -- Proof strategy (requires same module-transfer infrastructure as hσ_inj):
+      -- 1. Transfer M_i to a Mat_{d_{σ(i)}}(k)-module (same steps as injectivity)
+      -- 2. Mat_n(k) has unique simple module ≅ k^n (the standard representation)
+      -- 3. E₁₁ = Matrix.single 0 0 1 acts on k^n by projecting to first coordinate
+      -- 4. Image is 1-dimensional: smulRange = span {e₁}, finrank = 1
+      -- Key Mathlib APIs: Matrix.vecMulLinear, Matrix.single, Module.finrank_span_singleton
+      subst hij
+      sorry
+    · -- Case i ≠ j: E₁₁ in block σ(i) acts as 0 on M_j.
+      -- Pi.single (σ i) (E₁₁) is "supported" on block σ(i).
+      -- Block σ(j) ≠ σ(i) (by injectivity of σ) acts as identity on M_j.
+      -- Block σ(i) acts as 0 on M_j.
+      -- Hence E₁₁ in block σ(i) acts as 0 on M_j.
+      -- smulRange = ⊥, finrank = 0.
+      -- Key: Pi.single (σ i) (E₁₁) = (Pi.single (σ i) 1) * Pi.single (σ i) (E₁₁)
+      -- The first factor (central idempotent of block σ(i)) acts as 0 on M_j.
+      -- So the product acts as 0, giving smulRange = ⊥.
+      have hσ_ne : σ i ≠ σ j := fun h => hij (hσ_inj h)
+      -- c_{σ(i)} acts as 0 on M_j (block σ(i) is not the active block for M_j)
+      -- First show: smulRange for c_{σ(i)} on M_j is ⊥
+      obtain ⟨a_c, ha_c⟩ := Ideal.Quotient.mk_surjective (c (σ i))
+      have hc_bot : smulRange (k := k) (A := A) (M j) a_c = ⊥ := by
+        rcases hsmulRange_bot_or_top j (σ i) a_c ha_c with h | h
+        · exact h
+        · -- If ⊤, then σ(j) = σ(i) by uniqueness, contradicting hσ_ne
+          exfalso; exact hσ_ne (hblock_unique j (σ i) (σ j)
+            (fun a' ha' => hsmulRange_eq a' a_c j (ha'.trans ha_c.symm) ▸ h)
+            (hσ_spec j))
+      -- c_{σ(i)} acts as 0 on M_j: for all m, a_c • m = 0
+      have hc_zero : ∀ m : M j, a_c • m = 0 := by
+        intro m
+        have : a_c • m ∈ smulRange (k := k) (A := A) (M j) a_c := ⟨m, rfl⟩
+        rw [hc_bot] at this; exact (Submodule.mem_bot k).mp this
+      -- π(a) = c_{σ(i)} * π(a) (since Pi.single (σ i) E₁₁ = Pi.single (σ i) 1 * Pi.single (σ i) E₁₁)
+      have hfactor : π a = c (σ i) * π a := by
+        rw [ha, show c (σ i) = WA.symm (Pi.single (σ i) 1) from rfl, hWA_mul]
+        congr 1
+        rw [← Pi.single_mul_left]; simp
+      -- Therefore a acts as 0 on M_j: a • m = a_c • (a • m) = 0
+      have ha_zero : ∀ m : M j, a • m = 0 := by
+        intro m
+        have := hsmul_eq (a_c * a) a j m (by rw [map_mul, ha_c]; exact hfactor.symm)
+        rw [mul_smul] at this
+        rw [← this, hc_zero]
+      -- smulRange = ⊥, finrank = 0
+      have hbot : smulRange (k := k) (A := A) (M j) a = ⊥ := by
+        ext x; simp only [Submodule.mem_bot]; constructor
+        · rintro ⟨m, rfl⟩; exact ha_zero m
+        · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) a).zero_mem
+      rw [hbot]; simp
+  exact ⟨σ, hσ_inj, hrank⟩
 
 /-- The left ideal A·e for an idempotent e is a projective A-module.
 This follows from A = A·e ⊕ A·(1-e), so A·e is a direct summand of the free module A. -/

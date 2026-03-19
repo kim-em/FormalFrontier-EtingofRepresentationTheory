@@ -113,35 +113,6 @@ private theorem arrowsInto_ne_sink
     (a : Etingof.ArrowsInto Q i) : a.1 ≠ i := by
   intro heq; have := a.2; rw [heq] at this; exact (hi i).false this
 
-/-- Convert an original arrow a ⟶ b (both ≠ i) to a reversed-quiver arrow in Q̄ᵢ.
-Inverse of `Etingof.reversedArrow_ne_ne`. Uses the same `change`+`unfold`+`match`
-pattern as `reversedArrow_ne_ne` (in reverse) for clean definitional composition. -/
-private def originalToReversed_ne_ne
-    {Q : Type*} [inst : DecidableEq Q] [Quiver Q] {i a b : Q}
-    (ha : a ≠ i) (hb : b ≠ i)
-    (e : a ⟶ b) : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b := by
-  -- Mirror the structure of Etingof.reversedArrow_ne_ne exactly
-  change @Etingof.ReversedAtVertexHom Q inst _ i a b
-  unfold Etingof.ReversedAtVertexHom
-  revert e
-  exact match inst a i, inst b i with
-  | .isTrue h, _ => absurd h ha
-  | .isFalse _, .isTrue h => absurd h hb
-  | .isFalse _, .isFalse _ => fun e => e
-
-/-- `Etingof.reversedArrow_ne_ne` is the left inverse of `originalToReversed_ne_ne`.
-Both functions share the same `change`+`unfold`+`match` structure, so
-composition reduces definitionally in the `(isFalse, isFalse)` branch. -/
-private theorem reversedArrow_originalToReversed
-    {Q : Type*} [inst : DecidableEq Q] [Quiver Q] {i a b : Q}
-    (ha : a ≠ i) (hb : b ≠ i) (e : a ⟶ b) :
-    Etingof.reversedArrow_ne_ne ha hb (originalToReversed_ne_ne ha hb e) = e := by
-  -- BLOCKED: same Decidable.casesOn dependent type issue. The `change`+`unfold` in
-  -- reversedArrow_ne_ne creates Eq.mpr wrappers that don't cancel definitionally
-  -- with those from originalToReversed_ne_ne, even though both functions are the
-  -- identity in the (isFalse, isFalse) branch.
-  sorry
-
 /-- Construct the reversed arrow from i to a.1 in Q̄ᵢ, given an arrow a.1 → i in Q.
 At a sink i, every arrow a : ArrowsInto Q i gives a reversed arrow i →_{Q̄ᵢ} a.1. -/
 private def arrowsIntoReversed
@@ -149,7 +120,7 @@ private def arrowsIntoReversed
     {i : Q} (hi : Etingof.IsSink Q i)
     (a : Etingof.ArrowsInto Q i) :
     @Quiver.Hom Q (Etingof.reversedAtVertex Q i) i a.1 := by
-  change Etingof.ReversedAtVertexHom Q i i a.1
+  show Etingof.ReversedAtVertexHom Q i i a.1
   unfold Etingof.ReversedAtVertexHom
   have hne := arrowsInto_ne_sink hi a
   exact match inst i i, inst a.1 i with
@@ -158,7 +129,6 @@ private def arrowsIntoReversed
   | .isFalse h, _ => absurd rfl h
 
 set_option maxHeartbeats 800000 in
--- reason: unfolding reflectionFunctorPlus + equivAt definitions + Decidable instance reduction
 /-- The F⁺ map from i to a.1 (via the reversed arrow) composed with equivAt_ne
 equals the component projection composed with equivAt_eq (as subtype val).
 
@@ -407,16 +377,12 @@ theorem Etingof.Proposition6_6_7_sink
           · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
               (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
                 ⟨w, hw, rfl⟩, rfl⟩)
-          · change (ρ.sinkMap i) _ = _
+          · show (ρ.sinkMap i) _ = _
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₁, dif_neg hb']
-          -- Use reflFunctorPlus_mapLinear_ne_ne to relate ρ.mapLinear to F⁺.mapLinear
-          let e_rev := originalToReversed_ne_ne ha' hb' e'
-          have hW₁_map := hW₁ e_rev w hw
-          have hne := Etingof.reflFunctorPlus_mapLinear_ne_ne hi ρ ha' hb' e_rev w
-          rw [reversedArrow_originalToReversed] at hne
-          exact Submodule.mem_map.mpr ⟨_, hW₁_map, hne⟩
+          -- Needs reflFunctorPlus_mapLinear_ne_ne (sorry'd, #1228)
+          sorry
       have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'), ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
         intro a' b' e' x hx
         have ha' : a' ≠ i := sink_no_out e'
@@ -431,15 +397,11 @@ theorem Etingof.Proposition6_6_7_sink
           · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
               (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
                 ⟨w, hw, rfl⟩, rfl⟩)
-          · change (ρ.sinkMap i) _ = _
+          · show (ρ.sinkMap i) _ = _
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₂, dif_neg hb']
-          let e_rev := originalToReversed_ne_ne ha' hb' e'
-          have hW₂_map := hW₂ e_rev w hw
-          have hne := Etingof.reflFunctorPlus_mapLinear_ne_ne hi ρ ha' hb' e_rev w
-          rw [reversedArrow_originalToReversed] at hne
-          exact Submodule.mem_map.mpr ⟨_, hW₂_map, hne⟩
+          sorry -- Same blocker as U₁ case
       have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
         intro v
         by_cases hv : v = i
@@ -516,7 +478,7 @@ theorem Etingof.Proposition6_6_7_sink
           (Etingof.reflFunctorPlus_equivAt_eq hi ρ).injective (by rw [hzero, map_zero])
         -- Show the kernel element is 0 by showing its val (direct sum element) is 0
         apply Subtype.ext
-        change ((Etingof.reflFunctorPlus_equivAt_eq hi ρ) x).val = 0
+        show ((Etingof.reflFunctorPlus_equivAt_eq hi ρ) x).val = 0
         refine DFunLike.ext _ _ fun a => ?_
         -- For each a : ArrowsInto Q i, show component a is 0
         have ha := arrowsInto_ne_sink hi a
