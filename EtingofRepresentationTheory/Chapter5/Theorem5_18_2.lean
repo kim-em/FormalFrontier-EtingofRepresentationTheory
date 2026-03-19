@@ -169,7 +169,12 @@ theorem centralizer_eq_universalEnvelopingImage :
       (symGroupImage k V n : Set (Module.End k (TnsPow k V n))) =
     (universalEnvelopingToEnd k V n).range := by
   apply le_antisymm
-  · -- (⊆) centralizer ≤ range: requires double centralizer theorem
+  · -- (⊆) centralizer ≤ range: requires full Schur-Weyl duality
+    -- To show every S_n-equivariant endomorphism lies in the image of U(gl(V)),
+    -- one needs to decompose V^⊗n ≅ ⊕_λ V_λ ⊗ S_λ(V) (Schur functors) and show
+    -- that the U(gl(V)) image generates End(S_λ(V)) for each λ appearing.
+    -- This requires either dimension counting (when dim V ≥ n) or the full
+    -- Schur functor decomposition, neither of which is currently in Mathlib.
     sorry
   · -- (⊇) range ≤ centralizer: image of U(gl(V)) commutes with S_n action
     -- Flip: equivalently, symGroupImage ≤ centralizer(range)

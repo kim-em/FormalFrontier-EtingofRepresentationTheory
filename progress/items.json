@@ -3409,7 +3409,8 @@
     "start_line": 5,
     "end_line": 14,
     "status": "proof_partial",
-    "needs_statement": true
+    "needs_statement": true,
+    "notes": "(\u2287) direction fully proved. (\u2286) direction blocked: requires Schur-Weyl duality / first fundamental theorem of invariant theory, not in Mathlib. 1 sorry remains."
   },
   {
     "id": "Chapter5/Lemma5.18.3",
