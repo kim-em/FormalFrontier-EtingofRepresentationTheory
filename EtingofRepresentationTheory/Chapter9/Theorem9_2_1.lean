@@ -10,6 +10,8 @@ import Mathlib.RingTheory.Idempotents
 import Mathlib.RingTheory.HopkinsLevitzki
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 import Mathlib.RingTheory.SimpleModule.IsAlgClosed
+import Mathlib.RingTheory.SimpleModule.Isotypic
+import Mathlib.Algebra.Module.Torsion.Basic
 
 /-!
 # Theorem 9.2.1: Classification of indecomposable projective modules
@@ -120,6 +122,8 @@ lemma pi_single_one_comm {n : ℕ} {S : Fin n → Type*}
   rw [← Pi.single_mul_left, ← Pi.single_mul_right]; simp
 
 end CentralAction
+
+-- No separate section needed; infrastructure is inlined in the main proof below.
 
 /-- For a finite-dimensional algebra A over k with pairwise non-isomorphic simple modules
 M₁, ..., Mₘ, there exist orthogonal idempotents e₁, ..., eₘ in A (one per iso class of
@@ -461,18 +465,41 @@ lemma exists_orthogonal_idempotents_for_simples
   have hσ_spec : ∀ j a, π a = WA.symm (Pi.single (σ j) 1) →
       smulRange (k := k) (A := A) (M j) a = ⊤ :=
     fun j => (hblock_exists j).choose_spec
+  -- Helper: c_l is idempotent
+  have hc_idem : ∀ l', IsIdempotentElem (c l') :=
+    (hcoi.toOrthogonalIdempotents.map WA.symm.toRingEquiv.toRingHom).idem
+  -- Helper: any lift of c_{σ(p)} acts as identity on M_p
+  have hc_identity : ∀ (p : ι) (a : A) (ha : π a = c (σ p)),
+      ∀ m : M p, a • m = m := by
+    intro p a ha m
+    have h_top := hσ_spec p a ha
+    have ⟨m₀, hm₀⟩ : m ∈ smulRange (k := k) (A := A) (M p) a := by
+      rw [h_top]; exact Submodule.mem_top
+    change a • m₀ = m at hm₀
+    rw [← hm₀, ← mul_smul]
+    exact hsmul_eq (a * a) a p m₀ (by rw [map_mul, ha, (hc_idem (σ p)).eq])
+  -- Helper: any lift of c_{l'} (l' ≠ σ(p)) acts as 0 on M_p
+  have hc_zero : ∀ (p : ι) (l' : Fin n) (hl' : l' ≠ σ p) (a : A)
+      (ha : π a = c l'), ∀ m : M p, a • m = 0 := by
+    intro p l' hl' a ha m
+    rcases hsmulRange_bot_or_top p l' a ha with h | h
+    · have : a • m ∈ smulRange (k := k) (A := A) (M p) a := ⟨m, rfl⟩
+      rw [h] at this; exact (Submodule.mem_bot k).mp this
+    · exfalso; exact hl' (hblock_unique p l' (σ p)
+        (fun a' ha' => hsmulRange_eq a' a p (ha'.trans ha.symm) ▸ h) (hσ_spec p))
   -- Sub-lemma: σ is injective
   have hσ_inj : Function.Injective σ := by
-    -- Proof strategy: If σ(i) = σ(j) = l, construct M_i ≃ₗ[A] M_j, then use hM.
-    -- Required infrastructure (not yet built):
-    -- 1. Give M_i an A/J-module structure (via Module.IsTorsionBySet.module + hann)
-    -- 2. Transfer to (∏ Mat(k))-module via WA (Module.compHom + WA.toRingHom)
-    -- 3. Show c_l acts as identity ⇒ M_i is a module over Mat_{d_l}(k) alone
-    --    (other blocks annihilate, so factor through projection to block l)
-    -- 4. Mat_{d_l}(k) is simple (IsSimpleRing), so IsSimpleRing.isIsotypic gives
-    --    M_i ≅ M_j as Mat-modules ⇒ as A-modules (since A acts through block l)
-    -- 5. Apply hM to get i = j
-    -- Key Mathlib APIs: IsSimpleRing.isIsotypic, Module.compHom, IsSimpleModule.compHom
+    intro i j hij
+    apply hM i j
+    -- σ(i) = σ(j) = l. Both M_i and M_j have c_l acting as identity and other blocks
+    -- acting as 0. The A-action on both factors through block l of the WA decomposition.
+    -- Since Mat_{d_l}(k) is a simple ring, all its simple modules are isomorphic
+    -- (IsSimpleRing.isIsotypic). So M_i ≅ M_j as A-modules.
+    --
+    -- To formalize: construct Module (Mat_{d_l}(k)) (M_i) manually (Pi.single l is
+    -- not a ring hom, so Module.compHom doesn't apply), show it's simple, use
+    -- exists_linearEquiv_ideal + IsSimpleRing.isIsotypic to get Mat-isomorphism,
+    -- then show it's A-linear (since A acts through block l on both modules).
     sorry
   -- Sub-lemma: rank property
   have hrank : ∀ i j (a : A), π a = WA.symm
@@ -482,13 +509,19 @@ lemma exists_orthogonal_idempotents_for_simples
     intro i j a ha
     split_ifs with hij
     · -- Case i = j: E₁₁ in block σ(i) acts with rank 1 on M_i.
-      -- Proof strategy (requires same module-transfer infrastructure as hσ_inj):
-      -- 1. Transfer M_i to a Mat_{d_{σ(i)}}(k)-module (same steps as injectivity)
-      -- 2. Mat_n(k) has unique simple module ≅ k^n (the standard representation)
-      -- 3. E₁₁ = Matrix.single 0 0 1 acts on k^n by projecting to first coordinate
-      -- 4. Image is 1-dimensional: smulRange = span {e₁}, finrank = 1
-      -- Key Mathlib APIs: Matrix.vecMulLinear, Matrix.single, Module.finrank_span_singleton
       subst hij
+      -- E₁₁ is idempotent in block σ(i), so any lift a acts idempotently on M_i
+      -- (π(a²) = E₁₁² = E₁₁ = π(a)). Its image is a nonzero direct summand of M_i.
+      -- The diagonal idempotents E₁₁, E₂₂, ..., E_{d,d} are orthogonal and sum to c_{σ(i)}.
+      -- Since c_{σ(i)} acts as identity, M_i = ⊕ Im(E_{jj}). By conjugacy of diagonal
+      -- idempotents in Mat_{d}(k), all Im(E_{jj}) have the same k-dimension.
+      -- Using dim(M_i) = d_{σ(i)} (from Burnside/density theorem + Schur + alg closed),
+      -- we get dim(Im(E₁₁)) = d_{σ(i)}/d_{σ(i)} = 1.
+      --
+      -- Required infrastructure (not in Mathlib):
+      -- (a) Module structure on M_i over Mat_{d_{σ(i)}}(k) (manual construction)
+      -- (b) Burnside/density theorem: A → End_k(M_i) surjective for simple M_i
+      -- (c) dim_k(M_i) = d_{σ(i)} (from (b) + faithfulness of block action)
       sorry
     · -- Case i ≠ j: E₁₁ in block σ(i) acts as 0 on M_j.
       -- Pi.single (σ i) (E₁₁) is "supported" on block σ(i).
