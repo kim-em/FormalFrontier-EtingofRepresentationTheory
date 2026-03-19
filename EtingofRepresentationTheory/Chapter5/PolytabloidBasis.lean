@@ -19,7 +19,9 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 
 * `Etingof.polytabloid_mem_spechtModule` — polytabloids lie in the Specht module
 * `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry)
-* `Etingof.polytabloid_span` — polytabloids span the Specht module (sorry)
+* `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma (sorry)
+* `Etingof.polytabloid_span` — polytabloids span the Specht module (proved from straightening)
+* `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)| (proved from independence + span)
 
 ## References
 
@@ -194,19 +196,62 @@ theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
   sorry
 
+/-- **Straightening lemma**: any permutation applied to the Young symmetrizer
+lies in the ℂ-span of standard polytabloids. This is the key step that
+requires the Garnir relations and dominance order on tabloids.
+
+For any σ ∈ Sₙ, the element σ · cλ can be expressed as a ℂ-linear combination
+of the standard polytabloids {σ_T · cλ : T ∈ SYT(λ)} by the straightening
+algorithm: non-standard tabloids are rewritten using Garnir relations until
+all tabloids are standard.
+
+TODO: requires Garnir relations, dominance order, and straightening algorithm. -/
+theorem perm_mul_youngSymmetrizer_mem_span_polytabloids (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) :
+    MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la ∈
+      Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+        (polytabloidInSpecht n la T : SymGroupAlgebra n))) := by
+  sorry
+
 /-- The polytabloids {e_T : T ∈ SYT(λ)} span V_λ.
 
-**Proof sketch:**
-1. V_λ = ℂ[S_n] · c_λ, so any element is x · c_λ for some x
-2. Decompose x in terms of group elements: x = Σ a_σ · σ
-3. Each σ · c_λ can be expressed as a linear combination of polytabloids
-   (by straightening: rewriting non-standard polytabloids using Garnir relations)
-4. Therefore the polytabloids span V_λ -/
+**Proof structure:**
+1. (⊆) Each polytabloid is in V_λ by `polytabloid_mem_spechtModule`
+2. (⊇) Any element of V_λ = ℂ[Sₙ] · cλ is an A-linear combination of cλ,
+   hence a ℂ-linear combination of {σ · cλ : σ ∈ Sₙ}. By the straightening
+   lemma, each σ · cλ is in the ℂ-span of standard polytabloids. -/
 theorem polytabloid_span (n : ℕ) (la : Nat.Partition n) :
     Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
       (polytabloidInSpecht n la T : SymGroupAlgebra n))) =
     (SpechtModule n la).restrictScalars ℂ := by
-  sorry
+  apply le_antisymm
+  · -- (⊆) Each polytabloid is in V_λ
+    rw [Submodule.span_le]
+    rintro x ⟨T, rfl⟩
+    exact polytabloid_mem_spechtModule n la T
+  · -- (⊇) V_λ ⊆ ℂ-span of standard polytabloids
+    -- Every element of V_λ is a * c_λ for some a ∈ ℂ[S_n].
+    -- Write a = Σ a(σ) · σ, then a * c_λ = Σ a(σ) · (σ * c_λ).
+    -- By the straightening lemma, each σ * c_λ is in the ℂ-span.
+    intro x hx
+    -- Convert from restrictScalars to SpechtModule membership
+    have hx' : x ∈ SpechtModule n la := hx
+    rw [SpechtModule, Submodule.mem_span_singleton] at hx'
+    obtain ⟨a, rfl⟩ := hx'
+    -- a • c_λ = a * c_λ in the left regular module
+    -- Decompose a as a Finsupp: a = Σ_{g ∈ support} single g (a g)
+    have key : a • YoungSymmetrizer n la =
+        a.sum (fun g c => c • (MonoidAlgebra.of ℂ _ g * YoungSymmetrizer n la)) := by
+      conv_lhs => rw [show a • YoungSymmetrizer n la =
+          a * YoungSymmetrizer n la from rfl]
+      conv_lhs => rw [← Finsupp.sum_single a]
+      simp only [Finsupp.sum, Finset.sum_mul]
+      congr 1; ext σ
+      simp [MonoidAlgebra.of_apply]
+    rw [key]
+    apply Submodule.sum_mem
+    intro σ _
+    exact Submodule.smul_mem _ _ (perm_mul_youngSymmetrizer_mem_span_polytabloids n la σ)
 
 /-! ### Dimension theorem from polytabloid basis -/
 
@@ -221,7 +266,20 @@ This is the key infrastructure needed for the hook length formula
 theorem finrank_spechtModule_eq_card_syt (n : ℕ) (la : Nat.Partition n) :
     Module.finrank ℂ (SpechtModule n la) =
       Fintype.card (StandardYoungTableau n la) := by
-  sorry
+  -- The polytabloids are linearly independent in SymGroupAlgebra n (as a ℂ-module)
+  have hli := polytabloid_linearIndependent n la
+  -- Their ℂ-span equals V_λ (as a ℂ-submodule of SymGroupAlgebra n)
+  have hspan := polytabloid_span n la
+  -- finrank of the span of linearly independent vectors equals cardinality
+  have h1 : Module.finrank ℂ (Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+      (polytabloidInSpecht n la T : SymGroupAlgebra n)))) =
+      Fintype.card (StandardYoungTableau n la) :=
+    finrank_span_eq_card hli
+  -- The span equals V_λ.restrictScalars ℂ, so their finranks are equal
+  rw [hspan] at h1
+  -- finrank of restrictScalars = finrank of the original module
+  -- Both ↥(M.restrictScalars ℂ) and ↥M have the same ℂ-module structure
+  convert h1 using 1
 
 end
 
