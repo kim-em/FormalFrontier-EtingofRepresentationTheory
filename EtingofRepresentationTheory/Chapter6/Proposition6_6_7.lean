@@ -107,6 +107,54 @@ private lemma decidable_eq_isTrue {p : Prop} (h : p) (d : Decidable p) :
   | isTrue _ => rfl
   | isFalse hp => exact absurd h hp
 
+/-- At a sink i, the source vertex of an arrow into i is distinct from i. -/
+private theorem arrowsInto_ne_sink
+    {Q : Type*} [Quiver Q] {i : Q} (hi : Etingof.IsSink Q i)
+    (a : Etingof.ArrowsInto Q i) : a.1 ≠ i := by
+  intro heq; have := a.2; rw [heq] at this; exact (hi i).false this
+
+/-- Construct the reversed arrow from i to a.1 in Q̄ᵢ, given an arrow a.1 → i in Q.
+At a sink i, every arrow a : ArrowsInto Q i gives a reversed arrow i →_{Q̄ᵢ} a.1. -/
+private def arrowsIntoReversed
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (a : Etingof.ArrowsInto Q i) :
+    @Quiver.Hom Q (Etingof.reversedAtVertex Q i) i a.1 := by
+  show Etingof.ReversedAtVertexHom Q i i a.1
+  unfold Etingof.ReversedAtVertexHom
+  have hne := arrowsInto_ne_sink hi a
+  exact match inst i i, inst a.1 i with
+  | .isTrue _, .isTrue h => absurd h hne
+  | .isTrue _, .isFalse _ => a.2
+  | .isFalse h, _ => absurd rfl h
+
+set_option maxHeartbeats 800000 in
+/-- The F⁺ map from i to a.1 (via the reversed arrow) composed with equivAt_ne
+equals the component projection composed with equivAt_eq (as subtype val).
+
+This connects the abstract F⁺ map to the concrete direct sum component. -/
+private theorem reflFunctorPlus_map_from_sink_component
+    {k : Type*} [CommSemiring k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q) (a : Etingof.ArrowsInto Q i)
+    (ha : a.1 ≠ i)
+    (x : @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorPlus Q i hi ρ) i) :
+    (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 ha)
+      (@Etingof.QuiverRepresentation.mapLinear k Q _
+        (Etingof.reversedAtVertex Q i)
+        (Etingof.reflectionFunctorPlus Q i hi ρ) i a.1
+        (arrowsIntoReversed hi a) x) =
+    DirectSum.component k (Etingof.ArrowsInto Q i) (fun a => ρ.obj a.1) a
+      ((Etingof.reflFunctorPlus_equivAt_eq hi ρ x).val) := by
+  -- BLOCKED: Same Decidable.casesOn dependent type issue as reflFunctorPlus_mapLinear_ne_ne
+  -- (#1228). After unfolding, the match expressions on `inst i i` and `inst a.1 i`
+  -- cannot be reduced because they appear in dependent type positions (Decidable.rec
+  -- motive). The proper fix requires refactoring reflectionFunctorPlus to use explicit
+  -- vertex-indexed data instead of Decidable.casesOn.
+  sorry
+
 set_option maxHeartbeats 400000 in
 -- reason: unfolding reflectionFunctorPlus + rewriting Decidable instances
 /-- At non-sink vertices, the F⁺ᵢ map between a and b (both ≠ i) equals
@@ -343,8 +391,39 @@ theorem Etingof.Proposition6_6_7_sink
       intro W hW hW_ne v
       by_cases hv : v = i
       · -- At i: use subrep structure + direct sum projections
-        subst hv
-        sorry
+        cases hv
+        rw [eq_bot_iff]; intro x hx; rw [Submodule.mem_bot]
+        -- W(j) = ⊥ for all j ≠ i (equiv is injective)
+        have hW_bot : ∀ j, j ≠ i → W j = ⊥ := by
+          intro j hj
+          have h := hW_ne j hj
+          rw [eq_bot_iff] at h ⊢
+          intro z hz
+          rw [Submodule.mem_bot]
+          have hmem := h ⟨z, hz, rfl⟩
+          rw [Submodule.mem_bot] at hmem
+          exact (Etingof.reflFunctorPlus_equivAt_ne hi ρ j hj).injective
+            (hmem.trans (map_zero _).symm)
+        -- Convert x to kernel element via equivAt_eq
+        suffices hzero : (Etingof.reflFunctorPlus_equivAt_eq hi ρ) x = 0 from
+          (Etingof.reflFunctorPlus_equivAt_eq hi ρ).injective (by rw [hzero, map_zero])
+        -- Show the kernel element is 0 by showing its val (direct sum element) is 0
+        apply Subtype.ext
+        show ((Etingof.reflFunctorPlus_equivAt_eq hi ρ) x).val = 0
+        refine DFunLike.ext _ _ fun a => ?_
+        -- For each a : ArrowsInto Q i, show component a is 0
+        have ha := arrowsInto_ne_sink hi a
+        -- The reversed arrow from i to a.1 sends x to W(a.1) = ⊥
+        have hmem := hW (arrowsIntoReversed hi a) x hx
+        rw [hW_bot a.1 ha, Submodule.mem_bot] at hmem
+        -- By the API lemma: equivAt_ne (mapLinear rev x) = component a (equivAt_eq x).val
+        have hapi := reflFunctorPlus_map_from_sink_component hi ρ a ha x
+        -- mapLinear rev x = 0 (from hmem), so equivAt_ne 0 = 0
+        rw [hmem, map_zero] at hapi
+        -- hapi : 0 = component a (equivAt_eq x).val
+        -- component a y = y a for direct sum elements
+        -- DirectSum.apply_eq_component: f a = component a f (is rfl)
+        exact hapi.symm
       · -- At v ≠ i: injective map = ⊥ → original = ⊥
         specialize hW_ne v hv
         rw [eq_bot_iff]
