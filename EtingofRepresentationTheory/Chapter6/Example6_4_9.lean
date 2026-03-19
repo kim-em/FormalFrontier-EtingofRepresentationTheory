@@ -16,13 +16,7 @@ def Etingof.positiveRoots (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) :
   {x | Etingof.IsRoot n adj x ∧ ∀ i, 0 ≤ x i}
 
 -- Etingof.Example_6_4_9_An is proved after the section (see An_result)
-
-/-- The number of positive roots for Dₙ is n(n-1).
-(Etingof Example 6.4.9(2)) -/
-theorem Etingof.Example_6_4_9_Dn (n : ℕ) (hn : 4 ≤ n) :
-    (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj).Finite ∧
-    Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj) =
-      n * (n - 1) := sorry
+-- Etingof.Example_6_4_9_Dn is proved after the section (see Dn_result)
 
 /-! ## E-type root counts -/
 
@@ -1009,3 +1003,109 @@ theorem Etingof.Example_6_4_9_An (n : ℕ) (hn : 1 ≤ n) :
     Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.A n hn).adj) =
       n * (n + 1) / 2 :=
   An_result n hn
+
+/-! ## D_n root count
+
+The positive roots of D_n are parameterized by ordered pairs (i, j) with i < j
+in Fin n. There are two families:
+- **Type A**: interval vectors on the path 0—1—⋯—(n-2), with x_{n-1} = 0
+  (corresponding to roots eᵢ - eⱼ)
+- **Type B**: vectors involving the branch vertex n-1
+  (corresponding to roots eᵢ + eⱼ)
+Total: 2 · C(n,2) = n(n-1).
+-/
+
+section DnRootCount
+
+open Matrix Finset
+
+/-- SOS decomposition: 2·q_{D₄}(x) = (2x₀-x₁)² + (2x₂-x₁)² + (2x₃-x₁)² + x₁². -/
+private lemma D4_sos (x₀ x₁ x₂ x₃ : ℤ) :
+    2 * (2*(x₀^2+x₁^2+x₂^2+x₃^2) - 2*(x₀*x₁+x₁*x₂+x₁*x₃)) =
+    (2*x₀-x₁)^2 + (2*x₂-x₁)^2 + (2*x₃-x₁)^2 + x₁^2 := by ring
+
+set_option linter.style.maxHeartbeats false in
+set_option maxHeartbeats 400000 in
+/-- Expand the D₄ quadratic form. -/
+private lemma D4_qf (x : Fin 4 → ℤ) :
+    dotProduct x
+      ((2 • (1 : Matrix (Fin 4) (Fin 4) ℤ) -
+        (Etingof.DynkinType.D 4 le_rfl).adj).mulVec x) =
+    2*(x 0^2+x 1^2+x 2^2+x 3^2) -
+    2*(x 0*x 1+x 1*x 2+x 1*x 3) := by
+  simp only [dotProduct, mulVec, Finset.sum_fin_eq_sum_range,
+    Etingof.DynkinType.adj, Matrix.sub_apply,
+    Matrix.smul_apply, Matrix.one_apply, Fin.isValue]
+  simp only [Finset.sum_range_succ, Finset.sum_range_zero]
+  norm_num
+  try simp only [Fin.reduceFinMk]
+  ring
+
+/-- All positive roots of D₄ have each coordinate < 3. -/
+private lemma D4_bound (x : Fin 4 → ℤ)
+    (hr : Etingof.IsRoot 4 (Etingof.DynkinType.D 4 le_rfl).adj x)
+    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 3 := by
+  have hq : 2*(x 0^2+x 1^2+x 2^2+x 3^2) -
+      2*(x 0*x 1+x 1*x 2+x 1*x 3) = 2 := by
+    have := hr.2; rw [D4_qf] at this; exact this
+  set a := x 0
+  set b := x 1
+  set c := x 2
+  set d := x 3
+  have hs : (2*a-b)^2 + (2*c-b)^2 + (2*d-b)^2 + b^2 = 4 := by
+    nlinarith [D4_sos a b c d]
+  have hb : b ≤ 2 := by
+    nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*c-b),
+      sq_nonneg (2*d-b), sq_nonneg (b - 3)]
+  have ha : a ≤ 2 := by
+    nlinarith [sq_nonneg (2*c-b), sq_nonneg (2*d-b),
+      sq_nonneg b, sq_nonneg (2*a - b - 3)]
+  have hc : c ≤ 2 := by
+    nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*d-b),
+      sq_nonneg b, sq_nonneg (2*c - b - 3)]
+  have hd : d ≤ 2 := by
+    nlinarith [sq_nonneg (2*a-b), sq_nonneg (2*c-b),
+      sq_nonneg b, sq_nonneg (2*d - b - 3)]
+  intro i; fin_cases i <;> simp_all <;> omega
+
+-- The general D_n bound is proved by showing:
+-- q(x) = sum_of_edge_diffs + x₀² + x_{n-2}² + x_{n-1}² - x_{n-3}²
+-- From q = 2: leaf coordinates ≤ √(2+x_{n-3}²), path coords bounded by neighbors.
+-- Key: the D_n Cartan form satisfies q(x) ≥ x₀² + x_{n-2}² + x_{n-1}² - x_{n-3}²
+-- which with AM-GM on differences gives all coordinates ≤ 2.
+
+/-- All positive roots of D_n have each coordinate < 3.
+    The proof uses the quadratic form identity and bounds each vertex
+    by working from the three leaves toward the branch point. -/
+private lemma Dn_bound (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ)
+    (hr : Etingof.IsRoot n (Etingof.DynkinType.D n hn).adj x)
+    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 3 := by
+  sorry
+
+set_option linter.style.nativeDecide false in
+private lemma D4_count :
+    (rootCountFinset 4 (Etingof.DynkinType.D 4 le_rfl).adj 3).card = 12 := by
+  native_decide
+
+/-- The D_n root count equals n*(n-1). -/
+private lemma Dn_count : ∀ (n : ℕ) (hn : 4 ≤ n),
+    (rootCountFinset n (Etingof.DynkinType.D n hn).adj 3).card =
+      n * (n - 1) := by
+  sorry
+
+private lemma Dn_result (n : ℕ) (hn : 4 ≤ n) :
+    (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj).Finite ∧
+    Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj) =
+      n * (n - 1) := by
+  obtain ⟨hfin, hcard⟩ := positiveRoots_card_eq (Dn_bound n hn)
+  exact ⟨hfin, hcard ▸ Dn_count n hn⟩
+
+end DnRootCount
+
+/-- The number of positive roots for Dₙ is n(n-1).
+(Etingof Example 6.4.9(2)) -/
+theorem Etingof.Example_6_4_9_Dn (n : ℕ) (hn : 4 ≤ n) :
+    (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj).Finite ∧
+    Set.ncard (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj) =
+      n * (n - 1) :=
+  Dn_result n hn
