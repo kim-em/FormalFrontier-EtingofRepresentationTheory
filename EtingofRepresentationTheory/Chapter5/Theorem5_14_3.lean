@@ -101,9 +101,9 @@ full cycle type multiset) to a row (indexed by Fin n), such that the total size 
 orbits assigned to row j equals λ_j. -/
 noncomputable def MonochromaticColoring (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) : Type :=
-  { f : Fin (fullCycleType n σ).card → Fin n //
+  { f : Fin (fullCycleType n σ).toList.length → Fin n //
     ∀ j : Fin n, (Finset.univ.filter (fun i => f i = j)).sum
-      (fun i => ((fullCycleType n σ).toList.get (Fin.cast (by simp) i))) =
+      (fun i => ((fullCycleType n σ).toList[↑i])) =
       la.sortedParts.getD j 0 }
 
 /-- The cycleTypePsumProduct can be rewritten using the full cycle type. -/
@@ -120,17 +120,63 @@ theorem psum_eq_sum_monomial (m : ℕ) :
 
 /-- The coefficient of x^λ in a product of psum polynomials equals the number of
 monochromatic colorings. This is the polynomial side of the bijection. -/
+-- Helper: the finsupp sum condition is equivalent to the pointwise condition
+private lemma finsupp_sum_single_iff (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n))
+    (f : Fin (fullCycleType n σ).toList.length → Fin n) :
+    (∑ i, Finsupp.single (f i) ((fullCycleType n σ).toList[(↑i : ℕ)]) =
+      Nat.Partition.toFinsupp la) ↔
+    (∀ j : Fin n, (Finset.univ.filter (fun i => f i = j)).sum
+      (fun i => (fullCycleType n σ).toList[(↑i : ℕ)]) =
+      la.sortedParts.getD j 0) := by
+  constructor
+  · intro heq j
+    have hj := DFunLike.congr_fun heq j
+    simp only [Finsupp.coe_finset_sum, Finset.sum_apply, Finsupp.single_apply,
+      Nat.Partition.toFinsupp, Finsupp.coe_equivFunOnFinite_symm] at hj
+    rw [← hj, Finset.sum_filter]
+  · intro hall
+    ext j
+    simp only [Finsupp.coe_finset_sum, Finset.sum_apply, Finsupp.single_apply,
+      Nat.Partition.toFinsupp, Finsupp.coe_equivFunOnFinite_symm]
+    rw [← Finset.sum_filter]
+    exact hall j
+
 theorem coeff_psum_prod_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     MvPolynomial.coeff (Nat.Partition.toFinsupp la) (cycleTypePsumProduct n σ) =
       Nat.card (MonochromaticColoring n la σ) := by
-  sorry
+  rw [cycleTypePsumProduct_eq_fullCycleType]
+  -- Convert multiset product to list product to Fin-indexed product
+  rw [← Multiset.prod_map_toList, ← List.ofFn_getElem_eq_map, List.prod_ofFn]
+  -- Expand each psum as a sum of monomials, distribute, collapse to single monomial
+  simp_rw [psum_eq_sum_monomial]
+  rw [Finset.prod_univ_sum]
+  simp_rw [← MvPolynomial.monomial_sum_one]
+  -- Extract coefficients
+  rw [MvPolynomial.coeff_sum]
+  simp_rw [MvPolynomial.coeff_monomial, Finset.sum_boole, Fintype.piFinset_univ]
+  -- Goal: ↑(filter card) = ↑(Nat.card MonochromaticColoring)
+  norm_cast
+  -- Construct equiv between MonochromaticColoring and the filter
+  have equiv : MonochromaticColoring n la σ ≃
+      { f : Fin (fullCycleType n σ).toList.length → Fin n //
+        (∑ i, Finsupp.single (f i) ((fullCycleType n σ).toList[↑i])) =
+          Nat.Partition.toFinsupp la } := by
+    unfold MonochromaticColoring
+    exact Equiv.subtypeEquiv (Equiv.refl _) (fun f => (finsupp_sum_single_iff n la σ f).symm)
+  rw [Nat.card_congr equiv]
+  simp only [Nat.card_eq_fintype_card, Fintype.card_subtype, Finset.card_filter]
+  congr
 
 /-- The number of fixed cosets equals the number of monochromatic colorings.
 This is the group action side of the bijection. -/
 theorem fixedCosets_eq_card_colorings (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     permModuleCharacter n la σ = Nat.card (MonochromaticColoring n la σ) := by
+  -- Requires constructing a bijection between fixed cosets gS_λ and monochromatic colorings.
+  -- A coset gS_λ is fixed by σ iff g⁻¹σg ∈ RowSubgroup, meaning each cycle of σ lies in one
+  -- row under g's relabeling. The coloring sends each cycle to its row.
+  -- This needs infrastructure relating cycle decomposition to row colorings.
   sorry
 
 /-- **Theorem 5.14.3** (Character formula via power sums): The character of the permutation
