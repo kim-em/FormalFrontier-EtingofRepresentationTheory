@@ -302,7 +302,129 @@ theorem Etingof.Problem6_9_1b (ρ : Q₂Rep ℂ)
       (∀ x ∈ pW, ρ.B x ∈ pV) ∧ (∀ x ∈ qW, ρ.B x ∈ qV) ∧
       -- The q-summand has equal dimensions (E_{n,λ} type with λ ≠ 0)
       Module.finrank ℂ (↥qV) = Module.finrank ℂ (↥qW) := by
-  sorry
+  -- Fitting decomposition for AB on W and BA on V
+  set AB := ρ.A.comp ρ.B with hAB_def
+  set BA := ρ.B.comp ρ.A with hBA_def
+  set pW := ⨆ n, LinearMap.ker (AB ^ n)
+  set qW := ⨅ n, LinearMap.range (AB ^ n)
+  set pV := ⨆ n, LinearMap.ker (BA ^ n)
+  set qV := ⨅ n, LinearMap.range (BA ^ n)
+  -- Key intertwining identity: (AB)^n ∘ A = A ∘ (BA)^n
+  have intertwine_A : ∀ n : ℕ, ∀ v, (AB ^ n) (ρ.A v) = ρ.A ((BA ^ n) v) := by
+    intro n; induction n with
+    | zero => intro v; simp
+    | succ n ih =>
+      intro v
+      have h1 : (AB ^ (n + 1)) (ρ.A v) = (AB ^ n) (AB (ρ.A v)) := by
+        simp only [pow_succ, Module.End.mul_apply]
+      have h2 : AB (ρ.A v) = ρ.A (BA v) := rfl
+      have h3 : (BA ^ (n + 1)) v = (BA ^ n) (BA v) := by
+        simp only [pow_succ, Module.End.mul_apply]
+      rw [h1, h2, ih, h3]
+  -- Key intertwining identity: (BA)^n ∘ B = B ∘ (AB)^n
+  have intertwine_B : ∀ n : ℕ, ∀ w, (BA ^ n) (ρ.B w) = ρ.B ((AB ^ n) w) := by
+    intro n; induction n with
+    | zero => intro w; simp
+    | succ n ih =>
+      intro w
+      have h1 : (BA ^ (n + 1)) (ρ.B w) = (BA ^ n) (BA (ρ.B w)) := by
+        simp only [pow_succ, Module.End.mul_apply]
+      have h2 : BA (ρ.B w) = ρ.B (AB w) := rfl
+      have h3 : (AB ^ (n + 1)) w = (AB ^ n) (AB w) := by
+        simp only [pow_succ, Module.End.mul_apply]
+      rw [h1, h2, ih, h3]
+  -- Kernels form a directed family (monotone)
+  have ker_dir_AB : Directed (· ≤ ·) (fun n => LinearMap.ker (AB ^ n)) :=
+    Monotone.directed_le fun m n hmn => by
+      intro x hx; rw [LinearMap.mem_ker] at hx ⊢
+      rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+  have ker_dir_BA : Directed (· ≤ ·) (fun n => LinearMap.ker (BA ^ n)) :=
+    Monotone.directed_le fun m n hmn => by
+      intro x hx; rw [LinearMap.mem_ker] at hx ⊢
+      rw [show n = (n - m) + m from by omega, pow_add, Module.End.mul_apply, hx, map_zero]
+  refine ⟨pV, qV, pW, qW, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  -- 1. IsCompl pV qV (Fitting for BA)
+  · exact LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
+  -- 2. IsCompl pW qW (Fitting for AB)
+  · exact LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
+  -- 3. ∀ x ∈ pV, ρ.A x ∈ pW
+  · intro x hx
+    rw [Submodule.mem_iSup_of_directed _ ker_dir_BA] at hx
+    rw [Submodule.mem_iSup_of_directed _ ker_dir_AB]
+    obtain ⟨n, hn⟩ := hx
+    exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_A, hn, map_zero]⟩
+  -- 4. ∀ x ∈ qV, ρ.A x ∈ qW
+  · intro x hx
+    rw [Submodule.mem_iInf] at hx ⊢
+    intro n
+    obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+    exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
+  -- 5. ∀ x ∈ pW, ρ.B x ∈ pV
+  · intro x hx
+    rw [Submodule.mem_iSup_of_directed _ ker_dir_AB] at hx
+    rw [Submodule.mem_iSup_of_directed _ ker_dir_BA]
+    obtain ⟨n, hn⟩ := hx
+    exact ⟨n, by rw [LinearMap.mem_ker] at hn ⊢; rw [intertwine_B, hn, map_zero]⟩
+  -- 6. ∀ x ∈ qW, ρ.B x ∈ qV
+  · intro x hx
+    rw [Submodule.mem_iInf] at hx ⊢
+    intro n
+    obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+    exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
+  -- 7. dim qV = dim qW
+  · -- A is injective on qV: if Av = 0 for v ∈ qV, then BAv = 0, so v ∈ ker(BA) ⊆ pV,
+    -- but v ∈ qV and pV ⊓ qV = ⊥, so v = 0.
+    have hFitV := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow BA
+    have hFitW := LinearMap.isCompl_iSup_ker_pow_iInf_range_pow AB
+    have hA_qV : ∀ x ∈ qV, ρ.A x ∈ qW := by
+      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
+      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+      exact LinearMap.mem_range.mpr ⟨ρ.A y, by rw [← hy, intertwine_A]⟩
+    have hB_qW : ∀ x ∈ qW, ρ.B x ∈ qV := by
+      intro x hx; rw [Submodule.mem_iInf] at hx ⊢; intro n
+      obtain ⟨y, hy⟩ := LinearMap.mem_range.mp (hx n)
+      exact LinearMap.mem_range.mpr ⟨ρ.B y, by rw [← hy, intertwine_B]⟩
+    -- Restricted maps
+    set A' : ↥qV →ₗ[ℂ] ↥qW :=
+      (ρ.A.domRestrict qV).codRestrict qW (fun ⟨v, hv⟩ => hA_qV v hv)
+    set B' : ↥qW →ₗ[ℂ] ↥qV :=
+      (ρ.B.domRestrict qW).codRestrict qV (fun ⟨w, hw⟩ => hB_qW w hw)
+    -- A' is injective
+    have hA'_inj : Function.Injective A' := by
+      intro ⟨v₁, hv₁⟩ ⟨v₂, hv₂⟩ h
+      have h_eq : ρ.A v₁ = ρ.A v₂ := by
+        have := congr_arg Subtype.val h
+        simpa [A', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
+      have h_diff : ρ.A (v₁ - v₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
+      have h_ker : v₁ - v₂ ∈ LinearMap.ker BA := by
+        rw [LinearMap.mem_ker]; simp [BA, LinearMap.comp_apply, h_diff]
+      have h_pV : v₁ - v₂ ∈ pV := by
+        rw [show pV = ⨆ n, LinearMap.ker (BA ^ n) from rfl]
+        exact Submodule.mem_iSup_of_mem 1 (by rwa [pow_one])
+      have h_qV : v₁ - v₂ ∈ qV := qV.sub_mem hv₁ hv₂
+      have h_bot : v₁ - v₂ ∈ pV ⊓ qV := Submodule.mem_inf.mpr ⟨h_pV, h_qV⟩
+      rw [hFitV.disjoint.eq_bot] at h_bot
+      exact Subtype.ext (sub_eq_zero.mp h_bot)
+    -- B' is injective
+    have hB'_inj : Function.Injective B' := by
+      intro ⟨w₁, hw₁⟩ ⟨w₂, hw₂⟩ h
+      have h_eq : ρ.B w₁ = ρ.B w₂ := by
+        have := congr_arg Subtype.val h
+        simpa [B', LinearMap.codRestrict_apply, LinearMap.domRestrict_apply] using this
+      have h_diff : ρ.B (w₁ - w₂) = 0 := by rw [map_sub, sub_eq_zero.mpr h_eq]
+      have h_ker : w₁ - w₂ ∈ LinearMap.ker AB := by
+        rw [LinearMap.mem_ker]; simp [AB, LinearMap.comp_apply, h_diff]
+      have h_pW : w₁ - w₂ ∈ pW := by
+        rw [show pW = ⨆ n, LinearMap.ker (AB ^ n) from rfl]
+        exact Submodule.mem_iSup_of_mem 1 (by rwa [pow_one])
+      have h_qW : w₁ - w₂ ∈ qW := qW.sub_mem hw₁ hw₂
+      have h_bot : w₁ - w₂ ∈ pW ⊓ qW := Submodule.mem_inf.mpr ⟨h_pW, h_qW⟩
+      rw [hFitW.disjoint.eq_bot] at h_bot
+      exact Subtype.ext (sub_eq_zero.mp h_bot)
+    -- dim qV ≤ dim qW and dim qW ≤ dim qV
+    exact le_antisymm
+      (LinearMap.finrank_le_finrank_of_injective hA'_inj)
+      (LinearMap.finrank_le_finrank_of_injective hB'_inj)
 
 /-- **Problem 6.9.1(c) (Etingof)**: When AB is nilpotent, the operator X on V ⊕ W
 defined by X(v,w) = (Bw, Av) is also nilpotent and admits a basis of chains
