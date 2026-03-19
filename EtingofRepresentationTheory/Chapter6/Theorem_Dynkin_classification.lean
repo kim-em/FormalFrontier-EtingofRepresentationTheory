@@ -138,6 +138,77 @@ For the path graph A_n, the Tits form q(x) = x^T(2I-adj)x satisfies the sum-of-s
 identity q(x) = x₀² + Σᵢ(xᵢ-xᵢ₊₁)² + x_{n-1}², from which positive definiteness follows.
 -/
 
+/-- Recursive quadratic form for A_n path graph, using ℕ → ℤ to avoid Fin casting.
+  Peels off vertex 0 at each step: q_{n+1}(x) = 2x₀² - 2x₀x₁ + q_n(x∘(·+1)). -/
+private def pathQF : ℕ → (ℕ → ℤ) → ℤ
+  | 0, _ => 0
+  | 1, x => 2 * x 0 ^ 2
+  | n + 2, x => 2 * x 0 ^ 2 - 2 * x 0 * x 1 + pathQF (n + 1) (fun i => x (i + 1))
+
+/-- Lower bound: pathQF (m+1) x ≥ (x 0)² + (x m)².
+    Parameterized by m to avoid subtraction in the inductive step. -/
+private lemma pathQF_lower : ∀ (m : ℕ) (x : ℕ → ℤ),
+    (x 0) ^ 2 + (x m) ^ 2 ≤ pathQF (m + 1) x := by
+  intro m
+  induction m with
+  | zero => intro x; simp [pathQF]; nlinarith [sq_nonneg (x 0)]
+  | succ k ih =>
+    intro x
+    simp only [pathQF]
+    have ih' := ih (fun i => x (i + 1))
+    -- ih' : (x 1)² + (x (k+1))² ≤ pathQF (k+1) (fun i => x (i+1))
+    -- Goal: (x 0)² + (x (k+1))² ≤ 2*(x 0)² - 2*(x 0)*(x 1) + pathQF (k+1) (shift x)
+    nlinarith [sq_nonneg (x 0 - x 1)]
+
+/-- If pathQF (m+1) x ≤ 0 then x is zero on {0,...,m}. -/
+private lemma pathQF_le_zero_imp : ∀ (m : ℕ) (x : ℕ → ℤ),
+    pathQF (m + 1) x ≤ 0 → ∀ i, i ≤ m → x i = 0 := by
+  intro m
+  induction m with
+  | zero =>
+    intro x hle i hi
+    have : x 0 = 0 := by
+      simp [pathQF] at hle; nlinarith [sq_nonneg (x 0)]
+    interval_cases i; exact this
+  | succ k ih =>
+    intro x hle i hi
+    -- Use lower bound on the tail to extract x 0 = 0
+    have htb := pathQF_lower k (fun j => x (j + 1))
+    -- htb : (x 1)² + (x (k+1))² ≤ pathQF (k+1) (shift x)
+    simp only [pathQF] at hle
+    -- hle : 2*(x 0)² - 2*(x 0)*(x 1) + pathQF (k+1) (shift x) ≤ 0
+    have hx0 : x 0 = 0 := by
+      nlinarith [sq_nonneg (x 0 - x 1), sq_nonneg (x 0), sq_nonneg (x (k + 1))]
+    have htail : pathQF (k + 1) (fun j => x (j + 1)) ≤ 0 := by nlinarith
+    rcases i with _ | i
+    · exact hx0
+    · exact ih (fun j => x (j + 1)) htail i (by omega)
+
+/-- pathQF relates to the dotProduct form: pathQF n (x ∘ Fin.val) = xᵀ(2I-adj)x.
+    We prove this by showing both sides satisfy the same recurrence. -/
+private lemma pathQF_eq_dotProduct (n : ℕ) (hn : 1 ≤ n) (x : Fin n → ℤ) :
+    pathQF n (fun i => if h : i < n then x ⟨i, h⟩ else 0) =
+    dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      DynkinType.adj (.A n hn)).mulVec x) := by
+  sorry
+
+/-- Positive definiteness for A_n Cartan form. -/
+private lemma An_posDef (n : ℕ) (hn : 1 ≤ n) :
+    ∀ x : Fin n → ℤ, x ≠ 0 →
+    0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      DynkinType.adj (.A n hn)).mulVec x) := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  intro x hx
+  rw [← pathQF_eq_dotProduct (m + 1) (by omega) x]
+  by_contra h
+  push_neg at h
+  have hzero := pathQF_le_zero_imp m
+    (fun i => if hi : i < m + 1 then x ⟨i, hi⟩ else 0) h
+  apply hx; ext ⟨i, hi⟩
+  have := hzero i (by omega)
+  simp only [show (i < m + 1) = True from by simp; omega, dite_true] at this
+  exact this
+
 /-- A_n (path graph) is a Dynkin diagram. -/
 private lemma An_isDynkin (n : ℕ) (hn : 1 ≤ n) :
     IsDynkinDiagram n (DynkinType.adj (.A n hn)) := by
@@ -151,15 +222,226 @@ private lemma An_isDynkin (n : ℕ) (hn : 1 ≤ n) :
     · rfl
   · -- 0-1 entries
     intro i j; simp only [DynkinType.adj]; split_ifs <;> simp
-  · -- Connectivity
-    sorry
+  · -- Connectivity: path graph on Fin n is connected
+    intro i j
+    by_cases hij : i.val ≤ j.val
+    · -- Ascending path [i, i+1, ..., j]
+      refine ⟨List.ofFn (fun (k : Fin (j.val - i.val + 1)) =>
+        (⟨i.val + k.val, by omega⟩ : Fin n)), ?_, ?_, ?_⟩
+      · -- head?
+        rw [List.ofFn_succ, List.head?_cons]; simp
+      · -- getLast?
+        rw [List.ofFn_succ', List.concat_eq_append, List.getLast?_concat]
+        congr 1; ext; simp [Fin.last]; omega
+      · -- edges
+        intro k hk
+        simp only [List.length_ofFn] at hk
+        simp only [List.get_eq_getElem, List.getElem_ofFn, DynkinType.adj, Fin.val_mk]
+        rw [if_pos (Or.inl (by omega))]
+    · -- Descending path [i, i-1, ..., j]
+      push_neg at hij
+      refine ⟨List.ofFn (fun (k : Fin (i.val - j.val + 1)) =>
+        (⟨i.val - k.val, by omega⟩ : Fin n)), ?_, ?_, ?_⟩
+      · -- head?
+        rw [List.ofFn_succ, List.head?_cons]; simp
+      · -- getLast?
+        rw [List.ofFn_succ', List.concat_eq_append, List.getLast?_concat]
+        congr 1; ext; simp [Fin.last]; omega
+      · -- edges
+        intro k hk
+        simp only [List.length_ofFn] at hk
+        simp only [List.get_eq_getElem, List.getElem_ofFn, DynkinType.adj, Fin.val_mk]
+        rw [if_pos (Or.inr (by omega))]
   · -- Positive definiteness
-    sorry
+    exact An_posDef n hn
 
 /-- D_n (path with branch) is a Dynkin diagram. -/
 private lemma Dn_isDynkin (n : ℕ) (hn : 4 ≤ n) :
     IsDynkinDiagram n (DynkinType.adj (.D n hn)) := by
-  sorry
+  refine ⟨?_, ?_, ?_, ?_, ?_⟩
+  · -- Symmetry: adj is symmetric (swap conditions in the disjunction)
+    exact Matrix.IsSymm.ext (fun i j => by
+      simp only [DynkinType.adj]; congr 1; exact propext ⟨fun h => by tauto, fun h => by tauto⟩)
+  · -- Zero diagonal
+    intro i; simp only [DynkinType.adj]; split_ifs with h
+    · exfalso; rcases h with (⟨h1, _⟩ | ⟨h2, _⟩) | (⟨h3, h4⟩ | ⟨h5, h6⟩) <;> omega
+    · rfl
+  · -- 0-1 entries
+    intro i j; simp only [DynkinType.adj]; split_ifs <;> simp
+  · -- Connectivity: D_n is connected
+    -- D_n: path 0—1—...—(n-2) with branch edge (n-3)—(n-1)
+    intro i j
+    -- Helper for main path connectivity (both vertices < n-1, ascending)
+    have main_asc : ∀ (a b : Fin n), a.val < n - 1 → b.val < n - 1 → a.val ≤ b.val →
+        ∃ path : List (Fin n), path.head? = some a ∧ path.getLast? = some b ∧
+        ∀ k, (h : k + 1 < path.length) →
+          (DynkinType.adj (.D n hn)) (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1 := by
+      intro a b ha hb hab
+      refine ⟨List.ofFn (fun (k : Fin (b.val - a.val + 1)) =>
+        (⟨a.val + k.val, by omega⟩ : Fin n)), ?_, ?_, ?_⟩
+      · rw [List.ofFn_succ, List.head?_cons]; simp
+      · rw [List.ofFn_succ', List.concat_eq_append, List.getLast?_concat]
+        congr 1; simp only [Fin.ext_iff, Fin.val_mk, Fin.val_last]; omega
+      · intro k hk
+        simp only [List.length_ofFn] at hk
+        simp only [List.get_eq_getElem, List.getElem_ofFn, DynkinType.adj, Fin.val_mk]
+        rw [if_pos]; left; left; constructor <;> omega
+    -- Helper for descending main path
+    have main_desc : ∀ (a b : Fin n), a.val < n - 1 → b.val < n - 1 → b.val < a.val →
+        ∃ path : List (Fin n), path.head? = some a ∧ path.getLast? = some b ∧
+        ∀ k, (h : k + 1 < path.length) →
+          (DynkinType.adj (.D n hn)) (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1 := by
+      intro a b ha hb hab
+      refine ⟨List.ofFn (fun (k : Fin (a.val - b.val + 1)) =>
+        (⟨a.val - k.val, by omega⟩ : Fin n)), ?_, ?_, ?_⟩
+      · rw [List.ofFn_succ, List.head?_cons]; simp
+      · rw [List.ofFn_succ', List.concat_eq_append, List.getLast?_concat]
+        congr 1; simp only [Fin.ext_iff, Fin.val_mk, Fin.val_last]; omega
+      · intro k hk
+        simp only [List.length_ofFn] at hk
+        simp only [List.get_eq_getElem, List.getElem_ofFn, DynkinType.adj, Fin.val_mk]
+        rw [if_pos]; left; right; constructor <;> omega
+    -- Now handle all cases
+    by_cases hi : i.val = n - 1
+    · by_cases hj : j.val = n - 1
+      · -- i = j = n-1
+        have hij : i = j := Fin.ext (by omega)
+        subst hij
+        exact ⟨[i], by simp, by simp, fun k hk => by simp at hk⟩
+      · -- i = n-1, j on main path: route through n-3
+        have hjlt : j.val < n - 1 := by omega
+        -- Split into j < n-3, j = n-3, j = n-2
+        rcases Nat.lt_or_eq_of_le (show j.val ≤ n - 2 by omega) with hjlt2 | hjn2
+        · rcases Nat.lt_or_eq_of_le (show j.val ≤ n - 3 by omega) with hjlt3 | hjn3
+          · -- j < n-3: get main path from n-3 to j, prepend n-1
+            obtain ⟨path, hhead, hlast, hedges⟩ := main_desc ⟨n - 3, by omega⟩ j
+              (show (n - 3 : ℕ) < n - 1 by omega) hjlt (show j.val < n - 3 from hjlt3)
+            refine ⟨⟨n - 1, by omega⟩ :: path, ?_, ?_, ?_⟩
+            · simp only [List.head?_cons, Option.some.injEq]; exact Fin.ext (by dsimp; omega)
+            · cases path with
+              | nil => simp at hhead
+              | cons p ps => simp only [List.getLast?_cons_cons]; exact hlast
+            · intro k hk
+              simp only [List.length_cons] at hk
+              match k with
+              | 0 =>
+                cases path with
+                | nil => simp at hhead
+                | cons p ps =>
+                  simp only [List.head?_cons, Option.some.injEq] at hhead
+                  simp only [List.get_eq_getElem, List.getElem_cons_zero,
+                    List.getElem_cons_succ]
+                  rw [hhead]; simp only [DynkinType.adj]
+                  rw [if_pos]; right; right; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+              | k + 1 =>
+                simp only [List.get_eq_getElem, List.getElem_cons_succ]
+                exact hedges k (by omega)
+          · -- j = n-3: path [n-1, n-3]
+            refine ⟨[⟨n - 1, by omega⟩, ⟨n - 3, by omega⟩], ?_, ?_, ?_⟩
+            · simp only [List.head?_cons, Option.some.injEq]; exact Fin.ext (by dsimp; omega)
+            · simp only [List.getLast?_cons_cons, List.getLast?_singleton, Option.some.injEq]
+              exact Fin.ext (by dsimp; omega)
+            · intro k hk
+              simp only [List.length_cons, List.length_nil] at hk
+              match k with
+              | 0 =>
+                dsimp only [List.get]; simp only [DynkinType.adj]
+                rw [if_pos]; right; right; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+        · -- j = n-2: path [n-1, n-3, n-2]
+          refine ⟨[⟨n - 1, by omega⟩, ⟨n - 3, by omega⟩, ⟨n - 2, by omega⟩], ?_, ?_, ?_⟩
+          · simp only [List.head?_cons, Option.some.injEq]; exact Fin.ext (by dsimp; omega)
+          · simp only [List.getLast?_cons_cons, List.getLast?_singleton, Option.some.injEq]
+            exact Fin.ext (by dsimp; omega)
+          · intro k hk
+            simp only [List.length_cons, List.length_nil] at hk
+            match k with
+            | 0 =>
+              dsimp only [List.get]; simp only [DynkinType.adj]
+              rw [if_pos]; right; right; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+            | 1 =>
+              dsimp only [List.get]; simp only [DynkinType.adj]
+              rw [if_pos]; left; left; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+    · by_cases hj : j.val = n - 1
+      · -- j = n-1, i on main path: route through n-3
+        have hilt : i.val < n - 1 := by omega
+        rcases Nat.lt_or_eq_of_le (show i.val ≤ n - 2 by omega) with hilt2 | hin2
+        · rcases Nat.lt_or_eq_of_le (show i.val ≤ n - 3 by omega) with hilt3 | hin3
+          · -- i < n-3: get main path from i to n-3, append n-1
+            obtain ⟨path, hhead, hlast, hedges⟩ := main_asc i ⟨n - 3, by omega⟩
+              hilt (show (n - 3 : ℕ) < n - 1 by omega)
+              (show i.val ≤ n - 3 from Nat.le_of_lt hilt3)
+            refine ⟨path ++ [⟨n - 1, by omega⟩], ?_, ?_, ?_⟩
+            · cases path with
+              | nil => simp at hhead
+              | cons p ps =>
+                simp only [List.cons_append, List.head?_cons]
+                exact hhead
+            · rw [List.getLast?_append_of_ne_nil _ (List.cons_ne_nil _ _)]
+              simp only [List.getLast?_singleton, Option.some.injEq]
+              exact Fin.ext (by dsimp; omega)
+            · intro k hk
+              simp only [List.length_append, List.length_cons, List.length_nil] at hk
+              by_cases hk_main : k + 1 < path.length
+              · simp only [List.get_eq_getElem]
+                rw [List.getElem_append_left (by omega), List.getElem_append_left (by omega)]
+                exact hedges k hk_main
+              · -- Last edge: path[k] = n-3, (path++[n-1])[k+1] = n-1
+                have hk_eq : k + 1 = path.length := by omega
+                have hpne : path ≠ [] := by
+                  cases path with | nil => simp at hhead | cons _ _ => exact List.cons_ne_nil _ _
+                -- Extract what path[k] equals: it's the last element = n-3
+                have hpath_last : path.getLast hpne = ⟨n - 3, by omega⟩ := by
+                  have h := List.getLast?_eq_getLast_of_ne_nil hpne
+                  rw [hlast] at h; exact Option.some.inj h.symm
+                -- path[k] = path.getLast = n-3
+                have hk_last : k = path.length - 1 := by omega
+                have hpath_k : path[k]'(by omega) = ⟨n - 3, by omega⟩ := by
+                  subst hk_last
+                  rw [List.getLast_eq_getElem] at hpath_last; exact hpath_last
+                -- (path++[n-1])[k+1] = n-1
+                have hsucc : (path ++ [⟨n - 1, by omega⟩])[k + 1]'(by simp; omega) =
+                    ⟨n - 1, by omega⟩ := by
+                  rw [List.getElem_append_right (by omega)]
+                  simp [hk_eq]
+                simp only [List.get_eq_getElem]
+                -- Now just compute the adjacency
+                show (DynkinType.adj (.D n hn))
+                  ((path ++ [⟨n - 1, by omega⟩])[k]'(by simp; omega))
+                  ((path ++ [⟨n - 1, by omega⟩])[k + 1]'(by simp; omega)) = 1
+                rw [List.getElem_append_left (by omega), hpath_k, hsucc]
+                simp only [DynkinType.adj]
+                rw [if_pos]; right; left; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+          · -- i = n-3: path [n-3, n-1]
+            refine ⟨[⟨n - 3, by omega⟩, ⟨n - 1, by omega⟩], ?_, ?_, ?_⟩
+            · simp only [List.head?_cons, Option.some.injEq]; exact Fin.ext (by dsimp; omega)
+            · simp only [List.getLast?_cons_cons, List.getLast?_singleton, Option.some.injEq]
+              exact Fin.ext (by dsimp; omega)
+            · intro k hk
+              simp only [List.length_cons, List.length_nil] at hk
+              match k with
+              | 0 =>
+                dsimp only [List.get]; simp only [DynkinType.adj]
+                rw [if_pos]; right; left; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+        · -- i = n-2: path [n-2, n-3, n-1]
+          refine ⟨[⟨n - 2, by omega⟩, ⟨n - 3, by omega⟩, ⟨n - 1, by omega⟩], ?_, ?_, ?_⟩
+          · simp only [List.head?_cons, Option.some.injEq]; exact Fin.ext (by dsimp; omega)
+          · simp only [List.getLast?_cons_cons, List.getLast?_singleton, Option.some.injEq]
+            exact Fin.ext (by dsimp; omega)
+          · intro k hk
+            simp only [List.length_cons, List.length_nil] at hk
+            match k with
+            | 0 =>
+              dsimp only [List.get]; simp only [DynkinType.adj]
+              rw [if_pos]; left; right; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+            | 1 =>
+              dsimp only [List.get]; simp only [DynkinType.adj]
+              rw [if_pos]; right; left; refine ⟨?_, ?_⟩ <;> dsimp <;> omega
+      · -- Both on main path
+        by_cases hij : i.val ≤ j.val
+        · exact main_asc i j (by omega) (by omega) hij
+        · exact main_desc i j (by omega) (by omega) (by omega)
+  · -- Positive definiteness
+    sorry
 
 /-- Explicit tree-paths for E₆: vertex `i` to vertex `j` through the unique tree path. -/
 private def E6_treePath : Fin 6 → Fin 6 → List (Fin 6) := fun i j =>
