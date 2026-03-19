@@ -50,6 +50,44 @@ namespace Etingof
 
 noncomputable section
 
+/-- The cell type of a partition is finite: cells (i,j) with i < length, j < row width.
+Both coordinates are bounded (i < length, j < part i ≤ n), giving a finite set. -/
+noncomputable instance partitionCell_fintype (n : ℕ) (la : Nat.Partition n) :
+    Fintype { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
+      c.2 < la.sortedParts.getD c.1 0 } := by
+  classical
+  haveI : Finite { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
+      c.2 < la.sortedParts.getD c.1 0 } := by
+    refine Finite.of_injective
+      (fun (c : { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
+          c.2 < la.sortedParts.getD c.1 0 }) =>
+        show Fin la.sortedParts.length × Fin (n + 1) from
+        ⟨⟨c.1.1, c.2.1⟩, ⟨c.1.2, by
+          have hj := c.2.2
+          have hi := c.2.1
+          simp only [List.getD, List.getElem?_eq_getElem hi, Option.getD_some] at hj
+          have : la.sortedParts[c.1.1] ≤ n := by
+            calc la.sortedParts[c.1.1] ≤ la.sortedParts.sum :=
+                  List.single_le_sum (fun x _ => Nat.zero_le x) _ (List.getElem_mem hi)
+              _ = n := by
+                  unfold Nat.Partition.sortedParts
+                  rw [← Multiset.sum_coe, Multiset.sort_eq]; exact la.parts_sum
+          omega⟩⟩) ?_
+    intro ⟨⟨a1, a2⟩, ha⟩ ⟨⟨b1, b2⟩, hb⟩ h
+    simp only [Prod.mk.injEq, Fin.mk.injEq] at h
+    exact Subtype.ext (Prod.ext h.1 h.2)
+  exact Fintype.ofFinite _
+
+/-- StandardYoungTableau is a finite type: it is a subtype of functions
+from a finite cell set to Fin n. -/
+instance standardYoungTableau_finite (n : ℕ) (la : Nat.Partition n) :
+    Finite (StandardYoungTableau n la) := by
+  classical
+  unfold StandardYoungTableau
+  change Finite { f : { c : ℕ × ℕ // c.1 < la.sortedParts.length ∧
+    c.2 < la.sortedParts.getD c.1 0 } → Fin n // _ }
+  exact Subtype.finite
+
 /-- The hook length product divides n!. This is a consequence of the
 Frame–Robinson–Thrall theorem: n!/∏h(i,j) = |SYT(λ)| is a positive integer. -/
 theorem hookLengthProduct_dvd_factorial (n : ℕ) (la : Nat.Partition n) :
