@@ -39,7 +39,194 @@ These are elements of S^n U of the form u ⊗ u ⊗ ... ⊗ u (n times). -/
 def diagonalTensors : Set (Sym[k]^n U) :=
   Set.range (fun u : U => SymmetricPower.tprod k (fun (_ : Fin n) => u))
 
-/-- S^n U is spanned by n-fold tensor powers u^⊗n for u ∈ U.
+/-- Alternating sum of (-1)^|S| over subsets of a nonempty finset is zero.
+This is the fundamental Möbius identity on the boolean lattice. -/
+private lemma sum_powerset_neg_one_pow_card_eq_zero
+    {α : Type*} {x : Finset α} (hx : x.Nonempty) :
+    (∑ m ∈ x.powerset, (-1 : k) ^ m.card) = 0 := by
+  have hZ := Finset.sum_powerset_neg_one_pow_card_of_nonempty hx
+  -- Cast the ℤ identity to k
+  have : (∑ m ∈ x.powerset, (-1 : k) ^ m.card) =
+      ((∑ m ∈ x.powerset, (-1 : ℤ) ^ m.card : ℤ) : k) := by
+    rw [Int.cast_sum]
+    congr 1; ext m
+    simp [Int.cast_pow]
+  rw [this, hZ, Int.cast_zero]
+
+/-- The alternating sum over supersets of T in Finset.univ equals 1 if T = univ, 0 otherwise.
+Key lemma for the polarization identity. -/
+private lemma alternating_superset_sum
+    (T : Finset (Fin n)) :
+    (∑ S ∈ (Finset.univ : Finset (Fin n)).powerset.filter (fun S => T ⊆ S),
+      (-1 : k) ^ (n - S.card)) =
+    if T = Finset.univ then 1 else 0 := by
+  classical
+  -- Biject {S | T ⊆ S ⊆ univ} ↔ {T' | T' ⊆ univ \ T} via S ↦ S \ T
+  -- Under this bijection: n - |S| = n - |T| - |T'| = |univ \ T| - |T'|
+  -- And the sum becomes ∑_{T' ⊆ univ\T} (-1)^{|univ\T| - |T'|}
+  -- For T = univ: univ \ T = ∅, so the only T' is ∅, giving (-1)^0 = 1
+  -- For T ≠ univ: univ \ T is nonempty, and the sum = (-1)^{|univ\T|} * ∑ (-1)^{|T'|} = 0
+  split_ifs with hT
+  · -- Case T = univ: only superset is univ itself
+    subst hT
+    have : Finset.univ.powerset.filter (fun S => Finset.univ ⊆ S) =
+        {(Finset.univ : Finset (Fin n))} := by
+      ext S; simp [Finset.univ_subset_iff]
+    rw [this, Finset.sum_singleton, Finset.card_univ, Fintype.card_fin, Nat.sub_self, pow_zero]
+  · -- Case T ≠ univ: use Möbius identity
+    have hC : (Finset.univ \ T).Nonempty := by
+      rw [Finset.sdiff_nonempty]
+      exact fun h => hT (Finset.univ_subset_iff.mp h)
+    -- Biject {S | T ⊆ S ⊆ univ} ↔ powerset(univ \ T) via S ↦ S \ T, inverse T' ↦ T' ∪ T
+    rw [show ∑ S ∈ Finset.univ.powerset.filter (fun S => T ⊆ S),
+          (-1 : k) ^ (n - S.card) =
+        ∑ T' ∈ (Finset.univ \ T).powerset,
+          (-1 : k) ^ ((Finset.univ \ T).card - T'.card) from by
+      apply Finset.sum_nbij' (· \ T) (· ∪ T)
+      · -- hi: S \ T ∈ powerset(univ \ T)
+        intro S hS
+        simp only [Finset.mem_filter, Finset.mem_powerset] at hS ⊢
+        exact Finset.sdiff_subset_sdiff hS.1 (Finset.Subset.refl T)
+      · -- hj: T' ∪ T ∈ filtered set
+        intro T' hT'
+        simp only [Finset.mem_powerset] at hT'
+        simp only [Finset.mem_filter, Finset.mem_powerset]
+        exact ⟨Finset.union_subset (hT'.trans Finset.sdiff_subset) (Finset.subset_univ T),
+               Finset.subset_union_right⟩
+      · -- left_inv: (S \ T) ∪ T = S
+        intro S hS
+        simp only [Finset.mem_filter, Finset.mem_powerset] at hS
+        exact Finset.sdiff_union_of_subset hS.2
+      · -- right_inv: (T' ∪ T) \ T = T'
+        intro T' hT'
+        simp only [Finset.mem_powerset] at hT'
+        rw [Finset.union_sdiff_right, Finset.sdiff_eq_self_of_disjoint]
+        exact Finset.disjoint_of_subset_left hT' disjoint_sdiff_self_left
+      · -- h: summands match — need n - |S| = |C| - |S \ T| where C = univ \ T
+        intro S hS
+        simp only [Finset.mem_filter, Finset.mem_powerset] at hS
+        congr 1
+        -- Use card_sdiff_add_card to avoid ℕ subtraction issues
+        have h1 : (S \ T).card + T.card = S.card :=
+          Finset.card_sdiff_add_card_eq_card hS.2
+        have h2 : ((Finset.univ : Finset (Fin n)) \ T).card + T.card =
+            (Finset.univ : Finset (Fin n)).card :=
+          Finset.card_sdiff_add_card_eq_card (Finset.subset_univ T)
+        have h3 : S.card ≤ (Finset.univ : Finset (Fin n)).card :=
+          Finset.card_le_card hS.1
+        have h4 : (S \ T).card ≤ ((Finset.univ : Finset (Fin n)) \ T).card :=
+          Finset.card_le_card (Finset.sdiff_subset_sdiff hS.1 (Finset.Subset.refl T))
+        simp only [Finset.card_univ, Fintype.card_fin] at h2 h3
+        omega]
+    -- Now need: ∑ T' ∈ C.powerset, (-1)^(C.card - T'.card) = 0
+    -- Factor: (-1)^(a-b) = (-1)^a * (-1)^b since (-1)^2 = 1
+    set C := Finset.univ \ T with hCdef
+    have factor : ∀ T' ∈ C.powerset, (-1 : k) ^ (C.card - T'.card) =
+        (-1 : k) ^ C.card * (-1 : k) ^ T'.card := by
+      intro T' hT'
+      simp only [Finset.mem_powerset] at hT'
+      have hle := Finset.card_le_card hT'
+      have hmul : (-1 : k) ^ (C.card - T'.card) * (-1 : k) ^ T'.card =
+          (-1 : k) ^ C.card := by
+        rw [← pow_add, Nat.sub_add_cancel hle]
+      have hsq : (-1 : k) ^ T'.card * (-1 : k) ^ T'.card = 1 := by
+        rw [← pow_add, ← two_mul, pow_mul, neg_one_sq, one_pow]
+      calc (-1 : k) ^ (C.card - T'.card)
+          = (-1 : k) ^ (C.card - T'.card) * 1 := (mul_one _).symm
+        _ = (-1 : k) ^ (C.card - T'.card) *
+            ((-1 : k) ^ T'.card * (-1 : k) ^ T'.card) := by rw [hsq]
+        _ = (-1 : k) ^ (C.card - T'.card) * (-1 : k) ^ T'.card *
+            (-1 : k) ^ T'.card := by rw [mul_assoc]
+        _ = (-1 : k) ^ C.card * (-1 : k) ^ T'.card := by rw [hmul]
+    rw [Finset.sum_congr rfl factor, ← Finset.mul_sum]
+    rw [sum_powerset_neg_one_pow_card_eq_zero (k := k) hC, mul_zero]
+
+/-- The polarization identity for symmetric tensors.
+
+n! • tprod(f) = ∑_{S ⊆ Fin n} (-1)^{n-|S|} • (∑_{i∈S} f i)^⊗n
+
+This expresses a general pure symmetric tensor as a ℤ-linear combination
+of diagonal tensors (times n!). -/
+private lemma polarization_eq [CharZero k] (f : Fin n → U) :
+    (n.factorial : k) • SymmetricPower.tprod k f =
+      ∑ S ∈ (Finset.univ : Finset (Fin n)).powerset,
+        ((-1 : k) ^ (n - S.card)) • SymmetricPower.tprod k (fun _ => ∑ i ∈ S, f i) := by
+  classical
+  -- Step 1: Expand each tprod(const(∑ f i)) using multilinearity, distribute smul
+  conv_rhs =>
+    arg 2; ext S
+    rw [show (-1 : k) ^ (n - S.card) • SymmetricPower.tprod k (fun _ => ∑ i ∈ S, f i) =
+        ∑ r ∈ Fintype.piFinset (fun _ : Fin n => S),
+          (-1 : k) ^ (n - S.card) • (SymmetricPower.tprod k) (fun i => f (r i)) by
+      rw [MultilinearMap.map_sum_finset (SymmetricPower.tprod k) (fun _ => f) (fun _ => S)]
+      rw [Finset.smul_sum]]
+  -- Step 2: Swap the order of summation using sum_comm'
+  rw [Finset.sum_comm'
+    (s' := fun r => Finset.univ.powerset.filter (fun S => ∀ i, r i ∈ S))
+    (t' := Fintype.piFinset (fun _ : Fin n => Finset.univ))
+    (h := by
+      intro S r
+      simp only [Finset.mem_powerset, Fintype.mem_piFinset, Finset.mem_filter, Finset.mem_univ]
+      tauto)]
+  -- Step 3: Factor out tprod(f ∘ r) from the inner sum
+  simp_rw [← Finset.sum_smul]
+  -- Step 4: Evaluate inner coefficient using alternating_superset_sum
+  have coeff_eq : ∀ r : Fin n → Fin n,
+      (∑ S ∈ Finset.univ.powerset.filter (fun S => ∀ j, r j ∈ S),
+        (-1 : k) ^ (n - S.card)) =
+      if Finset.image r Finset.univ = Finset.univ then 1 else 0 := by
+    intro r
+    convert alternating_superset_sum k n (Finset.image r Finset.univ) using 2
+    ext S; simp [Finset.subset_iff]
+  simp_rw [coeff_eq]
+  -- Step 5: Non-surjective terms vanish
+  simp only [ite_smul, one_smul, zero_smul]
+  rw [Finset.sum_ite, Finset.sum_const_zero, add_zero]
+  -- Step 6: In the symmetric power, tprod(f ∘ σ) = tprod(f) for any permutation σ
+  -- The sum is over surjective (= bijective for Fin n) functions
+  -- Each gives tprod(f), and there are n! of them
+  -- First, simplify tprod using symmetry: in the symmetric power, permuting args is identity
+  have tprod_perm : ∀ (σ : Equiv.Perm (Fin n)),
+      (⨂ₛ[k] (i : Fin n), f (σ i)) = SymmetricPower.tprod k f := by
+    intro σ; exact SymmetricPower.tprod_equiv σ f
+  -- Step 6a: Each term in the filtered sum equals tprod k f
+  have all_eq : ∀ x ∈ (Fintype.piFinset fun _ : Fin n => Finset.univ).filter
+        (fun x => Finset.image x Finset.univ = Finset.univ),
+      (⨂ₛ[k] (i : Fin n), f (x i)) = SymmetricPower.tprod k f := by
+    intro x hx
+    simp only [Finset.mem_filter, Fintype.mem_piFinset] at hx
+    have hxsurj : Function.Surjective x := by
+      intro b
+      have hb : b ∈ Finset.image x Finset.univ := by rw [hx.2]; exact Finset.mem_univ b
+      exact let ⟨a, _, ha⟩ := Finset.mem_image.mp hb; ⟨a, ha⟩
+    exact tprod_perm (Equiv.ofBijective x
+      ((Finite.surjective_iff_bijective (α := Fin n)).mp hxsurj))
+  rw [Finset.sum_congr rfl all_eq, Finset.sum_const, ← Nat.cast_smul_eq_nsmul k]
+  congr 1
+  -- Step 6b: Card of {r : Fin n → Fin n | image r univ = univ} = n!
+  norm_cast
+  -- Establish bijection with Perm (Fin n) via embedding
+  let e : Equiv.Perm (Fin n) ↪ (Fin n → Fin n) :=
+    ⟨fun σ => σ, fun σ₁ σ₂ h => Equiv.ext (congr_fun h)⟩
+  have hmap : (Fintype.piFinset fun _ : Fin n => (Finset.univ : Finset (Fin n))).filter
+        (fun x => Finset.image x Finset.univ = Finset.univ) =
+      (Finset.univ : Finset (Equiv.Perm (Fin n))).map e := by
+    ext r
+    simp only [Finset.mem_filter, Fintype.mem_piFinset, Finset.mem_univ,
+      Finset.mem_map]
+    constructor
+    · intro ⟨_, hr⟩
+      have hsurj : Function.Surjective r := by
+        intro b
+        have : b ∈ Finset.image r Finset.univ := by rw [hr]; exact Finset.mem_univ b
+        exact let ⟨a, _, ha⟩ := Finset.mem_image.mp this; ⟨a, ha⟩
+      exact ⟨Equiv.ofBijective r
+        ((Finite.surjective_iff_bijective (α := Fin n)).mp hsurj), trivial, rfl⟩
+    · rintro ⟨σ, _, rfl⟩
+      exact ⟨fun _ => trivial, Finset.image_univ_of_surjective σ.surjective⟩
+  rw [hmap, Finset.card_map, Finset.card_univ, Fintype.card_perm, Fintype.card_fin]
+
+/-- S^n U is spanned by n-fold tensor powers u^⊗n for u ∈ U, assuming characteristic zero.
 
 Unlike the general spanning result `SymmetricPower.span_tprod_eq_top` (which says
 all pure tensors `u₁ ⊗ u₂ ⊗ ... ⊗ uₙ` span), this states that the smaller set
@@ -48,9 +235,23 @@ polarization: a symmetric multilinear form that vanishes on the diagonal determi
 zero, so the diagonal tensors must span.
 
 (Etingof Lemma 5.18.3, part i) -/
-theorem span_diagonalTensors :
+theorem span_diagonalTensors [CharZero k] :
     Submodule.span k (diagonalTensors k U n) = ⊤ := by
-  sorry
+  rw [eq_top_iff, ← SymmetricPower.span_tprod_eq_top]
+  apply Submodule.span_le.mpr
+  rintro _ ⟨f, rfl⟩
+  -- Need: tprod k f ∈ Submodule.span k (diagonalTensors k U n)
+  have hfact : (n.factorial : k) ≠ 0 :=
+    Nat.cast_ne_zero.mpr n.factorial_ne_zero
+  rw [show SymmetricPower.tprod k f =
+      (n.factorial : k)⁻¹ • ((n.factorial : k) • SymmetricPower.tprod k f) from
+    (inv_smul_smul₀ hfact _).symm]
+  rw [polarization_eq]
+  apply Submodule.smul_mem
+  apply Submodule.sum_mem
+  intro S _
+  apply Submodule.smul_mem
+  exact Submodule.subset_span ⟨∑ i ∈ S, f i, rfl⟩
 
 end Span
 
