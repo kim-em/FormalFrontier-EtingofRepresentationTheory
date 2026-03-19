@@ -1020,19 +1020,272 @@ private lemma D4_bound (x : Fin 4 → ℤ)
       sq_nonneg b, sq_nonneg (2*d - b - 3)]
   intro i; fin_cases i <;> simp_all <;> omega
 
--- The general D_n bound is proved by showing:
--- q(x) = sum_of_edge_diffs + x₀² + x_{n-2}² + x_{n-1}² - x_{n-3}²
--- From q = 2: leaf coordinates ≤ √(2+x_{n-3}²), path coords bounded by neighbors.
--- Key: the D_n Cartan form satisfies q(x) ≥ x₀² + x_{n-2}² + x_{n-1}² - x_{n-3}²
--- which with AM-GM on differences gives all coordinates ≤ 2.
+-- The general D_n bound is proved by induction on n:
+-- D_{n+1} QF decomposes as D_n QF on the tail + 2·x₀·(x₀ - x₁).
+-- Since QFs on integer vectors are always even, this forces either
+-- the tail to be a D_n root (so IH applies) or x = (1,0,...,0).
+
+/-- The adjacency matrix of D_{m+1} restricted to Fin.succ indices
+    equals the adjacency matrix of D_m. -/
+private lemma Dn_adj_succ_succ (m : ℕ) (hm : 4 ≤ m) (i j : Fin m) :
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj i.succ j.succ =
+    (Etingof.DynkinType.D m hm).adj i j := by
+  simp only [Etingof.DynkinType.adj, Fin.val_succ]
+  have hi := i.isLt
+  have hj := j.isLt
+  congr 1
+  constructor
+  · rintro ((⟨h1, h2⟩ | ⟨h3, h4⟩) | (⟨h5, h6⟩ | ⟨h7, h8⟩))
+    · left; left; exact ⟨by omega, by omega⟩
+    · left; right; exact ⟨by omega, by omega⟩
+    · right; left; exact ⟨by omega, by omega⟩
+    · right; right; exact ⟨by omega, by omega⟩
+  · rintro ((⟨h1, h2⟩ | ⟨h3, h4⟩) | (⟨h5, h6⟩ | ⟨h7, h8⟩))
+    · left; left; exact ⟨by omega, by omega⟩
+    · left; right; exact ⟨by omega, by omega⟩
+    · right; left; exact ⟨by omega, by omega⟩
+    · right; right; exact ⟨by omega, by omega⟩
+
+/-- Vertex 0 in D_{m+1} is only adjacent to vertex 1. -/
+private lemma Dn_adj_zero_succ (m : ℕ) (hm : 4 ≤ m) (j : Fin m) :
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj 0 j.succ =
+    if j.val = 0 then 1 else 0 := by
+  simp only [Etingof.DynkinType.adj, Fin.val_zero, Fin.val_succ]
+  have hj := j.isLt
+  split_ifs with h
+  · -- j = 0: edge 0-1 exists
+    simp only [h]
+    simp only [ite_eq_left_iff, not_or, not_and]
+    push_neg
+    constructor
+    · intro habs
+      exfalso; exact habs.1 ⟨rfl, by omega⟩
+    · intro habs; exfalso; exact habs.1 ⟨rfl, by omega⟩
+  · -- j ≥ 1: no edge from 0
+    simp only [ite_eq_right_iff]
+    rintro ((⟨h1, _⟩ | ⟨h3, _⟩) | (⟨_, h6⟩ | ⟨h7, _⟩))
+    · omega
+    · omega
+    · omega
+    · omega
+
+/-- Vertex 0 in D_{m+1} has no self-loop. -/
+private lemma Dn_adj_zero_zero (m : ℕ) (hm : 4 ≤ m) :
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj 0 0 = 0 := by
+  unfold Etingof.DynkinType.adj
+  simp only [Fin.val_zero, ite_eq_right_iff]
+  rintro ((⟨h1, _⟩ | ⟨h3, _⟩) | (⟨_, h6⟩ | ⟨_, h8⟩)) <;> omega
+
+/-- adj(succ i, 0) in D_{m+1} equals adj(0, succ i) by symmetry. -/
+private lemma Dn_adj_succ_zero (m : ℕ) (hm : 4 ≤ m) (i : Fin m) :
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj i.succ 0 =
+    if i.val = 0 then 1 else 0 := by
+  have hsymm := (Dn_isDynkin (m + 1) (by omega)).1
+  rw [hsymm.apply i.succ 0]
+  exact Dn_adj_zero_succ m hm i
+
+/-- The Cartan matrix of D_{m+1} at (succ i, succ j) matches D_m at (i, j). -/
+private lemma Dn_cartan_succ_succ (m : ℕ) (hm : 4 ≤ m) (i j : Fin m) :
+    (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) i.succ j.succ =
+    (2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+      (Etingof.DynkinType.D m hm).adj) i j := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul]
+  congr 1
+  · congr 1; exact propext ⟨fun h => Fin.succ_injective _ h, fun h => congr_arg _ h⟩
+  · exact Dn_adj_succ_succ m hm i j
+
+/-- The Cartan matrix of D_{m+1} at (0, succ j). -/
+private lemma Dn_cartan_zero_succ (m : ℕ) (hm : 4 ≤ m) (j : Fin m) :
+    (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) 0 j.succ =
+    if j.val = 0 then -1 else 0 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+    Fin.succ_ne_zero, ite_false]
+  rw [Dn_adj_zero_succ m hm]
+  split_ifs <;> simp
+
+/-- The Cartan matrix of D_{m+1} at (succ i, 0). -/
+private lemma Dn_cartan_succ_zero (m : ℕ) (hm : 4 ≤ m) (i : Fin m) :
+    (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) i.succ 0 =
+    if i.val = 0 then -1 else 0 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+    Fin.succ_ne_zero, ite_false]
+  rw [Dn_adj_succ_zero m hm]
+  split_ifs <;> simp
+
+/-- The Cartan matrix of D_{m+1} at (0, 0) is 2. -/
+private lemma Dn_cartan_zero_zero (m : ℕ) (hm : 4 ≤ m) :
+    (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) 0 0 = 2 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+    ite_true, Dn_adj_zero_zero m hm]
+
+/-- The D_{m+1} quadratic form decomposes as D_m on the tail plus 2x₀(x₀ - x₁). -/
+private lemma Dn_qform_peel (m : ℕ) (hm : 4 ≤ m) (x : Fin (m + 1) → ℤ) :
+    dotProduct x ((2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj).mulVec x) =
+    dotProduct (x ∘ Fin.succ)
+      ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+        (Etingof.DynkinType.D m hm).adj).mulVec (x ∘ Fin.succ)) +
+    2 * x 0 ^ 2 - 2 * x 0 * x ⟨1, by omega⟩ := by
+  set C := (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj) with hC
+  set C' := (2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+    (Etingof.DynkinType.D m hm).adj) with hC'
+  -- Expand dotProduct and mulVec
+  simp only [dotProduct, mulVec, Function.comp]
+  -- Peel off i = 0 from outer sum
+  rw [Fin.sum_univ_succ]
+  -- Peel off j = 0 from each inner sum
+  simp_rw [Fin.sum_univ_succ]
+  -- Substitute Cartan entries
+  simp only [hC, hC', Dn_cartan_zero_zero m hm, Dn_cartan_zero_succ m hm,
+    Dn_cartan_succ_zero m hm, Dn_cartan_succ_succ m hm]
+  -- The sum ∑_j (if j.val = 0 then -1 else 0) * x j.succ = -x 1
+  -- Clean up the if-then-else sums
+  simp only [ite_mul, zero_mul, neg_mul, one_mul, Finset.sum_ite_eq',
+    Finset.mem_univ, ite_true]
+  ring
+
+/-- Positive definiteness of the D_n Cartan form: q(x) > 0 for nonzero x. -/
+private lemma Dn_posDef (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ) (hx : x ≠ 0) :
+    0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.D n hn).adj).mulVec x) :=
+  (Dn_isDynkin n hn).2.2.2.2 x hx
 
 /-- All positive roots of D_n have each coordinate < 3.
-    The proof uses the quadratic form identity and bounds each vertex
-    by working from the three leaves toward the branch point. -/
-private lemma Dn_bound (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ)
-    (hr : Etingof.IsRoot n (Etingof.DynkinType.D n hn).adj x)
-    (hp : ∀ i, 0 ≤ x i) : ∀ i, x i < 3 := by
-  sorry
+    Proved by induction: peel off vertex 0, apply IH to D_{n-1}. -/
+private lemma Dn_bound : ∀ (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ),
+    Etingof.IsRoot n (Etingof.DynkinType.D n hn).adj x →
+    (∀ i, 0 ≤ x i) → ∀ i, x i < 3 := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hm x hr hp
+    -- Base case: m + 1 = 4, i.e., m = 3
+    by_cases hm4 : m = 3
+    · subst hm4
+      exact D4_bound x (by convert hr) hp
+    -- Inductive case: m + 1 ≥ 5, so m ≥ 4
+    · have hm' : 4 ≤ m := by omega
+      -- Decompose: q_{D_{m+1}}(x) = q_{D_m}(y) + 2x₀(x₀-x₁) where y = x∘succ
+      set y : Fin m → ℤ := x ∘ Fin.succ with hy_def
+      have hpeel := Dn_qform_peel m hm' x
+      have hq : dotProduct x ((2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+        (Etingof.DynkinType.D (m + 1) hm).adj).mulVec x) = 2 := hr.2
+      -- q_{D_m}(y) = 2 - 2x₀(x₀ - x₁)
+      set qy := dotProduct y ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+        (Etingof.DynkinType.D m hm').adj).mulVec y) with hqy_def
+      have hqy_val : qy = 2 - 2 * x 0 ^ 2 + 2 * x 0 * x ⟨1, by omega⟩ := by
+        linarith [hpeel]
+      -- y is non-negative
+      have hpy : ∀ i, 0 ≤ y i := fun i => hp i.succ
+      -- Case split on whether x₀ ≤ x₁ (= y₀)
+      by_cases hle : x 0 ≤ y ⟨0, by omega⟩
+      · -- x₀ ≤ x₁: then qy ≥ 2 (since 2x₀(x₁-x₀) ≥ 0 is added to 2)
+        -- But qy is even and qy > 0 for y ≠ 0, so qy ≥ 2.
+        -- Combined: qy = 2, so y is a D_m root.
+        -- Also 2x₀(x₀-x₁) = 0, so either x₀ = 0 or x₀ = x₁.
+        have hqy_ge : qy ≥ 2 := by
+          rw [hqy_val]
+          nlinarith [sq_nonneg (x 0), hp 0, hp ⟨1, by omega⟩]
+        -- If y = 0, then x = (x₀, 0, ..., 0), which has q = 2x₀².
+        -- From hr.2: 2x₀² = 2, so x₀ = ±1, and since x₀ ≥ 0, x₀ = 1.
+        -- Then x = (1, 0, ..., 0), all coords < 3. ✓
+        by_cases hy0 : y = 0
+        · -- y = 0 means x₁ = ... = x_m = 0
+          intro i
+          by_cases hi : i = 0
+          · subst hi
+            -- x₀² contributes to qy = 0 via the peel identity
+            -- From hpeel: 2 = 0 + 2x₀² - 0, so x₀² = 1, x₀ = 1
+            have : qy = 0 := by
+              rw [hqy_def, hy0]; simp [dotProduct, mulVec]
+            rw [this] at hqy_val
+            have : x 0 ^ 2 = 1 := by nlinarith
+            have : x 0 ≤ 1 := by nlinarith [sq_nonneg (x 0 - 1), hp 0]
+            omega
+          · -- i > 0, so x i = y (i-1) = 0
+            have : ∃ j : Fin m, i = j.succ := by
+              refine ⟨⟨i.val - 1, by omega⟩, ?_⟩
+              ext; simp; omega
+            obtain ⟨j, rfl⟩ := this
+            have := congr_fun hy0 j
+            simp [hy_def, Function.comp] at this
+            simp [this]
+        · -- y ≠ 0, so qy ≥ 2 (from PD: qy > 0, and qy is even)
+          -- Actually qy ≥ 2 from hqy_ge. And qy ≤ 2? Not directly...
+          -- But q_{D_{m+1}} = qy + 2x₀(x₀-x₁) = 2.
+          -- Since x₀ ≤ x₁: 2x₀(x₀-x₁) ≤ 0, so qy = 2 - 2x₀(x₀-x₁) ≥ 2.
+          -- But also: qy = 2 - 2x₀(x₀-x₁). Since q = qy + 2x₀(x₀-x₁) = 2:
+          -- If qy > 2: then 2x₀(x₀-x₁) < 0, so x₀ > 0 and x₀ < x₁.
+          -- qy must be even. If qy ≥ 4: 2x₀(x₀-x₁) = 2 - qy ≤ -2.
+          -- But x₀(x₀-x₁) ≤ 0, so |x₀(x₁-x₀)| ≥ 1. And qy = 2 + 2x₀(x₁-x₀) ≤ 2.
+          -- Wait: qy = 2 - 2x₀(x₀-x₁) = 2 + 2x₀(x₁-x₀). Since x₀≤x₁ and x₀≥0:
+          -- 2x₀(x₁-x₀) ≥ 0. So qy ≥ 2.
+          -- From q = 2: qy + 2x₀(x₀-x₁) = 2, so qy = 2 + 2x₀(x₁-x₀) ≥ 2.
+          -- For qy = 2: need x₀(x₁-x₀) = 0, so x₀ = 0 or x₀ = x₁.
+          -- For qy ≥ 4: q = qy + 2x₀(x₀-x₁) ≤ qy. But q = 2 < 4. Contradiction.
+          have hqy_le : qy ≤ 2 := by linarith [mul_nonneg (hp 0) (by linarith : (0 : ℤ) ≤ y ⟨0, by omega⟩ - x 0)]
+          have hqy_eq : qy = 2 := le_antisymm hqy_le hqy_ge
+          -- So y is a root of D_m
+          have hroot_y : Etingof.IsRoot m (Etingof.DynkinType.D m hm').adj y := ⟨hy0, hqy_eq⟩
+          -- Apply IH
+          have hbound_y := ih hm' y hroot_y hpy
+          -- Also: qy = 2 means 2x₀(x₀-x₁) = 0
+          have hx0_eq : x 0 * (x 0 - x ⟨1, by omega⟩) = 0 := by nlinarith
+          intro i
+          by_cases hi : i = 0
+          · subst hi
+            -- x₀ = 0 or x₀ = x₁. Either way x₀ ≤ x₁ = y₀ < 3.
+            rcases mul_eq_zero.mp hx0_eq with h0 | h0
+            · simp [h0]
+            · have : x 0 = x ⟨1, by omega⟩ := by linarith
+              rw [this]
+              exact hbound_y ⟨0, by omega⟩
+          · have : ∃ j : Fin m, i = j.succ := by
+              refine ⟨⟨i.val - 1, by omega⟩, ?_⟩; ext; simp; omega
+            obtain ⟨j, rfl⟩ := this
+            exact hbound_y j
+      · -- x₀ > x₁: then qy < 2.
+        push_neg at hle
+        -- qy = 2 - 2x₀(x₀-x₁) with x₀ > x₁ ≥ 0, so x₀ ≥ 1 and x₀-x₁ ≥ 1.
+        -- Hence x₀(x₀-x₁) ≥ 1, so qy ≤ 0.
+        -- By PD: qy > 0 for y ≠ 0, and qy ≥ 0 for y = 0.
+        -- So qy ≤ 0 forces y = 0 and qy = 0.
+        have hx0_pos : x 0 ≥ 1 := by
+          have := hp 0; have : y ⟨0, by omega⟩ = x ⟨1, by omega⟩ := rfl
+          omega
+        have hdiff_pos : x 0 - x ⟨1, by omega⟩ ≥ 1 := by
+          have : y ⟨0, by omega⟩ = x ⟨1, by omega⟩ := rfl; omega
+        have hqy_le : qy ≤ 0 := by nlinarith
+        -- y must be zero (otherwise PD gives qy > 0)
+        have hy0 : y = 0 := by
+          by_contra hy_ne
+          have := Dn_posDef m hm' y hy_ne
+          linarith
+        -- qy = 0, so 2x₀(x₀-x₁) = 2, i.e., x₀(x₀-x₁) = 1.
+        -- Since x₀ ≥ 1 and x₀-x₁ ≥ 1: x₀ = 1 and x₁ = 0.
+        have hprod : x 0 * (x 0 - x ⟨1, by omega⟩) = 1 := by
+          have : qy = 0 := by rw [hqy_def, hy0]; simp [dotProduct, mulVec]
+          linarith [this, hqy_val]
+        have hx0_eq : x 0 = 1 := by
+          -- From a * b = 1 with a ≥ 1 and b ≥ 1 (integers): a = 1
+          have h1 := hx0_pos
+          have h2 := hdiff_pos
+          nlinarith [mul_le_mul_of_nonneg_left h2 (by linarith : (0 : ℤ) ≤ x 0 - 1)]
+        -- x = (1, 0, 0, ..., 0), all coords < 3
+        intro i
+        by_cases hi : i = 0
+        · subst hi; simp [hx0_eq]
+        · have : ∃ j : Fin m, i = j.succ := by
+            refine ⟨⟨i.val - 1, by omega⟩, ?_⟩; ext; simp; omega
+          obtain ⟨j, rfl⟩ := this
+          have := congr_fun hy0 j
+          simp [hy_def, Function.comp] at this; simp [this]
 
 set_option linter.style.nativeDecide false in
 private lemma D4_count :
