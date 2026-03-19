@@ -133,25 +133,30 @@ After each coherent chunk of changes:
 
 Each commit must compile. One logical change per commit.
 
+### Commit Checkpoint Protocol (MANDATORY)
+
+**Wave 17 post-mortem: 13 sessions terminated with zero commits pushed, losing
+all work.** To prevent this, commit aggressively:
+
+1. **Commit after every compiling milestone** — a helper lemma proved, a
+   definition added, a sorry removed, a proof framework scaffolded. Don't
+   wait for the full theorem.
+2. **Push after every 2-3 commits** — a local commit that isn't pushed is
+   lost if the session terminates. `git push -u origin <branch>` early.
+3. **WIP commits are acceptable** — `feat: WIP prove helper_lemma (2/4
+   sorries remain)` is infinitely better than losing the work entirely.
+4. **If you've been working for 20+ minutes without a commit**, stop and
+   commit what you have right now, even if incomplete.
+
+The cost of an extra WIP commit is near zero. The cost of a lost session
+is hours of wasted compute and a stale claim blocking the queue.
+
 **Failure handling:**
 - Build fails on pre-existing issue → log and work around
 - Stuck after 3 fundamentally different attempts → document and move on
 - 3 consecutive iterations with no commits → end session, document blockers
   (does not apply to review or self-improvement sessions)
 - If `/second-opinion` or `/reflect` is unavailable, skip and note in progress entry
-
-**Self-detecting stalled work (prevents stale claims):**
-Stale claims (claimed issues with no PR after hours) are a major coordination
-problem — they block replanning and waste other agents' time. To avoid becoming
-a stale claim:
-- **Commit partial progress early.** After any meaningful change compiles, commit it.
-  Don't wait for a complete proof — partial proofs with sorry are valuable checkpoints.
-- **Budget your context.** If you've used ~50% of your context window on a difficulty
-  3/3 item with no commits, switch to `--partial` mode: commit what you have, write
-  the progress file, and publish. Another agent can continue from your checkpoint.
-- **Recognize spinning.** If you've tried 2+ fundamentally different approaches for
-  the same subgoal and none compiled, you're likely hitting a structural blocker.
-  Sorry the subgoal, commit, and document what you tried in the progress file.
 
 ## Step 5b: Context Health
 
@@ -162,20 +167,6 @@ a stale claim:
 4. Go directly to Step 6 then Step 7 with `--partial`
 
 Commit early and often. Each commit is a checkpoint.
-
-## Step 5c: Handling Merge Conflicts
-
-When your branch conflicts with main (common with `items.json` and shared files):
-
-1. **Fetch and rebase:** `git fetch origin && git rebase origin/main`
-2. **For `items.json` conflicts:** Accept main's version for items you didn't touch,
-   keep your changes for items you did. Use `git checkout --theirs progress/items.json`
-   then re-apply only your specific item updates.
-3. **For proof file conflicts:** If main has a strictly better proof (e.g., more complete,
-   fewer sorries), take main's version. Don't blend two different proof approaches —
-   pick one.
-4. **Build after resolution:** Always `lake build <module>` after resolving conflicts
-   before pushing. Bad conflict resolution creates duplicate definitions or broken imports.
 
 ## Step 6: Verify
 
