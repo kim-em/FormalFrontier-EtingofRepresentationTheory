@@ -220,7 +220,8 @@ noncomputable def Etingof.IsProgenerator.preadditiveCoyonedaObjFG
     exact (preadditiveCoyonedaObj P).map_id X
   map_comp f g := by
     apply InducedCategory.hom_ext
-    change (preadditiveCoyonedaObj P).map (f ≫ g) = (preadditiveCoyonedaObj P).map f ≫ (preadditiveCoyonedaObj P).map g
+    change (preadditiveCoyonedaObj P).map (f ≫ g) =
+      (preadditiveCoyonedaObj P).map f ≫ (preadditiveCoyonedaObj P).map g
     exact (preadditiveCoyonedaObj P).map_comp f g
 
 -- Essential surjectivity of Hom(P, -) restricted to finitely generated modules.
@@ -232,6 +233,16 @@ instance Etingof.IsProgenerator.essSurj_preadditiveCoyonedaObjFG
     [Etingof.IsFiniteAbelianCategory C]
     {P : C} [hp : Etingof.IsProgenerator P] :
     hp.preadditiveCoyonedaObjFG.EssSurj := by
+  constructor
+  intro M
+  -- M is a finitely generated (End P)ᵒᵖ-module.
+  -- Strategy: choose a finite presentation of M:
+  --   (End P)^m → (End P)^n → M → 0
+  -- Use fullness of Hom(P,-) to lift to maps in C:
+  --   P^m → P^n
+  -- Set X = coker of P^m → P^n. Then Hom(P, X) ≅ M.
+  -- This requires substantial infrastructure that is beyond
+  -- what can be done in a single session.
   sorry
 
 -- Essential surjectivity of Hom(P, -) into all modules follows from the FG version
