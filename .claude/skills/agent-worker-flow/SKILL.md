@@ -142,9 +142,6 @@ is far worse than an extra commit.
 
 ### Commit Checkpoint Protocol (MANDATORY)
 
-**Wave 17 post-mortem: 13 sessions terminated with zero commits pushed, losing
-all work.** To prevent this, commit aggressively:
-
 1. **Commit after every compiling milestone** — a helper lemma proved, a
    definition added, a sorry removed, a proof framework scaffolded. Don't
    wait for the full theorem.
