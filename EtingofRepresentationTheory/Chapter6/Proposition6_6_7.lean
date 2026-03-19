@@ -362,8 +362,77 @@ theorem Etingof.Proposition6_6_7_sink
             Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) a) (W₂_at a))
         else
           Submodule.map (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap (W₂ v)
+      -- Prove U₁ is a subrep of ρ
+      have hU₁_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'), ∀ x ∈ U₁ a', ρ.mapLinear e' x ∈ U₁ b' := by
+        intro a' b' e' x hx
+        have ha' : a' ≠ i := sink_no_out e'
+        simp only [U₁, dif_neg ha'] at hx
+        obtain ⟨w, hw, rfl⟩ := hx
+        by_cases hb' : b' = i
+        · cases hb'
+          simp only [U₁, dif_pos rfl]
+          refine Submodule.mem_map.mpr
+            ⟨DirectSum.lof k (Etingof.ArrowsInto Q i) (fun c => ρ.obj c.1) ⟨a', e'⟩
+              ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w), ?_, ?_⟩
+          · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
+              (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
+                ⟨w, hw, rfl⟩, rfl⟩)
+          · show (ρ.sinkMap i) _ = _
+            simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
+            rfl
+        · simp only [U₁, dif_neg hb']
+          -- Needs reflFunctorPlus_mapLinear_ne_ne (sorry'd, #1228)
+          sorry
+      have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'), ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
+        intro a' b' e' x hx
+        have ha' : a' ≠ i := sink_no_out e'
+        simp only [U₂, dif_neg ha'] at hx
+        obtain ⟨w, hw, rfl⟩ := hx
+        by_cases hb' : b' = i
+        · cases hb'
+          simp only [U₂, dif_pos rfl]
+          refine Submodule.mem_map.mpr
+            ⟨DirectSum.lof k (Etingof.ArrowsInto Q i) (fun c => ρ.obj c.1) ⟨a', e'⟩
+              ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w), ?_, ?_⟩
+          · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
+              (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
+                ⟨w, hw, rfl⟩, rfl⟩)
+          · show (ρ.sinkMap i) _ = _
+            simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
+            rfl
+        · simp only [U₂, dif_neg hb']
+          sorry -- Same blocker as U₁ case
+      have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
+        intro v
+        by_cases hv : v = i
+        · subst hv
+          simp only [U₁, U₂, dif_pos rfl]
+          sorry -- Requires showing φ-images of W₁/W₂ parts are complementary
+        · simp only [U₁, U₂, dif_neg hv]
+          have hc := hcompl v
+          let φ' := (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap
+          exact ⟨by
+            rw [Submodule.disjoint_def]
+            intro x hx1 hx2
+            obtain ⟨w₁, hw₁, rfl⟩ := Submodule.mem_map.mp hx1
+            obtain ⟨w₂, hw₂, hw₂eq⟩ := Submodule.mem_map.mp hx2
+            have heq := (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).injective hw₂eq
+            have : w₁ ∈ W₁ v ⊓ W₂ v := ⟨hw₁, heq ▸ hw₂⟩
+            rw [hc.1.eq_bot] at this
+            simp only [Submodule.mem_bot] at this
+            rw [this, map_zero],
+          by
+            rw [codisjoint_iff, eq_top_iff]; intro x _
+            obtain ⟨w, rfl⟩ := (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).surjective x
+            have hw : w ∈ (⊤ : Submodule k _) := Submodule.mem_top
+            rw [← hc.2.eq_top, Submodule.mem_sup] at hw
+            obtain ⟨w₁, hw₁, w₂, hw₂, rfl⟩ := hw
+            exact Submodule.mem_sup.mpr
+              ⟨_, Submodule.mem_map.mpr ⟨w₁, hw₁, rfl⟩,
+               _, Submodule.mem_map.mpr ⟨w₂, hw₂, rfl⟩,
+               (map_add _ _ _).symm⟩⟩
       -- Apply V's indecomposability
-      have hindecomp := hρ.2 U₁ U₂ (sorry) (sorry) (sorry)
+      have hindecomp := hρ.2 U₁ U₂ hU₁_subrep hU₂_subrep hU_compl
       -- Transport back: U_k = ⊥ everywhere → W_k = ⊥ everywhere
       -- At v ≠ i: equiv is injective, so map = ⊥ → original = ⊥
       -- At v = i: W_k(i) ⊆ ker(φ) ⊆ ⊕V_j, and the F⁺(V) maps from i
