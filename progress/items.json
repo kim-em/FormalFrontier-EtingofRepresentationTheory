@@ -3202,7 +3202,7 @@
     "end_page": "118",
     "start_line": 1,
     "end_line": 9,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
@@ -3222,7 +3222,7 @@
     "end_page": "118",
     "start_line": 15,
     "end_line": 18,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
@@ -3408,7 +3408,7 @@
     "end_page": "123",
     "start_line": 5,
     "end_line": 14,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
@@ -3763,7 +3763,7 @@
     "end_page": "141",
     "start_line": 15,
     "end_line": 34,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": false
   },
   {
@@ -3792,7 +3792,7 @@
     "end_page": "144",
     "start_line": 22,
     "end_line": 14,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": false
   },
   {
@@ -4425,7 +4425,7 @@
     "end_page": "174",
     "start_line": 21,
     "end_line": 26,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
@@ -4498,7 +4498,7 @@
     "end_page": "177",
     "start_line": 33,
     "end_line": 14,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true,
     "attention_needed": "statement fixed: added IsOrientationOf hypothesis and pinned universe (#1094)"
   },
@@ -4531,7 +4531,7 @@
     "end_page": "178",
     "start_line": 31,
     "end_line": 14,
-    "status": "statement_formalized",
+    "status": "proof_partial",
     "needs_statement": true
   },
   {
