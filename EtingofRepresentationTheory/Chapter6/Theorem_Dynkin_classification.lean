@@ -132,6 +132,209 @@ private lemma isDynkinDiagram_of_graph_iso {n m : ℕ} {adj : Matrix (Fin n) (Fi
     apply Fintype.sum_equiv σ; intro j
     simp only [hiso, σ.injective.eq_iff]
 
+/-! ## D_n quadratic form infrastructure
+
+For D_n, we define a recursive quadratic form `DnQF` that peels off vertex 0 at each step,
+with D₄ as the base case. This mirrors the `pathQF` approach for A_n.
+The key insight is that removing vertex 0 from D_n gives D_{n-1} (for n ≥ 5).
+-/
+
+/-- Recursive quadratic form for D_n, using ℕ → ℤ to avoid Fin casting.
+    Base case is D₄, and each step peels off vertex 0:
+    DnQF (m+1) x = 2x₀² - 2x₀x₁ + DnQF m (x ∘ (·+1)). -/
+private def DnQF : ℕ → (ℕ → ℤ) → ℤ
+  | 0, x => 2*x 0^2 + 2*x 1^2 + 2*x 2^2 + 2*x 3^2 -
+             2*x 0*x 1 - 2*x 1*x 2 - 2*x 1*x 3
+  | m + 1, x => 2 * x 0 ^ 2 - 2 * x 0 * x 1 + DnQF m (fun i => x (i + 1))
+
+/-- DnQF m x ≥ (x 0)². Base case uses SOS decomposition of D₄; inductive step peels vertex 0. -/
+private lemma DnQF_lower : ∀ (m : ℕ) (x : ℕ → ℤ), (x 0) ^ 2 ≤ DnQF m x := by
+  intro m
+  induction m with
+  | zero =>
+    intro x; simp only [DnQF]
+    nlinarith [sq_nonneg (x 0 - x 1), sq_nonneg (x 1 - x 2 - x 3), sq_nonneg (x 2 - x 3)]
+  | succ k ih =>
+    intro x; simp only [DnQF]
+    have := ih (fun i => x (i + 1))
+    nlinarith [sq_nonneg (x 0 - x 1)]
+
+/-- If DnQF m x ≤ 0, then x is zero on {0, ..., m+3}. -/
+private lemma DnQF_le_zero_imp : ∀ (m : ℕ) (x : ℕ → ℤ),
+    DnQF m x ≤ 0 → ∀ i, i ≤ m + 3 → x i = 0 := by
+  intro m
+  induction m with
+  | zero =>
+    intro x hle i hi
+    simp only [DnQF] at hle
+    have h0 : x 0 = 0 := by
+      nlinarith [sq_nonneg (x 0), sq_nonneg (x 0 - x 1),
+        sq_nonneg (x 1 - x 2 - x 3), sq_nonneg (x 2 - x 3)]
+    have h1 : x 1 = 0 := by
+      nlinarith [sq_nonneg (x 0 - x 1), sq_nonneg (x 1 - x 2 - x 3), sq_nonneg (x 2 - x 3)]
+    have hle' : 2 * (x 2) ^ 2 + 2 * (x 3) ^ 2 ≤ 0 := by
+      have : x 0 ^ 2 = 0 := by rw [h0]; ring
+      have : x 1 ^ 2 = 0 := by rw [h1]; ring
+      have : x 0 * x 1 = 0 := by rw [h0]; ring
+      have : x 1 * x 2 = 0 := by rw [h1]; ring
+      have : x 1 * x 3 = 0 := by rw [h1]; ring
+      linarith
+    have h2 : x 2 = 0 := by nlinarith [sq_nonneg (x 2), sq_nonneg (x 3)]
+    have h3 : x 3 = 0 := by nlinarith [sq_nonneg (x 2), sq_nonneg (x 3)]
+    interval_cases i <;> assumption
+  | succ k ih =>
+    intro x hle i hi
+    have hshift_lower := DnQF_lower k (fun j => x (j + 1))
+    simp only [DnQF] at hle
+    have hx0 : x 0 = 0 := by nlinarith [sq_nonneg (x 0 - x 1), sq_nonneg (x 0)]
+    have htail : DnQF k (fun j => x (j + 1)) ≤ 0 := by nlinarith
+    rcases i with _ | i
+    · exact hx0
+    · exact ih (fun j => x (j + 1)) htail i (by omega)
+
+/-! ## Dn Cartan matrix recurrence
+
+The D_n Cartan matrix has the same structure as A_n when peeling vertex 0:
+the (n-1)×(n-1) sub-matrix obtained by removing row/col 0 from D_n is exactly D_{n-1}.
+We use concrete index forms (k+5 instead of abstract n) to avoid Fin type class issues.
+-/
+
+/-- The D_{k+5} Cartan sub-matrix property: removing row/col 0 gives D_{k+4}. -/
+private lemma cartan_Dn_succ' (k : ℕ) (i j : Fin (k + 4)) :
+    (2 • (1 : Matrix (Fin (k + 5)) (Fin (k + 5)) ℤ) -
+      DynkinType.adj (.D (k + 5) (by omega))) (Fin.succ i) (Fin.succ j) =
+    (2 • (1 : Matrix (Fin (k + 4)) (Fin (k + 4)) ℤ) -
+      DynkinType.adj (.D (k + 4) (by omega))) i j := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul, DynkinType.adj,
+    Fin.val_succ, Fin.ext_iff]
+  split_ifs <;> simp_all <;> omega
+
+/-- The D_{k+5} dot product recurrence: peel off vertex 0. -/
+private lemma Dn_dotProduct_recurrence' (k : ℕ) (x : Fin (k + 5) → ℤ) :
+    dotProduct x ((2 • (1 : Matrix (Fin (k + 5)) (Fin (k + 5)) ℤ) -
+      DynkinType.adj (.D (k + 5) (by omega))).mulVec x) =
+    2 * (x 0) ^ 2 - 2 * x 0 * x ⟨1, by omega⟩ +
+    dotProduct (x ∘ Fin.succ) ((2 • (1 : Matrix (Fin (k + 4)) (Fin (k + 4)) ℤ) -
+      DynkinType.adj (.D (k + 4) (by omega))).mulVec (x ∘ Fin.succ)) := by
+  set C := (2 • (1 : Matrix (Fin (k + 5)) (Fin (k + 5)) ℤ) -
+    DynkinType.adj (.D (k + 5) (by omega)))
+  set C' := (2 • (1 : Matrix (Fin (k + 4)) (Fin (k + 4)) ℤ) -
+    DynkinType.adj (.D (k + 4) (by omega)))
+  -- Split dotProduct at i = 0
+  rw [show dotProduct x (C.mulVec x) =
+      x 0 * (C.mulVec x) 0 + ∑ i : Fin (k + 4), x (Fin.succ i) * (C.mulVec x) (Fin.succ i) from
+    Fin.sum_univ_succ (f := fun i => x i * (C.mulVec x) i)]
+  -- Compute (C.mulVec x) 0 = 2*x(0) - x(1)
+  have hmv0 : (C.mulVec x) 0 = 2 * x 0 - x ⟨1, by omega⟩ := by
+    change ∑ j, C 0 j * x j = _
+    rw [Fin.sum_univ_succ]
+    rw [Fin.sum_univ_succ (f := fun j : Fin (k + 4) => C 0 (Fin.succ j) * x (Fin.succ j))]
+    have hC00 : C 0 0 = 2 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        DynkinType.adj, Fin.val_zero, Fin.ext_iff]; split_ifs <;> simp_all <;> omega
+    have hC01 : C 0 (Fin.succ (0 : Fin (k + 4))) = -1 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]; split_ifs <;> simp_all <;> omega
+    have hrest : ∑ i : Fin (k + 3), C 0 (Fin.succ (Fin.succ i)) * x (Fin.succ (Fin.succ i)) = 0 :=
+      Finset.sum_eq_zero fun j _ => by
+        have : C 0 (Fin.succ (Fin.succ j)) = 0 := by
+          simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+            DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+          split_ifs <;> simp_all <;> omega
+        rw [this, zero_mul]
+    rw [hC00, hC01, hrest]
+    have : x (Fin.succ (0 : Fin (k + 4))) = x ⟨1, by omega⟩ := by congr 1
+    rw [this]; ring
+  rw [hmv0]
+  -- Decompose (C.mulVec x)(succ i)
+  have hmv_succ : ∀ i : Fin (k + 4), (C.mulVec x) (Fin.succ i) =
+      C (Fin.succ i) 0 * x 0 + (C'.mulVec (x ∘ Fin.succ)) i := by
+    intro i; change ∑ j, C (Fin.succ i) j * x j = _
+    rw [Fin.sum_univ_succ]; congr 1
+    change _ = ∑ j, C' i j * (x ∘ Fin.succ) j
+    apply Finset.sum_congr rfl; intro j _
+    simp only [Function.comp]; congr 1
+    simp only [C, C']
+    exact cartan_Dn_succ' k i j
+  simp_rw [hmv_succ, mul_add, Finset.sum_add_distrib]
+  have hsum_C0 : ∑ i : Fin (k + 4), x (Fin.succ i) * (C (Fin.succ i) 0 * x 0) =
+      -(x ⟨1, by omega⟩ * x 0) := by
+    rw [Fin.sum_univ_succ]
+    have hC10 : C (Fin.succ (0 : Fin (k + 4))) 0 = -1 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+      split_ifs <;> simp_all <;> omega
+    rw [hC10]
+    have hrest : ∀ j : Fin (k + 3), C (Fin.succ (Fin.succ j)) 0 = 0 := by
+      intro j
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+      split_ifs <;> simp_all <;> omega
+    have : ∑ j : Fin (k + 3), x (Fin.succ (Fin.succ j)) *
+        (C (Fin.succ (Fin.succ j)) 0 * x 0) = 0 :=
+      Finset.sum_eq_zero (fun j _ => by rw [hrest]; ring)
+    rw [this, add_zero]
+    have : x (Fin.succ (0 : Fin (k + 4))) = x ⟨1, by omega⟩ := by congr 1
+    rw [this]; ring
+  rw [hsum_C0]
+  rw [show ∑ i : Fin (k + 4), x (Fin.succ i) * (C'.mulVec (x ∘ Fin.succ)) i =
+    dotProduct (x ∘ Fin.succ) (C'.mulVec (x ∘ Fin.succ)) from rfl]
+  ring
+
+/-- DnQF relates to the D_n dotProduct form. -/
+private lemma DnQF_eq_dotProduct : ∀ (m : ℕ) (x : Fin (m + 4) → ℤ),
+    DnQF m (fun i => if h : i < m + 4 then x ⟨i, h⟩ else 0) =
+    dotProduct x ((2 • (1 : Matrix (Fin (m + 4)) (Fin (m + 4)) ℤ) -
+      DynkinType.adj (.D (m + 4) (by omega))).mulVec x) := by
+  intro m
+  induction m with
+  | zero =>
+    intro x
+    simp only [DnQF]
+    set C := 2 • (1 : Matrix (Fin 4) (Fin 4) ℤ) - DynkinType.adj (.D 4 (by omega))
+    have hC : C = !![2,-1,0,0; -1,2,-1,-1; 0,-1,2,0; 0,-1,0,2] := by
+      ext i j; fin_cases i <;> fin_cases j <;> native_decide
+    rw [hC]
+    simp [dotProduct, mulVec, Fin.sum_univ_succ, Fin.sum_univ_zero, Matrix.cons_val_zero,
+      Matrix.cons_val_one, Matrix.cons_val, vecHead]
+    ring
+  | succ k ih =>
+    intro x
+    set ext_x : ℕ → ℤ := fun i => if h : i < k + 5 then x ⟨i, h⟩ else 0
+    show DnQF (k + 1) ext_x = _
+    simp only [DnQF]
+    have hx0 : ext_x 0 = x 0 := by simp [ext_x]
+    have hx1 : ext_x 1 = x ⟨1, by omega⟩ := by simp [ext_x, show (1 : ℕ) < k + 5 from by omega]
+    rw [hx0, hx1]
+    set x' : Fin (k + 4) → ℤ := fun j => x ⟨j.val + 1, by omega⟩
+    have hshift : (fun i => ext_x (i + 1)) =
+        fun i => if h : i < k + 4 then x' ⟨i, h⟩ else 0 := by
+      ext i; simp only [ext_x, x']
+      by_cases hi : i < k + 4
+      · simp [hi, show i + 1 < k + 5 from by omega]
+      · simp [hi, show ¬(i + 1 < k + 5) from by omega]
+    rw [hshift, ih x']
+    rw [Dn_dotProduct_recurrence' k x]
+    have hx'_eq : x' = x ∘ Fin.succ := by ext j; simp [x', Function.comp, Fin.succ]
+    rw [hx'_eq]
+
+/-- Positive definiteness for D_n Cartan form. -/
+private lemma Dn_posDef (n : ℕ) (hn : 4 ≤ n) :
+    ∀ x : Fin n → ℤ, x ≠ 0 →
+    0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      DynkinType.adj (.D n hn)).mulVec x) := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 4 := ⟨n - 4, by omega⟩
+  intro x hx
+  rw [← DnQF_eq_dotProduct m x]
+  by_contra h
+  push_neg at h
+  have hzero := DnQF_le_zero_imp m
+    (fun i => if hi : i < m + 4 then x ⟨i, hi⟩ else 0) h
+  apply hx; ext ⟨i, hi⟩
+  have := hzero i (by omega)
+  simp only [show (i < m + 4) = True from by simp; omega, dite_true] at this
+  exact this
+
 /-! ## A_n is a Dynkin diagram
 
 For the path graph A_n, the Tits form q(x) = x^T(2I-adj)x satisfies the sum-of-squares
@@ -588,7 +791,7 @@ private lemma Dn_isDynkin (n : ℕ) (hn : 4 ≤ n) :
         · exact main_asc i j (by omega) (by omega) hij
         · exact main_desc i j (by omega) (by omega) (by omega)
   · -- Positive definiteness
-    sorry
+    exact Dn_posDef n hn
 
 /-- Explicit tree-paths for E₆: vertex `i` to vertex `j` through the unique tree path. -/
 private def E6_treePath : Fin 6 → Fin 6 → List (Fin 6) := fun i j =>
