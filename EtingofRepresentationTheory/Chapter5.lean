@@ -44,6 +44,9 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_10_1
 -- Section 5.12: Specht Modules and Young Tableaux
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.Theorem5_12_2
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2_Irreducible
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2_Distinct
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2_Classification
 import EtingofRepresentationTheory.Chapter5.Example5_12_3
 import EtingofRepresentationTheory.Chapter5.Corollary5_12_4
 
