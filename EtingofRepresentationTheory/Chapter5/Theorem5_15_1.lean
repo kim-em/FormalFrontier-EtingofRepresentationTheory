@@ -1646,7 +1646,22 @@ private theorem rhoShift_partial_sum_ge {n : ℕ}
   rw [hLHS, hRHS]
   by_cases hk : k ≤ n
   · rw [min_eq_left hk]
-    exact sum_fin_subset_le_sum_top n _ k hk (by simp [Finset.card_map, Finset.card_filter]; sorry)
+    refine sum_fin_subset_le_sum_top n _ k hk ?_
+    rw [Finset.card_map]
+    -- F.card = |{i : Fin n | i.val < k}| = k (since k ≤ n)
+    -- The elements of F are exactly ⟨0, _⟩, ..., ⟨k-1, _⟩
+    -- So F has the same card as Finset.range k mapped into Fin n
+    have hkn := hk  -- capture for use in term-mode proofs
+    trans (Finset.range k).card
+    · apply Finset.card_eq_of_equiv
+      exact {
+        toFun := fun ⟨⟨i, hi⟩, hm⟩ => ⟨i, by simp [F] at hm; exact Finset.mem_range.mpr hm⟩
+        invFun := fun ⟨i, hm⟩ => ⟨⟨i, by have := Finset.mem_range.mp hm; omega⟩,
+          by simp [F]; exact Finset.mem_range.mp hm⟩
+        left_inv := fun ⟨⟨i, hi⟩, hm⟩ => by simp
+        right_inv := fun ⟨i, hm⟩ => by simp
+      }
+    · exact Finset.card_range k
   · push_neg at hk
     rw [min_eq_right (le_of_lt hk)]
     -- F = univ, F.map π⁻¹ = univ
