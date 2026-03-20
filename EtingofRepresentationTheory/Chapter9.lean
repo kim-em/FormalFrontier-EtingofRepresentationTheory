@@ -16,6 +16,7 @@ import EtingofRepresentationTheory.Chapter9.Theorem9_6_4
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Chapter9.Corollary9_7_3
+import EtingofRepresentationTheory.Chapter9.MoritaStructural
 
 /-!
 # Chapter 9: Structure of Finite-Dimensional Algebras
