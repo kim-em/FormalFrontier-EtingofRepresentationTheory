@@ -1526,28 +1526,122 @@ theorem Etingof.Theorem_9_2_1_ii
     (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0) :
     Nonempty (A ≃ₗ[A] ⨁ (i : ι), Fin (Module.finrank k (M i)) → P i) := by
-  -- Proof outline (Etingof Theorem 9.2.1(ii)):
-  -- 1. From Part (i), construct primitive idempotents e_i in A (one per block) with
-  --    Ae_i projective, indecomposable, Hom(Ae_i, M_j) = δ_{ij}.
-  -- 2. FULL SYSTEM: Extend to complete orthogonal idempotents {e_{ij}} indexed by
-  --    (i : ι, j : Fin (dim M_i)). In A/J ≅ ∏ Mat_{d(σ(i))}(k), these are the
-  --    E_{jj} diagonal idempotents in each block. The key identity d(σ(i)) = dim(M_i)
-  --    follows from the standard representation of Mat_n(k) having dimension n.
-  -- 3. Lift the full system from A/J to A via Corollary 9.1.3.
-  -- 4. A = ⊕_{i,j} A·e_{ij} by isInternal_leftIdeals_of_completeOrthogonalIdempotents.
-  -- 5. Each A·e_{ij} has Hom(A·e_{ij}, M_k) = δ_{ik} (by finrank_hom_leftIdeal_eq + rank prop).
-  -- 6. Each A·e_{ij} is indecomposable (by leftIdeal_indecomposable_of_hom_delta).
-  -- 7. For fixed i, the e_{ij} are lifts of conjugate idempotents in A/J.
-  --    By Prop 9.1.1(ii), the lifts are conjugate in A×.
-  --    By leftIdeal_equiv_of_conjugate, A·e_{ij} ≅ A·e_{i1} for all j.
-  -- 8. UNIQUENESS (needs #1487): A·e_{i1} ≅ P_i (both indecomposable projective with
-  --    same Hom dimensions). This uses indecomposable_projective_iso_of_hom.
-  -- 9. Combine: A ≅ ⊕_i (dim M_i · A·e_{i1}) ≅ ⊕_i (dim M_i · P_i).
-  --
-  -- Infrastructure needed:
-  -- (a) Full system of primitive idempotents (step 2) — new construction
-  -- (b) d(σ(i)) = finrank_k(M_i) — dimension matching
-  -- (c) Uniqueness of projective covers (step 8) — issue #1487
+  -- Proof strategy (Etingof Theorem 9.2.1(ii)):
+  -- 1. Construct complete orthogonal idempotents in A indexed by Σ i, Fin (dim M_i),
+  --    using the Wedderburn-Artin decomposition of A/J, diagonal matrix units, and lifting.
+  -- 2. Each left ideal A·e_p has Hom(A·e_p, M_j) = δ_{p.1, j} (rank property).
+  -- 3. Each A·e_p is indecomposable and projective, hence ≅ P_{p.1} by uniqueness.
+  -- 4. A = ⊕_p A·e_p ≅ ⊕_p P_{p.1} ≅ ⊕_i (Fin (dim M_i) → P_i).
+  haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
+  -- Step 1: Construct complete orthogonal idempotents with the Hom delta property.
+  -- This is the core WA-based construction (sorry'd — see detailed outline above).
+  suffices h_coi : ∃ (e : (Σ i : ι, Fin (Module.finrank k (M i))) → A),
+      CompleteOrthogonalIdempotents e ∧
+      ∀ (p : Σ i : ι, Fin (Module.finrank k (M i))) (j : ι),
+        Module.finrank k (Etingof.Theorem921.smulRange (k := k) (A := A) (M j) (e p)) =
+          if p.fst = j then 1 else 0 by
+    -- Assembly: Given the complete system, build the decomposition A ≅ ⊕_i (dim M_i) · P_i.
+    obtain ⟨e, he_coi, he_rank⟩ := h_coi
+    -- Each left ideal A·e_p has the Hom delta property via finrank_hom_leftIdeal_eq
+    set N : (Σ i : ι, Fin (Module.finrank k (M i))) → Submodule A A :=
+      fun p => Submodule.span A ({e p} : Set A) with hN_def
+    have hdim_hom : ∀ (p : Σ i : ι, Fin (Module.finrank k (M i))) (j : ι),
+        Module.finrank k (↥(N p) →ₗ[A] M j) = if p.fst = j then 1 else 0 := by
+      intro p j
+      rw [Theorem921.finrank_hom_leftIdeal_eq (k := k) (e p) (he_coi.idem p)]
+      exact he_rank p j
+    -- Each A·e_p is projective
+    have hproj : ∀ p, Module.Projective A ↥(N p) :=
+      fun p => Theorem921.leftIdeal_projective (e p) (he_coi.idem p)
+    -- Each A·e_p is indecomposable (by the Hom delta + exhaustiveness argument)
+    have hindec : ∀ p, Etingof.IsIndecomposable A ↥(N p) :=
+      fun p => Theorem921.leftIdeal_indecomposable_of_hom_delta (k := k) M hM hM_exhaustive
+        (e p) (he_coi.idem p) p.1 (hdim_hom p)
+    -- Each A·e_p ≅ P_{p.1} by uniqueness of indecomposable projectives
+    -- (both have nonzero Hom to M_{p.1})
+    have hiso : ∀ p, Nonempty (↥(N p) ≃ₗ[A] P p.fst) := by
+      intro p
+      -- Need: finrank of Hom to M_{p.1} is 1 for both N p and P p.fst
+      -- A·e_p has dim Hom(-, M_{p.1}) = 1
+      have hdim1 : Module.finrank k (↥(N p) →ₗ[A] M p.fst) = 1 := by
+        rw [hdim_hom]; simp
+      -- P p.fst has dim Hom(-, M_{p.1}) = 1
+      have hdim2 : Module.finrank k (P p.fst →ₗ[A] M p.fst) = 1 := by
+        rw [hP]; simp
+      -- Both Hom spaces are nontrivial (finrank = 1)
+      haveI : Module.Finite k ↥(N p) :=
+        Module.Finite.of_injective ((N p).subtype.restrictScalars k) Subtype.val_injective
+      haveI : FiniteDimensional k ↥(N p) := inferInstance
+      haveI : FiniteDimensional k (P p.fst) := Module.Finite.trans A (P p.fst)
+      -- Simple modules are finite-dimensional
+      haveI : ∀ j, Module.Finite k (M j) := by
+        intro j
+        haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+        obtain ⟨v, hv⟩ := exists_ne (0 : M j)
+        let φ : A →ₗ[k] M j := (LinearMap.toSpanSingleton A (M j) v).restrictScalars k
+        have hφ_surj : Function.Surjective φ := by
+          intro m
+          have hrange : LinearMap.range (LinearMap.toSpanSingleton A (M j) v) = ⊤ := by
+            rcases IsSimpleOrder.eq_bot_or_eq_top
+              (LinearMap.range (LinearMap.toSpanSingleton A (M j) v)) with h | h
+            · exact absurd (show v = 0 from by
+                have : v ∈ LinearMap.range
+                    (LinearMap.toSpanSingleton A (M j) v) := ⟨1, one_smul A v⟩
+                rw [h] at this; exact (Submodule.mem_bot A).mp this) hv
+            · exact h
+          exact LinearMap.range_eq_top.mp hrange m
+        exact Module.Finite.of_surjective φ hφ_surj
+      -- Hom spaces are finite-dimensional
+      haveI : Module.Finite k (↥(N p) →ₗ[A] M p.fst) :=
+        Module.Finite.of_injective
+          (LinearMap.restrictScalarsₗ k A (↥(N p)) (M p.fst) k)
+          (LinearMap.restrictScalars_injective k)
+      haveI : Module.Finite k (P p.fst →ₗ[A] M p.fst) :=
+        Module.Finite.of_injective
+          (LinearMap.restrictScalarsₗ k A (P p.fst) (M p.fst) k)
+          (LinearMap.restrictScalars_injective k)
+      -- Get nonzero maps from both
+      have hnt1 : Nontrivial (↥(N p) →ₗ[A] M p.fst) := by
+        rw [← Module.finrank_pos_iff (R := k)]; omega
+      have hnt2 : Nontrivial (P p.fst →ₗ[A] M p.fst) := by
+        rw [← Module.finrank_pos_iff (R := k)]; omega
+      obtain ⟨φ, hφ⟩ := exists_ne (0 : ↥(N p) →ₗ[A] M p.fst)
+      obtain ⟨ψ, hψ⟩ := exists_ne (0 : P p.fst →ₗ[A] M p.fst)
+      exact Etingof.indecomposable_projective_iso_of_hom (k := k)
+        (hindec p) (hP_indec p.fst) φ hφ ψ hψ
+    -- Step 2: Build the A-linear equivalence A ≅ ⊕_i (Fin (dim M_i) → P i).
+    -- First: A ≅ ⊕_p A·e_p (from complete orthogonal idempotents + internal direct sum)
+    have hint := Theorem921.isInternal_leftIdeals_of_completeOrthogonalIdempotents e he_coi
+    -- DirectSum.IsInternal means coeLinearMap is bijective
+    let decomp : A ≃ₗ[A] ⨁ p, ↥(N p) :=
+      (LinearEquiv.ofBijective (DirectSum.coeLinearMap N) hint).symm
+    -- Second: ⊕_p A·e_p ≃ ⊕_p P_{p.fst} (component-wise via hiso)
+    -- Use δ i j = P i (constant in j) for the sigma curry
+    let δ : (i : ι) → Fin (Module.finrank k (M i)) → Type _ := fun i _ => P i
+    -- Component-wise linear equivalences
+    let isoP : ∀ (p : Σ i : ι, Fin (Module.finrank k (M i))),
+        ↥(N p) ≃ₗ[A] δ p.fst p.snd :=
+      fun p => Classical.choice (hiso p)
+    -- ⊕ p, N(p) ≃ ⊕ p, δ p.fst p.snd
+    let dsIso : (⨁ p, ↥(N p)) ≃ₗ[A] ⨁ (p : Σ i : ι, Fin (Module.finrank k (M i))),
+        δ p.fst p.snd :=
+      DFinsupp.mapRange.linearEquiv isoP
+    -- Third: ⊕ p, δ p.fst p.snd ≃ ⊕ i, ⊕ j, δ i j  (sigma curry)
+    let sigCurry :=
+      @DirectSum.sigmaLcurryEquiv A _ ι (fun i => Fin (Module.finrank k (M i))) δ _ _ _
+    -- Fourth: for each i, ⊕ (j : Fin _), P i ≃ (Fin _ → P i)
+    let piEquiv : (⨁ (i : ι), ⨁ (_ : Fin (Module.finrank k (M i))), P i) ≃ₗ[A]
+        ⨁ (i : ι), (Fin (Module.finrank k (M i)) → P i) :=
+      DFinsupp.mapRange.linearEquiv (fun i =>
+        DirectSum.linearEquivFunOnFintype A (Fin (Module.finrank k (M i)))
+          (fun _ => P i))
+    -- Compose all four equivalences
+    exact ⟨decomp.trans (dsIso.trans (sigCurry.trans piEquiv))⟩
+  -- Now prove the suffices: construct the complete orthogonal idempotents.
+  -- This requires the full Wedderburn-Artin construction with diagonal matrix units,
+  -- dimension matching d(σ(i)) = finrank k (M i), and lifting.
+  -- The construction follows the same pattern as exists_orthogonal_idempotents_for_simples
+  -- but extends from single E₁₁ to all diagonal E_{jj}'s.
   sorry
 
 /-- **Theorem 9.2.1(iii)**: Completeness of the projective cover classification.
