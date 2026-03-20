@@ -346,6 +346,80 @@ theorem Theorem_2_1_1_i (d : ℕ+) :
     subst hneq
     exact ⟨sl2_irrep_equiv hirrV hirrW mV mW nV PV PW⟩
 
+/-! ## Casimir element and complete reducibility
+
+The Casimir element C = h² + 2ef + 2fe of sl(2) commutes with the action of sl(2) on any
+module V. On the irreducible V_n (dimension n+1), C acts as the scalar n(n+2).
+This is used to prove complete reducibility by strong induction on dimension. -/
+
+section Casimir
+
+open Sl2Irrep
+
+variable {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+  [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+
+/-- The Casimir element of sl(2) acting on a module V:
+C = h² + 2ef + 2fe where h,e,f act via the Lie module structure. -/
+noncomputable def sl2_casimir : Module.End ℂ V :=
+  (toEnd ℂ sl2 V sl2_h) ^ 2 +
+  2 • ((toEnd ℂ sl2 V sl2_e) * (toEnd ℂ sl2 V sl2_f)) +
+  2 • ((toEnd ℂ sl2 V sl2_f) * (toEnd ℂ sl2 V sl2_e))
+
+/-- The Casimir element commutes with the action of any x : sl(2).
+Proof: [C, x] = 0 for x = h, e, f (hence for all x by linearity).
+Computation uses [h,e] = 2e, [h,f] = -2f, [e,f] = h. -/
+private lemma sl2_casimir_comm (x : sl2) :
+    sl2_casimir (V := V) ∘ₗ (toEnd ℂ sl2 V x) =
+    (toEnd ℂ sl2 V x) ∘ₗ sl2_casimir := by
+  -- It suffices to check for x = h, e, f since they span sl(2)
+  rw [sl2_decomp x]
+  simp only [map_add, map_smul, LinearMap.comp_add, LinearMap.add_comp,
+    LinearMap.comp_smul, LinearMap.smul_comp]
+  congr 1
+  · congr 1
+    · -- Casimir commutes with h
+      -- [C, h] = [h², h] + 2[ef, h] + 2[fe, h]
+      -- [h², h] = 0 (trivially), [ef, h] = e[f,h]+[e,h]f = 2ef-2ef = 0,
+      -- [fe, h] = f[e,h]+[f,h]e = -2fe+2fe = 0. So [C, h] = 0.
+      sorry
+    · -- Casimir commutes with e
+      sorry
+  · -- Casimir commutes with f
+    sorry
+
+/-- The eigenspaces of the Casimir element are Lie submodules. -/
+private lemma casimir_eigenspace_lie_invariant (c₀ : ℂ) :
+    ∀ (x : sl2) (v : V),
+    v ∈ (sl2_casimir (V := V)).eigenspace c₀ →
+      ⁅x, v⁆ ∈ (sl2_casimir (V := V)).eigenspace c₀ := by
+  intro x v hv
+  rw [Module.End.mem_eigenspace_iff] at hv ⊢
+  have hcomm := sl2_casimir_comm (V := V) x
+  have hCxv : sl2_casimir (V := V) (⁅x, v⁆) = (toEnd ℂ sl2 V x) (sl2_casimir v) :=
+    LinearMap.congr_fun hcomm v
+  rw [hCxv, hv, map_smul, LieModule.toEnd_apply_apply]
+
+/-- On an irreducible module V with primitive vector of weight n,
+the Casimir acts as the scalar n*(n+2). -/
+private lemma casimir_on_irreducible_scalar
+    (hirr : LieModule.IsIrreducible ℂ sl2 V) [Nontrivial V]
+    (m : V) (n : ℕ) (P : sl2_triple.HasPrimitiveVectorWith m (n : ℂ)) :
+    sl2_casimir (V := V) = (n * (n + 2) : ℂ) • (1 : Module.End ℂ V) := by
+  -- Casimir acts as scalar on primitive vector m:
+  -- C·m = (h² + 2ef + 2fe)·m = (n² + 2·n·0 + 2·0)·m... wait
+  -- h·m = n·m, e·m = 0
+  -- h²·m = n²·m
+  -- ef·m = e(f·m) = e(f^1·m), and f·m is the next vector
+  -- Actually: ef = fe + h (from [e,f] = h), so ef = fe + h
+  -- C = h² + 2ef + 2fe = h² + 2(fe + h) + 2fe = h² + 2h + 4fe
+  -- On m: fe·m = f(e·m) = f·0 = 0 (since e·m = 0 for primitive vector)
+  -- So C·m = (n² + 2n)·m = n(n+2)·m
+  -- Since C commutes with sl(2) and V is irreducible, C = n(n+2) on all of V
+  sorry
+
+end Casimir
+
 /-- Part (ii): Any finite-dimensional representation of sl(2, ℂ) is completely reducible.
 Every Lie submodule has a complementary Lie submodule, i.e., the lattice of Lie submodules
 is complemented. This is equivalent to saying every finite-dimensional representation
@@ -353,16 +427,10 @@ decomposes as a direct sum of irreducible representations.
 (Etingof Theorem 2.1.1(ii)) -/
 theorem Theorem_2_1_1_ii (V : Type*) [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     [LieRingModule sl2 V] [LieModule ℂ sl2 V] :
-    ComplementedLattice (LieSubmodule ℂ sl2 V) :=
-  -- Complete reducibility for sl(2) follows from Weyl's theorem: every finite-dimensional
-  -- representation of a semisimple Lie algebra over a field of characteristic zero is
-  -- completely reducible. sl(2) is simple hence semisimple.
-  -- Weyl's theorem is not in Mathlib (no ComplementedLattice instance for LieSubmodule
-  -- of representations of semisimple Lie algebras). This requires either:
-  -- (1) Weyl's unitarian trick (using compact real form), or
-  -- (2) Whitehead's lemma (Ext¹ vanishing for semisimple Lie algebras), or
-  -- (3) Direct proof using Casimir element.
-  -- All approaches require substantial infrastructure not yet in Mathlib.
+    ComplementedLattice (LieSubmodule ℂ sl2 V) := by
+  -- Proof by strong induction on finrank ℂ V.
+  -- Key idea: the Casimir element C commutes with the sl(2) action and acts as
+  -- a scalar on each irreducible. Its eigenspaces are Lie submodules that decompose V.
   sorry
 
 end Etingof
