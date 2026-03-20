@@ -14,6 +14,88 @@ Requires tensor power and Schur-Weyl duality infrastructure not yet in Mathlib.
 
 open Etingof
 
+namespace Etingof.Proposition5_19_1_aux
+
+variable {k : Type*} [Field k] [IsAlgClosed k]
+  {V : Type*} [AddCommGroup V] [Module k V] [Module.Finite k V]
+  (n : ℕ)
+
+/-- The GL-image set: {g⊗ⁿ | g ∈ GL(V)} -/
+private def glImage : Set (Module.End k (TensorPower k V n)) :=
+  Set.range fun (g : V ≃ₗ[k] V) =>
+    PiTensorProduct.map (fun (_ : Fin n) => g.toLinearMap)
+
+/-- The End-image set: {f⊗ⁿ | f ∈ End(V)} -/
+private def endImage : Set (Module.End k (TensorPower k V n)) :=
+  Set.range fun (f : Module.End k V) =>
+    PiTensorProduct.map (fun (_ : Fin n) => f)
+
+/-- The End-image set is closed under multiplication, since
+(f⊗ⁿ)(g⊗ⁿ) = (f∘g)⊗ⁿ. -/
+private lemma endImage_mul_closed :
+    ∀ a ∈ endImage (k := k) (V := V) n, ∀ b ∈ endImage (k := k) (V := V) n,
+      a * b ∈ endImage (k := k) (V := V) n := by
+  rintro _ ⟨f, rfl⟩ _ ⟨g, rfl⟩
+  exact ⟨f ∘ₗ g, by ext; simp [PiTensorProduct.map_tprod]⟩
+
+/-- 1 ∈ End-image since id⊗ⁿ = id. -/
+private lemma one_mem_endImage :
+    (1 : Module.End k (TensorPower k V n)) ∈ endImage (k := k) (V := V) n := by
+  exact ⟨LinearMap.id, by ext; simp⟩
+
+/-- The set of scalars t where f + t • id is not invertible is finite,
+since it's contained in the roots of the characteristic polynomial of -f.
+
+Specifically, det(f + t • id) = (-f).charpoly.eval t, and charpoly(-f)
+is monic of degree dim(V), hence has finitely many roots. -/
+private lemma finite_nonUnit_shifts (f : Module.End k V) :
+    Set.Finite {t : k | ¬ IsUnit (f + t • LinearMap.id)} := by
+  have key : ∀ t, ¬ IsUnit (f + t • LinearMap.id) →
+      Polynomial.IsRoot ((-f).charpoly) t := by
+    intro t ht
+    rw [Polynomial.IsRoot, LinearMap.eval_charpoly]
+    have : algebraMap k (Module.End k V) t - (-f) = f + t • LinearMap.id := by
+      ext v; simp [Algebra.algebraMap_eq_smul_one, add_comm]
+    rw [this]
+    -- ¬ IsUnit (f + t • id) → det = 0
+    have hnu := mt (LinearMap.isUnit_iff_isUnit_det _).mpr ht
+    rwa [isUnit_iff_ne_zero, not_not] at hnu
+  exact Set.Finite.subset
+    (Polynomial.finite_setOf_isRoot (Polynomial.Monic.ne_zero (LinearMap.charpoly_monic (-f))))
+    (fun t ht => key t ht)
+
+/-- The polynomial density argument: for any f ∈ End(V), f⊗ⁿ is in the
+linear span of {g⊗ⁿ | g ∈ GL(V)}.
+
+The proof uses the fact that for any f ∈ End(V), the characteristic-type
+polynomial det(f + t·id) is nonzero (monic of degree dim V), so f + t·id
+is invertible for all but finitely many t ∈ k. Since k is algebraically
+closed (hence infinite), we can pick n+1 distinct such t, and by
+Lagrange/Vandermonde interpolation, f⊗ⁿ (the t=0 coefficient of the
+polynomial t ↦ (f+t·id)⊗ⁿ) is a k-linear combination of the
+{(f+tᵢ·id)⊗ⁿ} ⊆ GL-image.
+
+The Lagrange interpolation step requires showing that t ↦ (f+t·id)⊗ⁿ
+is a polynomial of degree ≤ n in t (from the multilinear expansion of
+the tensor product). This expansion infrastructure does not yet exist
+in Mathlib for PiTensorProduct, so the interpolation step is sorry'd. -/
+private lemma endomorphism_tensor_in_glSpan (f : Module.End k V) :
+    PiTensorProduct.map (fun (_ : Fin n) => f) ∈
+      Submodule.span k (glImage n) := by
+  -- The set {t | IsUnit (f + t • id)} is infinite (complement of a finite set)
+  have hinv : Set.Infinite {t : k | IsUnit (f + t • LinearMap.id)} := by
+    rw [show {t : k | IsUnit (f + t • LinearMap.id)} =
+        {t : k | ¬ IsUnit (f + t • LinearMap.id)}ᶜ from by ext; simp]
+    exact Set.Finite.infinite_compl (finite_nonUnit_shifts f)
+  -- For each t where f + t • id is invertible, (f + t • id)⊗ⁿ ∈ GL-span
+  -- By Lagrange interpolation on n+1 such points, f⊗ⁿ ∈ GL-span
+  -- (since t ↦ (f + t·id)⊗ⁿ is polynomial of degree ≤ n in t)
+  -- The polynomial expansion of PiTensorProduct.map over sums of maps
+  -- is not yet available in Mathlib.
+  sorry
+
+end Etingof.Proposition5_19_1_aux
+
 /-- The image of GL(V) in End(V⊗ⁿ) spans the centralizer algebra B of the
 Sₙ-action on V⊗ⁿ. Specifically, the linear span of {g⊗ⁿ | g ∈ GL(V)}
 (where g⊗ⁿ acts as g on each tensor factor) equals the full diagonal
@@ -32,4 +114,28 @@ theorem Etingof.Proposition5_19_1
     Submodule.span k (Set.range fun (g : V ≃ₗ[k] V) =>
       PiTensorProduct.map (fun (_ : Fin n) => g.toLinearMap)) =
     (diagonalActionImage k V n).toSubmodule := by
-  sorry
+  open Etingof.Proposition5_19_1_aux in
+  apply le_antisymm
+  · -- ⊆: GL-span ≤ diagonalActionImage.toSubmodule
+    -- Each g⊗ⁿ is in the End-image generating set, hence in Algebra.adjoin
+    apply Submodule.span_le.mpr
+    rintro _ ⟨g, rfl⟩
+    exact Algebra.subset_adjoin ⟨g.toLinearMap, rfl⟩
+  · -- ⊇: diagonalActionImage.toSubmodule ≤ GL-span
+    -- Step 1: diagonalActionImage.toSubmodule = span(endImage)
+    -- This uses the fact that endImage is closed under * and contains 1
+    have h_adjoin_eq : (diagonalActionImage k V n).toSubmodule =
+        Submodule.span k (endImage n) := by
+      apply Algebra.adjoin_eq_span_of_subset
+      intro x hx
+      have hx_mem : x ∈ endImage (k := k) (V := V) n := by
+        induction hx using Submonoid.closure_induction with
+        | mem y hy => exact hy
+        | one => exact one_mem_endImage n
+        | mul _ _ _ _ ihx ihy => exact endImage_mul_closed n _ ihx _ ihy
+      exact Submodule.subset_span hx_mem
+    rw [h_adjoin_eq]
+    -- Step 2: span(endImage) ≤ span(glImage) by density
+    apply Submodule.span_le.mpr
+    rintro _ ⟨f, rfl⟩
+    exact endomorphism_tensor_in_glSpan n f
