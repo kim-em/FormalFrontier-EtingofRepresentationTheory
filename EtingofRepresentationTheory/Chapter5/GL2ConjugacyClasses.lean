@@ -608,6 +608,236 @@ theorem GL2.card_isParabolic [Fintype (GaloisField p n)]
   have hq2 : 1 ≤ q ^ 2 := Nat.one_le_pow _ _ hq1
   zify [hq1, hq2]; ring
 
+/-- If g₀₁ = 0, then disc(g) is a perfect square. -/
+private lemma GL2.isSquare_disc_of_g01_zero {g : GL2' p n} (h : g.val 0 1 = 0) :
+    IsSquare (GL2.disc g) := by
+  simp only [GL2.disc, GL2.mat, h, mul_zero, zero_mul, add_zero]
+  exact ⟨g.val 0 0 - g.val 1 1, by ring⟩
+
+/-- The four conjugacy class filters partition Finset.univ. -/
+private lemma GL2.card_partition [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)] [Fintype (GL2' p n)] :
+    (Finset.univ.filter (fun g : GL2' p n => GL2.IsScalar g)).card +
+    (Finset.univ.filter (fun g : GL2' p n => GL2.IsParabolic g)).card +
+    (Finset.univ.filter (fun g : GL2' p n => GL2.IsSplitSemisimple g)).card +
+    (Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)).card =
+    Fintype.card (GL2' p n) := by
+  rw [← Finset.card_univ]
+  set S := Finset.univ.filter (fun g : GL2' p n => GL2.IsScalar g)
+  set P := Finset.univ.filter (fun g : GL2' p n => GL2.IsParabolic g)
+  set SS := Finset.univ.filter (fun g : GL2' p n => GL2.IsSplitSemisimple g)
+  set E := Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)
+  -- Disjointness (same as in sum_split)
+  have hSP : Disjoint S P := Finset.disjoint_filter.mpr
+    fun g _ hs hp => (GL2.isScalar_not_isParabolic g hs) hp
+  have hSSS : Disjoint S SS := Finset.disjoint_filter.mpr
+    fun g _ hs hss => (GL2.isScalar_not_isSplitSemisimple g hs) hss
+  have hSE : Disjoint S E := Finset.disjoint_filter.mpr
+    fun g _ hs he => (GL2.isScalar_not_isElliptic g hs) he
+  have hPSS : Disjoint P SS := Finset.disjoint_filter.mpr
+    fun g _ hp hss => (GL2.isParabolic_not_isSplitSemisimple g hp) hss
+  have hPE : Disjoint P E := Finset.disjoint_filter.mpr
+    fun g _ hp he => (GL2.isParabolic_not_isElliptic g hp) he
+  have hSSE : Disjoint SS E := Finset.disjoint_filter.mpr
+    fun g _ hss he => (GL2.isSplitSemisimple_not_isElliptic g hss) he
+  have hSPuSS : Disjoint (S ∪ P) SS := disjoint_sup_left.mpr ⟨hSSS, hPSS⟩
+  have hSPSSuE : Disjoint (S ∪ P ∪ SS) E :=
+    disjoint_sup_left.mpr ⟨disjoint_sup_left.mpr ⟨hSE, hPE⟩, hSSE⟩
+  -- Coverage
+  have hunion : Finset.univ = S ∪ P ∪ SS ∪ E := by
+    ext g; simp only [S, P, SS, E]
+    simp only [Finset.mem_univ, Finset.mem_union, Finset.mem_filter, true_and, true_iff]
+    rcases GL2.conjugacyClass_exhaustive g with h | h | h | h
+    · exact Or.inl (Or.inl (Or.inl h))
+    · exact Or.inl (Or.inl (Or.inr h))
+    · exact Or.inl (Or.inr h)
+    · exact Or.inr h
+  rw [hunion, Finset.card_union_of_disjoint hSPSSuE,
+      Finset.card_union_of_disjoint hSPuSS,
+      Finset.card_union_of_disjoint hSP]
+
+/-- |GL₂(𝔽_q)| = (q²-1)(q²-q). -/
+private lemma GL2.card_GL2
+    [Fintype (GaloisField p n)] [Fintype (GL2' p n)] :
+    Fintype.card (GL2' p n) =
+    (Fintype.card (GaloisField p n) ^ 2 - 1) *
+    (Fintype.card (GaloisField p n) ^ 2 - Fintype.card (GaloisField p n)) := by
+  have h := Matrix.card_GL_field (𝔽 := GaloisField p n) 2
+  rw [Nat.card_eq_fintype_card] at h
+  rw [h]
+  simp [Fin.prod_univ_two, pow_zero, pow_one]
+
+/-- q = p^n ≥ 3 when p ≠ 2. -/
+private lemma GaloisField.card_ge_three (hp2 : p ≠ 2) (hn : n ≠ 0)
+    [Fintype (GaloisField p n)] :
+    3 ≤ Fintype.card (GaloisField p n) := by
+  rw [Fintype.card_eq_nat_card, GaloisField.card p n hn]
+  have hp3 : 3 ≤ p := by
+    have := hp.out.two_le; omega
+  calc p ^ n ≥ p ^ 1 := Nat.pow_le_pow_right (by omega) (by omega)
+    _ = p := pow_one p
+    _ ≥ 3 := hp3
+
+/-- ringChar (GaloisField p n) = p -/
+private lemma GaloisField.ringChar_eq_prime :
+    ringChar (GaloisField p n) = p := ringChar.eq (GaloisField p n) p
+
+/-- ringChar (GaloisField p n) ≠ 2 when p ≠ 2 -/
+private lemma GaloisField.ringChar_ne_two (hp2 : p ≠ 2) :
+    ringChar (GaloisField p n) ≠ 2 := by
+  rw [GaloisField.ringChar_eq_prime]; exact hp2
+
+/-- In a finite field of odd characteristic, the number of nonsquares is (q-1)/2.
+More precisely, 2 * |{a : F | ¬IsSquare a}| = q - 1. -/
+private lemma two_mul_card_nonsquare (hp2 : p ≠ 2) (hn : n ≠ 0)
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)] :
+    2 * (Finset.univ.filter (fun a : GaloisField p n => ¬IsSquare a)).card =
+    Fintype.card (GaloisField p n) - 1 := by
+  have hF : ringChar (GaloisField p n) ≠ 2 := GaloisField.ringChar_ne_two hp2
+  -- Use set for NSq to replace in goal (avoids set F which causes instance diamonds)
+  set NSq := Finset.univ.filter (fun a : GaloisField p n => ¬IsSquare a) with NSq_def
+  let NZSq := Finset.univ.filter (fun a : GaloisField p n => a ≠ 0 ∧ IsSquare a)
+  -- Partition F \ {0} into nonzero squares and nonsquares
+  have hunion : NZSq ∪ NSq = Finset.univ.filter (fun a : GaloisField p n => a ≠ 0) := by
+    ext a; simp only [NZSq, NSq, Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and]
+    constructor
+    · rintro (⟨ha, _⟩ | hna); exact ha; exact fun h => hna (h ▸ ⟨0, by ring⟩)
+    · intro ha; by_cases hsq : IsSquare a
+      · exact Or.inl ⟨ha, hsq⟩
+      · exact Or.inr hsq
+  have hdisj : Disjoint NZSq NSq :=
+    Finset.disjoint_filter.mpr (fun a _ ⟨_, hsq⟩ hnsq => hnsq hsq)
+  have hsum : NZSq.card + NSq.card = Fintype.card (GaloisField p n) - 1 := by
+    rw [← Finset.card_union_of_disjoint hdisj, hunion, Finset.filter_ne']
+    simp
+  -- Use quadratic character: ∑ a : F, χ(a) = 0
+  have hχ_sum := quadraticChar_sum_zero hF
+  -- The sum splits as |NZSq| - |NSq| = 0 (in ℤ)
+  have hχ_NZSq : ∀ a ∈ NZSq, quadraticChar (GaloisField p n) a = 1 := by
+    intro a ha
+    simp only [NZSq, Finset.mem_filter, Finset.mem_univ, true_and] at ha
+    exact (quadraticChar_one_iff_isSquare ha.1).mpr ha.2
+  have hχ_NSq : ∀ a ∈ NSq, quadraticChar (GaloisField p n) a = -1 := by
+    intro a ha
+    simp only [NSq, Finset.mem_filter, Finset.mem_univ, true_and] at ha
+    exact quadraticChar_neg_one_iff_not_isSquare.mpr ha
+  -- Partition Finset.univ into {0} ∪ NZSq ∪ NSq
+  have hpart : Finset.univ = ({0} : Finset (GaloisField p n)) ∪ NZSq ∪ NSq := by
+    ext a; simp only [Finset.mem_univ, true_iff, Finset.mem_union, Finset.mem_singleton,
+      NZSq, NSq, Finset.mem_filter, true_and]
+    by_cases ha : a = 0
+    · exact Or.inl (Or.inl ha)
+    · by_cases hsq : IsSquare a
+      · exact Or.inl (Or.inr ⟨ha, hsq⟩)
+      · exact Or.inr hsq
+  have hdisj2 : Disjoint ({0} : Finset (GaloisField p n)) NZSq := by
+    simp only [Finset.disjoint_left, Finset.mem_singleton, NZSq, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    intro a ha; rw [ha]; exact fun ⟨h, _⟩ => h rfl
+  have hdisj3 : Disjoint (({0} : Finset (GaloisField p n)) ∪ NZSq) NSq :=
+    disjoint_sup_left.mpr ⟨by
+      simp only [Finset.disjoint_left, Finset.mem_singleton, NSq, Finset.mem_filter,
+        Finset.mem_univ, true_and]
+      intro a ha hna; rw [ha] at hna; exact hna ⟨0, by ring⟩, hdisj⟩
+  rw [hpart, Finset.sum_union hdisj3, Finset.sum_union hdisj2] at hχ_sum
+  simp only [Finset.sum_singleton, MulChar.map_zero] at hχ_sum
+  simp only [Finset.sum_congr rfl hχ_NZSq, Finset.sum_congr rfl hχ_NSq,
+      Finset.sum_const, nsmul_eq_mul] at hχ_sum
+  -- hχ_sum : 0 + NZSq.card * 1 + NSq.card * -1 = 0
+  -- So NZSq.card = NSq.card (in ℤ, hence in ℕ)
+  have hequal : NZSq.card = NSq.card := by omega
+  omega
+
+/-- det of a GL₂ element is nonzero. -/
+private lemma GL2.det_ne_zero (g : GL2' p n) : Matrix.det g.val ≠ 0 := by
+  intro hdet
+  have hmul : g.val * (g⁻¹ : GL2' p n).val = 1 := by
+    rw [← Units.val_mul, mul_inv_cancel, Units.val_one]
+  have hdet1 : Matrix.det g.val * Matrix.det (g⁻¹ : GL2' p n).val = 1 := by
+    rw [← Matrix.det_mul, hmul, Matrix.det_one]
+  rw [hdet, zero_mul] at hdet1; exact one_ne_zero hdet1.symm
+
+/-- For fixed (a, b, c) with c ≠ 0, the number of d ∈ F with ab - cd ≠ 0 and
+¬IsSquare((a-b)² + 4cd) equals the number of nonsquares in F.
+This is because d ↦ (a-b)² + 4cd is an affine bijection F → F, the excluded
+d (det = 0) maps to (a+b)² (always a square), so removing it doesn't change
+the nonsquare count. -/
+private lemma card_elliptic_fiber (hp2 : p ≠ 2) (hn : n ≠ 0)
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    (a b c : GaloisField p n) (hc : c ≠ 0) :
+    (Finset.univ.filter (fun d : GaloisField p n =>
+      a * b - c * d ≠ 0 ∧ ¬IsSquare ((a - b) ^ 2 + 4 * c * d))).card =
+    (Finset.univ.filter (fun x : GaloisField p n => ¬IsSquare x)).card := by
+  have h4c : (4 : GaloisField p n) * c ≠ 0 :=
+    mul_ne_zero (GaloisField.four_ne_zero hp2 hn) hc
+  -- The map φ : d ↦ (a-b)² + 4cd is a bijection F → F
+  let φ : GaloisField p n → GaloisField p n := fun d => (a - b) ^ 2 + 4 * c * d
+  have hφ_inj : Function.Injective φ := by
+    intro d₁ d₂ h
+    have : 4 * c * d₁ = 4 * c * d₂ := add_left_cancel (show φ d₁ = φ d₂ from h)
+    exact mul_left_cancel₀ h4c this
+  have hφ_surj : Function.Surjective φ := by
+    intro y
+    refine ⟨(y - (a - b) ^ 2) / (4 * c), ?_⟩
+    show (a - b) ^ 2 + 4 * c * ((y - (a - b) ^ 2) / (4 * c)) = y
+    rw [mul_div_cancel₀ _ h4c, add_sub_cancel]
+  -- The excluded d (det = 0): d₀ = a*b/c
+  set d₀ := a * b / c
+  -- At d₀, disc = (a+b)²
+  have hφ_d₀ : φ d₀ = (a + b) ^ 2 := by
+    simp only [φ, d₀]
+    field_simp
+    ring
+  -- (a+b)² is always a square
+  have hφ_d₀_sq : IsSquare (φ d₀) := by
+    rw [hφ_d₀]; exact ⟨a + b, by ring⟩
+  -- The valid domain is F \ {d₀} (det ≠ 0 iff d ≠ d₀)
+  have hdet_iff : ∀ d, (a * b - c * d ≠ 0) ↔ d ≠ d₀ := by
+    intro d
+    constructor
+    · intro h hd; apply h; rw [hd]; simp [d₀]; field_simp; ring
+    · intro hd h
+      have hcd : c * d = a * b := (sub_eq_zero.mp h).symm
+      exact hd (show d = d₀ by simp only [d₀]; rw [← hcd, mul_div_cancel_left₀ d hc])
+  -- Rewrite the LHS filter using hdet_iff
+  have hlhs : (Finset.univ.filter (fun d : GaloisField p n =>
+      a * b - c * d ≠ 0 ∧ ¬IsSquare ((a - b) ^ 2 + 4 * c * d))) =
+      (Finset.univ.filter (fun d : GaloisField p n =>
+      d ≠ d₀ ∧ ¬IsSquare (φ d))) := by
+    ext d; simp only [Finset.mem_filter, Finset.mem_univ, true_and, φ]
+    exact ⟨fun ⟨h1, h2⟩ => ⟨(hdet_iff d).mp h1, h2⟩,
+           fun ⟨h1, h2⟩ => ⟨(hdet_iff d).mpr h1, h2⟩⟩
+  rw [hlhs]
+  -- Use φ as a bijection from {d ≠ d₀ : ¬IsSquare(φ d)} to {x : ¬IsSquare x}
+  apply Finset.card_nbij φ
+  · -- φ maps the LHS filter into the RHS filter (Set.MapsTo)
+    intro d hd
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hd ⊢
+    exact hd.2
+  · -- φ is injective on the filter (Set.InjOn)
+    intro d₁ _ d₂ _ h
+    exact hφ_inj h
+  · -- φ is surjective onto {x : ¬IsSquare x} (Set.SurjOn)
+    intro x hx
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hx
+    obtain ⟨d, rfl⟩ := hφ_surj x
+    simp only [Set.mem_image, Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and]
+    exact ⟨d, ⟨fun h => by rw [h] at hx; exact hx hφ_d₀_sq, hx⟩, rfl⟩
+
+/-- The number of elliptic elements in GL₂(𝔽_q) is q²(q-1)²/2. -/
+theorem GL2.card_isElliptic [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)] [Fintype (GL2' p n)] (hp2 : p ≠ 2) (hn : n ≠ 0) :
+    (Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)).card =
+    Fintype.card (GaloisField p n) ^ 2 *
+    (Fintype.card (GaloisField p n) - 1) ^ 2 / 2 := by
+  -- Strategy: biject elliptic GL₂ elements with (a,b,c,d) : F⁴ where
+  -- c≠0, ab-cd≠0, ¬IsSquare((a-b)²+4cd). Then factor:
+  -- for each (a,b,c) with c≠0, inner count = |nonsquares| = (q-1)/2.
+  -- Total = q²(q-1)(q-1)/2 = q²(q-1)²/2.
+  -- The bijection uses g ↦ (g₀₀, g₁₁, g₀₁, g₁₀) with inverse
+  -- (a,b,c,d) ↦ mkOfDetNeZero !![a,c;d,b].
+  sorry
+
 /-- The number of split semisimple elements in GL₂(𝔽_q) is
 (q-1)(q-2)q(q+1)/2. -/
 theorem GL2.card_isSplitSemisimple [Fintype (GaloisField p n)]
@@ -617,14 +847,52 @@ theorem GL2.card_isSplitSemisimple [Fintype (GaloisField p n)]
     (Fintype.card (GaloisField p n) - 2) *
     Fintype.card (GaloisField p n) *
     (Fintype.card (GaloisField p n) + 1) / 2 := by
-  sorry
-
-/-- The number of elliptic elements in GL₂(𝔽_q) is q²(q-1)²/2. -/
-theorem GL2.card_isElliptic [Fintype (GaloisField p n)]
-    [DecidableEq (GaloisField p n)] [Fintype (GL2' p n)] (hp2 : p ≠ 2) (hn : n ≠ 0) :
-    (Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)).card =
-    Fintype.card (GaloisField p n) ^ 2 *
-    (Fintype.card (GaloisField p n) - 1) ^ 2 / 2 := by
-  sorry
+  -- By complement from the partition identity
+  have hpart := GL2.card_partition (p := p) (n := n)
+  have hS := GL2.card_isScalar (p := p) hn
+  have hP := GL2.card_isParabolic hp2 hn
+  have hE := GL2.card_isElliptic hp2 hn
+  have hGL := GL2.card_GL2 (p := p) (n := n)
+  rw [hS, hP, hGL, hE] at hpart
+  set q := Fintype.card (GaloisField p n)
+  set SS := (Finset.univ.filter (fun g : GL2' p n => GL2.IsSplitSemisimple g)).card
+  have hq3 : 3 ≤ q := GaloisField.card_ge_three hp2 hn
+  have hq_odd : q % 2 = 1 := by
+    rw [show q = Fintype.card (GaloisField p n) from rfl,
+        Fintype.card_eq_nat_card, GaloisField.card p n hn]
+    rw [Nat.pow_mod]
+    have hp_odd : p % 2 = 1 := by
+      have : ¬ 2 ∣ p := by
+        intro h
+        exact hp2 (hp.out.eq_one_or_self_of_dvd 2 h |>.resolve_left (by omega) |>.symm)
+      omega
+    rw [hp_odd]; simp
+  -- hpart: (q-1) + (q-1)*(q^2-1) + SS + q^2*(q-1)^2/2 = (q^2-1)*(q^2-q)
+  -- Strategy: the target value uniquely satisfies hpart. Show target satisfies it too.
+  -- It suffices to show the target value satisfies the same equation as SS
+  suffices htarget : (q - 1) + (q - 1) * (q ^ 2 - 1) +
+      (q - 1) * (q - 2) * q * (q + 1) / 2 + q ^ 2 * (q - 1) ^ 2 / 2 =
+      (q ^ 2 - 1) * (q ^ 2 - q) by omega
+  -- Combine the two /2 terms using divisibility
+  have hE_dvd : 2 ∣ q ^ 2 * (q - 1) ^ 2 := by
+    have : 2 ∣ (q - 1) := by omega
+    exact dvd_mul_of_dvd_right (Dvd.dvd.pow this (by omega)) _
+  have hSS_dvd : 2 ∣ (q - 1) * (q - 2) * q * (q + 1) := by
+    have : 2 ∣ (q + 1) := by omega
+    exact dvd_mul_of_dvd_right this _
+  -- Extract witnesses for the even numbers
+  obtain ⟨a, ha⟩ := hSS_dvd
+  obtain ⟨b, hb⟩ := hE_dvd
+  -- Simplify the /2 terms
+  rw [ha, hb, Nat.mul_div_cancel_left _ (by omega : 0 < 2),
+      Nat.mul_div_cancel_left _ (by omega : 0 < 2)]
+  -- Goal: (q-1) + (q-1)*(q²-1) + a + b = (q²-1)*(q²-q)
+  -- where ha: (q-1)*(q-2)*q*(q+1) = 2*a and hb: q²*(q-1)² = 2*b
+  -- Verify this polynomial identity in ℤ
+  have hq1 : 1 ≤ q := by omega
+  have hq2 : 1 ≤ q ^ 2 := Nat.one_le_pow _ _ hq1
+  have hq2q : q ≤ q ^ 2 := le_self_pow₀ (by omega) (by omega)
+  zify [hq1, hq2, hq2q, show 2 ≤ q from by omega] at ha hb ⊢
+  nlinarith [ha, hb]
 
 end Cardinalities
