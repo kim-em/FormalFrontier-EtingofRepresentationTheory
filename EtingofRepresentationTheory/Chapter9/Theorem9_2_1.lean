@@ -857,6 +857,61 @@ lemma leftIdeal_finite (e : A) :
     Module.Finite A ↥(Submodule.span A ({e} : Set A)) :=
   inferInstance
 
+/-- For complete orthogonal idempotents e₁,...,eₙ in a ring A, the left ideals Aeᵢ form
+an internal direct sum decomposition of A. The canonical map ⨁ᵢ Aeᵢ → A is bijective. -/
+lemma isInternal_leftIdeals_of_completeOrthogonalIdempotents
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (e : ι → A) (he : CompleteOrthogonalIdempotents e) :
+    DirectSum.IsInternal (fun i => Submodule.span A ({e i} : Set A)) := by
+  set N := fun i => Submodule.span A ({e i} : Set A) with hN
+  -- Helper: elements of Aeᵢ have the form a * eᵢ
+  have hmem : ∀ i (x : A), x ∈ N i ↔ ∃ a, a * e i = x := by
+    intro i x; rw [hN, Submodule.mem_span_singleton]; rfl
+  -- Helper: (a * eᵢ) * eⱼ = δᵢⱼ · (a * eᵢ)
+  have hmul_right : ∀ i j (a : A), a * e i * e j = if i = j then a * e i else 0 := by
+    intro i j a
+    split_ifs with hij
+    · subst hij; rw [mul_assoc, he.toOrthogonalIdempotents.idem]
+    · rw [mul_assoc, he.toOrthogonalIdempotents.ortho hij, mul_zero]
+  -- Show bijectivity of the canonical map
+  -- Right-multiplication by eₖ extracts the k-th component from elements of Aeⱼ
+  have hmul_component : ∀ k j (x : ↥(N j)), (↑x : A) * e k = if j = k then ↑x else 0 := by
+    intro k j ⟨x, hx⟩
+    rw [hmem] at hx; obtain ⟨c, rfl⟩ := hx
+    simp [hmul_right]
+  -- For any direct sum element, right-multiply by eₖ extracts the k-th component
+  have hextract : ∀ (f : ⨁ j, ↥(N j)) (k : ι),
+      (DirectSum.coeLinearMap N f) * e k = ↑(f k) := by
+    intro f k
+    have hsum : DirectSum.coeLinearMap N f = ∑ j, ↑(f j) := by
+      conv_lhs =>
+        rw [show f = ∑ j ∈ Finset.univ, DirectSum.of _ j (f j) from
+          (DirectSum.sum_univ_of f).symm]
+      simp [DirectSum.coeLinearMap_of]
+    rw [hsum, Finset.sum_mul]
+    conv_lhs =>
+      arg 2; ext j
+      rw [hmul_component k j (f j)]
+    simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  constructor
+  · -- Injective
+    intro f g hfg
+    have hfg' : DirectSum.coeLinearMap N f = DirectSum.coeLinearMap N g := hfg
+    have hcomp : ∀ i, (f i : A) = (g i : A) := by
+      intro i
+      have h1 := hextract f i
+      have h2 := hextract g i
+      rw [hfg'] at h1
+      exact h1.symm.trans h2
+    exact DFinsupp.ext fun i => Subtype.ext (hcomp i)
+  · -- Surjective: a = ∑ (a * eᵢ) with a * eᵢ ∈ Aeᵢ
+    intro a
+    refine ⟨∑ i, DirectSum.of (fun i => ↥(N i)) i
+        ⟨a * e i, Submodule.smul_mem _ a (Submodule.subset_span rfl)⟩, ?_⟩
+    simp only [map_sum, DirectSum.coeLinearMap_of, AddSubmonoid.coe_finset_sum,
+      Submodule.coe_toAddSubmonoid]
+    rw [← Finset.mul_sum, he.complete, mul_one]
+
 /-- A left ideal A·e is indecomposable if the Hom dimension property holds:
 dim Hom(Ae, Mⱼ) = 0 for all j except exactly one j = i₀ where it equals 1.
 The argument: if Ae = Q₁ ⊕ Q₂, then Hom(Ae, Mⱼ) = Hom(Q₁, Mⱼ) ⊕ Hom(Q₂, Mⱼ),
