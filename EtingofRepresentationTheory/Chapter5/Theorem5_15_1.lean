@@ -999,6 +999,19 @@ noncomputable def finsuppToPartition {n : ℕ} (v : Fin n →₀ ℕ)
     change Finset.univ.sum v = n
     exact hsum)
 
+private lemma list_sum_eq_fin_sum_getD (l : List ℕ) (n : ℕ) (h : l.length ≤ n) :
+    l.sum = ∑ i : Fin n, l.getD i 0 := by
+  induction l generalizing n with
+  | nil => simp
+  | cons a t ih =>
+    cases n with
+    | zero => simp [List.length] at h
+    | succ n =>
+      have ht : t.length ≤ n := Nat.succ_le_succ_iff.mp (by simpa [List.length] using h)
+      rw [Fin.sum_univ_succ]
+      simp only [Fin.val_zero, List.getD_cons_zero, Fin.val_succ, List.getD_cons_succ]
+      rw [List.sum_cons, ih n ht]
+
 /-- The sum of entries of `la.toFinsupp + rhoShift n - permExponent n π` equals `n`,
 when the subtraction is componentwise valid. This follows from the fact that both
 `rhoShift` and `permExponent` are permutations of `{0, ..., n-1}`, so their sums
@@ -1007,11 +1020,42 @@ theorem sum_shifted_sub_permExponent {n : ℕ} (la : Nat.Partition n)
     (π : Equiv.Perm (Fin n))
     (h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n) :
     ∑ i : Fin n, (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π) i = n := by
-  -- Key facts: ∑ la.toFinsupp = n, ∑ rhoShift n = ∑ permExponent n π = n(n-1)/2
-  -- (rhoShift and permExponent are both permutations of {0,...,n-1}).
-  -- With componentwise h, the truncated subtraction equals actual subtraction,
-  -- so the sums simplify to n.
-  sorry
+  -- From h, (la + ρ - e_π) + e_π = la + ρ
+  have hcancel := tsub_add_cancel_of_le h
+  -- Sum both sides: ∑(la+ρ-e_π) + ∑ e_π = ∑ la + ∑ ρ
+  have key : ∑ i : Fin n, (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π) i +
+      ∑ i : Fin n, (permExponent n π) i =
+      ∑ i : Fin n, (Nat.Partition.toFinsupp la) i + ∑ i : Fin n, (rhoShift n) i := by
+    rw [← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
+    congr 1; ext i; exact congr_fun (congr_arg DFunLike.coe hcancel) i
+  -- ∑ permExponent = ∑ i, i.val (reindexing by π⁻¹)
+  have hperm : ∑ i : Fin n, (permExponent n π) i = ∑ i : Fin n, i.val := by
+    simp only [permExponent, Finsupp.coe_equivFunOnFinite_symm]
+    exact Fintype.sum_equiv π⁻¹ _ _ (fun _ => rfl)
+  -- ∑ rhoShift = ∑ i, i.val (by reversal symmetry)
+  have hrho : ∑ i : Fin n, (rhoShift n) i = ∑ i : Fin n, i.val := by
+    simp only [rhoShift, Finsupp.coe_equivFunOnFinite_symm]
+    refine Fintype.sum_equiv Fin.revPerm _ _ (fun i => ?_)
+    simp only [Fin.revPerm_apply, Fin.val_rev]; omega
+  -- ∑ la.toFinsupp = n (partition sum property)
+  have hla : ∑ i : Fin n, (Nat.Partition.toFinsupp la) i = n := by
+    have hfs : (Nat.Partition.toFinsupp la).sum (fun _ m => m) =
+        ∑ i : Fin n, (Nat.Partition.toFinsupp la) i :=
+      Finsupp.sum_fintype _ _ (fun _ => rfl)
+    rw [← hfs, Nat.Partition.toFinsupp, Finsupp.equivFunOnFinite_symm_sum]
+    have hsorted : la.sortedParts.sum = n := by
+      unfold Nat.Partition.sortedParts
+      have h := congrArg Multiset.sum (Multiset.sort_eq la.parts (· ≥ ·))
+      rw [Multiset.sum_coe] at h; linarith [la.parts_sum]
+    have hlen : la.sortedParts.length ≤ n := by
+      calc la.sortedParts.length
+          ≤ la.sortedParts.sum := List.length_le_sum_of_one_le _ (fun i hi => by
+            unfold Nat.Partition.sortedParts at hi
+            exact la.parts_pos (Multiset.sort_eq la.parts (· ≥ ·) ▸ Multiset.mem_coe.mpr hi))
+        _ = n := hsorted
+    linarith [list_sum_eq_fin_sum_getD la.sortedParts n hlen]
+  -- Combine
+  omega
 
 /-- For a symmetric polynomial P, the coefficient at any vector v equals the
 coefficient at `(finsuppToPartition v hsum).toFinsupp`. This follows from the
@@ -1021,7 +1065,91 @@ theorem coeff_symmetric_eq_coeff_partition {n : ℕ}
     (P : MvPolynomial (Fin n) ℂ) (hP : P.IsSymmetric)
     (v : Fin n →₀ ℕ) (hsum : ∑ i : Fin n, v i = n) :
     P.coeff v = P.coeff (Nat.Partition.toFinsupp (finsuppToPartition v hsum)) := by
-  sorry
+  -- The sorted partition has the same multiset of values as v, just rearranged.
+  -- Symmetric polynomials have permutation-invariant coefficients, so the result follows.
+  set w := Nat.Partition.toFinsupp (finsuppToPartition v hsum) with hw_def
+  -- Key: construct a permutation σ with w(σ i) = v i
+  suffices hfiber : ∀ c : ℕ, Fintype.card {i : Fin n // v i = c} =
+      Fintype.card {i : Fin n // w i = c} by
+    let e := fun c => Fintype.equivOfCardEq (hfiber c)
+    let σ : Fin n ≃ Fin n := Equiv.ofFiberEquiv (f := v) (g := w) e
+    have hσ : ∀ i, w (σ i) = v i := Equiv.ofFiberEquiv_map e
+    have : P.coeff w = P.coeff (w.mapDomain σ.symm) :=
+      (symmetric_coeff_mapDomain_perm P hP w σ.symm).symm
+    rw [this]; congr 1; ext i
+    simp only [Finsupp.mapDomain_equiv_apply, Equiv.symm_symm]; exact (hσ i).symm
+  -- Fiber cardinalities: v and w have the same value distribution.
+  -- Strategy: for c ≠ 0, both count the multiplicity of c in the partition parts.
+  -- For c = 0, use that both have n total elements and matching non-zero counts.
+  set p := finsuppToPartition v hsum
+  set M := Finset.univ.val.map (⇑v) with hM_def
+  set Mw := Finset.univ.val.map (⇑w) with hMw_def
+  -- Convert Fintype.card to Multiset.count
+  have hcard_eq_count : ∀ (f : Fin n →₀ ℕ) (c : ℕ),
+      Fintype.card {i : Fin n // f i = c} =
+      Multiset.count c (Finset.univ.val.map (⇑f)) := by
+    intro f c
+    rw [Fintype.card_subtype, Multiset.count_map, Finset.card_def, Finset.filter_val]
+    congr 1
+    exact Multiset.filter_congr (fun x _ => ⟨fun h => h.symm, fun h => h.symm⟩)
+  intro c
+  rw [hcard_eq_count v c, hcard_eq_count w c]
+  -- Now prove: count c M = count c Mw
+  -- p.parts = M.filter(· ≠ 0) (definition of finsuppToPartition/ofSums)
+  have hparts : p.parts = M.filter (· ≠ 0) := by
+    simp [p, finsuppToPartition, Nat.Partition.ofSums, M, hM_def]
+  -- sortedParts = parts as multisets
+  have hsorted_eq : (p.sortedParts : Multiset ℕ) = p.parts :=
+    Multiset.sort_eq p.parts (· ≥ ·)
+  -- w's non-zero filter also equals p.parts
+  have hparts_w : Mw.filter (· ≠ 0) = p.parts := by
+    -- Mw.filter(· ≠ 0) = ↑sortedParts = p.parts
+    rw [hsorted_eq.symm]
+    -- Show by Multiset.ext: for all c', count equality
+    ext c'
+    simp only [Multiset.coe_count, Multiset.count_filter]
+    split_ifs with hc'
+    · -- c' ≠ 0: count c' (map w univ) = List.count c' sortedParts
+      rw [show Mw = Finset.univ.val.map (⇑w) from rfl, hw_def, Nat.Partition.toFinsupp]
+      simp only [Finsupp.coe_equivFunOnFinite_symm, Multiset.count_map]
+      -- Goal: (univ.val.filter (fun i => c' = sortedParts.getD i 0)).card = List.count c' sortedParts
+      -- Proof strategy: For c' ≠ 0, getD i 0 = c' iff i < sortedParts.length and
+      -- sortedParts[i] = c'. The sets {i : Fin n | getD i 0 = c'} and
+      -- {j : Fin length | sortedParts[j] = c'} are in bijection, and the latter
+      -- has cardinality List.count c' sortedParts.
+      sorry
+    · -- c' = 0 (i.e., ¬(c' ≠ 0)): LHS = 0, RHS = List.count 0 sortedParts = 0
+      push_neg at hc'
+      subst hc'
+      symm; rw [List.count_eq_zero]
+      exact fun h => Nat.lt_irrefl 0 (p.parts_pos (hsorted_eq ▸ Multiset.mem_coe.mpr h))
+  by_cases hc : c = 0
+  · -- c = 0: both multisets have card n, and same non-zero filter, so same zero count
+    subst hc
+    have hcardM : M.card = n := by simp [M, hM_def]
+    have hcardMw : Mw.card = n := by simp [Mw, hMw_def]
+    -- count 0 s = s.card - (s.filter (· ≠ 0)).card
+    have h_count_zero : ∀ s : Multiset ℕ,
+        Multiset.count 0 s = s.card - (s.filter (· ≠ 0)).card := by
+      intro s
+      have h := Multiset.filter_add_not (· ≠ (0 : ℕ)) s
+      have hc := congr_arg Multiset.card h
+      rw [Multiset.card_add] at hc
+      have hfilt : s.filter (fun a => ¬(a ≠ 0)) = s.filter (· = 0) :=
+        Multiset.filter_congr (fun x _ => by simp)
+      rw [hfilt] at hc
+      have hcnt : (s.filter (· = 0)).card = Multiset.count 0 s := by
+        rw [Multiset.filter_eq' s 0, Multiset.card_replicate]
+      omega
+    rw [h_count_zero M, h_count_zero Mw, hcardM, hcardMw]
+    congr 1; rw [hparts.symm, hparts_w]
+  · -- c ≠ 0: both filter to p.parts, so counts match
+    have hfv : Multiset.count c (M.filter (· ≠ 0)) = Multiset.count c M :=
+      Multiset.count_filter_of_pos hc
+    have hfw : Multiset.count c (Mw.filter (· ≠ 0)) = Multiset.count c Mw :=
+      Multiset.count_filter_of_pos hc
+    rw [← hfv, ← hfw]
+    exact congrArg (Multiset.count c) (hparts.symm.trans hparts_w.symm)
 
 /-! ### Alternating Kostka identity
 
