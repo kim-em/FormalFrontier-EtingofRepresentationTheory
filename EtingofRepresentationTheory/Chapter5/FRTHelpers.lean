@@ -824,7 +824,7 @@ private lemma YoungDiagram.hookRatio_eq_prod_div
 /-- Empty diagram has no outer corners. -/
 private lemma YoungDiagram.outerCorners_eq_empty_of_cells_eq_empty
     {μ : YoungDiagram} (h : μ.cells = ∅) : μ.outerCorners = ∅ := by
-  simp only [outerCorners, h]
+  simp only [_root_.YoungDiagram.outerCorners, h]
   simp
 
 /-- If c₀ and c are distinct outer corners of μ, then c remains
@@ -838,13 +838,13 @@ private lemma YoungDiagram.IsOuterCorner.persist_removeCorner
   · -- (i+1, j) ∉ removeCorner: it's not in μ (since (i,j) is outer corner)
     intro hmem
     have : (i + 1, j) ∈ μ.cells := by
-      rw [removeCorner] at hmem
+      rw [_root_.YoungDiagram.removeCorner] at hmem
       exact (Finset.mem_erase.mp hmem).2
     exact hc.2.1 this
   · -- (i, j+1) ∉ removeCorner: it's not in μ (since (i,j) is outer corner)
     intro hmem
     have : (i, j + 1) ∈ μ.cells := by
-      rw [removeCorner] at hmem
+      rw [_root_.YoungDiagram.removeCorner] at hmem
       exact (Finset.mem_erase.mp hmem).2
     exact hc.2.2 this
 
@@ -867,8 +867,7 @@ private lemma YoungDiagram.hookLength_lt_of_right
   have h1 := YoungDiagram.hookLength_pos μ a b hb
   have h2 := YoungDiagram.hookLength_pos μ a b' hb'
   unfold YoungDiagram.hookLength at h1 h2 ⊢
-  have hcb' : b' < μ.colLen b' := YoungDiagram.mem_iff_lt_colLen.mp hb'
-  have hanti := μ.colLen_anti (Nat.le_of_lt hlt)
+  have hanti := μ.colLen_anti b b' (Nat.le_of_lt hlt)
   omega
 
 /-- Hook length strictly decreases when moving down within a column. -/
@@ -880,9 +879,7 @@ private lemma YoungDiagram.hookLength_lt_of_down
   have h1 := YoungDiagram.hookLength_pos μ a b ha
   have h2 := YoungDiagram.hookLength_pos μ a' b ha'
   unfold YoungDiagram.hookLength at h1 h2 ⊢
-  have hra : b < μ.rowLen a := YoungDiagram.mem_iff_lt_rowLen.mp ha
-  have hra' : b < μ.rowLen a' := YoungDiagram.mem_iff_lt_rowLen.mp ha'
-  have hanti := μ.rowLen_anti (Nat.le_of_lt hlt)
+  have hanti := μ.rowLen_anti a a' (Nat.le_of_lt hlt)
   omega
 
 /-- Hook length at an outer corner is exactly 1.
