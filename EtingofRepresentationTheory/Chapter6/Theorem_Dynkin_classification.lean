@@ -2272,9 +2272,9 @@ private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
   · subst hn4e; exact branch_classification_n4 hD v hv
   · -- Inductive case: n ≥ 5
     have hn5 : 5 ≤ n := by omega
-    obtain ⟨hsymm, hdiag, h01, hconn, hpos⟩ := hD
     -- Step 1: Get a leaf neighbor of v
     obtain ⟨u, hu_adj, hu_deg⟩ := branch_has_leaf_neighbor hD v hv
+    obtain ⟨hsymm, hdiag, h01, hconn, hpos⟩ := hD
     have hu_ne : u ≠ v := by
       intro h; subst h; rw [hdiag] at hu_adj; omega
     -- u has exactly one neighbor, which is v
@@ -2494,7 +2494,7 @@ private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     · -- Case (1, 2, 3): E₇
       sorry
     · -- Case (1, 2, 4): E₈
-    sorry
+      sorry
 
 /-- Forward direction of the Dynkin classification: any Dynkin diagram on n ≥ 1 vertices
     is graph-isomorphic to one of the standard types A_n, D_n, E₆, E₇, or E₈. -/
