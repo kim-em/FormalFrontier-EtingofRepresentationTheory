@@ -461,27 +461,94 @@ private lemma Etingof.not_isSquare_of_antisymmetric_root (hp2 : p ≠ 2) (hn : n
       linear_combination this
     exact absurd ((mul_eq_zero.mp h4).resolve_left h2ne) hr'_ne
 
+/-- disc(embed(α)) = trace(α)² - 4·norm(α) in the base field.
+This connects the matrix discriminant to algebraic trace and norm. -/
+private lemma Etingof.disc_fieldExtEmbed (hn : n ≠ 0) (α : (GaloisField p (2 * n))ˣ) :
+    letI := Etingof.algebraGaloisFieldExt p n
+    GL2.disc (Etingof.GL2.fieldExtEmbed p n α) =
+    Algebra.trace (GaloisField p n) (GaloisField p (2 * n)) (α : GaloisField p (2 * n)) ^ 2 -
+    4 * Algebra.norm (GaloisField p n) (α : GaloisField p (2 * n)) := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  -- disc = tr² - 4·det via disc_eq_tr_det
+  rw [GL2.disc_eq, Etingof.disc_eq_tr_det]
+  -- The key: fieldExtEmbed α has matrix = leftMulMatrix b α
+  have hval : (Etingof.GL2.fieldExtEmbed p n α).val =
+      Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) := by
+    show (Etingof.GL2.fieldExtEmbed p n α).val = _
+    simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; rfl
+  -- Relate matrix trace/det to algebra trace/norm
+  congr 1
+  · congr 1; rw [hval]; exact (Algebra.trace_eq_matrix_trace b _).symm
+  · congr 1; rw [hval]; exact (Algebra.norm_eq_matrix_det b _).symm
+
+/-- The algebraMap of disc(embed(α)) equals (α - α^q)² in the extension field. -/
+private lemma Etingof.algebraMap_disc_fieldExtEmbed (hn : n ≠ 0)
+    (α : (GaloisField p (2 * n))ˣ) :
+    letI := Etingof.algebraGaloisFieldExt p n
+    algebraMap (GaloisField p n) (GaloisField p (2 * n))
+      (GL2.disc (Etingof.GL2.fieldExtEmbed p n α)) =
+    ((α : GaloisField p (2 * n)) -
+     (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)) ^ 2 := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  rw [Etingof.disc_fieldExtEmbed p n hn α, map_sub, map_mul, map_pow]
+  -- Use trace/norm formulas for finite fields
+  have hfinrank : Module.finrank (GaloisField p n) (GaloisField p (2 * n)) = 2 :=
+    Etingof.finrank_galoisField_ext p n hn
+  have hcard : Nat.card (GaloisField p n) = p ^ n := GaloisField.card p n hn
+  rw [FiniteField.algebraMap_trace_eq_sum_pow, FiniteField.algebraMap_norm_eq_prod_pow]
+  rw [hfinrank]
+  simp only [Finset.sum_range_succ, Finset.sum_range_zero, Finset.prod_range_succ,
+    Finset.prod_range_zero, one_mul, zero_add, pow_zero, pow_one, hcard]
+  -- Handle algebraMap 4 = 4 and close by ring
+  have h4 : algebraMap (GaloisField p n) (GaloisField p (2 * n)) 4 = 4 := map_ofNat _ 4
+  rw [h4]
+  ring
+
+/-- Frobenius s^q = -s for s = α - α^q. -/
+private lemma Etingof.frob_diff_neg (hn : n ≠ 0) (α : GaloisField p (2 * n)) :
+    (α - α ^ (p ^ n : ℕ)) ^ (p ^ n : ℕ) =
+    -(α - α ^ (p ^ n : ℕ)) := by
+  rw [sub_pow_char_pow (p := p)]
+  -- Need α^(q²) = α, i.e. α^(p^(2n)) = α
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  have hcard2 : Fintype.card (GaloisField p (2 * n)) = p ^ (2 * n) := by
+    rw [← Nat.card_eq_fintype_card, GaloisField.card p (2 * n) (Nat.mul_ne_zero two_ne_zero hn)]
+  have hfrob2 : α ^ (p ^ (2 * n) : ℕ) = α := by
+    rw [← hcard2]; exact FiniteField.pow_card α
+  -- (α^q)^q = α^(q²) = α^(p^(2n)) = α
+  have : (α ^ (p ^ n : ℕ)) ^ (p ^ n : ℕ) = α := by
+    rw [← pow_mul, ← Nat.pow_add, show n + n = 2 * n from by omega]
+    exact hfrob2
+  rw [this]; ring
+
 private lemma Etingof.ellipticSubgroup_disc (hp2 : p ≠ 2) (k : GL2 p n)
     (hk : k ∈ Etingof.GL2.ellipticSubgroup p n) :
     GL2.disc k = 0 ∨ ¬IsSquare (GL2.disc k) := by
-  -- k ∈ K means k = fieldExtEmbed(α) for some α ∈ 𝔽_{q²}×
   obtain ⟨α, rfl⟩ := hk
   by_cases hn : n = 0
-  · -- Degenerate case n=0
-    left; simp [GL2.disc_eq, GL2.fieldExtEmbed, hn]
-  · -- Unpack fieldExtEmbed
-    letI := Etingof.algebraGaloisFieldExt p n
-    letI := Etingof.scalarTowerGaloisField p n
-    haveI := Etingof.finiteDimensionalGaloisFieldExt p n
-    let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
-      (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
-    -- The disc of embed(α) = tr²-4·det of the leftMulMatrix
-    -- tr(leftMulMatrix b α) = Algebra.trace(α) and det(...) = Algebra.norm(α)
-    -- disc = Algebra.trace(α)² - 4·Algebra.norm(α)
-    -- For degree 2 extension: trace(α) = α + α^q, norm(α) = α·α^q
-    -- So disc = (α+α^q)² - 4·α·α^q = (α-α^q)²
-    -- Case split: α^q = α (scalar, disc=0) or α^q ≠ α (elliptic)
-    sorry
+  · left; simp [GL2.disc_eq, GL2.fieldExtEmbed, hn]
+  · letI := Etingof.algebraGaloisFieldExt p n
+    set d := GL2.disc (Etingof.GL2.fieldExtEmbed p n α)
+    set s := (α : GaloisField p (2 * n)) - (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)
+    have hd : algebraMap (GaloisField p n) (GaloisField p (2 * n)) d = s ^ 2 :=
+      Etingof.algebraMap_disc_fieldExtEmbed p n hn α
+    by_cases hs : s = 0
+    · -- α^q = α, disc = 0
+      left
+      have hinj : Function.Injective
+          (algebraMap (GaloisField p n) (GaloisField p (2 * n))) :=
+        (algebraMap (GaloisField p n) (GaloisField p (2 * n))).injective
+      exact hinj (by rw [hd, hs, sq, mul_zero, map_zero])
+    · -- α^q ≠ α, disc is not a square
+      right
+      have hs_frob : s ^ (p ^ n : ℕ) = -s := Etingof.frob_diff_neg p n hn ↑α
+      exact Etingof.not_isSquare_of_antisymmetric_root p n hp2 hn d s hd hs hs_frob
 
 private lemma Etingof.induced_char_splitSemisimple_eq_zero
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
