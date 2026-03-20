@@ -366,20 +366,25 @@ noncomputable def sl2_casimir : Module.End ℂ V :=
   2 • ((toEnd ℂ sl2 V sl2_e) * (toEnd ℂ sl2 V sl2_f)) +
   2 • ((toEnd ℂ sl2 V sl2_f) * (toEnd ℂ sl2 V sl2_e))
 
-/-- The Casimir element commutes with the action of any x : sl(2). -/
+/-- The Casimir element commutes with the action of any x : sl(2).
+Proof: [C, x] = 0 for x = h, e, f (hence for all x by linearity).
+Computation uses [h,e] = 2e, [h,f] = -2f, [e,f] = h. -/
 private lemma sl2_casimir_comm (x : sl2) :
     sl2_casimir (V := V) ∘ₗ (toEnd ℂ sl2 V x) =
     (toEnd ℂ sl2 V x) ∘ₗ sl2_casimir := by
   -- It suffices to check for x = h, e, f since they span sl(2)
-  -- Use sl2_decomp: x = x₀₀ • h + x₀₁ • e + x₁₀ • f
   rw [sl2_decomp x]
   simp only [map_add, map_smul, LinearMap.comp_add, LinearMap.add_comp,
     LinearMap.comp_smul, LinearMap.smul_comp]
-  congr 1; congr 1
-  · -- Casimir commutes with h
-    sorry
-  · -- Casimir commutes with e
-    sorry
+  congr 1
+  · congr 1
+    · -- Casimir commutes with h
+      -- [C, h] = [h², h] + 2[ef, h] + 2[fe, h]
+      -- [h², h] = 0 (trivially), [ef, h] = e[f,h]+[e,h]f = 2ef-2ef = 0,
+      -- [fe, h] = f[e,h]+[f,h]e = -2fe+2fe = 0. So [C, h] = 0.
+      sorry
+    · -- Casimir commutes with e
+      sorry
   · -- Casimir commutes with f
     sorry
 
