@@ -1030,59 +1030,35 @@ private lemma D4_bound (x : Fin 4 → ℤ)
 private lemma Dn_adj_succ_succ (m : ℕ) (hm : 4 ≤ m) (i j : Fin m) :
     (Etingof.DynkinType.D (m + 1) (by omega)).adj i.succ j.succ =
     (Etingof.DynkinType.D m hm).adj i j := by
-  simp only [Etingof.DynkinType.adj, Fin.val_succ]
-  have hi := i.isLt
-  have hj := j.isLt
-  congr 1
-  constructor
-  · rintro ((⟨h1, h2⟩ | ⟨h3, h4⟩) | (⟨h5, h6⟩ | ⟨h7, h8⟩))
-    · left; left; exact ⟨by omega, by omega⟩
-    · left; right; exact ⟨by omega, by omega⟩
-    · right; left; exact ⟨by omega, by omega⟩
-    · right; right; exact ⟨by omega, by omega⟩
-  · rintro ((⟨h1, h2⟩ | ⟨h3, h4⟩) | (⟨h5, h6⟩ | ⟨h7, h8⟩))
-    · left; left; exact ⟨by omega, by omega⟩
-    · left; right; exact ⟨by omega, by omega⟩
-    · right; left; exact ⟨by omega, by omega⟩
-    · right; right; exact ⟨by omega, by omega⟩
+  unfold Etingof.DynkinType.adj
+  have hi := i.isLt; have hj := j.isLt
+  simp only [Fin.val_succ, Fin.ext_iff]
+  split_ifs <;> simp_all <;> omega
 
 /-- Vertex 0 in D_{m+1} is only adjacent to vertex 1. -/
 private lemma Dn_adj_zero_succ (m : ℕ) (hm : 4 ≤ m) (j : Fin m) :
-    (Etingof.DynkinType.D (m + 1) (by omega)).adj 0 j.succ =
-    if j.val = 0 then 1 else 0 := by
-  simp only [Etingof.DynkinType.adj, Fin.val_zero, Fin.val_succ]
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj (0 : Fin (m + 1)) j.succ =
+    if j = ⟨0, by omega⟩ then 1 else 0 := by
+  unfold Etingof.DynkinType.adj
   have hj := j.isLt
-  split_ifs with h
-  · -- j = 0: edge 0-1 exists
-    simp only [h]
-    simp only [ite_eq_left_iff, not_or, not_and]
-    push_neg
-    constructor
-    · intro habs
-      exfalso; exact habs.1 ⟨rfl, by omega⟩
-    · intro habs; exfalso; exact habs.1 ⟨rfl, by omega⟩
-  · -- j ≥ 1: no edge from 0
-    simp only [ite_eq_right_iff]
-    rintro ((⟨h1, _⟩ | ⟨h3, _⟩) | (⟨_, h6⟩ | ⟨h7, _⟩))
-    · omega
-    · omega
-    · omega
-    · omega
+  simp only [Fin.val_zero, Fin.val_succ, Fin.ext_iff]
+  split_ifs <;> simp_all <;> omega
 
 /-- Vertex 0 in D_{m+1} has no self-loop. -/
 private lemma Dn_adj_zero_zero (m : ℕ) (hm : 4 ≤ m) :
-    (Etingof.DynkinType.D (m + 1) (by omega)).adj 0 0 = 0 := by
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj (0 : Fin (m + 1)) (0 : Fin (m + 1)) = 0 := by
   unfold Etingof.DynkinType.adj
-  simp only [Fin.val_zero, ite_eq_right_iff]
-  rintro ((⟨h1, _⟩ | ⟨h3, _⟩) | (⟨_, h6⟩ | ⟨_, h8⟩)) <;> omega
+  simp only [Fin.val_zero, Fin.ext_iff]
+  split_ifs <;> simp_all <;> omega
 
 /-- adj(succ i, 0) in D_{m+1} equals adj(0, succ i) by symmetry. -/
 private lemma Dn_adj_succ_zero (m : ℕ) (hm : 4 ≤ m) (i : Fin m) :
-    (Etingof.DynkinType.D (m + 1) (by omega)).adj i.succ 0 =
-    if i.val = 0 then 1 else 0 := by
-  have hsymm := (Dn_isDynkin (m + 1) (by omega)).1
-  rw [hsymm.apply i.succ 0]
-  exact Dn_adj_zero_succ m hm i
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj i.succ (0 : Fin (m + 1)) =
+    if i = ⟨0, by omega⟩ then 1 else 0 := by
+  unfold Etingof.DynkinType.adj
+  have hi := i.isLt
+  simp only [Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+  split_ifs <;> simp_all <;> omega
 
 /-- The Cartan matrix of D_{m+1} at (succ i, succ j) matches D_m at (i, j). -/
 private lemma Dn_cartan_succ_succ (m : ℕ) (hm : 4 ≤ m) (i j : Fin m) :
@@ -1090,37 +1066,35 @@ private lemma Dn_cartan_succ_succ (m : ℕ) (hm : 4 ≤ m) (i j : Fin m) :
       (Etingof.DynkinType.D (m + 1) (by omega)).adj) i.succ j.succ =
     (2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
       (Etingof.DynkinType.D m hm).adj) i j := by
-  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul]
-  congr 1
-  · congr 1; exact propext ⟨fun h => Fin.succ_injective _ h, fun h => congr_arg _ h⟩
-  · exact Dn_adj_succ_succ m hm i j
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+    Dn_adj_succ_succ m hm i j, Fin.succ_inj]
 
 /-- The Cartan matrix of D_{m+1} at (0, succ j). -/
 private lemma Dn_cartan_zero_succ (m : ℕ) (hm : 4 ≤ m) (j : Fin m) :
     (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
-      (Etingof.DynkinType.D (m + 1) (by omega)).adj) 0 j.succ =
-    if j.val = 0 then -1 else 0 := by
-  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
-    Fin.succ_ne_zero, ite_false]
-  rw [Dn_adj_zero_succ m hm]
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) (0 : Fin (m + 1)) j.succ =
+    if j = ⟨0, by omega⟩ then -1 else 0 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul]
+  have h0 : ¬((0 : Fin (m + 1)) = j.succ) := (Fin.succ_ne_zero j).symm
+  simp only [h0, ite_false, Dn_adj_zero_succ m hm]
   split_ifs <;> simp
 
 /-- The Cartan matrix of D_{m+1} at (succ i, 0). -/
 private lemma Dn_cartan_succ_zero (m : ℕ) (hm : 4 ≤ m) (i : Fin m) :
     (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
-      (Etingof.DynkinType.D (m + 1) (by omega)).adj) i.succ 0 =
-    if i.val = 0 then -1 else 0 := by
-  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
-    Fin.succ_ne_zero, ite_false]
-  rw [Dn_adj_succ_zero m hm]
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) i.succ (0 : Fin (m + 1)) =
+    if i = ⟨0, by omega⟩ then -1 else 0 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul]
+  have h0 : ¬(i.succ = (0 : Fin (m + 1))) := Fin.succ_ne_zero i
+  simp only [h0, ite_false, Dn_adj_succ_zero m hm]
   split_ifs <;> simp
 
 /-- The Cartan matrix of D_{m+1} at (0, 0) is 2. -/
 private lemma Dn_cartan_zero_zero (m : ℕ) (hm : 4 ≤ m) :
     (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
-      (Etingof.DynkinType.D (m + 1) (by omega)).adj) 0 0 = 2 := by
-  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
-    ite_true, Dn_adj_zero_zero m hm]
+      (Etingof.DynkinType.D (m + 1) (by omega)).adj) (0 : Fin (m + 1)) (0 : Fin (m + 1)) = 2 := by
+  simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply,
+    ite_true, Dn_adj_zero_zero m hm, sub_zero]; norm_num
 
 /-- The D_{m+1} quadratic form decomposes as D_m on the tail plus 2x₀(x₀ - x₁). -/
 private lemma Dn_qform_peel (m : ℕ) (hm : 4 ≤ m) (x : Fin (m + 1) → ℤ) :
@@ -1131,29 +1105,127 @@ private lemma Dn_qform_peel (m : ℕ) (hm : 4 ≤ m) (x : Fin (m + 1) → ℤ) :
         (Etingof.DynkinType.D m hm).adj).mulVec (x ∘ Fin.succ)) +
     2 * x 0 ^ 2 - 2 * x 0 * x ⟨1, by omega⟩ := by
   set C := (2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
-    (Etingof.DynkinType.D (m + 1) (by omega)).adj) with hC
+    (Etingof.DynkinType.D (m + 1) (by omega)).adj)
   set C' := (2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-    (Etingof.DynkinType.D m hm).adj) with hC'
-  -- Expand dotProduct and mulVec
-  simp only [dotProduct, mulVec, Function.comp]
-  -- Peel off i = 0 from outer sum
-  rw [Fin.sum_univ_succ]
-  -- Peel off j = 0 from each inner sum
-  simp_rw [Fin.sum_univ_succ]
-  -- Substitute Cartan entries
-  simp only [hC, hC', Dn_cartan_zero_zero m hm, Dn_cartan_zero_succ m hm,
-    Dn_cartan_succ_zero m hm, Dn_cartan_succ_succ m hm]
-  -- The sum ∑_j (if j.val = 0 then -1 else 0) * x j.succ = -x 1
-  -- Clean up the if-then-else sums
-  simp only [ite_mul, zero_mul, neg_mul, one_mul, Finset.sum_ite_eq',
-    Finset.mem_univ, ite_true]
+    (Etingof.DynkinType.D m hm).adj)
+  -- Split dotProduct at i = 0
+  rw [show dotProduct x (C.mulVec x) =
+      x 0 * (C.mulVec x) 0 + ∑ i : Fin m, x (Fin.succ i) * (C.mulVec x) (Fin.succ i) from
+    Fin.sum_univ_succ (f := fun i => x i * (C.mulVec x) i)]
+  -- Compute (C.mulVec x) 0 = 2*x(0) - x(1)
+  have hmv0 : (C.mulVec x) 0 = 2 * x 0 - x ⟨1, by omega⟩ := by
+    change ∑ j, C 0 j * x j = _
+    rw [Fin.sum_univ_succ, Fin.sum_univ_succ]
+    have hC00 : C (0 : Fin (m+1)) (0 : Fin (m+1)) = 2 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        Etingof.DynkinType.adj, Fin.val_zero, Fin.ext_iff]; split_ifs <;> simp_all <;> omega
+    have hC01 : C (0 : Fin (m+1)) (Fin.succ (0 : Fin m)) = -1 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        Etingof.DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]; split_ifs <;> simp_all <;> omega
+    have hrest : ∑ i : Fin (m - 1), C (0 : Fin (m+1)) (Fin.succ (Fin.succ i)) *
+        x (Fin.succ (Fin.succ i)) = 0 :=
+      Finset.sum_eq_zero fun j _ => by
+        have : C (0 : Fin (m+1)) (Fin.succ (Fin.succ j)) = 0 := by
+          simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+            Etingof.DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+          split_ifs <;> simp_all <;> omega
+        rw [this, zero_mul]
+    rw [hC00, hC01]; conv_rhs => rw [show m = (m - 1) + 1 from by omega]
+    rw [hrest]; have : x (Fin.succ (0 : Fin m)) = x ⟨1, by omega⟩ := by congr 1
+    rw [this]; ring
+  rw [hmv0]
+  -- Decompose (C.mulVec x)(succ i)
+  have hmv_succ : ∀ i : Fin m, (C.mulVec x) (Fin.succ i) =
+      C (Fin.succ i) (0 : Fin (m+1)) * x 0 + (C'.mulVec (x ∘ Fin.succ)) i := by
+    intro i; change ∑ j, C (Fin.succ i) j * x j = _
+    rw [Fin.sum_univ_succ]; congr 1
+    change _ = ∑ j, C' i j * (x ∘ Fin.succ) j
+    apply Finset.sum_congr rfl; intro j _
+    simp only [Function.comp]; congr 1
+    exact Dn_cartan_succ_succ m hm i j
+  simp_rw [hmv_succ, mul_add, Finset.sum_add_distrib]
+  have hsum_C0 : ∑ i : Fin m, x (Fin.succ i) * (C (Fin.succ i) (0 : Fin (m+1)) * x 0) =
+      -(x ⟨1, by omega⟩ * x 0) := by
+    rw [Fin.sum_univ_succ]
+    have hC10 : C (Fin.succ (0 : Fin m)) (0 : Fin (m+1)) = -1 := by
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        Etingof.DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+      split_ifs <;> simp_all <;> omega
+    rw [hC10]
+    have hrest : ∀ j : Fin (m - 1), C (Fin.succ (Fin.succ j)) (0 : Fin (m+1)) = 0 := by
+      intro j
+      simp only [C, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, smul_eq_mul,
+        Etingof.DynkinType.adj, Fin.val_succ, Fin.val_zero, Fin.ext_iff]
+      split_ifs <;> simp_all <;> omega
+    conv_rhs => rw [show m = (m - 1) + 1 from by omega]
+    have : ∑ j : Fin (m - 1), x (Fin.succ (Fin.succ j)) *
+        (C (Fin.succ (Fin.succ j)) (0 : Fin (m+1)) * x 0) = 0 :=
+      Finset.sum_eq_zero (fun j _ => by rw [hrest]; ring)
+    rw [this, add_zero]
+    have : x (Fin.succ (0 : Fin m)) = x ⟨1, by omega⟩ := by congr 1
+    rw [this]; ring
+  rw [hsum_C0]
+  rw [show ∑ i : Fin m, x (Fin.succ i) * (C'.mulVec (x ∘ Fin.succ)) i =
+    dotProduct (x ∘ Fin.succ) (C'.mulVec (x ∘ Fin.succ)) from rfl]
   ring
 
-/-- Positive definiteness of the D_n Cartan form: q(x) > 0 for nonzero x. -/
-private lemma Dn_posDef (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ) (hx : x ≠ 0) :
+/-- Positive definiteness of the D_n Cartan form: q(x) > 0 for nonzero x.
+    Proved by induction: D₄ by native_decide setup, step by peel decomposition. -/
+private lemma Dn_posDef : ∀ (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ), x ≠ 0 →
     0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
-      (Etingof.DynkinType.D n hn).adj).mulVec x) :=
-  (Dn_isDynkin n hn).2.2.2.2 x hx
+      (Etingof.DynkinType.D n hn).adj).mulVec x) := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hm x hx
+    by_cases hm4 : m = 3
+    · subst hm4
+      have hqf := D4_qf x
+      rw [hqf]
+      have hsos := D4_sos (x 0) (x 1) (x 2) (x 3)
+      by_contra h; push_neg at h
+      have hle : 2 * (2*(x 0^2+x 1^2+x 2^2+x 3^2) - 2*(x 0*x 1+x 1*x 2+x 1*x 3)) ≤ 0 :=
+        by nlinarith
+      rw [hsos] at hle
+      -- Each square ≤ 0, hence = 0
+      have h1 : (2*x 0-x 1)^2 ≤ 0 := by nlinarith [sq_nonneg (2*x 2-x 1), sq_nonneg (2*x 3-x 1), sq_nonneg (x 1)]
+      have h2 : (x 1)^2 ≤ 0 := by nlinarith [sq_nonneg (2*x 0-x 1), sq_nonneg (2*x 2-x 1), sq_nonneg (2*x 3-x 1)]
+      have h3 : (2*x 2-x 1)^2 ≤ 0 := by nlinarith [sq_nonneg (2*x 0-x 1), sq_nonneg (2*x 3-x 1), sq_nonneg (x 1)]
+      have h4 : (2*x 3-x 1)^2 ≤ 0 := by nlinarith [sq_nonneg (2*x 0-x 1), sq_nonneg (2*x 2-x 1), sq_nonneg (x 1)]
+      have hx1 : x 1 = 0 := sq_eq_zero_iff.mp (le_antisymm h2 (sq_nonneg _))
+      have : 2*x 0 - x 1 = 0 := sq_eq_zero_iff.mp (le_antisymm h1 (sq_nonneg _))
+      have hx0 : x 0 = 0 := by linarith
+      have : 2*x 2 - x 1 = 0 := sq_eq_zero_iff.mp (le_antisymm h3 (sq_nonneg _))
+      have hx2 : x 2 = 0 := by linarith
+      have : 2*x 3 - x 1 = 0 := sq_eq_zero_iff.mp (le_antisymm h4 (sq_nonneg _))
+      have hx3 : x 3 = 0 := by linarith
+      apply hx; ext i; fin_cases i <;> assumption
+    · have hm' : 4 ≤ m := by omega
+      have hpeel := Dn_qform_peel m hm' (fun i => (x i : ℤ))
+      simp only [Function.comp, Int.cast_id] at hpeel
+      set qtail := dotProduct (fun i : Fin m => x i.succ)
+        ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+          (Etingof.DynkinType.D m hm').adj).mulVec (fun i : Fin m => x i.succ))
+      by_cases htail : (fun i : Fin m => x i.succ) = 0
+      · -- tail = 0, so x = (x₀, 0, ..., 0) ≠ 0 means x₀ ≠ 0
+        have hx0 : x 0 ≠ 0 := by
+          intro h; apply hx; ext i
+          by_cases hi : i = 0
+          · subst hi; exact h
+          · have : ∃ j : Fin m, i = j.succ :=
+              ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+            obtain ⟨j, rfl⟩ := this; exact congr_fun htail j
+        have htailz : ∀ i : Fin m, x i.succ = 0 := congr_fun htail
+        have hx1 : x ⟨1, by omega⟩ = 0 := htailz ⟨0, by omega⟩
+        rw [hpeel]
+        have hqtail : qtail = 0 := by
+          unfold_let qtail
+          simp [htailz, dotProduct, mulVec, Finset.sum_eq_zero (fun i _ => by simp [htailz])]
+        rw [hqtail]; simp; nlinarith [sq_nonneg (x 0), sq_abs (x 0)]
+      · -- tail ≠ 0, so qtail > 0 by IH
+        have hqtail_pos := ih hm' (fun i => x i.succ) htail
+        rw [hpeel]; nlinarith [sq_nonneg (x 0 - x ⟨1, by omega⟩)]
 
 /-- All positive roots of D_n have each coordinate < 3.
     Proved by induction: peel off vertex 0, apply IH to D_{n-1}. -/
