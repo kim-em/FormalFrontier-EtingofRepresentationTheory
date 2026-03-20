@@ -32,12 +32,6 @@ variable {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
 
 /-! ## B-preservation -/
 
-private lemma cartanMatrix_isSymm (hadj : adj.IsSymm) :
-    (cartanMatrix n adj).IsSymm := by
-  rw [Matrix.IsSymm]; unfold cartanMatrix
-  simp only [Matrix.transpose_sub, Matrix.transpose_smul,
-    Matrix.transpose_one]; rw [hadj.eq]
-
 private lemma cartanMatrix_diag_eq_two
     (hDynkin : IsDynkinDiagram n adj) (i : Fin n) :
     cartanMatrix n adj i i = 2 := by
