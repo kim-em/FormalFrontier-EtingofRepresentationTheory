@@ -1,4 +1,5 @@
 import Mathlib
+import EtingofRepresentationTheory.Chapter5.GL2ConjugacyClasses
 
 /-!
 # Lemma 5.25.3: Complementary Series Character Properties
@@ -214,6 +215,96 @@ noncomputable def Etingof.GL2.complementarySeriesChar
           then (nu ⟨x⁻¹ * g * x, h⟩).val
           else 0
 
+/-! ### Character value lemmas on each conjugacy class type
+
+From Discussion 5.25.4, the complementary series virtual character
+χ = char(W₁ ⊗ V_{α,1}) - char(V_{α,1}) - char(Ind_K^G ℂ_ν)
+has the following values:
+- Scalar xI: χ(xI) = (q-1)α(x)
+- Parabolic [[x,1],[0,x]]: χ = -α(x)
+- Hyperbolic diag(x,y), x≠y: χ = 0
+- Elliptic ζ ∈ K\F_q×: χ = -(ν(ζ) + ν^q(ζ))
+-/
+
+section CharacterValues
+
+set_option linter.unusedFintypeInType false
+set_option linter.unusedDecidableInType false
+
+/-- On scalar matrices, |χ(xI)|² = (q-1)². Since χ(xI) = (q-1)α(x) and
+|α(x)| = 1 (α is a character to ℂˣ, landing on roots of unity). -/
+private lemma Etingof.normSq_complementaryChar_scalar
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) :
+    Etingof.GL2.complementarySeriesChar p n nu g *
+    starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) =
+    ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 2 := by
+  sorry
+
+/-- On parabolic matrices, |χ|² = 1 (since χ = -α(x) and |α(x)| = 1). -/
+private lemma Etingof.normSq_complementaryChar_parabolic
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g) :
+    Etingof.GL2.complementarySeriesChar p n nu g *
+    starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) = 1 := by
+  sorry
+
+/-- On split semisimple (hyperbolic) matrices, χ = 0. -/
+private lemma Etingof.complementaryChar_splitSemisimple_eq_zero
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsSplitSemisimple (p := p) (n := n) g) :
+    Etingof.GL2.complementarySeriesChar p n nu g = 0 := by
+  sorry
+
+end CharacterValues
+
+/-- Character orthogonality for finite groups: the sum of a nontrivial
+character over all group elements is zero. Applied to ν^{q-1} on F_{q²}×. -/
+private lemma Etingof.sum_nontrivial_char_eq_zero
+    {G : Type*} [CommGroup G] [Fintype G]
+    (χ : G →* ℂˣ) (hχ : χ ≠ 1) :
+    ∑ g : G, (χ g : ℂ) = 0 := by
+  -- Standard character orthogonality: ∑_g χ(g) = 0 for nontrivial χ
+  -- Choose g₀ with χ(g₀) ≠ 1
+  have ⟨g₀, hg₀⟩ : ∃ g₀, χ g₀ ≠ 1 := by
+    by_contra h; push_neg at h; exact absurd (MonoidHom.ext h) hχ
+  -- χ(g₀) * ∑ g, χ(g) = ∑ g, χ(g₀ * g) = ∑ g, χ(g) (by reindexing)
+  have hne : (χ g₀ : ℂ) ≠ 1 := by
+    intro h; apply hg₀; exact Units.val_injective h
+  have key : (χ g₀ : ℂ) * ∑ g, (χ g : ℂ) = ∑ g, (χ g : ℂ) := by
+    rw [Finset.mul_sum]
+    apply Finset.sum_nbij (fun g => g₀ * g)
+    · intro g _; exact Finset.mem_univ _
+    · intro g₁ _ g₂ _ h; exact mul_left_cancel h
+    · intro g _; exact ⟨g₀⁻¹ * g, Finset.mem_univ _, by group⟩
+    · intro g _; simp only [map_mul, Units.val_mul]
+  -- (χ(g₀) - 1) * ∑ χ = 0, with χ(g₀) ≠ 1
+  have h1 : ((χ g₀ : ℂ) - 1) * ∑ g, (χ g : ℂ) = 0 := by
+    rw [sub_mul, one_mul, sub_eq_zero]; exact key
+  rcases mul_eq_zero.mp h1 with h | h
+  · exact absurd (sub_eq_zero.mp h) hne
+  · exact h
+
+/-- The elliptic contribution to ∑ |χ|² equals q(q-1)³.
+Uses that |χ(ζ)|² = |ν(ζ) + ν^q(ζ)|² and character orthogonality
+∑_{ζ∈F_{q²}×} ν^{q-1}(ζ) = 0 when ν^q ≠ ν. -/
+private lemma Etingof.elliptic_contribution
+    [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)]
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0) :
+    ∑ g ∈ Finset.univ.filter (fun g : GL2 p n => GL2.IsElliptic (p := p) (n := n) g),
+      Etingof.GL2.complementarySeriesChar p n nu g *
+      starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) =
+    (Fintype.card (GaloisField p n) : ℂ) *
+    ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 3 := by
+  sorry
+
 /-- Arithmetic identity: contributions from scalar, parabolic, and elliptic conjugacy classes
 sum to |GL₂(𝔽_q)|. Specifically:
   (q-1)³ + (q-1)(q²-1) + q(q-1)³ = q(q-1)²(q+1) = (q²-1)(q²-q) -/
@@ -240,25 +331,67 @@ private lemma Etingof.innerProduct_sum_eq_card
       Etingof.GL2.complementarySeriesChar p n nu x *
       starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu x) : ℂ) =
     (Fintype.card (GL2 p n) : ℂ) := by
-  -- Strategy: partition GL₂(𝔽_q) by conjugacy class type and compute |χ|² on each.
-  -- Step 1: Express |G| in terms of q = p^n
   have hn_ne : n ≠ 0 := by omega
   haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
   haveI : DecidableEq (GaloisField p n) := Classical.decEq _
   set q := Fintype.card (GaloisField p n) with hq_def
-  have hq_val : q = p ^ n := by
+  have hq1 : 1 < q := by
     rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn_ne]
-  have hq1 : 1 < q := by rw [hq_val]; exact Nat.one_lt_pow hn_ne hp.out.one_lt
+    exact Nat.one_lt_pow hn_ne hp.out.one_lt
   -- |GL₂(𝔽_q)| = (q²-1)(q²-q)
   have hG : Fintype.card (GL2 p n) = (q ^ 2 - 1) * (q ^ 2 - q) := by
     have := @Matrix.card_GL_field (GaloisField p n) _ _ 2
     simp only [Fin.prod_univ_two, Fin.val_zero, Fin.val_one, pow_zero, pow_one,
                ← Nat.card_eq_fintype_card] at this
     rw [← Nat.card_eq_fintype_card, this, Nat.card_eq_fintype_card]
-  -- Step 2: The core computation requires splitting the sum by conjugacy class type.
-  -- This needs conjugacy class infrastructure for GL₂(𝔽_q) and explicit character
-  -- value computations on each class, plus character orthogonality for cyclic groups.
-  sorry
+  -- Step 1: Split sum by conjugacy class type
+  set χ := Etingof.GL2.complementarySeriesChar p n nu
+  set f : GL2 p n → ℂ := fun g => χ g * starRingEnd ℂ (χ g)
+  -- Use GL2.sum_split (GL2 and GL2' are definitionally equal)
+  have hsplit := GL2.sum_split (p := p) (n := n) f
+  rw [hsplit]
+  -- Step 2: Compute contribution from each class type
+  -- Scalar: each element contributes (q-1)², total = (q-1) * (q-1)² = (q-1)³
+  have h_scalar : ∑ g ∈ Finset.univ.filter (fun g => GL2.IsScalar g), f g =
+      ((q : ℂ) - 1) ^ 3 := by
+    have hval : ∀ g ∈ Finset.univ.filter (fun g => GL2.IsScalar (p := p) (n := n) g),
+        f g = ((q : ℂ) - 1) ^ 2 := fun g hg => by
+      rw [Finset.mem_filter] at hg
+      exact Etingof.normSq_complementaryChar_scalar p n nu g hg.2
+    rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isScalar hn_ne, nsmul_eq_mul]
+    have h1 : 1 ≤ q := by omega
+    rw [show Fintype.card (GaloisField p n) = q from hq_def.symm]
+    push_cast [Nat.cast_sub h1]; ring
+  -- Parabolic: each element contributes 1, total = (q-1)(q²-1)
+  have h_parabolic : ∑ g ∈ Finset.univ.filter (fun g => GL2.IsParabolic g), f g =
+      ((q : ℂ) - 1) * ((q : ℂ) ^ 2 - 1) := by
+    have hval : ∀ g ∈ Finset.univ.filter (fun g => GL2.IsParabolic (p := p) (n := n) g),
+        f g = 1 := fun g hg => by
+      rw [Finset.mem_filter] at hg
+      exact Etingof.normSq_complementaryChar_parabolic p n nu g hg.2
+    rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isParabolic hn_ne, nsmul_eq_mul,
+      mul_one]
+    have h1 : 1 ≤ q := by omega
+    have h2 : 1 ≤ q ^ 2 := by nlinarith
+    rw [show Fintype.card (GaloisField p n) = q from hq_def.symm]
+    push_cast [Nat.cast_sub h1, Nat.cast_sub h2]; ring
+  -- Split semisimple: each element contributes 0
+  have h_split : ∑ g ∈ Finset.univ.filter (fun g => GL2.IsSplitSemisimple g), f g = 0 := by
+    apply Finset.sum_eq_zero; intro g hg
+    rw [Finset.mem_filter] at hg
+    have h0 : χ g = 0 := Etingof.complementaryChar_splitSemisimple_eq_zero p n nu g hg.2
+    change χ g * starRingEnd ℂ (χ g) = 0
+    rw [h0, map_zero, mul_zero]
+  -- Elliptic: total = q(q-1)³
+  have h_elliptic : ∑ g ∈ Finset.univ.filter (fun g => GL2.IsElliptic g), f g =
+      (q : ℂ) * ((q : ℂ) - 1) ^ 3 :=
+    Etingof.elliptic_contribution p n nu hn_ne
+  -- Combine
+  rw [h_scalar, h_parabolic, h_split, h_elliptic, hG]
+  have h1 : 1 ≤ q := by omega
+  have h2 : 1 ≤ q ^ 2 := by nlinarith
+  have h3 : q ≤ q ^ 2 := by nlinarith
+  push_cast [Nat.cast_sub h1, Nat.cast_sub h2, Nat.cast_sub h3]; ring
 
 /-- **Lemma 5.25.3 (part 1)**: The complementary series virtual character
 satisfies ⟨χ, χ⟩ = 1, establishing (via Lemma 5.7.2) that it is the character
