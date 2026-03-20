@@ -58,10 +58,34 @@ lemma Etingof.GL2.frobeniusMatrix_sq_eq_one (hn : n ≠ 0) :
     (GaloisField p n) (GaloisField p (2 * n))).toLinearEquiv
   rw [sq]
   apply Units.ext
-  -- The Frobenius on F_{q²}/F_q has order dividing 2: σ(x) = x^q, so σ²(x) = x^{q²} = x.
-  -- Proving this requires matching the internal basis of frobeniusMatrix with the local basis.
-  -- This is a technical instance-matching issue; the mathematical content is straightforward.
-  sorry
+  -- Unfold frobeniusMatrix to expose the internal basis
+  have hval : (Etingof.GL2.frobeniusMatrix p n).val =
+      LinearMap.toMatrix b b σ.toLinearMap := by
+    change (Etingof.GL2.frobeniusMatrix p n).val = _
+    simp only [Etingof.GL2.frobeniusMatrix, dif_neg hn]
+    congr; exact Subsingleton.elim _ _
+  simp only [Units.val_mul, Units.val_one, hval, ← LinearMap.toMatrix_mul]
+  have hσ2 : σ.toLinearMap * σ.toLinearMap = LinearMap.id := by
+    ext x
+    show σ (σ x) = x
+    -- σ(x) = x^q where q = card(F_q), so σ(σ(x)) = x^{q²} = x since |F_{q²}| = q²
+    let σ_alg := FiniteField.frobeniusAlgEquivOfAlgebraic
+      (GaloisField p n) (GaloisField p (2 * n))
+    change σ_alg (σ_alg x) = x
+    rw [FiniteField.coe_frobeniusAlgEquivOfAlgebraic]
+    -- Goal: (x ^ q) ^ q = x, beta-reduce and simplify
+    simp only [← pow_mul]
+    -- x ^ (q * q) = x since card(F_{q²}) = q²
+    have hcard : Fintype.card (GaloisField p n) * Fintype.card (GaloisField p n) =
+        Fintype.card (GaloisField p (2 * n)) := by
+      simp only [Fintype.card_eq_nat_card]
+      have h1 := @GaloisField.card p _ n hn
+      have h2 := @GaloisField.card p _ (2 * n) (by omega : 2 * n ≠ 0)
+      rw [h1, h2]
+      ring
+    rw [hcard]
+    exact FiniteField.pow_card x
+  rw [hσ2, LinearMap.toMatrix_id]
 
 /-- The Frobenius σ⁻¹ = σ (since σ² = 1). -/
 lemma Etingof.GL2.frobeniusMatrix_inv_eq_self (hn : n ≠ 0) :
@@ -84,18 +108,61 @@ lemma Etingof.GL2.frobeniusMatrix_conj [Fintype (GaloisField p n)] (hn : n ≠ 0
   letI := Etingof.algebraGaloisFieldExt p n
   letI := Etingof.scalarTowerGaloisField p n
   haveI := Etingof.finiteDimensionalGaloisFieldExt p n
-  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  -- Note: [Fintype (GaloisField p n)] already from statement; don't duplicate
   haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
   haveI : Algebra.IsAlgebraic (GaloisField p n) (GaloisField p (2 * n)) :=
     Algebra.IsAlgebraic.of_finite _ _
   let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
     (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
-  let σ := (FiniteField.frobeniusAlgEquivOfAlgebraic
-    (GaloisField p n) (GaloisField p (2 * n))).toLinearEquiv
-  -- Mathematical content: σ⁻¹ ∘ Lα ∘ σ = L_{α^q} since σ(α·x) = σ(α)·σ(x) = α^q·σ(x)
-  -- and σ² = id. The proof requires matching internal basis instances of frobeniusMatrix
-  -- and fieldExtEmbed, which is a technical Lean definitional equality issue.
-  sorry
+  let σ_alg := FiniteField.frobeniusAlgEquivOfAlgebraic
+    (GaloisField p n) (GaloisField p (2 * n))
+  let σ := σ_alg.toLinearEquiv
+  rw [Etingof.GL2.frobeniusMatrix_inv_eq_self p n hn]
+  apply Units.ext
+  have hfrob : (Etingof.GL2.frobeniusMatrix p n).val =
+      LinearMap.toMatrix b b σ.toLinearMap := by
+    change (Etingof.GL2.frobeniusMatrix p n).val = _
+    simp only [Etingof.GL2.frobeniusMatrix, dif_neg hn]
+    congr; exact Subsingleton.elim _ _
+  have hembed : ∀ (β : (GaloisField p (2 * n))ˣ),
+      (Etingof.GL2.fieldExtEmbed p n β).val =
+      Algebra.leftMulMatrix b (β : GaloisField p (2 * n)) := by
+    intro β
+    change (Etingof.GL2.fieldExtEmbed p n β).val = _
+    simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]
+    congr 1
+  simp only [Units.val_mul, hfrob, hembed, Algebra.leftMulMatrix_apply,
+    ← LinearMap.toMatrix_mul]
+  congr 1
+  ext x
+  -- Goal: (σ * Lα * σ)(x) = L_{α^q}(x)
+  -- Unfold * on End to composition
+  show σ ((Algebra.lmul (GaloisField p n) (GaloisField p (2 * n)) (↑α)) (σ x)) =
+    (Algebra.lmul (GaloisField p n) (GaloisField p (2 * n))
+      ((↑α : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n))) x
+  -- lmul a x = a * x
+  show σ ((↑α : GaloisField p (2 * n)) * σ x) =
+    (↑α : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n) * x
+  -- σ is the Frobenius ring hom: σ(a * b) = σ(a) * σ(b)
+  change σ_alg ((↑α : GaloisField p (2 * n)) * σ_alg x) =
+    (↑α : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n) * x
+  rw [map_mul]
+  -- σ²(x) = x
+  have hσσ : ∀ y, σ_alg (σ_alg y) = y := by
+    intro y
+    rw [show (σ_alg : GaloisField p (2 * n) → GaloisField p (2 * n)) = (· ^ Fintype.card (GaloisField p n)) from
+      FiniteField.coe_frobeniusAlgEquivOfAlgebraic (GaloisField p n) (GaloisField p (2 * n))]
+    simp only [← pow_mul]
+    have hcard : Fintype.card (GaloisField p n) * Fintype.card (GaloisField p n) =
+        Fintype.card (GaloisField p (2 * n)) := by
+      simp only [Fintype.card_eq_nat_card]
+      rw [@GaloisField.card p _ n hn, @GaloisField.card p _ (2 * n) (by omega : 2 * n ≠ 0)]
+      ring
+    rw [hcard]; exact FiniteField.pow_card y
+  rw [hσσ, show (σ_alg (↑α : GaloisField p (2 * n))) =
+    (↑α : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n) from
+    congrFun (FiniteField.coe_frobeniusAlgEquivOfAlgebraic
+      (GaloisField p n) (GaloisField p (2 * n))) ↑α]
 
 /-- The Frobenius matrix normalizes the elliptic subgroup K. -/
 lemma Etingof.GL2.frobeniusMatrix_normalizes [Fintype (GaloisField p n)] (hn : n ≠ 0)
