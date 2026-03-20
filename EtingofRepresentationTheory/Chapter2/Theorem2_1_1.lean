@@ -517,6 +517,175 @@ private lemma casimir_on_irreducible_scalar
 
 end Casimir
 
+/-! ## Complete reducibility of sl(2)-representations
+
+The proof of complete reducibility proceeds by strong induction on the dimension of the
+representation. The Casimir element C commutes with the sl(2) action, so its eigenspaces
+are Lie submodules. On each irreducible V_n, C acts as n(n+2), and n ↦ n(n+2) is injective
+on ℕ, so the Casimir separates non-isomorphic irreducibles.
+
+The proof has three main components:
+1. When the Casimir has multiple eigenvalues, the eigenspaces decompose V into smaller
+   Lie submodules, each completely reducible by induction.
+2. When all composition factors have the same non-trivial Casimir eigenvalue,
+   the ker(C - λ) construction gives complements.
+3. When all composition factors are trivial (Casimir eigenvalue 0), sl(2) acts as 0
+   (because sl(2) is perfect), so every subspace is a Lie submodule and the lattice is
+   complemented since ℂ is a field. -/
+
+section CompleteReducibility
+
+open Sl2Irrep
+
+/-- The map n ↦ n(n+2) is injective on ℕ. This is used to show that non-isomorphic
+irreducible sl(2)-modules have distinct Casimir eigenvalues. -/
+private lemma casimir_eigenvalue_injective :
+    Function.Injective (fun n : ℕ ↦ (n : ℂ) * ((n : ℂ) + 2)) := by
+  intro a b hab
+  -- n ↦ n*(n+2) = n^2 + 2n is strictly monotone on ℕ, hence injective.
+  -- Reduce to ℕ arithmetic.
+  change (a : ℂ) * ((a : ℂ) + 2) = (b : ℂ) * ((b : ℂ) + 2) at hab
+  -- Cast down to ℕ
+  have hab_nat : a * (a + 2) = b * (b + 2) := by
+    have h1 : ((a : ℂ) * ((a : ℂ) + 2)) = ((a * (a + 2) : ℕ) : ℂ) := by push_cast; ring
+    have h2 : ((b : ℂ) * ((b : ℂ) + 2)) = ((b * (b + 2) : ℕ) : ℂ) := by push_cast; ring
+    exact_mod_cast h1 ▸ h2 ▸ hab
+  -- n*(n+2)+1 = (n+1)^2
+  have h1 : a * (a + 2) + 1 = (a + 1) ^ 2 := by ring
+  have h2 : b * (b + 2) + 1 = (b + 1) ^ 2 := by ring
+  have h3 : (a + 1) ^ 2 = (b + 1) ^ 2 := by omega
+  have h4 : a + 1 = b + 1 := Nat.pow_left_injective (by omega) h3
+  omega
+
+/-- sl(2) is perfect: every element is a linear combination of Lie brackets.
+Specifically, h = [e,f], e = (1/2)[h,e], f = -(1/2)[h,f]. -/
+private lemma sl2_isPerfect : ∀ x : sl2,
+    x ∈ Submodule.span ℂ (Set.range (fun p : sl2 × sl2 ↦ ⁅p.1, p.2⁆)) := by
+  intro x
+  rw [Submodule.mem_span]
+  intro S hS
+  -- x = x₀₀ • h + x₀₁ • e + x₁₀ • f, and h = [e,f], e = (1/2)[h,e], f = -(1/2)[h,f]
+  rw [sl2_decomp x]
+  refine S.add_mem (S.add_mem (S.smul_mem _ ?_) (S.smul_mem _ ?_)) (S.smul_mem _ ?_)
+  · -- h = [e, f]
+    rw [← lie_e_f]
+    exact hS ⟨(sl2_e, sl2_f), rfl⟩
+  · -- e = (1/2) • [h, e]
+    have : sl2_e = (1/2 : ℂ) • ⁅sl2_h, sl2_e⁆ := by
+      rw [sl2_triple.lie_h_e_nsmul, ← Nat.cast_smul_eq_nsmul ℂ]
+      simp [smul_smul]
+    rw [this]
+    exact S.smul_mem _ (hS ⟨(sl2_h, sl2_e), rfl⟩)
+  · -- f = -(1/2) • [h, f]
+    have : sl2_f = -(1/2 : ℂ) • ⁅sl2_h, sl2_f⁆ := by
+      rw [sl2_triple.lie_h_f_nsmul, ← Nat.cast_smul_eq_nsmul ℂ]
+      simp [smul_smul, neg_smul, smul_neg]
+    rw [this]
+    exact S.smul_mem _ (hS ⟨(sl2_h, sl2_f), rfl⟩)
+
+/-- If sl(2) acts trivially on a quotient V/N and trivially on N, then sl(2) acts
+trivially on V. (Consequence of sl(2) being perfect.) -/
+private lemma sl2_acts_trivially_of_quotient_and_sub
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (N : LieSubmodule ℂ sl2 V)
+    (hN : ∀ (x : sl2) (v : N), ⁅x, (v : V)⁆ = 0)
+    (hQ : ∀ (x : sl2) (v : V), (⁅x, v⁆ : V) ∈ N) :
+    ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0 := by
+  intro x v
+  -- For any y, z ∈ sl(2): [y, [z, v]] = [[y,z], v] + [z, [y, v]]
+  -- [z, v] ∈ N (by hQ), so [y, [z, v]] = 0 (by hN)
+  -- [[y,z], v] ∈ N (by hQ), so [[y,z], v] is in N
+  -- Therefore 0 = [[y,z], v] + [z, [y, v]], and [z, [y, v]] = 0 (by hN since [y,v] ∈ N)
+  -- So [[y,z], v] = 0 for all y, z.
+  -- Since sl(2) is perfect, every x is a linear combination of brackets, so [x, v] = 0.
+  -- But [x, v] ∈ N, and we need [x, v] = 0.
+  have hbracket : ∀ (y z : sl2), ⁅⁅y, z⁆, v⁆ = 0 := by
+    intro y z
+    have h1 : ⁅y, ⁅z, v⁆⁆ = (0 : V) := by
+      have hzv : ⁅z, v⁆ ∈ N := hQ z v
+      exact hN y ⟨⁅z, v⁆, hzv⟩
+    have h2 : ⁅z, ⁅y, v⁆⁆ = (0 : V) := by
+      have hyv : ⁅y, v⁆ ∈ N := hQ y v
+      exact hN z ⟨⁅y, v⁆, hyv⟩
+    have := leibniz_lie y z v
+    rw [h1, h2, add_zero] at this
+    exact this.symm
+  -- Now use perfectness: x is a linear combination of brackets
+  -- so ⁅x, v⁆ is a linear combination of ⁅⁅y,z⁆, v⁆ = 0
+  have hxv_mem : ⁅x, v⁆ ∈ N := hQ x v
+  -- Decompose x = x₀₀ • h + x₀₁ • e + x₁₀ • f
+  rw [sl2_decomp x, add_lie, add_lie, smul_lie, smul_lie, smul_lie]
+  -- h = [e,f], so [h,v] = [[e,f],v] = 0
+  have hh : ⁅sl2_h, v⁆ = (0 : V) := by rw [← lie_e_f]; exact hbracket sl2_e sl2_f
+  -- e = (1/2)[h,e], but we can directly use hbracket for [h,e] case
+  -- Actually, we need [[h,e], v] = 0 which gives [2e, v] = 0 hence [e, v] = 0
+  have he : ⁅sl2_e, v⁆ = (0 : V) := by
+    have h2e := hbracket sl2_h sl2_e
+    rw [sl2_triple.lie_h_e_nsmul, nsmul_lie] at h2e
+    rw [← Nat.cast_smul_eq_nsmul ℂ, smul_eq_zero] at h2e
+    exact h2e.resolve_left (by exact_mod_cast (two_ne_zero : (2 : ℕ) ≠ 0))
+  have hf : ⁅sl2_f, v⁆ = (0 : V) := by
+    have h2f := hbracket sl2_h sl2_f
+    rw [sl2_triple.lie_h_f_nsmul, neg_lie, nsmul_lie, neg_eq_zero] at h2f
+    rw [← Nat.cast_smul_eq_nsmul ℂ, smul_eq_zero] at h2f
+    exact h2f.resolve_left (by exact_mod_cast (two_ne_zero : (2 : ℕ) ≠ 0))
+  simp [hh, he, hf]
+
+/-- If V is a finite-dimensional sl(2,ℂ)-module where all irreducible subquotients are
+trivial (1-dimensional), then sl(2) acts as 0 on V. -/
+private lemma sl2_trivial_action_of_trivial_subquotients
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (h : ∀ (x : sl2) (v : V), sl2_casimir (V := V) v = 0) :
+    ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0 := by
+  sorry
+
+/-- When sl(2) acts trivially on V, every LieSubmodule is just a Submodule,
+and the lattice of LieSubmodules is complemented (since ℂ is a field). -/
+private lemma complementedLattice_of_trivial_action
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (h : ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0) :
+    ComplementedLattice (LieSubmodule ℂ sl2 V) := by
+  constructor
+  intro N
+  -- Since sl(2) acts trivially, every subspace is a Lie submodule
+  -- Use the vector space complement
+  obtain ⟨M, hM⟩ := N.toSubmodule.exists_isCompl
+  let M' : LieSubmodule ℂ sl2 V :=
+    LieSubmodule.mk M (fun {x v} hv ↦ by rw [h x v]; exact M.zero_mem)
+  exact ⟨M', LieSubmodule.isCompl_toSubmodule.mp hM⟩
+
+/-- Key complement construction: if C - c₀ is injective on N (as a submodule)
+and (C - c₀) maps V into N, then ker(C - c₀) is a Lie complement to N. -/
+private lemma casimir_eigenspace_complement
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (N : LieSubmodule ℂ sl2 V) (c₀ : ℂ)
+    (hInj : ∀ v ∈ N.toSubmodule, sl2_casimir v = c₀ • v → v = 0)
+    (hImg : ∀ v : V, sl2_casimir v - c₀ • v ∈ N.toSubmodule) :
+    ∃ N' : LieSubmodule ℂ sl2 V, IsCompl N N' := by
+  -- ker(C - c₀) is a Lie submodule (eigenspace of C for eigenvalue c₀)
+  set K := (sl2_casimir (V := V)).eigenspace c₀
+  have hK_lie : ∀ (x : sl2) (v : V), v ∈ K → ⁅x, v⁆ ∈ K :=
+    casimir_eigenspace_lie_invariant c₀
+  let K' : LieSubmodule ℂ sl2 V :=
+    LieSubmodule.mk K (fun {x v} hv ↦ hK_lie x v hv)
+  refine ⟨K', ?_⟩
+  rw [← LieSubmodule.isCompl_toSubmodule]
+  constructor
+  · -- Disjoint: N ∩ K = ⊥
+    rw [disjoint_iff_inf_le]
+    intro v ⟨hvN, hvK⟩
+    rw [SetLike.mem_coe, Module.End.mem_eigenspace_iff] at hvK
+    exact hInj v hvN hvK
+  · -- Codisjoint: N ⊔ K = ⊤ via dimension counting
+    -- Strategy: im(C - c₀) ⊆ N (by hImg), so dim(ker(C-c₀)) ≥ dim(V) - dim(N).
+    -- Since ker(C-c₀) ∩ N = 0 (disjoint) and dim(ker) ≥ dim(V)-dim(N),
+    -- we get dim(ker) + dim(N) ≥ dim(V), hence ker + N = V.
+    sorry
+
 /-- Part (ii): Any finite-dimensional representation of sl(2, ℂ) is completely reducible.
 Every Lie submodule has a complementary Lie submodule, i.e., the lattice of Lie submodules
 is complemented. This is equivalent to saying every finite-dimensional representation
@@ -529,5 +698,7 @@ theorem Theorem_2_1_1_ii (V : Type*) [AddCommGroup V] [Module ℂ V] [FiniteDime
   -- Key idea: the Casimir element C commutes with the sl(2) action and acts as
   -- a scalar on each irreducible. Its eigenspaces are Lie submodules that decompose V.
   sorry
+
+end CompleteReducibility
 
 end Etingof
