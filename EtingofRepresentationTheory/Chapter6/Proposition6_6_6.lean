@@ -220,30 +220,54 @@ private def Etingof.arrowsOutReversed_origArrow
     (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) : a.fst ⟶ i :=
   Etingof.reversedArrow_eq_ne (Etingof.arrowsOutReversed_ne hi a) a.snd
 
-/-- `reversedArrow_eq_ne` agrees with `cast ReversedAtVertexHom_at_first`.
-The key trick: `revert e` before `cases inst i i` so that `generalize`
-can abstract `inst i i` from both the quantifier type and the match body. -/
-private theorem Etingof.reversedArrow_eq_ne_eq_cast
+/-- The type equality `ReversedAtVertexHom Q i i j = (j ⟶ i)` as a computable
+definition (not a theorem), so that `cast`/`Eq.mpr` with it reduces properly. -/
+private def Etingof.ReversedAtVertexHom_at_first_def
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i j : Q} (hj : j ≠ i) :
+    Etingof.ReversedAtVertexHom Q i i j = (j ⟶ i) := by
+  unfold Etingof.ReversedAtVertexHom
+  cases inst i i with
+  | isFalse h => exact absurd rfl h
+  | isTrue _ =>
+    cases inst j i with
+    | isTrue h => exact absurd h hj
+    | isFalse _ => rfl
+
+/-- Map arrows into i in Q to arrows out of i in Q̄ᵢ.
+Since i is a sink (no arrows out), any arrow j → i in Q gives a reversed
+arrow i →_{Q̄ᵢ} j. Uses `cast` with computable type equality. -/
+private def Etingof.arrowsInto_to_arrowsOutReversed
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (b : Etingof.ArrowsInto Q i) :
+    @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i :=
+  have hne : b.fst ≠ i := fun h =>
+    (hi i).false (cast (congrArg (· ⟶ i) h) b.snd)
+  ⟨b.fst, cast (Etingof.ReversedAtVertexHom_at_first_def hne).symm b.snd⟩
+
+set_option maxHeartbeats 800000 in
+-- reason: unfolding reversedArrow_eq_ne + ReversedAtVertexHom_at_first_def + proof irrelevance
+/-- `reversedArrow_eq_ne` agrees with `cast` using the computable type equality. -/
+private theorem Etingof.reversedArrow_eq_ne_eq_cast_def
     {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i j : Q} (hj : j ≠ i)
     (e : Etingof.ReversedAtVertexHom Q i i j) :
     Etingof.reversedArrow_eq_ne hj e =
-    cast Etingof.ReversedAtVertexHom_at_first e := by
-  -- BLOCKER: Decidable.casesOn opacity prevents generalize/cases on inst i i
-  -- when it appears in both reversedArrow_eq_ne (match-based) and cast
-  -- (ReversedAtVertexHom_at_first proof). The kernel can't abstract inst i i
-  -- from the dependent type positions simultaneously.
+    cast (Etingof.ReversedAtVertexHom_at_first_def hj) e := by
+  -- Both functions transport e : ReversedAtVertexHom Q i i j to j ⟶ i.
+  -- They are extensionally equal but defined differently (match vs cast).
+  -- The generalize/rw/cases tactics all fail because inst i i appears in
+  -- dependent type positions that prevent motive construction.
+  -- Use proof irrelevance: both cast proofs give the same result.
+  have : cast (Etingof.ReversedAtVertexHom_at_first_def hj) e =
+         cast Etingof.ReversedAtVertexHom_at_first e :=
+    congrArg (fun h => cast h e) (Subsingleton.elim _ _)
+  rw [this]
+  -- Now need: reversedArrow_eq_ne hj e = cast ReversedAtVertexHom_at_first e
+  -- BLOCKER: ReversedAtVertexHom_at_first is a theorem (opaque), so cast can't reduce.
+  -- reversedArrow_eq_ne uses match on inst i i / inst j i which also can't reduce.
   sorry
-
-/-- Map arrows into i in Q to arrows out of i in Q̄ᵢ.
-Since i is a sink (no arrows out), any arrow j → i in Q gives a reversed
-arrow i →_{Q̄ᵢ} j. Uses cast with `ReversedAtVertexHom_at_first`. -/
-private def Etingof.arrowsInto_to_arrowsOutReversed
-    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
-    {i : Q} (_ : Etingof.IsSink Q i)
-    (b : Etingof.ArrowsInto Q i) :
-    @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i :=
-  ⟨b.fst, cast Etingof.ReversedAtVertexHom_at_first.symm b.snd⟩
 
 /-- Round-trip: extracting the original arrow from a converted ArrowsInto
 gives back the original arrow. -/
@@ -255,9 +279,8 @@ private theorem Etingof.origArrow_arrowsInto_to_arrowsOutReversed
       (Etingof.arrowsInto_to_arrowsOutReversed hi b) = b.2 := by
   obtain ⟨j, e⟩ := b
   have hji : j ≠ i := by intro heq; rw [heq] at e; exact (hi i).false e
-  -- origArrow = reversedArrow_eq_ne hji (cast h.symm e) = cast h (cast h.symm e) = e
   simp only [arrowsOutReversed_origArrow, arrowsInto_to_arrowsOutReversed]
-  rw [reversedArrow_eq_ne_eq_cast]
+  rw [reversedArrow_eq_ne_eq_cast_def]
   simp [cast_cast]
 
 /-- The component of `arrowsInto_to_arrowsOutReversed` at j gives the original arrow j ⟶ i. -/
@@ -266,7 +289,7 @@ private theorem Etingof.arrowsInto_to_arrowsOutReversed_fst
     {i : Q} (hi : Etingof.IsSink Q i)
     (b : Etingof.ArrowsInto Q i) :
     (Etingof.arrowsInto_to_arrowsOutReversed hi b).fst = b.fst := by
-  rfl
+  simp [arrowsInto_to_arrowsOutReversed]
 
 /-- Reverse round-trip: converting an arrow from ArrowsOutOf instR i to ArrowsInto
 and back gives the original element. -/
@@ -278,10 +301,10 @@ private theorem Etingof.arrowsInto_to_arrowsOutReversed_roundtrip
       ⟨x.fst, Etingof.arrowsOutReversed_origArrow hi x⟩ = x := by
   obtain ⟨j, e⟩ := x
   have hji : j ≠ i := Etingof.arrowsOutReversed_ne hi ⟨j, e⟩
-  -- invFun ∘ toFun: ⟨j, cast h.symm (reversedArrow_eq_ne hji e)⟩ = ⟨j, e⟩
   refine Sigma.ext rfl ?_
   simp only [arrowsInto_to_arrowsOutReversed, arrowsOutReversed_origArrow]
-  exact heq_of_eq (by rw [reversedArrow_eq_ne_eq_cast]; simp [cast_cast])
+  rw [reversedArrow_eq_ne_eq_cast_def]
+  exact heq_of_eq (by simp [cast_cast])
 
 /-- Equivalence between ArrowsOutOf in the reversed quiver and ArrowsInto in the original.
 This is the key reindexing used in the round-trip proof. -/
