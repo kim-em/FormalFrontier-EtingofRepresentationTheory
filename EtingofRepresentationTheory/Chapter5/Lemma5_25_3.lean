@@ -378,16 +378,71 @@ private lemma Etingof.nu_scalar_eq_alpha
   simp only [dif_neg hn, MonoidHom.comp_apply, MonoidHom.codRestrict_apply]
   exact Etingof.scalar_eq_fieldExtEmbed p n hn g hg h_ne
 
+/-- Arithmetic identity: the coefficient in the scalar case equals q-1.
+Given |B| = (q-1)²q, |G| = (q²-1)(q²-q), |K| = q²-1:
+(q-1)/|B| · |G| - |G|/|K| = (q+1)(q-1) - q(q-1) = q-1 -/
+private lemma Etingof.scalar_coeff_eq (q : ℂ) (hq : q ≠ 0) (hq1 : q - 1 ≠ 0)
+    (hq_plus_1 : q + 1 ≠ 0) :
+    (q - 1) * ((q - 1) ^ 2 * q)⁻¹ * ((q ^ 2 - 1) * (q ^ 2 - q)) -
+    (q ^ 2 - 1)⁻¹ * ((q ^ 2 - 1) * (q ^ 2 - q)) = q - 1 := by
+  have hq2 : q ^ 2 - 1 ≠ 0 := by
+    rw [show q ^ 2 - 1 = (q - 1) * (q + 1) from by ring]
+    exact mul_ne_zero hq1 hq_plus_1
+  have hB : (q - 1) ^ 2 * q ≠ 0 := mul_ne_zero (pow_ne_zero _ hq1) hq
+  field_simp
+  ring
+
 /-- On scalar matrices, |χ(xI)|² = (q-1)². Since χ(xI) = (q-1)α(x) and
 |α(x)| = 1 (α is a character to ℂˣ, landing on roots of unity). -/
 private lemma Etingof.normSq_complementaryChar_scalar
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (hn : n ≠ 0)
     (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) :
     Etingof.GL2.complementarySeriesChar p n nu g *
     starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) =
     ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 2 := by
+  classical
+  -- Setup
+  set alpha := nu.comp (GL2.scalarToElliptic p n)
+  have h_ne := Etingof.scalar_diag_ne_zero p n g hg
+  set z := (alpha (Units.mk0 (g.val 0 0) h_ne) : ℂ)
+  have hconj := Etingof.scalar_conj_eq_self p n g hg
+  -- Unfold and simplify the character
+  unfold GL2.complementarySeriesChar
+  rw [Etingof.charW₁_scalar p n g hg, Etingof.charVα₁_scalar p n alpha g hg h_ne]
+  -- Main case: n ≠ 0
+  have hg_mem := Etingof.scalar_mem_ellipticSubgroup p n hn g hg h_ne
+  -- Simplify induced sum: each term is z since x⁻¹gx = g ∈ K
+  have hind_term : ∀ x : GL2 p n,
+      (if h : x⁻¹ * g * x ∈ GL2.ellipticSubgroup p n
+       then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) = z := by
+    intro x; rw [hconj x, dif_pos hg_mem]
+    rw [Etingof.nu_scalar_eq_alpha p n hn nu g hg h_ne hg_mem]
+  simp_rw [hind_term]
+  rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  -- Factor out z
+  set q := (Fintype.card (GaloisField p n) : ℂ)
+  set G := (Fintype.card (GL2 p n) : ℂ)
+  set Kc := (Fintype.card ↥(GL2.ellipticSubgroup p n) : ℂ)
+  set B := (((Fintype.card (GaloisField p n) - 1) ^ 2 *
+    Fintype.card (GaloisField p n) : ℕ) : ℂ)
+  -- χ = ((q-1) * B⁻¹ * G - Kc⁻¹ * G) * z
+  have hchi : (q * (B⁻¹ * G * z) - B⁻¹ * G * z - Kc⁻¹ * (G * z)) =
+      ((q - 1) * B⁻¹ * G - Kc⁻¹ * G) * z := by ring
+  rw [hchi, map_mul (starRingEnd ℂ), mul_mul_mul_comm,
+    Etingof.units_char_normSq, mul_one]
+  -- The coefficient is real, so c * conj(c) = c²
+  have hreal : starRingEnd ℂ ((q - 1) * B⁻¹ * G - Kc⁻¹ * G) =
+      (q - 1) * B⁻¹ * G - Kc⁻¹ * G := by
+    simp only [q, G, Kc, B, map_sub, map_mul, map_inv₀, Complex.conj_natCast,
+      Complex.conj_ofNat, map_one, map_pow]
+  rw [hreal]
+  -- Need to substitute |G| = (q²-1)(q²-q), |K| = q²-1, |B| = (q-1)²q
+  -- Then coefficient = (q-1)/((q-1)²q) · (q²-1)(q²-q) - (q²-1)⁻¹ · (q²-1)(q²-q)
+  --                  = (q+1)(q-1) - q(q-1) = q-1
+  -- So (q-1)² follows from scalar_coeff_eq
   sorry
 
 /-- On parabolic matrices, |χ|² = 1 (since χ = -α(x) and |α(x)| = 1). -/
@@ -992,7 +1047,7 @@ private lemma Etingof.innerProduct_sum_eq_card
     have hval : ∀ g ∈ Finset.univ.filter (fun g => GL2.IsScalar (p := p) (n := n) g),
         f g = ((q : ℂ) - 1) ^ 2 := fun g hg => by
       rw [Finset.mem_filter] at hg
-      exact Etingof.normSq_complementaryChar_scalar p n nu g hg.2
+      exact Etingof.normSq_complementaryChar_scalar p n nu hn_ne g hg.2
     rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isScalar hn_ne, nsmul_eq_mul]
     have h1 : 1 ≤ q := by omega
     rw [show Fintype.card (GaloisField p n) = q from hq_def.symm]
