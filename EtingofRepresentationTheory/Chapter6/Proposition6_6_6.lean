@@ -255,19 +255,22 @@ private theorem Etingof.reversedArrow_eq_ne_eq_cast_def
     (e : Etingof.ReversedAtVertexHom Q i i j) :
     Etingof.reversedArrow_eq_ne hj e =
     cast (Etingof.ReversedAtVertexHom_at_first_def hj) e := by
-  -- Both functions transport e : ReversedAtVertexHom Q i i j to j ⟶ i.
-  -- They are extensionally equal but defined differently (match vs cast).
-  -- The generalize/rw/cases tactics all fail because inst i i appears in
-  -- dependent type positions that prevent motive construction.
-  -- Use proof irrelevance: both cast proofs give the same result.
-  have : cast (Etingof.ReversedAtVertexHom_at_first_def hj) e =
-         cast Etingof.ReversedAtVertexHom_at_first e :=
-    congrArg (fun h => cast h e) (Subsingleton.elim _ _)
-  rw [this]
-  -- Now need: reversedArrow_eq_ne hj e = cast ReversedAtVertexHom_at_first e
-  -- BLOCKER: ReversedAtVertexHom_at_first is a theorem (opaque), so cast can't reduce.
-  -- reversedArrow_eq_ne uses match on inst i i / inst j i which also can't reduce.
-  sorry
+  -- Both functions case-split on inst i i and inst j i.
+  -- Fix the Decidable values, then revert e and rw to reduce both sides.
+  have h_ii : inst i i = .isTrue rfl := by
+    match inst i i with
+    | .isTrue _ => rfl
+    | .isFalse h => exact absurd rfl h
+  have h_ji : inst j i = .isFalse hj := by
+    match inst j i with
+    | .isFalse _ => rfl
+    | .isTrue h => exact absurd h hj
+  revert e
+  unfold Etingof.reversedArrow_eq_ne Etingof.ReversedAtVertexHom_at_first_def
+    Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_ii, h_ji]
+  intro e; rfl
 
 /-- Round-trip: extracting the original arrow from a converted ArrowsInto
 gives back the original arrow. -/
@@ -576,21 +579,27 @@ private noncomputable def Etingof.equivAt_eq_sink
         -- Goal: ∑ x, Φ_component x (ρ'.mapLinear x.snd w) = 0
         exact @Etingof.Φ_comp_source_eq_zero k _ Q _ inst i hi ρ _ w
       · -- Reverse: ker(Φ) ≤ range(ψ)
-        -- Strategy: For x ∈ ker(Φ), construct preimage w with ψ(w) = x.
-        -- 1. Define z ∈ ⊕_{ArrowsInto} V_j by z_b = equivAt_ne(x_{reindex⁻¹(b)})
-        -- 2. Show sinkMap(z) = Φ(x) = 0 via bijective.sum_comp (same as Φ_comp_source_eq_zero)
-        -- 3. Set w = equivAt_eq⁻¹(⟨z, hz⟩)
-        -- 4. Show ψ(w) = x component-wise using reflFunctorPlus_mapLinear_eq_ne
-        -- Alternatively: prove ψ injective + finrank(range ψ) = finrank(ker Φ)
-        -- via rank-nullity for ψ, Φ, sinkMap + finrank(DS_OutOf) = finrank(DS_Into).
+        -- Use finrank argument: range ψ ≤ ker Φ + equal finrank ⟹ equality
+        -- First extract the forward direction we just proved
+        have hfwd : ψ.range ≤ LinearMap.ker Φ := by
+          rw [LinearMap.range_le_ker_iff]; ext w
+          simp only [LinearMap.comp_apply, LinearMap.zero_apply]
+          simp only [ψ, LinearMap.sum_apply, LinearMap.comp_apply]
+          simp only [Φ, map_sum, DirectSum.toModule_lof]
+          exact @Etingof.Φ_comp_source_eq_zero k _ Q _ inst i hi ρ _ w
+        -- ker Φ ≤ range ψ: explicit preimage construction
+        -- For x ∈ ker Φ, transport to ⊕V_j via equivAt_ne + reindex,
+        -- landing in ker(sinkMap), then pull back via equivAt_eq⁻¹.
+        -- The reverse direction ψ(w) = x follows from reflFunctorPlus_mapLinear_eq_ne
+        -- applied component-wise.
         sorry
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
 
 end Helpers
 
-set_option maxHeartbeats 800000 in
--- reason: crossIsoToIso + equivAt case analysis with multiple quiver instances
+set_option maxHeartbeats 3200000 in
+-- reason: crossIsoToIso + equivAt case analysis + Decidable.casesOn reduction
 /-- If φ is surjective at a sink, then applying F⁻ᵢ after F⁺ᵢ recovers V
 up to isomorphism of representations.
 
@@ -632,15 +641,18 @@ theorem Etingof.Proposition6_6_6_sink
         exact @Etingof.equivAt_ne_sink k _ Q _ inst i hi ρ _ v hv)
     (fun {a b} e x => by
       -- Naturality: the isomorphism commutes with representation maps.
-      -- Case analysis on a = i and b = i:
-      -- • a ≠ i, b ≠ i: both equivs are identity, maps unchanged — trivial
-      -- • a = i, b ≠ i: involves equivAt_eq_sink on the source vertex
-      -- • a ≠ i, b = i: involves equivAt_eq_sink on the target vertex
-      -- • a = i, b = i: self-loop at sink, vacuous
-      -- BLOCKER: Same Decidable.casesOn type transport issue as equivAt_eq_sink.
-      -- The representation maps of F⁻(F⁺(V)) are defined via Decidable.casesOn
-      -- and don't reduce without explicit case-splitting on DecidableEq instances.
-      sorry)
+      by_cases ha : a = i
+      · -- a = i: vacuous — i is a sink, so there are no arrows out of i
+        subst ha; exact ((hi b).false e).elim
+      · by_cases hb : b = i
+        · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
+          sorry
+        · -- a ≠ i, b ≠ i: both equivs are equivAt_ne_sink (≃ id), maps unchanged
+          -- Both sides reduce to ρ.mapLinear e x after Decidable.casesOn reduction.
+          -- BLOCKER: requires API lemmas for reflection functor mapLinear at ne_ne
+          -- (reflFunctorPlus_mapLinear_ne_ne, reflFunctorMinus_mapLinear_ne_ne)
+          -- to avoid fighting dependent types through nested Decidable.casesOn.
+          sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
 up to isomorphism of representations.
