@@ -319,11 +319,17 @@ private lemma Etingof.charW₁_splitSemisimple
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     (g : GL2 p n) (hg : GL2.IsSplitSemisimple (p := p) (n := n) g) :
     Etingof.GL2.charW₁ p n g = 1 := by
-  -- charW₁(g) = fixedPointCount - 1. For split semisimple, fixedPointCount = 2.
-  -- Proof: the P¹ fixed point equation M₀₁t² + (M₀₀-M₁₁)t - M₁₀ = 0 together
-  -- with the infinity check gives exactly 2 fixed points when disc ≠ 0 is a square.
-  -- Case M₀₁ = 0: linear with 1 root + infinity = 2
-  -- Case M₀₁ ≠ 0: quadratic with 2 roots + no infinity = 2
+  -- charW₁ uses haveI Fintype/DecidableEq internally. Since Fintype is Subsingleton,
+  -- these are propositionally equal to our context instances.
+  simp only [Etingof.GL2.charW₁]
+  -- charW₁ uses internal haveI for Fintype/DecidableEq which creates an instance
+  -- diamond preventing direct rewriting. The mathematical argument is:
+  -- disc(g) ≠ 0 with IsSquare(disc(g)) means exactly 2 fixed points on P¹(𝔽_q):
+  -- Case M₀₁ = 0: disc = (M₀₀-M₁₁)², M₀₀≠M₁₁, linear eq has 1 root + ∞ = 2
+  --   (uses linear_one_root)
+  -- Case M₀₁ ≠ 0 (char ≠ 2): quadratic with nonzero square disc has 2 roots
+  --   (uses quadratic_two_roots, needs NeZero (2 : GaloisField p n))
+  -- So charW₁ = 2 - 1 = 1. Instance diamond blocks formal proof.
   sorry
 
 /-- No conjugate of a split semisimple element lies in the elliptic subgroup K.
