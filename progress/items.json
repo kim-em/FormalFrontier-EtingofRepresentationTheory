@@ -1792,7 +1792,8 @@
     "end_page": "62",
     "start_line": 11,
     "end_line": 20,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_before_Proposition4.1.2",
@@ -2062,7 +2063,8 @@
     "end_page": "71",
     "start_line": 5,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_after_Theorem4.6.2",
@@ -2081,7 +2083,8 @@
     "end_page": "72",
     "start_line": 3,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter4/Discussion_after_Theorem4.6.3",
@@ -2403,7 +2406,8 @@
     "end_page": "94",
     "start_line": 5,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Definition5.1.4",
@@ -2436,7 +2440,8 @@
     "start_line": 21,
     "end_line": 22,
     "status": "sorry_free",
-    "has_true_hypothesis": true
+    "has_true_hypothesis": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Exercise5.1.7",
@@ -2575,7 +2580,8 @@
     "end_page": "99",
     "start_line": 15,
     "end_line": 4,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Proposition5.3.2",
@@ -2585,7 +2591,8 @@
     "end_page": "99",
     "start_line": 5,
     "end_line": 8,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.3.1",
@@ -2714,7 +2721,8 @@
     "end_page": "102",
     "start_line": 23,
     "end_line": 14,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_proof_of_Theorem5.4.6",
@@ -2769,7 +2777,8 @@
     "end_page": "107",
     "start_line": 3,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.7",
@@ -2808,7 +2817,8 @@
     "end_page": "107",
     "start_line": 13,
     "end_line": 16,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.8",
@@ -2827,7 +2837,8 @@
     "end_page": "108",
     "start_line": 1,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Remark5.8.2",
@@ -2891,7 +2902,8 @@
     "end_page": "109",
     "start_line": 5,
     "end_line": 10,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Remark5.9.2",
@@ -3014,9 +3026,10 @@
     "end_page": "113",
     "start_line": 19,
     "end_line": 25,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "youngSymmetrizer_identity_coeff proved, cascading to young_symmetrizer_sq_ne_zero and Theorem5_12_2_irreducible. Only Theorem5_12_2_classification (every simple is some V_\u03bb) has sorry."
+    "notes": "youngSymmetrizer_identity_coeff proved, cascading to young_symmetrizer_sq_ne_zero and Theorem5_12_2_irreducible. Only Theorem5_12_2_classification (every simple is some V_\u03bb) has sorry.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Example5.12.3",
@@ -3026,7 +3039,8 @@
     "end_page": "114",
     "start_line": 26,
     "end_line": 6,
-    "status": "sorry_free"
+    "status": "sorry_free",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Corollary5.12.4",
@@ -3163,7 +3177,8 @@
     "end_line": 14,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Both vanishing and diagonal parts fully proved (0 sorries in file)."
+    "notes": "Both vanishing and diagonal parts fully proved (0 sorries in file).",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Definition5.14.2",
@@ -3202,10 +3217,11 @@
     "end_page": "118",
     "start_line": 1,
     "end_line": 9,
-    "status": "sent_to_aristotle",
+    "status": "sorry_free",
     "needs_statement": true,
     "aristotle_project_id": "d6d0df76-8214-4097-ac8f-c191f819a556",
-    "notes": "fixedCosets_eq_card_colorings sorry remaining. Submitted to Aristotle. Main theorem proved modulo this helper."
+    "notes": "fixedCosets_eq_card_colorings sorry remaining. Submitted to Aristotle. Main theorem proved modulo this helper.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.15",
@@ -3368,9 +3384,10 @@
     "end_page": "122",
     "start_line": 3,
     "end_line": 16,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Triage 2026-03-18: 1 sorry (the main theorem). Active claimed issue #984. Import issues from earlier attempts are resolved. Leave for that agent."
+    "notes": "Triage 2026-03-18: 1 sorry (the main theorem). Active claimed issue #984. Import issues from earlier attempts are resolved. Leave for that agent.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.18",
@@ -3422,8 +3439,9 @@
     "end_page": "123",
     "start_line": 15,
     "end_line": 35,
-    "status": "statement_formalized",
-    "needs_statement": true
+    "status": "sorry_free",
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_Theorem5.18.2_proof_end",
@@ -3565,7 +3583,8 @@
     "end_line": 14,
     "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Both Proposition5_21_2_geometric and Proposition5_21_2_dimension proved (PR #1161)."
+    "notes": "Both Proposition5_21_2_geometric and Proposition5_21_2_dimension proved (PR #1161).",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Introduction_5.22",
@@ -3738,7 +3757,8 @@
     "start_line": 37,
     "end_line": 20,
     "status": "sorry_free",
-    "needs_statement": false
+    "needs_statement": false,
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_1dim_reps",
@@ -4437,7 +4457,8 @@
     "start_line": 21,
     "end_line": 26,
     "status": "sorry_free",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_free": true
   },
   {
     "id": "Chapter6/Section6.8_heading",
@@ -5690,11 +5711,12 @@
     "end_page": "219",
     "start_line": 7,
     "end_line": 10,
-    "status": "proven",
+    "status": "sorry_free",
     "needs_statement": false,
     "notes": "Triage (2026-03-18): 3/4 components proved (isSeparator, faithful, full). Only essSurj remains sorry. Design issue: functor targets ModuleCat (all modules) but Etingof theorem is about finite-dimensional modules. essSurj likely requires restricting target to finitely generated modules or a custom finite-dimensional module category. Needs formalization redesign before proof work.",
     "attention_needed": false,
-    "sorries": 0
+    "sorries": 0,
+    "sorry_free": true
   },
   {
     "id": "Chapter9/Problem9.6.5",
