@@ -1357,7 +1357,7 @@ private lemma dynkin_no_cycle {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
       adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1)
     (hclose : adj (cycle.getLast (by intro h; simp [h] at hlen)) (cycle.get ⟨0, by omega⟩) = 1) :
     False := by
-  obtain ⟨_hsymm, _hdiag, _h01, _hconn, hpos⟩ := hD
+  obtain ⟨hsymm, _hdiag, h01, _hconn, hpos⟩ := hD
   -- The all-ones vector on the cycle has B(x,x) = 2k - 2k = 0 (minus extra edges)
   -- where k = cycle.length
   set x : Fin n → ℤ := fun j => if j ∈ cycle then 1 else 0
@@ -1367,11 +1367,40 @@ private lemma dynkin_no_cycle {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     have hval := congr_fun h (cycle[0]'(by omega))
     simp only [x, hmem, ite_true, Pi.zero_apply] at hval
     exact absurd hval one_ne_zero
-  have hpos_x := hpos x hx_ne
-  -- B(x,x) ≤ 0 because:
-  -- diagonal part: 2 * |cycle| (each cycle vertex contributes 2·1² = 2)
-  -- off-diagonal: ≥ 2 * |cycle| (each cycle edge contributes adj=1, counted twice)
-  sorry
+  -- Use subgraph_contradiction: embed the cycle as a subgraph with null vector (1,...,1)
+  set m := cycle.length
+  -- Cycle adjacency matrix on Fin m
+  let adj_sub : Matrix (Fin m) (Fin m) ℤ := fun i j =>
+    if (i.val + 1 = j.val) ∨ (j.val + 1 = i.val) ∨
+       (i.val = 0 ∧ j.val = m - 1) ∨ (j.val = 0 ∧ i.val = m - 1)
+    then 1 else 0
+  -- Embedding: cycle positions → graph vertices
+  have φ_inj : Function.Injective (fun i : Fin m => cycle.get i) :=
+    hnodup.injective_get
+  let φ : Fin m ↪ Fin n := ⟨fun i => cycle.get i, φ_inj⟩
+  -- Rewrite hclose using get
+  have hclose' : adj (cycle.get ⟨m - 1, by omega⟩) (cycle.get ⟨0, by omega⟩) = 1 := by
+    convert hclose using 2; symm; exact List.getLast_eq_getElem _
+  -- Embedding condition: cycle edges are subgraph edges
+  have hembed : ∀ i j, adj_sub i j ≤ adj (φ i) (φ j) := by
+    intro i j; simp only [adj_sub, φ]
+    split_ifs with h
+    · -- adj_sub = 1: show adj(cycle[i], cycle[j]) ≥ 1
+      -- The cycle edges map to graph edges via hedges and hclose'
+      sorry
+    · -- adj_sub = 0: trivially 0 ≤ adj(...)
+      have : adj (φ i) (φ j) = 0 ∨ adj (φ i) (φ j) = 1 := h01 (φ i) (φ j)
+      show 0 ≤ adj (φ i) (φ j)
+      rcases this with h | h <;> simp [h]
+  -- Null vector: all ones
+  let v : Fin m → ℤ := fun _ => 1
+  have hv_nonneg : ∀ i, 0 ≤ v i := fun _ => by show (0 : ℤ) ≤ 1; omega
+  have hv_ne : v ≠ 0 := by
+    intro h; have := congr_fun h ⟨0, by omega⟩; simp [v] at this
+  -- B_sub(v,v) ≤ 0: each vertex has degree 2 in the cycle, so B(1,...,1) = 0
+  have hv_null : dotProduct v ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) - adj_sub).mulVec v) ≤ 0 := by
+    sorry
+  exact subgraph_contradiction ⟨hsymm, _hdiag, h01, _hconn, hpos⟩ adj_sub φ hembed v hv_nonneg hv_ne hv_null
 
 /-- A Dynkin diagram on n vertices has exactly n-1 edges (it's a tree).
     This follows from no-cycles + connectivity. -/
@@ -1423,16 +1452,59 @@ private lemma dynkin_has_endpoint {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
       rw [adj_sum_eq_degree h01 a, hdeg2 a]; norm_cast]
   linarith [hpos x hx_ne]
 
+/-- Given a connected graph with all degrees ≤ 2 and an endpoint v₀,
+    construct a walk visiting all n vertices in order. The walk is:
+    walk(0) = v₀, walk(k+1) = the unique neighbor of walk(k) not yet visited.
+    Returns: an injective walk function, proof it covers all vertices,
+    and proof consecutive vertices are adjacent. -/
+private lemma path_walk_construction {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
+    (hpath : ∀ i, vertexDegree adj i ≤ 2) (v₀ : Fin n)
+    (hv₀ : vertexDegree adj v₀ ≤ 1) :
+    ∃ σ : Fin n ≃ Fin n,
+      σ ⟨0, by omega⟩ = v₀ ∧
+      (∀ (k : Fin n) (hk : k.val + 1 < n), adj (σ k) (σ ⟨k.val + 1, hk⟩) = 1) ∧
+      (∀ i j, adj (σ i) (σ j) = 1 → (i.val + 1 = j.val ∨ j.val + 1 = i.val)) := by
+  -- Strategy: Build the walk by greedy traversal from v₀.
+  -- At each step, the current vertex has at most 2 neighbors, one of which is
+  -- the previous vertex (already visited). The other neighbor (if any) is the next.
+  -- Since the graph is connected and acyclic (pos-def), the walk visits all n vertices.
+  --
+  -- Key facts used:
+  -- 1. v₀ has degree ≤ 1, so at most 1 neighbor to start
+  -- 2. Each subsequent vertex has degree ≤ 2, one neighbor is the predecessor
+  -- 3. Connectivity ensures all vertices are visited
+  -- 4. No cycles (from positive definiteness) ensures injectivity
+  sorry
+
 private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
     (hpath : ∀ i, vertexDegree adj i ≤ 2)
     : ∃ σ : Fin n ≃ Fin n, ∀ i j, adj (σ i) (σ j) = DynkinType.adj (.A n hn) i j := by
-  -- There exists an endpoint (degree ≤ 1)
   obtain ⟨v₀, hv₀⟩ := dynkin_has_endpoint hD hn hpath
-  -- Walk along the path from the endpoint to construct σ
-  -- This constructs a bijection σ : Fin n ≃ Fin n with σ(0) = v₀ and
-  -- adj(σ(k), σ(k+1)) = 1 for all k < n-1, matching A_n adjacency.
-  sorry
+  obtain ⟨σ, _, hσ_fwd, hσ_only⟩ := path_walk_construction hD hn hpath v₀ hv₀
+  obtain ⟨hsymm, _, h01, _, _⟩ := hD
+  refine ⟨σ, fun i j => ?_⟩
+  -- Unfold DynkinType.adj for A_n
+  show adj (σ i) (σ j) = if (i.val + 1 = j.val) ∨ (j.val + 1 = i.val) then 1 else 0
+  -- i j : Fin (DynkinType.A n hn).rank = Fin n definitionally
+  have hi : i.val < n := i.isLt
+  have hj : j.val < n := j.isLt
+  split_ifs with h
+  · rcases h with h_fwd | h_bwd
+    · have hk : i.val + 1 < n := by linarith
+      have heq : j = ⟨i.val + 1, by linarith⟩ := by ext; exact h_fwd.symm
+      rw [heq]; exact hσ_fwd i hk
+    · have hk : j.val + 1 < n := by linarith
+      have heq : i = ⟨j.val + 1, by linarith⟩ := by ext; exact h_bwd.symm
+      rw [heq, hsymm.apply]; exact hσ_fwd j hk
+  · push_neg at h
+    rcases h01 (σ i) (σ j) with h0 | h1
+    · exact h0
+    · exfalso
+      rcases hσ_only i j h1 with h2 | h2
+      · exact h.1 h2
+      · exact h.2 h2
 
 /-- For a tree with exactly one branch vertex of degree 3, the three arm lengths (p,q,r)
     with p ≤ q ≤ r satisfy n = p + q + r + 1 and 1/(p+1) + 1/(q+1) + 1/(r+1) > 1.
@@ -1444,6 +1516,19 @@ private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hbranch : ∃ i, vertexDegree adj i = 3) :
     ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j := by
+  -- Strategy:
+  -- 1. There is exactly one vertex of degree 3 (two would give T̃_{p,q,r} subgraph
+  --    with null vector, contradicting positive definiteness via subgraph_contradiction)
+  -- 2. The branch vertex has 3 arms of lengths p, q, r with p ≤ q ≤ r
+  -- 3. n = p + q + r + 1
+  -- 4. Positive definiteness requires 1/(p+1) + 1/(q+1) + 1/(r+1) > 1
+  --    (otherwise T̃_{p,q,r} has a null vector)
+  -- 5. Solutions with p ≤ q ≤ r:
+  --    p=1, q=1, r≥1  → D_{r+3}
+  --    p=1, q=2, r=2   → E₆
+  --    p=1, q=2, r=3   → E₇
+  --    p=1, q=2, r=4   → E₈
+  -- 6. Construct explicit graph isomorphism for each case
   sorry
 
 /-- Forward direction of the Dynkin classification: any Dynkin diagram is graph-isomorphic
