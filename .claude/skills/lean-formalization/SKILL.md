@@ -773,6 +773,15 @@ define both conversion directions in the SAME file as the type definition, or us
 
 If the issue's strategy doesn't work after verification, **update the issue comment** with your findings before trying alternative approaches. This saves the next agent from repeating your investigation.
 
+## Known Instance Gaps
+
+### GaloisField Fintype
+
+`GaloisField p n` is `Finite` but NOT `Fintype` in Mathlib's instance graph. When you need `Finset.sum` over `GL n (GaloisField p n)`, `Fintype.sum_equiv`, or `Module.Finite` on function spaces, add:
+```lean
+instance : Fintype (GaloisField p n) := Fintype.ofFinite _
+```
+
 ## Known Dead-Ends (Don't Waste Context Windows)
 
 These are proof approaches that multiple agents have attempted and failed. Don't retry them without new Mathlib infrastructure.
