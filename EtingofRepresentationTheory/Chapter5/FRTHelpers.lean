@@ -281,6 +281,45 @@ private lemma syt_maxCell_isOuterCorner {n : ℕ} {la : Nat.Partition (n + 1)}
     rw [hc₀] at h
     exact absurd h (not_lt.mpr (Fin.le_last _))
 
+/-- A cell of la.removeOuterCorner is also a valid cell of la (the original partition). -/
+private lemma reducedCell_mem_original {n : ℕ} {la : Nat.Partition (n + 1)}
+    {corner : ℕ × ℕ} {hcorner : la.toYoungDiagram.IsOuterCorner corner.1 corner.2}
+    {x : ℕ × ℕ}
+    (hx : x.1 < (la.removeOuterCorner corner hcorner).sortedParts.length ∧
+      x.2 < (la.removeOuterCorner corner hcorner).sortedParts.getD x.1 0) :
+    x.1 < la.sortedParts.length ∧ x.2 < la.sortedParts.getD x.1 0 := by
+  have hmem := (sytCell_iff_mem_toYoungDiagram _ x).mp hx
+  rw [Nat.Partition.toYoungDiagram_removeOuterCorner] at hmem
+  -- hmem : x ∈ (removeCorner ...).cells, which unfolds to cells.erase corner
+  have hmem' : x ∈ la.toYoungDiagram.cells :=
+    (Finset.mem_erase.mp hmem).2
+  exact (sytCell_iff_mem_toYoungDiagram la x).mpr hmem'
+
+/-- A cell of la.removeOuterCorner is distinct from the removed corner. -/
+private lemma reducedCell_ne_corner {n : ℕ} {la : Nat.Partition (n + 1)}
+    {corner : ℕ × ℕ} {hcorner : la.toYoungDiagram.IsOuterCorner corner.1 corner.2}
+    {x : ℕ × ℕ}
+    (hx : x.1 < (la.removeOuterCorner corner hcorner).sortedParts.length ∧
+      x.2 < (la.removeOuterCorner corner hcorner).sortedParts.getD x.1 0) :
+    x ≠ corner := by
+  have hmem := (sytCell_iff_mem_toYoungDiagram _ x).mp hx
+  rw [Nat.Partition.toYoungDiagram_removeOuterCorner] at hmem
+  exact (Finset.mem_erase.mp hmem).1
+
+/-- A cell of la that is not the corner is a valid cell of la.removeOuterCorner. -/
+private lemma originalCell_mem_reduced {n : ℕ} {la : Nat.Partition (n + 1)}
+    {corner : ℕ × ℕ} {hcorner : la.toYoungDiagram.IsOuterCorner corner.1 corner.2}
+    {x : ℕ × ℕ}
+    (hx : x.1 < la.sortedParts.length ∧ x.2 < la.sortedParts.getD x.1 0)
+    (hne : x ≠ corner) :
+    x.1 < (la.removeOuterCorner corner hcorner).sortedParts.length ∧
+      x.2 < (la.removeOuterCorner corner hcorner).sortedParts.getD x.1 0 := by
+  have hmem := (sytCell_iff_mem_toYoungDiagram la x).mp hx
+  have hmem' : x ∈ (la.removeOuterCorner corner hcorner).toYoungDiagram.cells := by
+    rw [Nat.Partition.toYoungDiagram_removeOuterCorner]
+    exact Finset.mem_erase.mpr ⟨hne, hmem⟩
+  exact (sytCell_iff_mem_toYoungDiagram _ x).mpr hmem'
+
 /-- The branching bijection: every SYT of shape λ ⊢ (n+1) corresponds to
 a choice of outer corner (where the max value sits) and an SYT of the
 reduced shape λ\c ⊢ n. -/
@@ -288,8 +327,222 @@ private noncomputable def sytBranchingEquiv (n : ℕ) (la : Nat.Partition (n + 1
     StandardYoungTableau (n + 1) la ≃
     (c : la.toYoungDiagram.outerCorners) ×
       StandardYoungTableau n (la.removeOuterCorner c.val
-        (YoungDiagram.mem_outerCorners.mp c.property)) := by
-  sorry
+        (YoungDiagram.mem_outerCorners.mp c.property)) where
+  toFun := fun t => by
+    classical
+    -- Extract the filling and its properties
+    have hbij := t.property.1
+    have hrow := t.property.2.1
+    have hcol := t.property.2.2
+    -- Find the cell with maximum value n
+    let c₀ := (hbij.surjective (Fin.last n)).choose
+    have hc₀ : t.val c₀ = Fin.last n := (hbij.surjective (Fin.last n)).choose_spec
+    -- Show c₀ is an outer corner
+    have hoc := syt_maxCell_isOuterCorner t.val hbij hrow hcol c₀ hc₀
+    -- Package the corner
+    let corner : la.toYoungDiagram.outerCorners :=
+      ⟨c₀.val, YoungDiagram.mem_outerCorners.mpr hoc⟩
+    let la' := la.removeOuterCorner corner.val (YoungDiagram.mem_outerCorners.mp corner.property)
+    -- Define the restricted function on cells of la'
+    have hcorner_oc := YoungDiagram.mem_outerCorners.mp corner.property
+    let g : { x : ℕ × ℕ // x.1 < la'.sortedParts.length ∧
+        x.2 < la'.sortedParts.getD x.1 0 } → Fin n := fun c' =>
+      let cell_la : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+          x.2 < la.sortedParts.getD x.1 0 } :=
+        ⟨c'.val, reducedCell_mem_original (hcorner := hcorner_oc) c'.property⟩
+      let v := t.val cell_la
+      have hne : c'.val ≠ c₀.val :=
+        reducedCell_ne_corner (hcorner := hcorner_oc) c'.property
+      have hv_ne : v ≠ Fin.last n := by
+        intro heq
+        have heq' : t.val cell_la = t.val c₀ := heq.trans hc₀.symm
+        exact hne (congr_arg Subtype.val (hbij.injective heq'))
+      ⟨v.val, Nat.lt_of_le_of_ne (Nat.lt_succ_iff.mp v.isLt)
+        (Fin.val_ne_of_ne hv_ne)⟩
+    -- Show g satisfies the SYT properties
+    have g_bij : Function.Bijective g := by
+      constructor
+      · -- Injective: g c₁ = g c₂ → c₁ = c₂
+        intro c₁ c₂ heq
+        have hval := congr_arg Fin.val heq
+        -- hval : (g c₁).val = (g c₂).val, definitionally (t.val ...).val = (t.val ...).val
+        have h_eq := hbij.injective (Fin.ext hval)
+        have h_val_eq : c₁.val = c₂.val :=
+          congrArg (fun (x : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+            x.2 < la.sortedParts.getD x.1 0 }) => x.val) h_eq
+        exact Subtype.ext h_val_eq
+      · -- Surjective: for each v : Fin n, find c' with g c' = v
+        intro v
+        -- Fin.castSucc v : Fin(n+1) has v.val < n < n+1
+        obtain ⟨cell, hcell⟩ := hbij.surjective (Fin.castSucc v)
+        -- cell ≠ c₀ since t.val c₀ = last n ≠ castSucc v
+        have hne : cell.val ≠ c₀.val := by
+          intro heq
+          have := congr_arg t.val (Subtype.ext heq : cell = c₀)
+          rw [hcell, hc₀] at this
+          exact absurd this (Fin.castSucc_ne_last v)
+        refine ⟨⟨cell.val, originalCell_mem_reduced (hcorner := hcorner_oc)
+          cell.property hne⟩, ?_⟩
+        -- g(cell_reduced) = v
+        ext
+        -- Need: (g ...).val = v.val
+        -- g maps cell_reduced to ⟨(t.val ⟨cell.val, ...⟩).val, ...⟩
+        -- and t.val ⟨cell.val, ...⟩ = t.val cell = castSucc v
+        -- so value = v.val
+        show (t.val ⟨cell.val, _⟩).val = v.val
+        have : (⟨cell.val, reducedCell_mem_original (hcorner := hcorner_oc)
+          (originalCell_mem_reduced (hcorner := hcorner_oc)
+            cell.property hne)⟩ :
+          { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+            x.2 < la.sortedParts.getD x.1 0 }) = cell := Subtype.ext rfl
+        rw [this, hcell]
+        rfl
+    have g_row : ∀ c₁ c₂ : { x : ℕ × ℕ // x.1 < la'.sortedParts.length ∧
+        x.2 < la'.sortedParts.getD x.1 0 },
+        c₁.val.1 = c₂.val.1 → c₁.val.2 < c₂.val.2 → g c₁ < g c₂ := by
+      intro c₁ c₂ hr hc
+      -- g preserves ordering: g c = ⟨(t.val embed(c)).val, _⟩
+      -- so g c₁ < g c₂ ↔ t.val embed(c₁) < t.val embed(c₂)
+      exact hrow ⟨c₁.val, reducedCell_mem_original (hcorner := hcorner_oc) c₁.property⟩
+             ⟨c₂.val, reducedCell_mem_original (hcorner := hcorner_oc) c₂.property⟩ hr hc
+    have g_col : ∀ c₁ c₂ : { x : ℕ × ℕ // x.1 < la'.sortedParts.length ∧
+        x.2 < la'.sortedParts.getD x.1 0 },
+        c₁.val.2 = c₂.val.2 → c₁.val.1 < c₂.val.1 → g c₁ < g c₂ := by
+      intro c₁ c₂ hr hc
+      exact hcol ⟨c₁.val, reducedCell_mem_original (hcorner := hcorner_oc) c₁.property⟩
+             ⟨c₂.val, reducedCell_mem_original (hcorner := hcorner_oc) c₂.property⟩ hr hc
+    exact ⟨corner, g, g_bij, g_row, g_col⟩
+  invFun := fun ⟨corner, t'⟩ => by
+    classical
+    let hcorner := YoungDiagram.mem_outerCorners.mp corner.property
+    let la' := la.removeOuterCorner corner.val hcorner
+    -- Extend t' by placing value n at the corner
+    let f : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+        x.2 < la.sortedParts.getD x.1 0 } → Fin (n + 1) := fun cell =>
+      if h : cell.val = corner.val then Fin.last n
+      else Fin.castSucc (t'.val ⟨cell.val,
+        originalCell_mem_reduced (hcorner := hcorner) cell.property h⟩)
+    -- Helper: corner cell has no right neighbor (outer corner property)
+    have corner_no_right : ∀ cell : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+        x.2 < la.sortedParts.getD x.1 0 },
+        cell.val.1 = corner.val.1 → cell.val.2 > corner.val.2 → False := by
+      intro cell hr hc
+      have hcell_yd := (sytCell_iff_mem_toYoungDiagram la cell.val).mp cell.property
+      have hmem : (cell.val.1, cell.val.2) ∈ la.toYoungDiagram.cells := by
+        convert hcell_yd using 1
+      have := la.toYoungDiagram.up_left_mem (le_of_eq hr.symm) (Nat.succ_le_of_lt hc) hmem
+      exact hcorner.2.2 this
+    -- Helper: corner cell has no cell below (outer corner property)
+    have corner_no_below : ∀ cell : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+        x.2 < la.sortedParts.getD x.1 0 },
+        cell.val.2 = corner.val.2 → cell.val.1 > corner.val.1 → False := by
+      intro cell hc hr
+      have hcell_yd := (sytCell_iff_mem_toYoungDiagram la cell.val).mp cell.property
+      have hmem : (cell.val.1, cell.val.2) ∈ la.toYoungDiagram.cells := by
+        convert hcell_yd using 1
+      have := la.toYoungDiagram.up_left_mem
+        (Nat.succ_le_of_lt hr) (le_of_eq hc.symm) hmem
+      exact hcorner.2.1 this
+    have f_bij : Function.Bijective f := by
+      constructor
+      · -- Injective
+        intro c₁ c₂ heq
+        simp only [f] at heq
+        split_ifs at heq with h₁ h₂ h₂
+        · exact Subtype.ext (h₁.trans h₂.symm)
+        · exact absurd heq (Fin.castSucc_ne_last _).symm
+        · exact absurd heq (Fin.castSucc_ne_last _)
+        · have := Fin.castSucc_injective _ heq
+          have h_eq := t'.property.1.injective this
+          have h_val_eq : c₁.val = c₂.val :=
+            congrArg (fun (x : { x : ℕ × ℕ // x.1 < la'.sortedParts.length ∧
+              x.2 < la'.sortedParts.getD x.1 0 }) => x.val) h_eq
+          exact Subtype.ext h_val_eq
+      · -- Surjective
+        intro v
+        by_cases hv : v = Fin.last n
+        · -- v is last: it maps from the corner cell
+          have hcorner_cell := (sytCell_iff_mem_toYoungDiagram la corner.val).mpr hcorner.1
+          exact ⟨⟨corner.val, hcorner_cell⟩, by simp [f, dif_pos, hv]⟩
+        · -- v < last n: use t' surjectivity
+          have hv_lt : v.val < n := Nat.lt_of_le_of_ne
+            (Nat.lt_succ_iff.mp v.isLt) (Fin.val_ne_of_ne hv)
+          obtain ⟨cell', hcell'⟩ := t'.property.1.surjective ⟨v.val, hv_lt⟩
+          refine ⟨⟨cell'.val, reducedCell_mem_original (hcorner := hcorner)
+            cell'.property⟩, ?_⟩
+          simp only [f, dif_neg (reducedCell_ne_corner (hcorner := hcorner) cell'.property)]
+          ext
+          have : (⟨cell'.val, originalCell_mem_reduced (hcorner := hcorner)
+              (reducedCell_mem_original (hcorner := hcorner) cell'.property)
+              (reducedCell_ne_corner (hcorner := hcorner) cell'.property)⟩ :
+            { x : ℕ × ℕ // x.1 < la'.sortedParts.length ∧
+              x.2 < la'.sortedParts.getD x.1 0 }) = cell' := Subtype.ext rfl
+          simp [this, hcell']
+    have f_row : ∀ c₁ c₂ : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+        x.2 < la.sortedParts.getD x.1 0 },
+        c₁.val.1 = c₂.val.1 → c₁.val.2 < c₂.val.2 → f c₁ < f c₂ := by
+      intro c₁ c₂ hr hc
+      simp only [f]
+      split_ifs with h₁ h₂ h₂
+      · -- Both corner: c₁.val = c₂.val, contradicts c₁.col < c₂.col
+        exfalso; rw [h₁] at hc; rw [h₂] at hc; exact Nat.lt_irrefl _ hc
+      · -- c₁ = corner, c₂ ≠ corner: impossible, corner has no right neighbor
+        exfalso; exact corner_no_right c₂
+          (by have := congr_arg Prod.fst h₁; simp at this; omega)
+          (by have := congr_arg Prod.snd h₁; simp at this; omega)
+      · -- c₁ ≠ corner, c₂ = corner: castSucc < last
+        rw [h₂] at hr hc
+        exact Fin.castSucc_lt_last _
+      · -- Neither corner: use t' row monotonicity + castSucc strictMono
+        exact Fin.castSucc_lt_castSucc_iff.mpr (t'.property.2.1
+          ⟨c₁.val, originalCell_mem_reduced (hcorner := hcorner) c₁.property h₁⟩
+          ⟨c₂.val, originalCell_mem_reduced (hcorner := hcorner) c₂.property h₂⟩ hr hc)
+    have f_col : ∀ c₁ c₂ : { x : ℕ × ℕ // x.1 < la.sortedParts.length ∧
+        x.2 < la.sortedParts.getD x.1 0 },
+        c₁.val.2 = c₂.val.2 → c₁.val.1 < c₂.val.1 → f c₁ < f c₂ := by
+      intro c₁ c₂ hc hr
+      simp only [f]
+      split_ifs with h₁ h₂ h₂
+      · exfalso; rw [h₁] at hr; rw [h₂] at hr; exact Nat.lt_irrefl _ hr
+      · exfalso; exact corner_no_below c₂
+          (by have := congr_arg Prod.snd h₁; simp at this; omega)
+          (by have := congr_arg Prod.fst h₁; simp at this; omega)
+      · exact Fin.castSucc_lt_last _
+      · exact Fin.castSucc_lt_castSucc_iff.mpr (t'.property.2.2
+          ⟨c₁.val, originalCell_mem_reduced (hcorner := hcorner) c₁.property h₁⟩
+          ⟨c₂.val, originalCell_mem_reduced (hcorner := hcorner) c₂.property h₂⟩ hc hr)
+    exact ⟨f, f_bij, f_row, f_col⟩
+  left_inv := by
+    intro t
+    -- Need: invFun (toFun t) = t, i.e., the round-trip recovers the original SYT
+    -- Both are subtypes, so use Subtype.ext + funext
+    apply Subtype.ext
+    funext cell
+    -- toFun extracts: corner = cell of max value c₀, restriction g
+    -- invFun extends: f cell = if cell.val = corner.val then last n else castSucc(t'(cell))
+    -- We need f cell = t.val cell
+    simp only
+    -- Unfold the dite in invFun's f
+    split_ifs with h
+    · -- cell.val = c₀.val (the max cell): f cell = last n = t.val c₀ = t.val cell
+      have hc₀_spec := (t.property.1.surjective (Fin.last n)).choose_spec
+      have h_eq : cell = (t.property.1.surjective (Fin.last n)).choose := Subtype.ext h
+      rw [h_eq, hc₀_spec]
+    · -- cell.val ≠ c₀.val: f cell = castSucc(g(cell_reduced))
+      -- g(cell_reduced) = ⟨(t.val ⟨cell.val, _⟩).val, _⟩
+      -- castSucc of that = ⟨(t.val ⟨cell.val, _⟩).val, _⟩
+      -- and ⟨cell.val, _⟩ = cell by proof irrelevance
+      -- so f cell = ⟨(t.val cell).val, _⟩ = t.val cell
+      apply Fin.ext
+      rfl
+  right_inv := by
+    -- The round-trip invFun ∘ toFun recovers the original (corner, t'):
+    -- invFun places last n at the corner and castSucc(t'(·)) elsewhere.
+    -- toFun finds the unique cell mapping to last n (= corner, by injectivity)
+    -- and restricts, recovering t'.
+    -- Proof sketch: corner match by bijectivity (unique preimage of last n),
+    -- SYT match by funext + proof irrelevance on cell subtypes.
+    intro ⟨corner, t'⟩; sorry
 
 /-- Branching rule: the number of SYT of shape λ (partition of n+1) equals the
 sum over outer corners c of the number of SYT of shape λ\c (partition of n).
