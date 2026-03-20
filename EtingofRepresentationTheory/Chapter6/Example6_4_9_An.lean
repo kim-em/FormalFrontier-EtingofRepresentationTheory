@@ -447,10 +447,6 @@ private lemma ivec_injective (n : ℕ) (a₁ b₁ a₂ b₂ : ℕ)
 private lemma fin2_eq_zero_or_one (x : Fin 2) : x = 0 ∨ x = 1 := by
   rcases x with ⟨v, hv⟩; interval_cases v <;> simp [Fin.ext_iff]
 
-/-- Helper: cast Fin 2 to ℤ is 0 or 1. -/
-private lemma fin2_cast_cases (x : Fin 2) : (x : ℤ) = 0 ∨ (x : ℤ) = 1 := by
-  rcases fin2_eq_zero_or_one x with h | h <;> simp [h]
-
 /-- Every element of rootCountFinset is an interval indicator. -/
 private lemma root_is_ivec : ∀ (n : ℕ) (hn : 1 ≤ n) (v : Fin n → Fin 2),
     v ∈ rootCountFinset n (Etingof.DynkinType.A n hn).adj 2 →

@@ -1154,10 +1154,6 @@ The forward direction of the Dynkin classification proceeds by elimination:
 private noncomputable def vertexDegree {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) : ℕ :=
   (Finset.univ.filter (fun j => adj i j = 1)).card
 
-/-- The set of neighbors of vertex i. -/
-private def neighbors {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) : Finset (Fin n) :=
-  Finset.univ.filter (fun j => adj i j = 1)
-
 /-- The number of edges (counted as half the sum of all adjacency entries) equals
     the sum of entries divided by 2 for a symmetric 0-1 adjacency matrix. -/
 private noncomputable def edgeCount {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ) : ℕ :=
