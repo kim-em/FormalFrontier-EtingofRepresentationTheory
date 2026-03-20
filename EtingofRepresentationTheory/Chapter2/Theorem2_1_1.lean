@@ -473,17 +473,46 @@ private lemma casimir_on_irreducible_scalar
     (hirr : LieModule.IsIrreducible ℂ sl2 V) [Nontrivial V]
     (m : V) (n : ℕ) (P : sl2_triple.HasPrimitiveVectorWith m (n : ℂ)) :
     sl2_casimir (V := V) = (n * (n + 2) : ℂ) • (1 : Module.End ℂ V) := by
-  -- Casimir acts as scalar on primitive vector m:
-  -- C·m = (h² + 2ef + 2fe)·m = (n² + 2·n·0 + 2·0)·m... wait
-  -- h·m = n·m, e·m = 0
-  -- h²·m = n²·m
-  -- ef·m = e(f·m) = e(f^1·m), and f·m is the next vector
-  -- Actually: ef = fe + h (from [e,f] = h), so ef = fe + h
-  -- C = h² + 2ef + 2fe = h² + 2(fe + h) + 2fe = h² + 2h + 4fe
-  -- On m: fe·m = f(e·m) = f·0 = 0 (since e·m = 0 for primitive vector)
-  -- So C·m = (n² + 2n)·m = n(n+2)·m
-  -- Since C commutes with sl(2) and V is irreducible, C = n(n+2) on all of V
-  sorry
+  -- Step 1: Compute C·m = n(n+2)·m
+  -- Using C = H² + 2H + 4FE (from sl2_casimir_eq)
+  set H := toEnd ℂ sl2 V sl2_h
+  set E := toEnd ℂ sl2 V sl2_e
+  set F := toEnd ℂ sl2 V sl2_f
+  set c := (n * (n + 2) : ℂ)
+  -- Extract primitive vector properties as endomorphism equations
+  have hHm : H m = (n : ℂ) • m := by
+    show ⁅sl2_h, m⁆ = (n : ℂ) • m; exact P.lie_h
+  have hEm : E m = 0 := by
+    show ⁅sl2_e, m⁆ = 0; exact P.lie_e
+  -- Compute C·m
+  have hCm : sl2_casimir (V := V) m = c • m := by
+    rw [sl2_casimir_eq]
+    simp only [LinearMap.add_apply, LinearMap.smul_apply, sq, Module.End.mul_apply]
+    rw [hHm, map_smul, hHm, hEm, map_zero, smul_zero]
+    simp only [c, smul_smul]
+    congr 1; push_cast; ring
+  -- Step 2: The eigenspace of C for eigenvalue c is a Lie submodule
+  -- containing m ≠ 0, hence = ⊤ by irreducibility
+  have hm_eigen : m ∈ (sl2_casimir (V := V)).eigenspace c := by
+    rw [Module.End.mem_eigenspace_iff]; exact hCm
+  -- Build the LieSubmodule
+  let N : LieSubmodule ℂ sl2 V :=
+    LieSubmodule.mk ((sl2_casimir (V := V)).eigenspace c)
+      (fun {x v} hv ↦ casimir_eigenspace_lie_invariant c x v hv)
+  have hN_ne : N ≠ ⊥ := by
+    intro h
+    have : m ∈ (⊥ : LieSubmodule ℂ sl2 V) := h ▸ hm_eigen
+    simp [LieSubmodule.mem_bot] at this
+    exact P.ne_zero this
+  -- By irreducibility, N = ⊤
+  have hN_top : N = ⊤ := (IsSimpleOrder.eq_bot_or_eq_top N).resolve_left hN_ne
+  -- Therefore C = c · id: for any v, C v = c • v
+  ext v
+  have hv_in : v ∈ (⊤ : LieSubmodule ℂ sl2 V) := LieSubmodule.mem_top v
+  rw [← hN_top] at hv_in
+  have hv_eigen := (Module.End.mem_eigenspace_iff.mp hv_in : sl2_casimir v = c • v)
+  simp only [LinearMap.smul_apply]
+  exact hv_eigen
 
 end Casimir
 
