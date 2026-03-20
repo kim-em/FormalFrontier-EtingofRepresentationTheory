@@ -1,6 +1,6 @@
 # Parallel Agent Coordination Skill
 
-Patterns for effective multi-agent work on FormalFrontier book repositories. Derived from Phases 1-3 experience (5+ concurrent agents, 160+ PRs, 583 items, 14 proof waves).
+Patterns for effective multi-agent work on FormalFrontier book repositories. Derived from Phases 1-3 experience (5+ concurrent agents, 200+ PRs, 583 items, 20 proof waves).
 
 ## Issue Design
 
@@ -179,7 +179,7 @@ In formalization, merge order affects what's available to downstream agents:
 3. **Changing definition signatures after dependents exist** — cascading breakage across all agents
 4. **Not checking `.refs.md` before starting** — may miss that Mathlib already has the result
 
-## Lessons from Stage 3.2 Proof Waves (110+ PRs, 17 waves)
+## Lessons from Stage 3.2 Proof Waves (200+ PRs, 20 waves)
 
 ### Cross-Validation Must Be Planned Upfront
 
@@ -286,7 +286,7 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 17:** 193/583 sorry-free (33.1%), 104 sorry occurrences across 39 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (63/104 sorries — 61% of all remaining). Planners should create mostly proof issues. Statement formalization is largely complete.
+**As of Wave 20:** ~195+/583 sorry-free (~33.5%), ~70 sorry occurrences across 29 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (~48/70 sorries — ~69% of all remaining). Ch6 has ~34 sorries (Dynkin/reflection functor work progressing). Planners should create mostly proof issues. Statement formalization is complete.
 
 ### Stalling Detection and Response
 
@@ -314,3 +314,39 @@ print(f'Proof backlog: {backlog} items')
 gh pr list --state closed --limit 20 --json number,title,closedAt,body \
   --jq '.[] | select(.closedAt > "2026-03-17") | "\(.number) \(.title)"'
 ```
+
+### Stale Issue Detection (Waves 18-20)
+
+**Problem:** Planners create issues for work that was already completed by a recently merged PR. In wave 20, issue #1247 (`invColorEquivMC`) was created even though PR #1216 had already proved it.
+
+**Rule:** Before creating a proof issue, verify the sorry still exists:
+```bash
+# Check if the file still has sorry at the claimed line
+grep -n "sorry" EtingofRepresentationTheory/Chapter5/TargetFile.lean
+```
+
+**Worker-side defense:** At the start of any feature session, verify the target sorry still exists before investing time. If the issue is already resolved, close it with a comment referencing the PR that resolved it, then pick the next issue.
+
+### Decomposition as Primary Value Creation (Waves 18-20)
+
+**Pattern:** Top-down decomposition sessions produce the highest value per agent-hour at this stage of the project. With ~70 remaining sorries, many are hard (difficulty 2-3). Sessions that decompose 1 hard sorry into 3-4 well-specified smaller sorries are more valuable than sessions that attempt and fail the hard sorry.
+
+**Evidence:**
+- Lemma 5.25.3: 1 sorry → 4 character value sorries (each independently provable)
+- Hook quotient identity: 1 issue → 4 sub-issues with clear dependency chain (#1383-#1386)
+- Polytabloid basis: 1 sorry → framework + 2 documented sorries
+
+**Planner action:** For difficulty 3/3 items, consider creating a "decomposition" issue (label: feature) before creating a "prove" issue. The decomposition issue's deliverable is a framework commit with well-specified sub-sorries, not a full proof.
+
+### File Collision Mitigation
+
+**Problem (waves 18-20):** Multiple agents working on the same file (especially `Theorem5_15_1.lean` and Chapter 5 files) creates significant rebase overhead. One session was entirely spent fixing 3 broken PRs.
+
+**Mitigation for planners:**
+- Label each proof issue with the primary file it touches
+- Avoid creating 2+ concurrent issues for the same file
+- If concurrent work on the same file is unavoidable, ensure the issues target different functions/theorems with no shared helper lemmas
+
+**Mitigation for workers:**
+- Commit and push early — the first-to-merge agent wins, and the other must rebase
+- If you see another open PR touching your file, coordinate by commenting on the PR
