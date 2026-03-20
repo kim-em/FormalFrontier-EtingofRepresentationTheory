@@ -1,5 +1,3 @@
-import Mathlib
-import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.Definition5_14_2
 import EtingofRepresentationTheory.Chapter5.SYTFintype
 

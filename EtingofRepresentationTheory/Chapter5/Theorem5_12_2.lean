@@ -1,9 +1,6 @@
-import Mathlib
-import EtingofRepresentationTheory.Chapter5.Definition5_12_1
+import EtingofRepresentationTheory.Chapter4.Corollary4_2_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_13_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_13_3
-import EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration
-import EtingofRepresentationTheory.Chapter4.Corollary4_2_2
 
 /-!
 # Theorem 5.12.2: Classification of Irreducible Representations of S_n (Specht Modules)

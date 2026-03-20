@@ -1,5 +1,3 @@
-import Mathlib
-import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
 import EtingofRepresentationTheory.Chapter6.Definition6_4_3
 
 /-!

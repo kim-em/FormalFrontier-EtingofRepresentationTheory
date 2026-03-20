@@ -1,4 +1,5 @@
 import EtingofRepresentationTheory.Chapter6.Example6_4_9_Shared
+import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
 
 /-!
 # Example 6.4.9: E-type Root Counts
