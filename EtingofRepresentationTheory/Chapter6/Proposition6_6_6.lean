@@ -596,6 +596,23 @@ private noncomputable def Etingof.equivAt_eq_sink
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
 
+/-- For a ≠ i, b ≠ i, composing two reversedArrow_ne_ne with the reversedAtVertex_twice
+transport gives back the original arrow. This is the arrow-level statement that
+double reversal at a non-incident vertex is the identity.
+
+BLOCKED: `reversedAtVertex_twice` uses `Quiver.ext'` (which uses `funext`),
+making the `▸` transport irreducible. Proving this requires expressing
+each operation as a `cast` and using `cast_cast` + proof irrelevance. -/
+private theorem Etingof.reversedArrow_ne_ne_twice
+    {Q : Type*} [inst_dec : DecidableEq Q] [inst : Quiver Q]
+    {i : Q} {a b : Q} (ha : a ≠ i) (hb : b ≠ i)
+    (e : @Quiver.Hom Q inst a b) :
+    @Etingof.reversedArrow_ne_ne Q inst_dec inst i a b ha hb
+      (@Etingof.reversedArrow_ne_ne Q inst_dec
+        (@Etingof.reversedAtVertex Q _ inst i) i a b ha hb
+        ((@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm ▸ e)) = e := by
+  sorry
+
 end Helpers
 
 set_option maxHeartbeats 3200000 in
@@ -648,10 +665,10 @@ theorem Etingof.Proposition6_6_6_sink
         · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
           sorry
         · -- a ≠ i, b ≠ i: both equivs are equivAt_ne_sink (≃ id), maps unchanged
-          -- Both sides reduce to ρ.mapLinear e x after Decidable.casesOn reduction.
-          -- BLOCKER: requires API lemmas for reflection functor mapLinear at ne_ne
-          -- (reflFunctorPlus_mapLinear_ne_ne, reflFunctorMinus_mapLinear_ne_ne)
-          -- to avoid fighting dependent types through nested Decidable.casesOn.
+          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged.
+          -- After reducing by_cases, need reflFunctorMinus_mapLinear_ne_ne +
+          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice.
+          -- BLOCKED on reversedArrow_ne_ne_twice (funext in reversedAtVertex_twice).
           sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
