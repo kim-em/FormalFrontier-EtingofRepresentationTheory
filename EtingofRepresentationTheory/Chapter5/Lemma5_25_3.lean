@@ -158,9 +158,8 @@ on P¹(𝔽_q). Its character equals (number of fixed points on P¹) - 1.
 
 A point [1:t] ∈ P¹ is fixed by matrix M iff M₀₁t² + (M₀₀ - M₁₁)t - M₁₀ = 0.
 The point [0:1] is fixed iff M₀₁ = 0. -/
-private noncomputable def Etingof.GL2.charW₁ : GL2 p n → ℂ :=
-  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
-  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
+private noncomputable def Etingof.GL2.charW₁
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)] : GL2 p n → ℂ :=
   fun g =>
     let M := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
     -- Count fixed points on the affine chart [1:t]
@@ -174,10 +173,9 @@ private noncomputable def Etingof.GL2.charW₁ : GL2 p n → ℂ :=
 V(α, 1) = Ind_B^G(α ⊗ 1) where B is the Borel subgroup (upper triangular matrices).
 By Frobenius reciprocity, char(V(α,1))(g) = (1/|B|) ∑_{x : x⁻¹gx ∈ B} α(upper-left of x⁻¹gx). -/
 private noncomputable def Etingof.GL2.charVα₁
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
     (alpha : (GaloisField p n)ˣ →* ℂˣ) : GL2 p n → ℂ :=
-  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
-  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
-  haveI : Fintype (GL2 p n) := Fintype.ofFinite _
   fun g =>
     -- Frobenius character formula for induced representation
     -- sum over x ∈ G of (indicator that x⁻¹gx is upper triangular) * α(upper-left entry)
@@ -198,6 +196,7 @@ open Classical in
 char(W₁ ⊗ V_{α,1}) - char(V_{α,1}) - char(Ind_K^G ℂ_ν)
 where ν : K → ℂ× with ν^q ≠ ν and α = ν|_{scalars}. -/
 noncomputable def Etingof.GL2.complementarySeriesChar
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) :
     GL2 p n → ℂ :=
@@ -319,18 +318,53 @@ private lemma Etingof.charW₁_splitSemisimple
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     (g : GL2 p n) (hg : GL2.IsSplitSemisimple (p := p) (n := n) g) :
     Etingof.GL2.charW₁ p n g = 1 := by
-  -- charW₁ uses haveI Fintype/DecidableEq internally. Since Fintype is Subsingleton,
-  -- these are propositionally equal to our context instances.
   simp only [Etingof.GL2.charW₁]
-  -- charW₁ uses internal haveI for Fintype/DecidableEq which creates an instance
-  -- diamond preventing direct rewriting. The mathematical argument is:
-  -- disc(g) ≠ 0 with IsSquare(disc(g)) means exactly 2 fixed points on P¹(𝔽_q):
-  -- Case M₀₁ = 0: disc = (M₀₀-M₁₁)², M₀₀≠M₁₁, linear eq has 1 root + ∞ = 2
-  --   (uses linear_one_root)
-  -- Case M₀₁ ≠ 0 (char ≠ 2): quadratic with nonzero square disc has 2 roots
-  --   (uses quadratic_two_roots, needs NeZero (2 : GaloisField p n))
-  -- So charW₁ = 2 - 1 = 1. Instance diamond blocks formal proof.
-  sorry
+  set M := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  obtain ⟨hdisc_ne, hdisc_sq⟩ := hg
+  simp only [GL2.disc_eq] at hdisc_ne hdisc_sq
+  by_cases h01 : M 0 1 = 0
+  · -- Case M₀₁ = 0: infinity is fixed, affine equation is linear
+    have h00_ne_11 : M 0 0 - M 1 1 ≠ 0 := by
+      intro h; apply hdisc_ne
+      show (M 0 0 - M 1 1) ^ 2 + 4 * M 0 1 * M 1 0 = 0
+      rw [h01, h]; ring
+    have hfilt : (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0) =
+        (Finset.univ.filter fun t : GaloisField p n =>
+        (M 0 0 - M 1 1) * t + (-(M 1 0)) = 0) := by
+      congr 1; ext t; simp only [h01, zero_mul, zero_add, sub_eq_add_neg]
+    rw [hfilt, Etingof.linear_one_root _ _ h00_ne_11]
+    simp only [h01, ite_true]
+    push_cast; ring
+  · -- Case M₀₁ ≠ 0: infinity is not fixed, quadratic has 2 roots
+    have hfilt : (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0) =
+        (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t + (-(M 1 0)) = 0) := by
+      congr 1; ext t; show _ - _ = 0 ↔ _ + (-_) = 0; rw [sub_eq_add_neg]
+    have hconv : (M 0 0 - M 1 1) ^ 2 - 4 * M 0 1 * (-(M 1 0)) =
+        (M 0 0 - M 1 1) ^ 2 + 4 * (M 0 1) * (M 1 0) := by ring
+    have hdisc_ne' : (M 0 0 - M 1 1) ^ 2 - 4 * M 0 1 * (-(M 1 0)) ≠ 0 := by
+      rw [hconv]; exact hdisc_ne
+    have hdisc_sq' : IsSquare ((M 0 0 - M 1 1) ^ 2 - 4 * M 0 1 * (-(M 1 0))) := by
+      rw [hconv]; exact hdisc_sq
+    have hcard : (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t + (-(M 1 0)) = 0).card = 2 := by
+      by_cases hp2 : p = 2
+      · -- Char 2 case: disc = (M₀₀-M₁₁)² since 4=0, and the Artin-Schreier equation
+        -- M₀₁·t² + (M₀₀-M₁₁)·t + (-M₁₀) has 2 roots iff trace condition holds
+        sorry
+      · -- Char ≠ 2: use quadratic formula
+        have : NeZero (2 : GaloisField p n) := by
+          constructor; intro h2; apply hp2
+          have h2' : (Nat.cast 2 : GaloisField p n) = 0 := h2
+          rw [CharP.cast_eq_zero_iff (GaloisField p n) p 2] at h2'
+          -- h2' : p ∣ 2, with p prime, so p = 2
+          exact Nat.le_antisymm (Nat.le_of_dvd (by omega) h2') hp.out.two_le
+        exact Etingof.quadratic_two_roots _ _ _ h01 hdisc_ne' hdisc_sq'
+    rw [hfilt, hcard]
+    simp only [h01, ite_false, Nat.add_zero]
+    push_cast; ring
 
 /-- No conjugate of a split semisimple element lies in the elliptic subgroup K.
 This is because K \ {scalars} consists of elements with eigenvalues in 𝔽_{q²} \ 𝔽_q,
@@ -430,6 +464,7 @@ The proof splits the sum over GL₂(𝔽_q) by conjugacy class type:
 Combined: (q-1)³ + (q-1)(q²-1) + q(q-1)³ = (q-1)²[q-1+q+1+q(q-1)] = (q-1)²q(q+1) = |G|.
 -/
 private lemma Etingof.innerProduct_sum_eq_card
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : 0 < n) :
     (∑ x : GL2 p n,
@@ -437,8 +472,6 @@ private lemma Etingof.innerProduct_sum_eq_card
       starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu x) : ℂ) =
     (Fintype.card (GL2 p n) : ℂ) := by
   have hn_ne : n ≠ 0 := by omega
-  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
-  haveI : DecidableEq (GaloisField p n) := Classical.decEq _
   set q := Fintype.card (GaloisField p n) with hq_def
   have hq1 : 1 < q := by
     rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn_ne]
@@ -502,6 +535,7 @@ private lemma Etingof.innerProduct_sum_eq_card
 satisfies ⟨χ, χ⟩ = 1, establishing (via Lemma 5.7.2) that it is the character
 of an actual irreducible representation. (Etingof Lemma 5.25.3) -/
 theorem Etingof.Lemma5_25_3_innerProduct
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : 0 < n) :
     (Fintype.card (GL2 p n) : ℂ)⁻¹ •
@@ -517,9 +551,10 @@ theorem Etingof.Lemma5_25_3_innerProduct
 /-- **Lemma 5.25.3 (part 2)**: The complementary series virtual character
 satisfies χ(1) = q - 1 > 0, confirming it has positive dimension.
 (Etingof Lemma 5.25.3) -/
-private lemma Etingof.charW₁_one :
+private lemma Etingof.charW₁_one
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)] :
     Etingof.GL2.charW₁ p n 1 =
-      (@Fintype.card (GaloisField p n) (Fintype.ofFinite _) : ℂ) := by
+      (Fintype.card (GaloisField p n) : ℂ) := by
   unfold GL2.charW₁
   simp only [Matrix.GeneralLinearGroup.coe_one, Matrix.one_apply]
   norm_num
@@ -537,6 +572,7 @@ private lemma Etingof.dimension_arith_identity
   ring
 
 theorem Etingof.Lemma5_25_3_dimension
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : 0 < n) :
     Etingof.GL2.complementarySeriesChar p n nu 1 = (p ^ n : ℂ) - 1 ∧
