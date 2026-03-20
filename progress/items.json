@@ -3408,7 +3408,8 @@
     "end_line": 2,
     "status": "proof_partial",
     "needs_statement": false,
-    "notes": "Part (i) proved via Jacobson density theorem. Parts (ii) and (iii) still sorry."
+    "notes": "Part (i) proved via Jacobson density theorem. Parts (ii) and (iii) still sorry.",
+    "sorry_free": true
   },
   {
     "id": "Chapter5/Discussion_before_Theorem5.18.2",
