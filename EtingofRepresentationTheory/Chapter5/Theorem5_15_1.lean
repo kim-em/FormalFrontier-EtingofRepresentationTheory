@@ -1511,6 +1511,53 @@ private theorem rev_of_permExponent_eq_rhoShift {n : ℕ} (π : Equiv.Perm (Fin 
     ext i; simp [Fin.revPerm]
   rw [← inv_inv π, hinv, this]
 
+/-- For any S ⊆ Fin n with |S| = k, ∑_{j ∈ S} j.val ≤ (n-1) + (n-2) + ... + (n-k).
+Equivalently, the top k elements of Fin n maximize the val-sum. -/
+private theorem sum_fin_subset_le_sum_top (n : ℕ) (S : Finset (Fin n))
+    (k : ℕ) (hk : k ≤ n) (hcard : S.card = k) :
+    S.sum (fun j => (j.val : ℤ)) ≤
+    ∑ i ∈ Finset.range k, ((n - 1 - i : ℕ) : ℤ) := by
+  -- Complement argument: any m-subset has sum ≥ 0+1+...+(m-1)
+  -- So ∑(univ\S) ≥ 0+1+...+(n-k-1) = ∑(univ\top_k)
+  -- And ∑S = total - ∑(univ\S) ≤ total - ∑(univ\top_k) = ∑top_k
+  -- The i-th element of Finset.sort gives s_i ≥ i (by induction on nodup sorted list)
+  -- Then ∑ s_i ≥ ∑ i
+  sorry
+
+/-- Partial sums of rhoShift dominate partial sums of permExponent:
+∑_{i<k} ρ(i) ≥ ∑_{i<k} e_π(i) for all k. This is because ρ picks the top k
+values from {0,...,n-1}, which have maximal sum. -/
+private theorem rhoShift_partial_sum_ge {n : ℕ}
+    (π : Equiv.Perm (Fin n)) (k : ℕ) :
+    (Finset.univ.filter (fun i : Fin n => i.val < k)).sum
+      (fun i => (permExponent n π i : ℤ)) ≤
+    (Finset.univ.filter (fun i : Fin n => i.val < k)).sum
+      (fun i => (rhoShift n i : ℤ)) := by
+  -- Convert LHS to a sum over a k-subset of Fin n
+  -- permExponent n π i = (π⁻¹ i).val, so ∑_{i<k} e_π(i) = ∑_{j ∈ π⁻¹({i|i<k})} j.val
+  -- rhoShift i = n-1-i, so ∑_{i<k} ρ(i) = (n-1) + (n-2) + ... + (n-k) = ∑_{i<k}(n-1-i)
+  set F := Finset.univ.filter (fun j : Fin n => j.val < k)
+  -- LHS: reindex by π⁻¹
+  have hLHS : F.sum (fun i => (permExponent n π i : ℤ)) =
+      (F.map π⁻¹.toEmbedding).sum (fun j => (j.val : ℤ)) := by
+    simp only [Finset.sum_map, Equiv.toEmbedding_apply, permExponent,
+      Finsupp.coe_equivFunOnFinite_symm]
+  -- RHS = ∑_{i<k} (n-1-i) = sum of top k elements
+  have hRHS : F.sum (fun i => (rhoShift n i : ℤ)) =
+      ∑ i ∈ Finset.range (min k n), ((n - 1 - i : ℕ) : ℤ) := by
+    sorry
+  rw [hLHS, hRHS]
+  by_cases hk : k ≤ n
+  · rw [min_eq_left hk]
+    exact sum_fin_subset_le_sum_top n _ k hk (by simp [Finset.card_map, Finset.card_filter]; sorry)
+  · push_neg at hk
+    rw [min_eq_right (le_of_lt hk)]
+    -- F = univ, F.map π⁻¹ = univ
+    have hF_univ : F = Finset.univ := by ext ⟨i, hi⟩; simp [F]; omega
+    rw [hF_univ]
+    -- Both sides equal ∑ i
+    sorry
+
 /-- For π ≠ rev and permExponent n π ≤ la.toFinsupp + rhoShift n, the sorted partition
 `finsuppToPartition(la + ρ - e_π)` strictly dominates `la`.
 
