@@ -323,8 +323,8 @@ noncomputable def permModuleIsotypicComponent (n : ℕ) (mu nu : Nat.Partition n
 This follows from the upper-triangular structure of the Kostka matrix: the multiplicity
 of `V_ν` in `U_μ` is zero when `μ` strictly dominates `ν`, and 1 when `μ = ν`. -/
 theorem spechtModule_noniso (n : ℕ) (nu₁ nu₂ : Nat.Partition n) (hne : nu₁ ≠ nu₂) :
-    IsEmpty (↥(SpechtModule n nu₁) ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu₂)) := by
-  sorry
+    IsEmpty (↥(SpechtModule n nu₁) ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu₂)) :=
+  Theorem5_12_2_distinct n nu₁ nu₂ hne
 
 /-- Every simple `SymGroupAlgebra n`-submodule of a module is isomorphic to some Specht module.
 This is the completeness of the classification of S_n irreps: the Specht modules `{V_λ | λ ⊢ n}`
@@ -332,8 +332,8 @@ form a complete set of pairwise non-isomorphic simple modules for `ℂ[S_n]`. -/
 theorem spechtModules_exhaust_simples (n : ℕ) (mu : Nat.Partition n)
     (S : Submodule (SymGroupAlgebra n) (PermutationModule n mu))
     [IsSimpleModule (SymGroupAlgebra n) S] :
-    ∃ nu : Nat.Partition n, Nonempty (↥S ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) := by
-  sorry
+    ∃ nu : Nat.Partition n, Nonempty (↥S ≃ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) :=
+  Theorem5_12_2_classification n S
 
 /-- Isotypic components for non-isomorphic simple modules are disjoint.
 This follows from `sSupIndep_isotypicComponents`: the isotypic components (viewed as
@@ -543,7 +543,60 @@ decomposition of the isotypic component as a direct sum of copies of the simple 
 theorem isotypicComponent_linearEquiv_fun (n : ℕ) (mu nu : Nat.Partition n) :
     Nonempty (↥(permModuleIsotypicComponent n mu nu) ≃ₗ[ℂ]
       (Fin (spechtMultiplicity n mu nu) → ↥(SpechtModule n nu))) := by
-  sorry
+  -- The isotypic component is isotypic of type V_ν as SymGroupAlgebra-module
+  -- By IsIsotypicOfType.linearEquiv_fun, it decomposes as Fin m → V_ν for some m
+  -- Then m = spechtMultiplicity by Schur's lemma + Hom space dimension argument
+  sorry -- TODO: requires connecting IsIsotypicOfType.linearEquiv_fun multiplicity
+         -- to spechtMultiplicity (= finrank Hom) via Schur's lemma
+
+/-- The trace of a "diagonal" endomorphism on a pi type `Fin m → V` that applies the same
+linear map `f` componentwise equals `m * trace f`. -/
+private theorem trace_pi_diagonal {m : ℕ} {V : Type*}
+    [AddCommGroup V] [Module ℂ V] [Module.Finite ℂ V] [Module.Free ℂ V]
+    (f : V →ₗ[ℂ] V) :
+    LinearMap.trace ℂ _ (LinearMap.pi (fun (i : Fin m) => f ∘ₗ LinearMap.proj i)) =
+      (m : ℂ) * LinearMap.trace ℂ _ f := by
+  -- g : (Fin m → V) →ₗ[ℂ] (Fin m → V) is the "apply f componentwise" map
+  set g := LinearMap.pi (fun (i : Fin m) => f ∘ₗ LinearMap.proj i)
+  -- Key: g sends Pi.single i v ↦ Pi.single i (f v)
+  have hg_single : ∀ (i : Fin m) (v : V), g (Pi.single i v) = Pi.single i (f v) := by
+    intro i v
+    ext k
+    simp only [g, LinearMap.pi_apply, LinearMap.comp_apply, LinearMap.proj_apply,
+      Pi.single_apply]
+    split <;> simp [*]
+  -- Use trace_eq_matrix_trace with the Pi basis
+  set b := Module.Free.chooseBasis ℂ V
+  haveI : Fintype (Module.Free.ChooseBasisIndex ℂ V) :=
+    FiniteDimensional.fintypeBasisIndex b
+  set pb := Pi.basis (fun (_ : Fin m) => b)
+  rw [LinearMap.trace_eq_matrix_trace ℂ pb g, LinearMap.trace_eq_matrix_trace ℂ b f]
+  -- Both sides are sums of diagonal matrix entries
+  simp only [Matrix.trace, Matrix.diag, LinearMap.toMatrix_apply]
+  -- LHS = ∑ ⟨i,j⟩, (pb.repr (g (pb ⟨i,j⟩))) ⟨i,j⟩
+  -- g (pb ⟨i,j⟩) = g (Pi.single i (b j)) = Pi.single i (f (b j))
+  -- pb.repr (Pi.single i (f (b j))) ⟨i,j⟩ = (b.repr (f (b j))) j
+  -- So LHS = ∑ i, ∑ j, (b.repr (f (b j))) j = m * (∑ j, ...)
+  -- pb ⟨i,j⟩ = Pi.single i (b j), so g (pb ⟨i,j⟩) = Pi.single i (f (b j))
+  -- pb.repr (Pi.single i (f (b j))) ⟨i',j'⟩ = (b.repr (f (b j) component i')) j'
+  -- At ⟨i,j⟩: = (b.repr (f (b j))) j
+  conv_lhs =>
+    arg 2; ext p
+    rw [show pb (p) = Pi.single p.1 (b p.2) from Pi.basis_apply _ p]
+  simp only [hg_single]
+  -- Each diagonal entry (pb.repr (Pi.single i (f (b j)))) (i, j) = (b.repr (f (b j))) j
+  -- because pb.repr is Pi.basis_repr (rfl) and Pi.single_eq_same
+  have hrepr : ∀ (i : Fin m) (j : Module.Free.ChooseBasisIndex ℂ V),
+      (pb.repr (Pi.single i (f (b j)))) ⟨i, j⟩ = (b.repr (f (b j))) j := by
+    intro i j
+    -- pb.repr unfolds via Pi.basis_repr to b.repr ((Pi.single i (f (b j))) i) j
+    simp [pb, Pi.basis_repr, Pi.single_eq_same]
+  simp_rw [hrepr]
+  -- LHS = ∑ (i, j) : Fin m × ι, (b.repr (f (b j))) j
+  -- Since the sum doesn't depend on i, = m * ∑ j, ...
+  -- Sum factors: x.snd doesn't depend on x.fst
+  -- The index type is Σ _ : Fin m, ι (sigma, not product)
+  simp_rw [Fintype.sum_sigma, Finset.sum_const, Finset.card_fin, nsmul_eq_mul]
 
 /-- On the isotypic component `V_ν^{⊕m}`, any `SymGroupAlgebra n`-endomorphism acts
 diagonally: the same endomorphism on each copy. In particular, for the permutation
@@ -559,6 +612,11 @@ theorem trace_isotypic_eq_mult_trace (n : ℕ) (mu nu : Nat.Partition n)
       (permModuleEndomorphism_mapsTo_isotypic n mu σ nu)) =
     (spechtMultiplicity n mu nu : ℂ) * LinearMap.trace ℂ _
       (spechtModuleAction n nu σ) := by
+  -- The conclusion doesn't depend on e. We use the SymGroupAlgebra structure.
+  -- Key idea: the isotypic component C is isomorphic (as A-module) to V_ν^⊕m.
+  -- Under ANY such decomposition, σ acts diagonally (same on each copy),
+  -- so trace(σ|_C) = m * trace(σ|_{V_ν}).
+  -- The trace is basis-independent, so the ℂ-linear equiv e is irrelevant.
   sorry
 
 /-- The trace of `σ` restricted to the isotypic component of type `V_ν` equals
