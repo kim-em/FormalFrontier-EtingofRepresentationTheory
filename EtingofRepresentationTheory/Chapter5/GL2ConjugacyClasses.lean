@@ -830,13 +830,96 @@ theorem GL2.card_isElliptic [Fintype (GaloisField p n)]
     (Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)).card =
     Fintype.card (GaloisField p n) ^ 2 *
     (Fintype.card (GaloisField p n) - 1) ^ 2 / 2 := by
-  -- Strategy: biject elliptic GL₂ elements with (a,b,c,d) : F⁴ where
-  -- c≠0, ab-cd≠0, ¬IsSquare((a-b)²+4cd). Then factor:
-  -- for each (a,b,c) with c≠0, inner count = |nonsquares| = (q-1)/2.
-  -- Total = q²(q-1)(q-1)/2 = q²(q-1)²/2.
-  -- The bijection uses g ↦ (g₀₀, g₁₁, g₀₁, g₁₀) with inverse
-  -- (a,b,c,d) ↦ mkOfDetNeZero !![a,c;d,b].
-  sorry
+  -- Bijection ψ : g ↦ (g₀₀, g₁₁, g₀₁, disc(g)) maps elliptic filter to
+  -- F × F × {c ≠ 0} × {nonsquare}, which has card q²(q-1)·NSq = q²(q-1)²/2.
+  let F := GaloisField p n
+  have h4_ne : (4 : F) ≠ 0 := GaloisField.four_ne_zero hp2 hn
+  set q := Fintype.card F with q_def
+  set NSq := (Finset.univ.filter (fun x : F => ¬IsSquare x)).card with NSq_def
+  have hNSq : 2 * NSq = q - 1 := two_mul_card_nonsquare hp2 hn
+  have hq1 : 1 ≤ q := Fintype.card_pos
+  -- Target product set
+  set T := (Finset.univ : Finset F) ×ˢ ((Finset.univ : Finset F) ×ˢ
+    (Finset.univ.filter (fun c : F => c ≠ 0) ×ˢ
+     Finset.univ.filter (fun x : F => ¬IsSquare x))) with T_def
+  -- Bijection ψ(g) = (g₀₀, g₁₁, g₀₁, disc(g))
+  suffices hbij : (Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)).card = T.card by
+    rw [hbij]
+    -- Compute T.card = q * q * (q-1) * NSq
+    have hne_card : (Finset.univ.filter (fun c : F => c ≠ 0)).card = q - 1 := by
+      rw [Finset.filter_ne', Finset.card_erase_of_mem (Finset.mem_univ _), Finset.card_univ]
+    simp only [T, Finset.card_product, Finset.card_univ, hne_card]
+    -- Fold Fintype.card F back to q and filter.card to NSq
+    change q * (q * ((q - 1) * NSq)) = q ^ 2 * (q - 1) ^ 2 / 2
+    have hmul : 2 * (q * (q * ((q - 1) * NSq))) = q ^ 2 * (q - 1) ^ 2 := by
+      calc 2 * (q * (q * ((q - 1) * NSq)))
+          = q * q * ((q - 1) * (2 * NSq)) := by ring
+        _ = q * q * ((q - 1) * (q - 1)) := by rw [hNSq]
+        _ = q ^ 2 * (q - 1) ^ 2 := by ring
+    omega
+  apply Finset.card_nbij (fun g : GL2' p n =>
+    (g.val 0 0, (g.val 1 1, (g.val 0 1, GL2.disc g))))
+  · -- maps_to
+    intro g hg
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hg
+    simp only [T, Finset.mem_coe, Finset.mem_product, Finset.mem_univ, Finset.mem_filter,
+      true_and]
+    exact ⟨fun h01 => hg (GL2.isSquare_disc_of_g01_zero h01), hg⟩
+  · -- inj_on
+    intro g₁ hg₁ g₂ _ h
+    simp only [Prod.mk.injEq] at h
+    obtain ⟨h00, h11, h01, hdisc⟩ := h
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hg₁
+    have h01_ne : g₁.val 0 1 ≠ 0 :=
+      fun hz => hg₁ (GL2.isSquare_disc_of_g01_zero hz)
+    have h10 : g₁.val 1 0 = g₂.val 1 0 := by
+      simp only [GL2.disc, GL2.mat] at hdisc
+      rw [h00, h11] at hdisc
+      have h_cancel := add_left_cancel hdisc
+      rw [h01] at h_cancel
+      exact mul_left_cancel₀ (mul_ne_zero h4_ne (h01 ▸ h01_ne)) h_cancel
+    exact Matrix.GeneralLinearGroup.ext fun i j => by
+      fin_cases i <;> fin_cases j
+      · exact h00
+      · exact h01
+      · exact h10
+      · exact h11
+  · -- surj_on
+    intro t ht
+    simp only [T, Finset.mem_coe, Finset.mem_product, Finset.mem_univ, Finset.mem_filter,
+      true_and] at ht
+    obtain ⟨hc, hx⟩ := ht
+    set a := t.1; set b := t.2.1; set c := t.2.2.1; set x := t.2.2.2
+    set d := (x - (a - b) ^ 2) / (4 * c) with d_def
+    have h4c : (4 : F) * c ≠ 0 := mul_ne_zero h4_ne hc
+    have hdisc : (a - b) ^ 2 + 4 * c * d = x := by
+      simp only [d_def]; field_simp; ring
+    have hdet : a * b - c * d ≠ 0 := by
+      intro h
+      apply hx
+      have hcd : a * b = c * d := by rwa [sub_eq_zero] at h
+      have : x = (a + b) ^ 2 :=
+        calc x = (a - b) ^ 2 + 4 * c * d := hdisc.symm
+          _ = (a - b) ^ 2 + 4 * (c * d) := by ring_nf
+          _ = (a - b) ^ 2 + 4 * (a * b) := by rw [← hcd]
+          _ = (a + b) ^ 2 := by ring
+      rw [this]; exact ⟨a + b, by ring⟩
+    have hdet' : Matrix.det !![a, c; d, b] ≠ 0 := by
+      simp [Matrix.det_fin_two]; exact hdet
+    set g := Matrix.GeneralLinearGroup.mkOfDetNeZero !![a, c; d, b] hdet'
+    -- Helper: extract matrix entries of g
+    have hg00 : g.val 0 0 = a := by simp [g, Matrix.cons_val_zero, Matrix.vecHead]
+    have hg11 : g.val 1 1 = b := by simp [g, Matrix.cons_val_one, Matrix.vecTail, Matrix.vecHead]
+    have hg01 : g.val 0 1 = c := by simp [g, Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.vecHead, Matrix.vecTail]
+    have hg10 : g.val 1 0 = d := by simp [g, Matrix.cons_val_one, Matrix.vecTail, Matrix.vecHead]
+    have hdisc_g : GL2.disc g = x := by
+      change (g.val 0 0 - g.val 1 1) ^ 2 + 4 * g.val 0 1 * g.val 1 0 = x
+      rw [hg00, hg11, hg01, hg10]; exact hdisc
+    refine ⟨g, ?_, ?_⟩
+    · simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and, GL2.IsElliptic]
+      rw [hdisc_g]; exact hx
+    · exact Prod.ext hg00 (Prod.ext hg11 (Prod.ext hg01 hdisc_g))
 
 /-- The number of split semisimple elements in GL₂(𝔽_q) is
 (q-1)(q-2)q(q+1)/2. -/
