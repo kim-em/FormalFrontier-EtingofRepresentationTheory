@@ -15,13 +15,20 @@ The principal series construction is not in Mathlib; we define the
 Borel subgroup and principal series locally.
 -/
 
-open CategoryTheory
+open CategoryTheory Classical
+
+noncomputable section
 
 variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ)
 
+private abbrev GL2 (p n : ℕ) [Fact (Nat.Prime p)] :=
+  Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)
+
+instance : Fintype (GaloisField p n) := Fintype.ofFinite _
+
 /-- The Borel subgroup of GL₂(𝔽_q): upper-triangular invertible matrices. -/
-noncomputable def Etingof.GL2.BorelSubgroup :
-    Subgroup (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) where
+def Etingof.GL2.BorelSubgroup :
+    Subgroup (GL2 p n) where
   carrier := {g | (g : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0}
   mul_mem' := by
     intro a b ha hb
@@ -32,37 +39,166 @@ noncomputable def Etingof.GL2.BorelSubgroup :
   inv_mem' := by
     intro g hg
     simp only [Set.mem_setOf_eq] at *
-    -- Entry (1,0) of g * g⁻¹ = 1 gives g₁₁ * g⁻¹₁₀ = 0
     have hmul : (g.val * (g⁻¹).val) 1 0 = (1 : Matrix (Fin 2) (Fin 2) _) 1 0 := by
       have : g.val * (g⁻¹).val = 1 := by exact_mod_cast g.mul_inv
       rw [this]
     simp only [Matrix.mul_apply, Fin.sum_univ_two,
       Matrix.one_apply_ne (by decide : (1 : Fin 2) ≠ 0)] at hmul
     rw [hg, zero_mul, zero_add] at hmul
-    -- hmul : g₁₁ * g⁻¹₁₀ = 0, need g₁₁ ≠ 0
     have hdet : IsUnit (g.val.det) := g.isUnit.map Matrix.detMonoidHom
     rw [Matrix.det_fin_two, hg, mul_zero, sub_zero] at hdet
     exact (mul_eq_zero.mp hmul).resolve_left
       (IsUnit.ne_zero (isUnit_of_mul_isUnit_right hdet))
 
+-- ============================================================
+-- Helper infrastructure for principal series definitions
+-- ============================================================
+
+private lemma Etingof.GL2.borel_diag00_ne_zero
+    (b : ↥(Etingof.GL2.BorelSubgroup p n)) :
+    (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 0 0 ≠ 0 := by
+  intro h
+  have hdet : IsUnit (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)).det :=
+    b.val.isUnit.map Matrix.detMonoidHom
+  rw [Matrix.det_fin_two, b.prop, mul_zero, sub_zero, h, zero_mul] at hdet
+  exact not_isUnit_zero hdet
+
+private lemma Etingof.GL2.borel_diag11_ne_zero
+    (b : ↥(Etingof.GL2.BorelSubgroup p n)) :
+    (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 1 ≠ 0 := by
+  intro h
+  have hdet : IsUnit (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)).det :=
+    b.val.isUnit.map Matrix.detMonoidHom
+  rw [Matrix.det_fin_two, b.prop, mul_zero, sub_zero, h, mul_zero] at hdet
+  exact not_isUnit_zero hdet
+
+/-- The value of the Borel character χ₁(b₀₀)·χ₂(b₁₁) for b ∈ B. -/
+private def Etingof.GL2.borelCharValue
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (b : ↥(Etingof.GL2.BorelSubgroup p n)) : ℂ :=
+  let bmat := (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  (chi1 (Units.mk0 (bmat 0 0) (Etingof.GL2.borel_diag00_ne_zero p n b)) : ℂ) *
+  (chi2 (Units.mk0 (bmat 1 1) (Etingof.GL2.borel_diag11_ne_zero p n b)) : ℂ)
+
+/-- The covariance submodule: functions f : G → ℂ satisfying f(bg) = λ(b)·f(g). -/
+private def Etingof.GL2.principalSeriesSubmodule
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Submodule ℂ (GL2 p n → ℂ) where
+  carrier := {f | ∀ (b : ↥(Etingof.GL2.BorelSubgroup p n)) (g : GL2 p n),
+    f (b.val * g) = Etingof.GL2.borelCharValue p n chi1 chi2 b * f g}
+  add_mem' {f g} hf hg := by
+    intro b x; simp only [Set.mem_setOf_eq, Pi.add_apply]; rw [hf b x, hg b x, mul_add]
+  zero_mem' := by intro b g; simp
+  smul_mem' c f hf := by
+    intro b g; simp only [Set.mem_setOf_eq, Pi.smul_apply, smul_eq_mul]
+    rw [hf b g, mul_left_comm]
+
+/-- The principal series as a representation via right translation. -/
+private def Etingof.GL2.principalSeriesRep
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Representation ℂ (GL2 p n)
+      (Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) where
+  toFun h := {
+    toFun := fun ⟨f, hf⟩ => ⟨fun g => f (g * h), fun b g => by
+      change f (↑b * g * h) = Etingof.GL2.borelCharValue p n chi1 chi2 b * f (g * h)
+      rw [mul_assoc]; exact hf b (g * h)⟩
+    map_add' := fun ⟨_, _⟩ ⟨_, _⟩ => Subtype.ext rfl
+    map_smul' := fun _ ⟨_, _⟩ => Subtype.ext rfl }
+  map_one' := by
+    apply LinearMap.ext; intro ⟨f, _⟩
+    exact Subtype.ext (funext fun g => congr_arg f (mul_one g))
+  map_mul' a b := by
+    apply LinearMap.ext; intro ⟨f, _⟩
+    exact Subtype.ext (funext fun g => congr_arg f (mul_assoc g a b).symm)
+
+/-- The augmentation functional on G → ℂ, used to define W_μ.
+    Maps f to ∑_g f(g) · μ(det g)⁻¹. -/
+private def Etingof.GL2.augmentation
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    (GL2 p n → ℂ) →ₗ[ℂ] ℂ where
+  toFun f := ∑ g : GL2 p n,
+    f g * ((mu (Matrix.GeneralLinearGroup.det g))⁻¹ : ℂˣ)
+  map_add' f g := by simp [Finset.sum_add_distrib, add_mul]
+  map_smul' c f := by
+    simp only [smul_eq_mul, RingHom.id_apply, Pi.smul_apply]
+    simp_rw [mul_assoc]
+    rw [← Finset.mul_sum]
+
+/-- The complement submodule W_μ: covariant functions with zero augmentation. -/
+private def Etingof.GL2.complementWSubmodule
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Submodule ℂ (GL2 p n → ℂ) :=
+  Etingof.GL2.principalSeriesSubmodule p n mu mu ⊓
+    LinearMap.ker (Etingof.GL2.augmentation p n mu)
+
+/-- Right translation preserves the complement W_μ. -/
+private lemma Etingof.GL2.complementW_mem_of_mul
+    (mu : (GaloisField p n)ˣ →* ℂˣ)
+    (f : GL2 p n → ℂ)
+    (hf : f ∈ Etingof.GL2.complementWSubmodule p n mu)
+    (h : GL2 p n) :
+    (fun g => f (g * h)) ∈ Etingof.GL2.complementWSubmodule p n mu := by
+  constructor
+  · -- Covariance preserved
+    intro b g
+    change f (↑b * g * h) = Etingof.GL2.borelCharValue p n mu mu b * f (g * h)
+    rw [mul_assoc]; exact hf.1 b (g * h)
+  · -- Augmentation = 0: ∑_g f(gh) · μ(det g)⁻¹ = 0
+    -- By reindexing g ↦ gh in the sum and using det multiplicativity,
+    -- this equals μ(det h) · (∑_g f(g) · μ(det g)⁻¹) = μ(det h) · 0 = 0
+    sorry
+
+/-- The complement W_μ as a representation via right translation. -/
+private def Etingof.GL2.complementWRep
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Representation ℂ (GL2 p n) (Etingof.GL2.complementWSubmodule p n mu) where
+  toFun h := {
+    toFun := fun ⟨f, hf⟩ => ⟨fun g => f (g * h),
+      Etingof.GL2.complementW_mem_of_mul p n mu f hf h⟩
+    map_add' := fun ⟨_, _⟩ ⟨_, _⟩ => Subtype.ext rfl
+    map_smul' := fun _ ⟨_, _⟩ => Subtype.ext rfl }
+  map_one' := by
+    apply LinearMap.ext; intro ⟨f, _⟩
+    exact Subtype.ext (funext fun g => congr_arg f (mul_one g))
+  map_mul' a b := by
+    apply LinearMap.ext; intro ⟨f, _⟩
+    exact Subtype.ext (funext fun g => congr_arg f (mul_assoc g a b).symm)
+
+-- ============================================================
+-- Main definitions
+-- ============================================================
+
 /-- The principal series representation V(χ₁, χ₂) of GL₂(𝔽_q), defined as
 Ind_B^G ℂ_{χ₁,χ₂} where B is the Borel subgroup and χ₁, χ₂ : 𝔽_q× → ℂ×
 are multiplicative characters. -/
-noncomputable def Etingof.GL2.principalSeries
+def Etingof.GL2.principalSeries
     (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
-    FDRep ℂ (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) := sorry
+    FDRep ℂ (GL2 p n) :=
+  FDRep.of (Etingof.GL2.principalSeriesRep p n chi1 chi2)
 
 /-- The one-dimensional representation ℂ_μ of GL₂(𝔽_q) given by
 g ↦ μ(det g), where μ : 𝔽_q× → ℂ× is a multiplicative character. -/
-noncomputable def Etingof.GL2.detChar
+def Etingof.GL2.detChar
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
-    FDRep ℂ (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) := sorry
+    FDRep ℂ (GL2 p n) :=
+  FDRep.of
+    ({ toFun := fun g => ((mu (Matrix.GeneralLinearGroup.det g) : ℂˣ) : ℂ) • LinearMap.id
+       map_one' := by
+         ext; simp
+       map_mul' := fun a b => by
+         apply LinearMap.ext; intro x
+         change ((mu (Matrix.GeneralLinearGroup.det (a * b)) : ℂˣ) : ℂ) * x =
+           ((mu (Matrix.GeneralLinearGroup.det a) : ℂˣ) : ℂ) *
+           (((mu (Matrix.GeneralLinearGroup.det b) : ℂˣ) : ℂ) * x)
+         rw [map_mul, map_mul, Units.val_mul, mul_assoc]
+    } : Representation ℂ _ ℂ)
 
 /-- The irreducible representation W_μ of GL₂(𝔽_q) of dimension q, appearing
 as the complement of ℂ_μ in V(μ, μ). -/
-noncomputable def Etingof.GL2.complementW
+def Etingof.GL2.complementW
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
-    FDRep ℂ (Matrix.GeneralLinearGroup (Fin 2) (GaloisField p n)) := sorry
+    FDRep ℂ (GL2 p n) :=
+  FDRep.of (Etingof.GL2.complementWRep p n mu)
 
 section Theorem5_25_2
 
@@ -104,3 +240,5 @@ theorem Etingof.Theorem5_25_2_part3b
   sorry
 
 end Theorem5_25_2
+
+end
