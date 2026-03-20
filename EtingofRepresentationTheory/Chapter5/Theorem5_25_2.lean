@@ -144,9 +144,28 @@ private lemma Etingof.GL2.complementW_mem_of_mul
     change f (↑b * g * h) = Etingof.GL2.borelCharValue p n mu mu b * f (g * h)
     rw [mul_assoc]; exact hf.1 b (g * h)
   · -- Augmentation = 0: ∑_g f(gh) · μ(det g)⁻¹ = 0
-    -- By reindexing g ↦ gh in the sum and using det multiplicativity,
-    -- this equals μ(det h) · (∑_g f(g) · μ(det g)⁻¹) = μ(det h) · 0 = 0
-    sorry
+    -- Reindex g ↦ g·h⁻¹, use det multiplicativity, factor out constant
+    have hker : ∑ g : GL2 p n, f g * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = 0 := by
+      have := hf.2; simp only [LinearMap.mem_ker, Etingof.GL2.augmentation,
+        LinearMap.coe_mk, AddHom.coe_mk] at this; exact this
+    show (fun g => f (g * h)) ∈ LinearMap.ker (Etingof.GL2.augmentation p n mu)
+    rw [LinearMap.mem_ker]
+    show ∑ g : GL2 p n,
+      f (g * h) * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = 0
+    -- Reindex via g ↦ g * h⁻¹: transforms ∑ f(g*h)*c(g) into ∑ f(g)*c(g*h⁻¹)
+    rw [Fintype.sum_equiv (Equiv.mulRight h)
+        (fun g => f (g * h) * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹)
+        (fun g => f g * ↑(mu (Matrix.GeneralLinearGroup.det (g * h⁻¹)))⁻¹)
+        (fun g => by simp [Equiv.coe_mulRight, inv_mul_cancel_right])]
+    -- Now: ∑_g f(g) * μ(det(g * h⁻¹))⁻¹ = 0
+    -- Use det multiplicativity and factor out the constant
+    simp_rw [map_mul, mul_inv_rev, Units.val_mul]
+    simp_rw [show ∀ g : GL2 p n,
+        f g * (↑(mu (Matrix.GeneralLinearGroup.det h⁻¹))⁻¹ *
+        ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹) =
+        f g * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ *
+        ↑(mu (Matrix.GeneralLinearGroup.det h⁻¹))⁻¹ from fun g => by ring]
+    rw [← Finset.sum_mul, hker, zero_mul]
 
 /-- The complement W_μ as a representation via right translation. -/
 private def Etingof.GL2.complementWRep
