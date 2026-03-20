@@ -196,46 +196,57 @@ private theorem Etingof.arrowsOutReversed_ne
     rw [hj] at e; exact ((hi i).false e).elim
   · exact hj
 
-/-- Extract the original arrow j →_Q i from a reversed arrow i →_{Q̄ᵢ} j. -/
+/-- Extract the original arrow j →_Q i from a reversed arrow i →_{Q̄ᵢ} j.
+Defined as `reversedArrow_eq_ne` for definitional compatibility with F⁺ API. -/
 private def Etingof.arrowsOutReversed_origArrow
     {Q : Type*} [DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
-    (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) : a.fst ⟶ i := by
-  obtain ⟨j, e⟩ := a
-  change Etingof.ReversedAtVertexHom Q i i j at e
-  have hne := Etingof.arrowsOutReversed_ne hi ⟨j, e⟩
-  rw [Etingof.ReversedAtVertexHom_eq_ne rfl hne] at e; exact e
+    (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) : a.fst ⟶ i :=
+  Etingof.reversedArrow_eq_ne (Etingof.arrowsOutReversed_ne hi a) a.snd
 
 /-- Map arrows into i in Q to arrows out of i in Q̄ᵢ.
 Since i is a sink (no arrows out), any arrow j → i in Q gives a reversed
-arrow i →_{Q̄ᵢ} j. The underlying arrow data is unchanged. -/
+arrow i →_{Q̄ᵢ} j. Uses match-based construction for definitional compatibility
+with `reversedArrow_eq_ne`. -/
 private def Etingof.arrowsInto_to_arrowsOutReversed
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (b : Etingof.ArrowsInto Q i) :
     @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i := by
   obtain ⟨j, e⟩ := b
-  refine ⟨j, ?_⟩
-  -- Need i →_{Q̄ᵢ} j, i.e., ReversedAtVertexHom Q i i j
-  change Etingof.ReversedAtVertexHom Q i i j
   have hji : j ≠ i := by
     intro heq; rw [heq] at e; exact (hi i).false e
-  rw [Etingof.ReversedAtVertexHom_eq_ne rfl hji]; exact e
+  refine ⟨j, ?_⟩
+  change @Etingof.ReversedAtVertexHom Q inst _ i i j
+  unfold Etingof.ReversedAtVertexHom
+  revert e
+  exact match inst i i, inst j i with
+  | .isFalse h, _ => absurd rfl h
+  | .isTrue _, .isTrue h => absurd h hji
+  | .isTrue _, .isFalse _ => fun e => e
 
 /-- Round-trip: extracting the original arrow from a converted ArrowsInto
 gives back the original arrow. -/
 private theorem Etingof.origArrow_arrowsInto_to_arrowsOutReversed
-    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (b : Etingof.ArrowsInto Q i) :
     Etingof.arrowsOutReversed_origArrow hi
       (Etingof.arrowsInto_to_arrowsOutReversed hi b) = b.2 := by
   obtain ⟨j, e⟩ := b
-  simp only [arrowsInto_to_arrowsOutReversed, arrowsOutReversed_origArrow, id]
-  -- Goal reduces to cast round-trip through ReversedAtVertexHom_eq_ne
-  -- The .mp and .mpr from the Eq cast cancel
-  change cast _ (cast _ e) = e
-  simp [cast_cast]
+  have hji : j ≠ i := by intro h; rw [h] at e; exact (hi i).false e
+  -- Both arrowsOutReversed_origArrow (= reversedArrow_eq_ne) and
+  -- arrowsInto_to_arrowsOutReversed use match on (inst i i, inst j i).
+  -- The composition of two identity matches is identity.
+  -- Unfold only the function definitions, then case-split the match.
+  simp only [Etingof.arrowsOutReversed_origArrow, Etingof.arrowsInto_to_arrowsOutReversed]
+  unfold Etingof.reversedArrow_eq_ne
+  simp only [id]
+  revert hji e
+  exact match inst i i, inst j i with
+  | .isFalse h, _ => fun _ _ => absurd rfl h
+  | .isTrue _, .isTrue h => fun _ hji => absurd h hji
+  | .isTrue _, .isFalse _ => fun _ _ => rfl
 
 /-- The component of `arrowsInto_to_arrowsOutReversed` at j gives the original arrow j ⟶ i. -/
 private theorem Etingof.arrowsInto_to_arrowsOutReversed_fst
@@ -244,6 +255,53 @@ private theorem Etingof.arrowsInto_to_arrowsOutReversed_fst
     (b : Etingof.ArrowsInto Q i) :
     (Etingof.arrowsInto_to_arrowsOutReversed hi b).fst = b.fst := by
   rfl
+
+/-- `reversedArrow_eq_ne` and `arrowsOutReversed_origArrow` are definitionally equal
+since `arrowsOutReversed_origArrow` is defined as `reversedArrow_eq_ne`. -/
+private theorem Etingof.reversedArrow_eq_origArrow
+    {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (x : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)
+    (hne : x.fst ≠ i := Etingof.arrowsOutReversed_ne hi x) :
+    Etingof.reversedArrow_eq_ne hne x.snd =
+    Etingof.arrowsOutReversed_origArrow hi x := rfl
+
+/-- Round-trip: converting an ArrowsOutOf to ArrowsInto and back gives the original. -/
+private theorem Etingof.arrowsOutReversed_arrowsInto_roundtrip
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (x : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) :
+    Etingof.arrowsInto_to_arrowsOutReversed hi
+      ⟨x.fst, Etingof.arrowsOutReversed_origArrow hi x⟩ = x := by
+  obtain ⟨j, e⟩ := x
+  -- Prove the second component is equal, then lift to Sigma.
+  have h_snd : (Etingof.arrowsInto_to_arrowsOutReversed hi
+      ⟨j, Etingof.arrowsOutReversed_origArrow hi ⟨j, e⟩⟩).snd = e := by
+    -- Unfold function definitions (keeping types intact) and match on decidable instances.
+    -- Try: don't unfold arrowsInto_to_arrowsOutReversed separately.
+    -- Instead, show the composition is identity by congruence arguments.
+    -- arrowsOutReversed_origArrow = reversedArrow_eq_ne, and arrowsInto_to_arrowsOutReversed
+    -- is its inverse on the same match branches.
+    -- Use native_decide or other tactic...
+    -- Actually, try: apply congrArg, then prove the inner part
+    change (Etingof.arrowsInto_to_arrowsOutReversed hi
+      ⟨j, Etingof.arrowsOutReversed_origArrow hi ⟨j, e⟩⟩).2 = e
+    -- The .2 of arrowsInto_to_arrowsOutReversed is the match applied to the input arrow
+    sorry
+  exact Sigma.ext rfl (heq_of_eq h_snd)
+
+/-- The bijection between arrows out of i in Q̄ᵢ and arrows into i in Q. -/
+private noncomputable def Etingof.arrowsOutReversed_equiv_arrowsInto
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i) :
+    @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i ≃ Etingof.ArrowsInto Q i where
+  toFun x := ⟨x.fst, Etingof.arrowsOutReversed_origArrow hi x⟩
+  invFun b := Etingof.arrowsInto_to_arrowsOutReversed hi b
+  left_inv x := Etingof.arrowsOutReversed_arrowsInto_roundtrip hi x
+  right_inv b := by
+    refine Sigma.ext (Etingof.arrowsInto_to_arrowsOutReversed_fst hi b) ?_
+    simp only [Etingof.arrowsInto_to_arrowsOutReversed_fst]
+    exact heq_of_eq (Etingof.origArrow_arrowsInto_to_arrowsOutReversed hi b)
 
 /-- At v ≠ i, F⁻(F⁺(V)).obj v ≃ₗ[k] ρ.obj v. Both sides reduce to ρ.obj v
 through the Decidable.casesOn in the reflection functor definitions. -/
