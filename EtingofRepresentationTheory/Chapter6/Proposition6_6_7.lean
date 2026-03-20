@@ -452,12 +452,164 @@ theorem Etingof.Proposition6_6_7_sink
           simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
             LinearEquiv.refl_toLinearMap] at *
           exact hsubrep e' w hw
+      -- Helper: component membership from iSup of lof-images
+      have comp_mem : ∀ (S : ∀ a : Etingof.ArrowsInto Q i, Submodule k (ρ.obj a.1))
+          (y : DirectSum (Etingof.ArrowsInto Q i) (fun a => ρ.obj a.1))
+          (_ : y ∈ ⨆ a, Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) a) (S a))
+          (a : Etingof.ArrowsInto Q i),
+          DirectSum.component k _ (fun a => ρ.obj a.1) a y ∈ S a := by
+        intro S y hy a
+        refine Submodule.iSup_induction
+          (fun b => Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) b) (S b))
+          (motive := fun y =>
+            DirectSum.component k _ (fun a => ρ.obj a.1) a y ∈ S a)
+          hy ?_ ?_ ?_
+        · intro b z hz
+          obtain ⟨s, hs, rfl⟩ := Submodule.mem_map.mp hz
+          simp only [DirectSum.component.of]
+          split
+          · next h => exact h ▸ hs
+          · exact zero_mem _
+        · exact zero_mem _
+        · intro x' y' hx' hy'; rw [map_add]; exact add_mem hx' hy'
+      -- Helper: kernel element from W(i) has val in iSup of lof-images
+      have val_in_iSup : ∀ (W : ∀ v, Submodule k
+            (@Etingof.QuiverRepresentation.obj k Q _
+              (Etingof.reversedAtVertex Q i)
+              (Etingof.reflectionFunctorPlus Q i hi ρ) v))
+          (W_at : ∀ a : Etingof.ArrowsInto Q i, Submodule k (ρ.obj a.1))
+          (_ : W_at = fun a => Submodule.map
+            (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap (W a.1))
+          (_ : ∀ {a b} (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b),
+            ∀ x ∈ W a, @Etingof.QuiverRepresentation.mapLinear k Q _
+              (Etingof.reversedAtVertex Q i) (Etingof.reflectionFunctorPlus Q i hi ρ)
+              a b e x ∈ W b)
+          (z : @Etingof.QuiverRepresentation.obj k Q _
+            (Etingof.reversedAtVertex Q i)
+            (Etingof.reflectionFunctorPlus Q i hi ρ) i)
+          (_ : z ∈ W i),
+          (Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val ∈
+            ⨆ a, Submodule.map (DirectSum.lof k _ (fun a => ρ.obj a.1) a) (W_at a) := by
+        intro W W_at hW_at_def hWsub z hz
+        suffices h : ∀ a : Etingof.ArrowsInto Q i,
+            DirectSum.component k _ (fun a => ρ.obj a.1) a
+              (Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val ∈ W_at a by
+          rw [show (Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val =
+            ∑ a ∈ (Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val.support,
+              DirectSum.of (fun a => ρ.obj a.1) a
+                ((Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val a) from
+            (DirectSum.sum_support_of _).symm]
+          apply Submodule.sum_mem
+          intro a _
+          exact Submodule.mem_iSup_of_mem a (Submodule.mem_map.mpr ⟨_, h a, rfl⟩)
+        intro a
+        rw [hW_at_def]
+        have hmap := hWsub (arrowsIntoReversed hi a) z hz
+        have hcomp := reflFunctorPlus_map_from_sink_component hi ρ a (arrow_ne a) z
+        -- hcomp : equivAt_ne (mapLinear ...) = component a (equivAt_eq z).val
+        -- Need: ∃ w ∈ W a.1, equivAt_ne w = component a (equivAt_eq z).val
+        -- The witness is mapLinear ... z, and the equality is hcomp
+        exact ⟨_, hmap, hcomp⟩
+      -- Helper: W₁_at/W₂_at are complementary at each arrow
+      have hW_at_compl : ∀ a : Etingof.ArrowsInto Q i, IsCompl (W₁_at a) (W₂_at a) := by
+        intro a
+        simp only [W₁_at, W₂_at]
+        exact (hcompl a.1).map
+          (Submodule.orderIsoMapComap
+            (Etingof.reflFunctorPlus_equivAt_ne hi ρ a.1 (arrow_ne a)))
+      -- Prove IsCompl at vertex i for the φ-images
+      set_option maxHeartbeats 800000 in
+      have hU_compl_i : IsCompl (U₁ i) (U₂ i) := by
+        simp only [U₁, U₂, dif_pos rfl]
+        constructor
+        · -- Disjoint
+          rw [Submodule.disjoint_def]
+          intro x hx1 hx2
+          obtain ⟨y₁, hy₁, rfl⟩ := Submodule.mem_map.mp hx1
+          obtain ⟨y₂, hy₂, hy₂eq⟩ := Submodule.mem_map.mp hx2
+          have hker : y₁ - y₂ ∈ φ.ker := by
+            rw [LinearMap.mem_ker, map_sub, sub_eq_zero]; exact hy₂eq.symm
+          set zeq := (Etingof.reflFunctorPlus_equivAt_eq hi ρ).symm ⟨y₁ - y₂, hker⟩
+          have hzeq_top : zeq ∈ (⊤ : Submodule k _) := Submodule.mem_top
+          rw [← (hcompl i).2.eq_top, Submodule.mem_sup] at hzeq_top
+          obtain ⟨z₁, hz₁, z₂, hz₂, hzsum⟩ := hzeq_top
+          have hv₁ := val_in_iSup W₁ W₁_at rfl hW₁ z₁ hz₁
+          have hv₂ := val_in_iSup W₂ W₂_at rfl hW₂ z₂ hz₂
+          have hsum_val : y₁ - y₂ =
+              (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val +
+              (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₂).val := by
+            have h1 : zeq = z₁ + z₂ := hzsum.symm
+            have h2 := congr_arg
+              (fun z => (Etingof.reflFunctorPlus_equivAt_eq hi ρ z).val) h1
+            simp only [map_add, Submodule.coe_add] at h2
+            rw [← h2]
+            -- zeq = equivAt_eq⁻¹ ⟨y₁ - y₂, hker⟩, so equivAt_eq(zeq) = ⟨y₁ - y₂, hker⟩
+            simp only [zeq, LinearEquiv.apply_symm_apply]
+          suffices y₁ = (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val by
+            rw [this]; exact (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).property
+          refine DFunLike.ext _ _ fun a => ?_
+          have hca_y₁ := comp_mem W₁_at y₁ hy₁ a
+          have hca_y₂ := comp_mem W₂_at y₂ hy₂ a
+          have hca_z₁ := comp_mem W₁_at _ hv₁ a
+          have hca_z₂ := comp_mem W₂_at _ hv₂ a
+          have hcomp_eq : DirectSum.component k _ _ a y₁ -
+              DirectSum.component k _ _ a y₂ =
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val +
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₂).val := by
+            have := congr_arg (DirectSum.component k _ (fun a => ρ.obj a.1) a) hsum_val
+            simp only [map_sub, map_add] at this; exact this
+          have hlhs : DirectSum.component k _ _ a y₁ -
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val ∈
+              W₁_at a := sub_mem hca_y₁ hca_z₁
+          have hrhs_eq : DirectSum.component k _ _ a y₁ -
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val =
+              DirectSum.component k _ _ a y₂ +
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₂).val := by
+            -- a - c₁ = b + c₂ from a - b = c₁ + c₂
+            -- Rearrange: a - c₁ = (a - b) - c₁ + b = (c₁ + c₂) - c₁ + b = c₂ + b = b + c₂
+            have := hcomp_eq
+            -- this : comp y₁ - comp y₂ = comp z₁ + comp z₂
+            -- Goal: comp y₁ - comp z₁ = comp y₂ + comp z₂
+            rw [sub_eq_iff_eq_add] at this ⊢
+            rw [this]; abel
+          have hrhs : DirectSum.component k _ _ a y₁ -
+              DirectSum.component k _ _ a (Etingof.reflFunctorPlus_equivAt_eq hi ρ z₁).val ∈
+              W₂_at a := hrhs_eq ▸ add_mem hca_y₂ hca_z₂
+          have hzero := (hW_at_compl a).1.eq_bot ▸
+            (show _ ∈ W₁_at a ⊓ W₂_at a from ⟨hlhs, hrhs⟩)
+          rw [Submodule.mem_bot] at hzero
+          rw [sub_eq_zero] at hzero
+          -- component a y₁ = component a z₁.val, convert to DFunLike equality
+          exact hzero
+        · -- Codisjoint
+          rw [codisjoint_iff, ← Submodule.map_sup]
+          rw [eq_top_iff]; intro x _
+          obtain ⟨y, rfl⟩ := hsurj x
+          refine Submodule.mem_map.mpr ⟨y, ?_, rfl⟩
+          -- Need: y ∈ S₁ ⊔ S₂
+          rw [Submodule.mem_sup]
+          rw [show y = ∑ a ∈ y.support,
+            DirectSum.of (fun a => ρ.obj a.1) a (y a) from
+            (DirectSum.sum_support_of _).symm]
+          have hdecomp : ∀ a : Etingof.ArrowsInto Q i, ∃ w₁ ∈ W₁_at a, ∃ w₂ ∈ W₂_at a,
+              w₁ + w₂ = y a := by
+            intro a
+            have := (hW_at_compl a).2.eq_top
+            exact Submodule.mem_sup.mp (this ▸ Submodule.mem_top)
+          choose w₁_fn hw₁ w₂_fn hw₂ hsum using hdecomp
+          refine ⟨∑ a ∈ y.support, DirectSum.lof k _ _ a (w₁_fn a), ?_,
+                  ∑ a ∈ y.support, DirectSum.lof k _ _ a (w₂_fn a), ?_, ?_⟩
+          · exact Submodule.sum_mem _ fun a _ =>
+              Submodule.mem_iSup_of_mem a (Submodule.mem_map.mpr ⟨_, hw₁ a, rfl⟩)
+          · exact Submodule.sum_mem _ fun a _ =>
+              Submodule.mem_iSup_of_mem a (Submodule.mem_map.mpr ⟨_, hw₂ a, rfl⟩)
+          · rw [← Finset.sum_add_distrib]
+            apply Finset.sum_congr rfl; intro a _
+            rw [← map_add, DirectSum.lof_eq_of k, hsum a]
       have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
         intro v
         by_cases hv : v = i
-        · subst hv
-          simp only [U₁, U₂, dif_pos rfl]
-          sorry -- Requires showing φ-images of W₁/W₂ parts are complementary
+        · subst hv; exact hU_compl_i
         · simp only [U₁, U₂, dif_neg hv]
           have hc := hcompl v
           let φ' := (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).toLinearMap
