@@ -684,7 +684,26 @@ private lemma casimir_eigenspace_complement
     -- Strategy: im(C - c₀) ⊆ N (by hImg), so dim(ker(C-c₀)) ≥ dim(V) - dim(N).
     -- Since ker(C-c₀) ∩ N = 0 (disjoint) and dim(ker) ≥ dim(V)-dim(N),
     -- we get dim(ker) + dim(N) ≥ dim(V), hence ker + N = V.
-    sorry
+    rw [codisjoint_iff]
+    -- K = eigenspace c₀ = ker(C - c₀ • 1)
+    have hK_eq : K = LinearMap.ker (sl2_casimir (V := V) - c₀ • 1) :=
+      Module.End.eigenspace_def
+    -- range(C - c₀ • 1) ≤ N
+    have hRange : LinearMap.range (sl2_casimir (V := V) - c₀ • 1) ≤ N.toSubmodule := by
+      intro w hw
+      obtain ⟨v, hv⟩ := LinearMap.mem_range.mp hw
+      simp only [LinearMap.sub_apply, LinearMap.smul_apply] at hv
+      rw [← hv]
+      exact hImg v
+    -- By rank-nullity and range ≤ N, finrank V ≤ finrank N + finrank K
+    have hRN := LinearMap.finrank_range_add_finrank_ker
+      (sl2_casimir (V := V) - c₀ • 1)
+    have hRangeFinrank := Submodule.finrank_mono hRange
+    rw [← hK_eq] at hRN
+    -- N.toSubmodule ⊔ K = ⊤
+    apply Submodule.eq_top_of_disjoint N.toSubmodule K (by omega)
+    exact disjoint_iff_inf_le.mpr (fun v ⟨hvN, hvK⟩ ↦
+      hInj v hvN (Module.End.mem_eigenspace_iff.mp hvK))
 
 /-- Part (ii): Any finite-dimensional representation of sl(2, ℂ) is completely reducible.
 Every Lie submodule has a complementary Lie submodule, i.e., the lattice of Lie submodules
