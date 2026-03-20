@@ -285,9 +285,9 @@ The Φ parameter must be `DirectSum.toModule k _ _ Φ_component` where
 to avoid type class synthesis issues with multiple quiver instances. -/
 private theorem Etingof.sinkMap_reindex_surj
     {k : Type*} [Field k] {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
-    {i : Q} (hi : Etingof.IsSink Q i)
+    {i : Q} (_hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
-    [Fintype (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)]
+    [Finite (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)]
     (hsurj : Function.Surjective (ρ.sinkMap i))
     {M : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i → Type*}
     [∀ a, AddCommMonoid (M a)] [∀ a, Module k (M a)]
@@ -296,6 +296,7 @@ private theorem Etingof.sinkMap_reindex_surj
       ∃ z, Φ z = ρ.mapLinear b.2 v) :
     Function.Surjective Φ := by
   classical
+  haveI := Fintype.ofFinite (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)
   -- Prove: sinkMap x ∈ range(Φ) for all x, hence Φ is surjective
   suffices h : ∀ x, (ρ.sinkMap i) x ∈ Set.range Φ by
     intro y
@@ -345,7 +346,8 @@ private theorem Etingof.Φ_comp_source_eq_zero
         (Etingof.reflectionFunctorPlus Q i hi ρ) i x.fst x.snd w)) = 0 := by
   -- Use the API lemma to reduce each term
   simp_rw [Etingof.reflFunctorPlus_mapLinear_eq_ne hi ρ]
-  -- Goal: ∑ x, ρ.mapLinear(origArrow x) (component ⟨x.fst, revArrow x.snd⟩ (subtype (equivAt_eq w))) = 0
+  -- Goal: ∑ x, ρ.mapLinear(origArrow x)
+  --   (component ⟨x.fst, revArrow x.snd⟩ (subtype (equivAt_eq w))) = 0
   -- Show this equals sinkMap(subtype(equivAt_eq w)) = 0 since equivAt_eq w ∈ ker(sinkMap)
   -- Step 1: equivAt_eq w ∈ ker(sinkMap), so sinkMap(subtype(equivAt_eq w)) = 0
   have hmem : (ρ.sinkMap i) ((ρ.sinkMap i).ker.subtype
@@ -361,6 +363,7 @@ private theorem Etingof.Φ_comp_source_eq_zero
   sorry
 
 set_option maxHeartbeats 800000 in
+-- reason: unfolding reflectionFunctorMinus + first isomorphism theorem + DirectSum reindexing
 /-- At vertex i, F⁻(F⁺(V)).obj i ≃ₗ[k] ρ.obj i when the sink map is surjective.
 
 F⁺ᵢ(V).obj i = ker(φ) where φ = sinkMap. Then F⁻ᵢ produces the cokernel
@@ -431,7 +434,8 @@ private noncomputable def Etingof.equivAt_eq_sink
         (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)
         (fun a => ρ'.instAddCommMonoid a.fst) (fun a => ρ'.instModule a.fst) Φ
         (fun b v => by
-          -- Construct preimage: lof a (equivAt_ne.symm v) where a = arrowsInto_to_arrowsOutReversed b
+          -- Construct preimage: lof a (equivAt_ne.symm v)
+          -- where a = arrowsInto_to_arrowsOutReversed b
           let a := @Etingof.arrowsInto_to_arrowsOutReversed Q _ inst i hi b
           let hne := @Etingof.arrowsOutReversed_ne Q _ inst i hi a
           let v' := (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst hne).symm v
@@ -469,6 +473,7 @@ private noncomputable def Etingof.equivAt_eq_sink
 end Helpers
 
 set_option maxHeartbeats 800000 in
+-- reason: crossIsoToIso + equivAt case analysis with multiple quiver instances
 /-- If φ is surjective at a sink, then applying F⁻ᵢ after F⁺ᵢ recovers V
 up to isomorphism of representations.
 
