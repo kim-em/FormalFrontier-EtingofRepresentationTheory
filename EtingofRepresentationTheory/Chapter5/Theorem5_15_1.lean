@@ -543,11 +543,20 @@ decomposition of the isotypic component as a direct sum of copies of the simple 
 theorem isotypicComponent_linearEquiv_fun (n : ℕ) (mu nu : Nat.Partition n) :
     Nonempty (↥(permModuleIsotypicComponent n mu nu) ≃ₗ[ℂ]
       (Fin (spechtMultiplicity n mu nu) → ↥(SpechtModule n nu))) := by
-  -- The isotypic component is isotypic of type V_ν as SymGroupAlgebra-module
-  -- By IsIsotypicOfType.linearEquiv_fun, it decomposes as Fin m → V_ν for some m
-  -- Then m = spechtMultiplicity by Schur's lemma + Hom space dimension argument
-  sorry -- TODO: requires connecting IsIsotypicOfType.linearEquiv_fun multiplicity
-         -- to spechtMultiplicity (= finrank Hom) via Schur's lemma
+  -- Step 1: IsIsotypicOfType.linearEquiv_fun gives C_R ≃ₗ[A] Fin m' → V_ν for some m'.
+  -- Step 2: Restrict scalars to get C_R ≃ₗ[ℂ] Fin m' → V_ν.
+  -- Step 3: Show m' = spechtMultiplicity. This requires:
+  --   (a) finrank ℂ (U_μ →ₗ[A] V_ν) = finrank ℂ (C_R →ₗ[A] V_ν)
+  --       (restriction to isotypic component is iso on Hom spaces, by Schur:
+  --       bijective_or_eq_zero shows maps from non-ν simple summands to V_ν are zero)
+  --   (b) finrank ℂ (C_R →ₗ[A] V_ν) = m' * finrank ℂ (V_ν →ₗ[A] V_ν)
+  --       (Hom from Fin m' → V_ν decomposes via LinearMap.single/proj)
+  --   (c) finrank ℂ (V_ν →ₗ[A] V_ν) = 1
+  --       (Schur's lemma for algebraically closed fields: End_A(V_ν) is a
+  --       finite-dimensional division ℂ-algebra, so ℂ itself by
+  --       IsAlgClosed.algebraMap_bijective_of_isIntegral)
+  -- None of (a)-(c) exists in Mathlib in module-theoretic form (only categorical).
+  sorry
 
 /-- The trace of a "diagonal" endomorphism on a pi type `Fin m → V` that applies the same
 linear map `f` componentwise equals `m * trace f`. -/
@@ -612,12 +621,92 @@ theorem trace_isotypic_eq_mult_trace (n : ℕ) (mu nu : Nat.Partition n)
       (permModuleEndomorphism_mapsTo_isotypic n mu σ nu)) =
     (spechtMultiplicity n mu nu : ℂ) * LinearMap.trace ℂ _
       (spechtModuleAction n nu σ) := by
-  -- The conclusion doesn't depend on e. We use the SymGroupAlgebra structure.
-  -- Key idea: the isotypic component C is isomorphic (as A-module) to V_ν^⊕m.
-  -- Under ANY such decomposition, σ acts diagonally (same on each copy),
-  -- so trace(σ|_C) = m * trace(σ|_{V_ν}).
-  -- The trace is basis-independent, so the ℂ-linear equiv e is irrelevant.
-  sorry
+  -- Strategy: Get an R-linear equiv via IsIsotypicOfType.linearEquiv_fun,
+  -- use it to show trace = m' * trace(σ on V_ν), then match m' = m via dimensions.
+  set A := SymGroupAlgebra n
+  set C_R := isotypicComponent A (PermutationModule n mu) (SpechtModule n nu) with hCR_def
+  -- Provide ℂ-module structure on ↥C_R via restrictScalars
+  letI : Module ℂ ↥C_R := (C_R.restrictScalars ℂ).module
+  -- IsScalarTower for the submodule
+  haveI : IsScalarTower ℂ A ↥C_R :=
+    ⟨fun c a m => Subtype.ext (smul_assoc c a (m : PermutationModule n mu))⟩
+  -- IsSimpleModule for Specht modules
+  haveI : IsSimpleModule A ↥(SpechtModule n nu) := Theorem5_12_2_irreducible n nu
+  -- The isotypic component is isotypic of type V_ν
+  have hiso : IsIsotypicOfType A C_R (SpechtModule n nu) :=
+    IsIsotypicOfType.isotypicComponent _ _ _
+  -- Module.Finite ℂ for C_R (subspace of finite-dim vector space)
+  haveI : Module.Finite ℂ ↥C_R := by
+    change Module.Finite ℂ ↥(C_R.restrictScalars ℂ)
+    infer_instance
+  -- Module.Finite over A follows from Module.Finite over ℂ
+  haveI : Module.Finite A ↥C_R :=
+    Module.Finite.of_restrictScalars_finite ℂ A ↥C_R
+  -- Get R-linear equiv
+  obtain ⟨m', ⟨e'⟩⟩ := hiso.linearEquiv_fun
+  -- Restrict to ℂ-linear equiv
+  let e'_ℂ : ↥C_R ≃ₗ[ℂ] (Fin m' → ↥(SpechtModule n nu)) := e'.restrictScalars ℂ
+  -- Step 1: Show the conjugated endomorphism is componentwise.
+  set f := (permModuleEndomorphism n mu σ).restrict
+    (permModuleEndomorphism_mapsTo_isotypic n mu σ nu) with hf_def
+  -- The conjugated map through e'_ℂ equals the componentwise smul
+  have hconj_eq : ∀ v i,
+      (e'_ℂ.conj f v) i = (MonoidAlgebra.of ℂ _ σ : A) • v i := by
+    intro v i
+    simp only [LinearEquiv.conj_apply, LinearMap.comp_apply, LinearEquiv.coe_toLinearMap]
+    -- f acts as A-smul on elements of the submodule
+    have hfsmul : (f (e'_ℂ.symm v) : PermutationModule n mu) =
+        (MonoidAlgebra.of ℂ _ σ : A) • ((e'_ℂ.symm v : ↥C_R) : PermutationModule n mu) :=
+      permModuleEndomorphism_eq_smul n mu σ _
+    -- Lift to subtype equality
+    have hfsmul' : f (e'_ℂ.symm v) = (MonoidAlgebra.of ℂ _ σ : A) • (e'_ℂ.symm v) :=
+      Subtype.ext hfsmul
+    -- Combine steps: e'_ℂ (f (e'_ℂ.symm v)) = (of σ) • v
+    have step : e'_ℂ (f (e'_ℂ.symm v)) = (MonoidAlgebra.of ℂ _ σ : A) • v :=
+      show e' (f (e'.symm v)) = _ by
+        rw [show (f (e'.symm v) : ↥C_R) = (MonoidAlgebra.of ℂ _ σ : A) • (e'.symm v) from
+          Subtype.ext (permModuleEndomorphism_eq_smul n mu σ _),
+          e'.map_smul, LinearEquiv.apply_symm_apply]
+    exact congr_fun step i
+  -- Step 2: The componentwise (of σ) • is the same as spechtModuleAction
+  have hact : ∀ (v : ↥(SpechtModule n nu)),
+      (MonoidAlgebra.of ℂ _ σ : A) • v = spechtModuleAction n nu σ v := by
+    intro ⟨m, hm⟩; rfl
+  -- Step 3: Show e'_ℂ.conj f = pi (fun i => spechtModuleAction ∘ proj i)
+  have hconj_pi : e'_ℂ.conj f =
+      LinearMap.pi (fun (i : Fin m') => spechtModuleAction n nu σ ∘ₗ LinearMap.proj i) := by
+    apply LinearMap.ext; intro w; funext i
+    simp only [LinearMap.pi_apply, LinearMap.coe_comp, Function.comp_apply, LinearMap.proj_apply]
+    rw [← hact]
+    exact hconj_eq w i
+  -- Step 4: trace f = trace (e'_ℂ.conj f) = m' * trace(spechtModuleAction)
+  have htrace : LinearMap.trace ℂ _ f =
+      (m' : ℂ) * LinearMap.trace ℂ _ (spechtModuleAction n nu σ) := by
+    calc LinearMap.trace ℂ _ f
+        = LinearMap.trace ℂ _ (e'_ℂ.conj f) := (LinearMap.trace_conj' f e'_ℂ).symm
+      _ = LinearMap.trace ℂ _ (LinearMap.pi (fun (i : Fin m') =>
+            spechtModuleAction n nu σ ∘ₗ LinearMap.proj i)) := by rw [hconj_pi]
+      _ = (m' : ℂ) * LinearMap.trace ℂ _ (spechtModuleAction n nu σ) := trace_pi_diagonal _
+  rw [htrace]
+  -- Goal: m' * trace(spechtModuleAction) = spechtMultiplicity * trace(spechtModuleAction)
+  -- Need m' = spechtMultiplicity (via dimension matching with e)
+  congr 1
+  -- Dimension comparison: both equivs give finrank C = k * finrank V
+  have hdim_e' : Module.finrank ℂ ↥C_R =
+      m' * Module.finrank ℂ ↥(SpechtModule n nu) := by
+    rw [LinearEquiv.finrank_eq e'_ℂ, Module.finrank_pi_fintype, Finset.sum_const, Finset.card_fin,
+      smul_eq_mul]
+  have hdim_e : Module.finrank ℂ ↥C_R =
+      spechtMultiplicity n mu nu * Module.finrank ℂ ↥(SpechtModule n nu) := by
+    rw [show (Module.finrank ℂ ↥C_R) =
+        Module.finrank ℂ ↥(permModuleIsotypicComponent n mu nu) from rfl,
+      LinearEquiv.finrank_eq e, Module.finrank_pi_fintype, Finset.sum_const, Finset.card_fin,
+      smul_eq_mul]
+  -- Specht modules are nonzero simple modules, so finrank > 0
+  haveI : Nontrivial ↥(SpechtModule n nu) :=
+    IsSimpleModule.nontrivial (SymGroupAlgebra n) _
+  have hpos : 0 < Module.finrank ℂ ↥(SpechtModule n nu) := Module.finrank_pos
+  exact_mod_cast Nat.eq_of_mul_eq_mul_right hpos (hdim_e'.symm.trans hdim_e)
 
 /-- The trace of `σ` restricted to the isotypic component of type `V_ν` equals
 `m(μ,ν) · χ_{V_ν}(σ)` where `m(μ,ν) = spechtMultiplicity n mu nu`.
