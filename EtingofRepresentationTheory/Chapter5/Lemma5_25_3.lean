@@ -230,17 +230,281 @@ section CharacterValues
 set_option linter.unusedFintypeInType false
 set_option linter.unusedDecidableInType false
 
+/-- Scalar matrices commute with everything: x⁻¹ · (aI) · x = aI. -/
+private lemma Etingof.scalar_conj_eq_self
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) (x : GL2 p n) :
+    x⁻¹ * g * x = g := by
+  obtain ⟨h01, h10, h00_eq_11⟩ := hg
+  have hg_scalar : g.val = (g.val 0 0) • (1 : Matrix (Fin 2) (Fin 2) (GaloisField p n)) := by
+    ext i j; fin_cases i <;> fin_cases j <;> simp [*, Matrix.one_apply]
+  have hcomm : g * x = x * g := by
+    apply Units.ext
+    simp only [Units.val_mul]
+    rw [hg_scalar, Matrix.smul_mul, Matrix.mul_smul, Matrix.mul_one, Matrix.one_mul]
+  rw [mul_assoc, hcomm, ← mul_assoc, inv_mul_cancel, one_mul]
+
+/-- For a unit character ν : G →* ℂˣ of a finite group, |ν(g)|² = 1. -/
+private lemma Etingof.units_char_normSq {G : Type*} [Group G] [Fintype G]
+    (ν : G →* ℂˣ) (g : G) :
+    (ν g : ℂ) * starRingEnd ℂ (ν g : ℂ) = 1 := by
+  rw [Complex.mul_conj]
+  -- ν(g) is a root of unity, so its norm is 1
+  have hpow : (ν g : ℂ) ^ orderOf g = 1 := by
+    have h : (ν g : ℂˣ) ^ orderOf g = 1 := by
+      rw [← map_pow, pow_orderOf_eq_one, map_one]
+    have : ((ν g : ℂˣ) : ℂ) ^ orderOf g = ((1 : ℂˣ) : ℂ) := congr_arg Units.val h
+    simpa using this
+  have hne : orderOf g ≠ 0 := Nat.pos_iff_ne_zero.mp (orderOf_pos g)
+  have habs : ‖(ν g : ℂ)‖ = 1 := Complex.norm_eq_one_of_pow_eq_one hpow hne
+  rw [Complex.normSq_eq_norm_sq, habs, one_pow]; norm_cast
+
+/-- charW₁ on a scalar matrix aI equals q (all q+1 points of P¹ are fixed, minus 1). -/
+private lemma Etingof.charW₁_scalar
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) :
+    Etingof.GL2.charW₁ p n g = (Fintype.card (GaloisField p n) : ℂ) := by
+  obtain ⟨h01, h10, h00_eq_11⟩ := hg
+  simp only [GL2.charW₁]
+  set M := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  have hM01 : M 0 1 = 0 := h01
+  have hM10 : M 1 0 = 0 := h10
+  have hM00_eq_11 : M 0 0 = M 1 1 := h00_eq_11
+  have hfilt : (Finset.univ.filter fun t : GaloisField p n =>
+      M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0) = Finset.univ := by
+    ext t; simp [hM01, hM10, hM00_eq_11]
+  rw [hfilt, Finset.card_univ, hM01, if_pos rfl]
+  push_cast
+  ring
+
+/-- For scalar g = aI, the diagonal entry g.val 0 0 is nonzero (since g ∈ GL₂). -/
+private lemma Etingof.scalar_diag_ne_zero
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) :
+    g.val 0 0 ≠ 0 := by
+  obtain ⟨h01, h10, h00_eq_11⟩ := hg
+  intro h
+  have hdet : Matrix.det g.val = 0 := by
+    simp [Matrix.det_fin_two, h01, h10, h]
+  have hunit := g.isUnit
+  rw [Matrix.isUnit_iff_isUnit_det] at hunit
+  exact hunit.ne_zero hdet
+
+/-- For scalar g, charVα₁(g) = borelCard⁻¹ * |G| * α(a) where a = g.val 0 0. -/
+private lemma Etingof.charVα₁_scalar
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (alpha : (GaloisField p n)ˣ →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g)
+    (h_ne : g.val 0 0 ≠ 0) :
+    Etingof.GL2.charVα₁ p n alpha g =
+    (((Fintype.card (GaloisField p n) - 1) ^ 2 *
+      Fintype.card (GaloisField p n) : ℕ) : ℂ)⁻¹ *
+    (Fintype.card (GL2 p n) : ℂ) *
+    (alpha (Units.mk0 (g.val 0 0) h_ne) : ℂ) := by
+  unfold GL2.charVα₁
+  simp only [Etingof.scalar_conj_eq_self p n g hg]
+  obtain ⟨h01, h10, _⟩ := hg
+  -- h10 : GL2.mat g 1 0 = 0, which is g.val 1 0 = 0
+  have h10' : g.val 1 0 = 0 := h10
+  set a_unit : (GaloisField p n)ˣ := Units.mk0 (g.val 0 0) h_ne with ha_unit
+  -- Every term in the sum is the same
+  conv in (Finset.univ.sum _) =>
+    arg 2; ext x
+    rw [if_pos h10', dif_pos h_ne]
+    change (alpha a_unit : ℂ)
+  rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  ring
+
+/-- A scalar matrix aI equals fieldExtEmbed(algebraMap a). -/
+private lemma Etingof.scalar_eq_fieldExtEmbed
+    (hn : n ≠ 0)
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g)
+    (h_ne : g.val 0 0 ≠ 0) :
+    g = Etingof.GL2.fieldExtEmbed p n
+      (Units.map (algebraMap (GaloisField p n) (GaloisField p (2 * n))).toMonoidHom
+        (Units.mk0 (g.val 0 0) h_ne)) := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  obtain ⟨h01, h10, h00_eq_11⟩ := hg
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  set u := Units.map (algebraMap (GaloisField p n) (GaloisField p (2 * n))).toMonoidHom
+      (Units.mk0 (g.val 0 0) h_ne)
+  -- The .val of fieldExtEmbed u is leftMulMatrix b u
+  have hval : (GL2.fieldExtEmbed p n u).val =
+      Algebra.leftMulMatrix b (u : GaloisField p (2 * n)) := by
+    unfold GL2.fieldExtEmbed; simp only [dif_neg hn]; rfl
+  -- g.val = leftMulMatrix b (algebraMap (g.val 0 0))
+  suffices h : g.val = (GL2.fieldExtEmbed p n u).val from Units.ext h
+  rw [hval]
+  ext i j
+  rw [Algebra.leftMulMatrix_eq_repr_mul]
+  show g.val i j = (b.repr ((algebraMap (GaloisField p n) (GaloisField p (2 * n)))
+    (g.val 0 0) * b j)) i
+  rw [Algebra.algebraMap_eq_smul_one, smul_mul_assoc, one_mul,
+    map_smul, Finsupp.smul_apply, smul_eq_mul, b.repr_self,
+    Finsupp.single_apply]
+  fin_cases i <;> fin_cases j <;> simp [h01, h10, h00_eq_11]
+
+/-- Scalar matrices are in the elliptic subgroup K. -/
+private lemma Etingof.scalar_mem_ellipticSubgroup
+    (hn : n ≠ 0)
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g)
+    (h_ne : g.val 0 0 ≠ 0) :
+    g ∈ Etingof.GL2.ellipticSubgroup p n := by
+  change g ∈ (Etingof.GL2.fieldExtEmbed p n).range
+  exact ⟨_, (Etingof.scalar_eq_fieldExtEmbed p n hn g hg h_ne).symm⟩
+
+/-- For scalar g, nu(⟨g, _⟩) equals alpha(Units.mk0 (g.val 0 0) _). -/
+private lemma Etingof.nu_scalar_eq_alpha
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    (hn : n ≠ 0)
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g)
+    (h_ne : g.val 0 0 ≠ 0)
+    (hg_mem : g ∈ Etingof.GL2.ellipticSubgroup p n) :
+    (nu ⟨g, hg_mem⟩ : ℂ) =
+    ((nu.comp (Etingof.GL2.scalarToElliptic p n))
+      (Units.mk0 (g.val 0 0) h_ne) : ℂ) := by
+  -- alpha = nu ∘ scalarToElliptic, so alpha(a) = nu(scalarToElliptic(a))
+  -- We need ⟨g, hg_mem⟩ = scalarToElliptic(Units.mk0 (g.val 0 0) h_ne) as elements of ↥K
+  -- Both map to the same underlying GL2 element (the scalar matrix aI)
+  -- Both sides are nu applied to the same K-element
+  -- ⟨g, hg_mem⟩ and scalarToElliptic(Units.mk0 (g.val 0 0) h_ne) are the same subgroup element
+  -- because g = fieldExtEmbed(Units.map algebraMap (Units.mk0 ...))
+  congr 1; apply congr_arg
+  apply Subtype.ext
+  -- Need: g = (scalarToElliptic(Units.mk0 (g.val 0 0) h_ne)).val
+  letI := Etingof.algebraGaloisFieldExt p n
+  unfold GL2.scalarToElliptic
+  simp only [dif_neg hn, MonoidHom.comp_apply, MonoidHom.codRestrict_apply]
+  exact Etingof.scalar_eq_fieldExtEmbed p n hn g hg h_ne
+
+/-- Arithmetic identity: the coefficient in the scalar case equals q-1.
+Given |B| = (q-1)²q, |G| = (q²-1)(q²-q), |K| = q²-1:
+(q-1)/|B| · |G| - |G|/|K| = (q+1)(q-1) - q(q-1) = q-1 -/
+private lemma Etingof.scalar_coeff_eq (q : ℂ) (hq : q ≠ 0) (hq1 : q - 1 ≠ 0)
+    (hq_plus_1 : q + 1 ≠ 0) :
+    (q - 1) * ((q - 1) ^ 2 * q)⁻¹ * ((q ^ 2 - 1) * (q ^ 2 - q)) -
+    (q ^ 2 - 1)⁻¹ * ((q ^ 2 - 1) * (q ^ 2 - q)) = q - 1 := by
+  have hq2 : q ^ 2 - 1 ≠ 0 := by
+    rw [show q ^ 2 - 1 = (q - 1) * (q + 1) from by ring]
+    exact mul_ne_zero hq1 hq_plus_1
+  have hB : (q - 1) ^ 2 * q ≠ 0 := mul_ne_zero (pow_ne_zero _ hq1) hq
+  field_simp
+  ring
+
 /-- On scalar matrices, |χ(xI)|² = (q-1)². Since χ(xI) = (q-1)α(x) and
 |α(x)| = 1 (α is a character to ℂˣ, landing on roots of unity). -/
 private lemma Etingof.normSq_complementaryChar_scalar
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (hn : n ≠ 0)
     (g : GL2 p n) (hg : GL2.IsScalar (p := p) (n := n) g) :
     Etingof.GL2.complementarySeriesChar p n nu g *
     starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) =
     ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 2 := by
-  sorry
+  classical
+  -- Setup
+  set alpha := nu.comp (GL2.scalarToElliptic p n)
+  have h_ne := Etingof.scalar_diag_ne_zero p n g hg
+  set z := (alpha (Units.mk0 (g.val 0 0) h_ne) : ℂ)
+  have hconj := Etingof.scalar_conj_eq_self p n g hg
+  -- Unfold and simplify the character
+  unfold GL2.complementarySeriesChar
+  rw [Etingof.charW₁_scalar p n g hg, Etingof.charVα₁_scalar p n alpha g hg h_ne]
+  -- Main case: n ≠ 0
+  have hg_mem := Etingof.scalar_mem_ellipticSubgroup p n hn g hg h_ne
+  -- Simplify induced sum: each term is z since x⁻¹gx = g ∈ K
+  have hind_term : ∀ x : GL2 p n,
+      (if h : x⁻¹ * g * x ∈ GL2.ellipticSubgroup p n
+       then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) = z := by
+    intro x; rw [hconj x, dif_pos hg_mem]
+    rw [Etingof.nu_scalar_eq_alpha p n hn nu g hg h_ne hg_mem]
+  simp_rw [hind_term]
+  rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  -- Factor out z
+  set q := (Fintype.card (GaloisField p n) : ℂ)
+  set G := (Fintype.card (GL2 p n) : ℂ)
+  set Kc := (Fintype.card ↥(GL2.ellipticSubgroup p n) : ℂ)
+  set B := (((Fintype.card (GaloisField p n) - 1) ^ 2 *
+    Fintype.card (GaloisField p n) : ℕ) : ℂ)
+  -- χ = ((q-1) * B⁻¹ * G - Kc⁻¹ * G) * z
+  have hchi : (q * (B⁻¹ * G * z) - B⁻¹ * G * z - Kc⁻¹ * (G * z)) =
+      ((q - 1) * B⁻¹ * G - Kc⁻¹ * G) * z := by ring
+  rw [hchi, map_mul (starRingEnd ℂ), mul_mul_mul_comm,
+    Etingof.units_char_normSq, mul_one]
+  -- The coefficient is real, so c * conj(c) = c²
+  have hreal : starRingEnd ℂ ((q - 1) * B⁻¹ * G - Kc⁻¹ * G) =
+      (q - 1) * B⁻¹ * G - Kc⁻¹ * G := by
+    simp only [q, G, Kc, B, map_sub, map_mul, map_inv₀, Complex.conj_natCast,
+      Complex.conj_ofNat, map_one, map_pow]
+  rw [hreal]
+  -- Show the coefficient = q-1 by substituting cardinality values
+  suffices h : (q - 1) * B⁻¹ * G - Kc⁻¹ * G = q - 1 by
+    rw [h]; ring
+  -- Get cardinality facts
+  have hq1 : 1 < Fintype.card (GaloisField p n) := by
+    rw [← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+    exact Nat.one_lt_pow hn hp.out.one_lt
+  -- B = (q-1)²·q as ℕ cast
+  have hB_val : B = (q - 1) ^ 2 * q := by
+    simp only [B, q]
+    have h1 : 1 ≤ Fintype.card (GaloisField p n) := by omega
+    push_cast [Nat.cast_sub h1]; ring
+  -- Use the main theorem to get G and Kc values
+  -- G = (q²-1)(q²-q): use Matrix.card_GL_field
+  have hGL := @Matrix.card_GL_field (GaloisField p n) _ _ 2
+  simp only [Fin.prod_univ_two, Fin.val_zero, Fin.val_one, pow_zero, pow_one] at hGL
+  -- hGL: Nat.card GL = (card F - 1) * (card F ^ 2 - card F)
+  have hcard_F := Fintype.card (GaloisField p n)
+  -- Convert to Fintype.card
+  have hGL' : Fintype.card (GL2 p n) =
+      (Fintype.card (GaloisField p n) ^ 2 - 1) *
+      (Fintype.card (GaloisField p n) ^ 2 - Fintype.card (GaloisField p n)) := by
+    rw [← Nat.card_eq_fintype_card]; exact hGL
+  have hG_val : G = (q ^ 2 - 1) * (q ^ 2 - q) := by
+    simp only [G, q]
+    have h1 : 1 ≤ Fintype.card (GaloisField p n) ^ 2 := by nlinarith
+    have h2 : Fintype.card (GaloisField p n) ≤ Fintype.card (GaloisField p n) ^ 2 := by nlinarith
+    rw [hGL']
+    push_cast [Nat.cast_sub h1, Nat.cast_sub h2]; ring
+  -- Kc = q² - 1: use card of elliptic subgroup
+  have hinj : Function.Injective (GL2.fieldExtEmbed p n) := by
+    intro a b hab
+    unfold GL2.fieldExtEmbed at hab
+    simp only [dif_neg hn] at hab
+    exact Units.ext (RingHom.injective
+      (Algebra.leftMulMatrix (Module.finBasisOfFinrankEq (GaloisField p n)
+      (GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn))).toRingHom
+      (congr_arg (fun g => g.val) hab))
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  have hKc_nat : Fintype.card ↥(GL2.ellipticSubgroup p n) =
+      Fintype.card (GaloisField p (2 * n))ˣ := by
+    -- Use Nat.card to avoid Fintype instance issues
+    rw [← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
+    change Nat.card ↥(GL2.fieldExtEmbed p n).range = _
+    exact Nat.card_congr ((GL2.fieldExtEmbed p n).ofInjective hinj).symm.toEquiv
+  have hKc_val : Kc = q ^ 2 - 1 := by
+    simp only [Kc, q]
+    rw [hKc_nat, Fintype.card_units,
+      ← Nat.card_eq_fintype_card,
+      GaloisField.card p (2 * n) (Nat.mul_ne_zero two_ne_zero hn)]
+    have h1 : 1 ≤ p ^ (2 * n) := Nat.one_le_pow _ _ hp.out.pos
+    push_cast [Nat.cast_sub h1]
+    rw [← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+    push_cast; ring
+  -- Nonzero conditions
+  have hq_ne : q ≠ 0 := by
+    simp only [q]; exact_mod_cast show (Fintype.card (GaloisField p n) : ℕ) ≠ 0 by omega
+  have hq1_ne : q - 1 ≠ 0 := by
+    simp only [q]; rw [sub_ne_zero]
+    exact_mod_cast show Fintype.card (GaloisField p n) ≠ 1 by omega
+  have hq_plus_1 : q + 1 ≠ 0 := by
+    simp only [q]
+    exact_mod_cast show (Fintype.card (GaloisField p n) + 1 : ℕ) ≠ 0 by omega
+  -- Substitute and apply scalar_coeff_eq
+  rw [hG_val, hKc_val, hB_val]
+  exact Etingof.scalar_coeff_eq q hq_ne hq1_ne hq_plus_1
 
 /-- On parabolic matrices, |χ|² = 1 (since χ = -α(x) and |α(x)| = 1). -/
 private lemma Etingof.normSq_complementaryChar_parabolic
@@ -844,7 +1108,7 @@ private lemma Etingof.innerProduct_sum_eq_card
     have hval : ∀ g ∈ Finset.univ.filter (fun g => GL2.IsScalar (p := p) (n := n) g),
         f g = ((q : ℂ) - 1) ^ 2 := fun g hg => by
       rw [Finset.mem_filter] at hg
-      exact Etingof.normSq_complementaryChar_scalar p n nu g hg.2
+      exact Etingof.normSq_complementaryChar_scalar p n nu hn_ne g hg.2
     rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isScalar hn_ne, nsmul_eq_mul]
     have h1 : 1 ≤ q := by omega
     rw [show Fintype.card (GaloisField p n) = q from hq_def.symm]

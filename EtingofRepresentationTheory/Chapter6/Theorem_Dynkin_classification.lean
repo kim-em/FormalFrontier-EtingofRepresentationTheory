@@ -1470,6 +1470,95 @@ private lemma dynkin_no_cycle {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     linarith [hdeg2 i]
   exact subgraph_contradiction ⟨hsymm, _hdiag, h01, _hconn, hpos⟩ adj_sub φ hembed v hv_nonneg hv_ne hv_null
 
+/-- A Dynkin diagram on n vertices has exactly n-1 edges (it's a tree).
+    This follows from no-cycles + connectivity. -/
+private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n) : edgeCount adj = n - 1 := by
+  obtain ⟨hsymm, hdiag, h01, hconn, hpos⟩ := hD
+  apply Nat.le_antisymm
+  · -- Upper bound: edgeCount ≤ n - 1
+    -- From B(1,...,1) > 0 where B is the Cartan quadratic form
+    -- B(1,...,1) = 2n - ∑ deg, so ∑ deg < 2n, hence edgeCount < n
+    unfold edgeCount
+    -- Show ∑ vertexDegree < 2 * n, then (∑ deg) / 2 ≤ n - 1
+    suffices hsum : ∑ i : Fin n, vertexDegree adj i < 2 * n by
+      omega
+    -- Use positive definiteness with x = (1,...,1)
+    have hx_ne : (fun (_ : Fin n) => (1 : ℤ)) ≠ 0 := by
+      intro h; have := congr_fun h ⟨0, by omega⟩; simp at this
+    have hB := hpos _ hx_ne
+    -- Compute B(1,...,1) = 2n - ∑ deg
+    have mulVec_eq : ∀ a : Fin n,
+        ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec (fun _ => (1 : ℤ))) a =
+        2 - ∑ b : Fin n, adj a b := by
+      intro a
+      simp only [mulVec, dotProduct, mul_one]
+      rw [show ∑ b, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) a b =
+          ∑ b, (2 * (1 : Matrix _ _ ℤ) a b - adj a b) from
+        Finset.sum_congr rfl (fun b _ => by
+          simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul])]
+      rw [Finset.sum_sub_distrib]
+      congr 1
+      simp [Matrix.one_apply, Finset.sum_ite_eq']
+    simp only [dotProduct, one_mul, mulVec_eq] at hB
+    rw [show ∑ a : Fin n, (2 - ∑ b : Fin n, adj a b) =
+        2 * ↑n - ∑ a : Fin n, ∑ b : Fin n, adj a b from by
+      rw [Finset.sum_sub_distrib]
+      simp [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]] at hB
+    rw [show ∑ a : Fin n, ∑ b : Fin n, adj a b =
+        ↑(∑ i : Fin n, vertexDegree adj i) from by
+      push_cast
+      exact Finset.sum_congr rfl (fun a _ => adj_sum_eq_degree h01 a)] at hB
+    omega
+  · -- Lower bound: n - 1 ≤ edgeCount
+    -- Convert to SimpleGraph and use Mathlib's connectivity lower bound
+    let G : SimpleGraph (Fin n) :=
+      { Adj := fun i j => adj i j = 1
+        symm := fun {i j} h => by rwa [hsymm.apply]
+        loopless := fun i h => by simp [hdiag i] at h }
+    haveI : DecidableRel G.Adj := fun i j =>
+      show Decidable (adj i j = 1) from inferInstance
+    -- Show G.Connected: build Reachable from list paths
+    have hG_conn : G.Connected := by
+      refine ⟨fun u v => ?_, ⟨⟨0, by omega⟩⟩⟩
+      obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
+      -- Build G.Reachable by induction on the path list
+      suffices h : ∀ (l : List (Fin n)) (a b : Fin n),
+          l.head? = some a → l.getLast? = some b →
+          (∀ k, (hk : k + 1 < l.length) →
+            adj (l.get ⟨k, by omega⟩) (l.get ⟨k + 1, hk⟩) = 1) →
+          G.Reachable a b from h path u v hhead hlast hedges
+      intro l
+      induction l with
+      | nil => intro a _ ha; simp at ha
+      | cons x t ih =>
+        intro a b ha hb hedges'
+        simp at ha; subst ha
+        cases t with
+        | nil => simp at hb; subst hb; exact .refl
+        | cons y s =>
+          have hadj_xy : G.Adj x y := show adj x y = 1 from
+            hedges' 0 (by simp; omega)
+          exact hadj_xy.reachable.trans
+            (ih y b (by simp) hb (fun k hk => hedges' (k + 1) (by omega)))
+    -- Relate G.degree to vertexDegree
+    have hdeg_eq : ∀ v : Fin n, G.degree v = vertexDegree adj v := by
+      intro v; unfold SimpleGraph.degree vertexDegree
+      congr 1; ext j
+      simp only [SimpleGraph.neighborFinset, Finset.mem_filter, Finset.mem_univ, true_and]
+    -- Relate edgeCount to G.edgeFinset.card via handshaking
+    have hedge_eq : edgeCount adj = G.edgeFinset.card := by
+      unfold edgeCount
+      have hhs := G.sum_degrees_eq_twice_card_edges
+      rw [show ∑ v : Fin n, G.degree v = ∑ v, vertexDegree adj v from
+        Finset.sum_congr rfl (fun v _ => hdeg_eq v)] at hhs
+      omega
+    -- Apply Mathlib's lower bound
+    rw [hedge_eq]
+    have h_lb := hG_conn.card_vert_le_card_edgeSet_add_one
+    rw [Nat.card_fin, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card] at h_lb
+    omega
+
 /-- For a 0-1 adjacency matrix, the sum of row entries equals the vertex degree. -/
 private lemma adj_sum_eq_degree {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1) (a : Fin n) :
@@ -1621,17 +1710,169 @@ private lemma path_walk_construction {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ
       σ ⟨0, by omega⟩ = v₀ ∧
       (∀ (k : Fin n) (hk : k.val + 1 < n), adj (σ k) (σ ⟨k.val + 1, hk⟩) = 1) ∧
       (∀ i j, adj (σ i) (σ j) = 1 → (i.val + 1 = j.val ∨ j.val + 1 = i.val)) := by
-  -- Strategy: Build the walk by greedy traversal from v₀.
-  -- At each step, the current vertex has at most 2 neighbors, one of which is
-  -- the previous vertex (already visited). The other neighbor (if any) is the next.
-  -- Since the graph is connected and acyclic (pos-def), the walk visits all n vertices.
-  --
-  -- Key facts used:
-  -- 1. v₀ has degree ≤ 1, so at most 1 neighbor to start
-  -- 2. Each subsequent vertex has degree ≤ 2, one neighbor is the predecessor
-  -- 3. Connectivity ensures all vertices are visited
-  -- 4. No cycles (from positive definiteness) ensures injectivity
-  sorry
+  -- Proof by induction on n, removing the leaf v₀ at each step.
+  revert adj hD hn hpath v₀ hv₀
+  induction n with
+  | zero => intro _ _ hn; omega
+  | succ k ih =>
+    intro adj hD hn hpath v₀ hv₀
+    obtain ⟨hsymm, hdiag, h01, hconn, hpos⟩ := hD
+    -- n = 1: trivial
+    by_cases hk0 : k = 0
+    · subst hk0
+      have huniq : ∀ (a : Fin 1), a = ⟨0, by omega⟩ := fun a => Fin.ext (by omega)
+      refine ⟨Equiv.refl _, ?_, ?_, ?_⟩
+      · simp [huniq v₀]
+      · intro i hk; exact absurd hk (by omega)
+      · intro i j hadj_ij
+        have hi := huniq i; have hj := huniq j
+        rw [hi, hj, hdiag] at hadj_ij; omega
+    · -- n = k + 1 ≥ 2
+      have hk1 : 1 ≤ k := Nat.one_le_iff_ne_zero.mpr hk0
+      -- v₀ has degree exactly 1 (connected + degree ≤ 1 + n ≥ 2)
+      have hv₀_deg1 : vertexDegree adj v₀ = 1 := by
+        apply le_antisymm hv₀
+        -- Degree ≥ 1: pick j ≠ v₀, get path, first edge gives neighbor
+        obtain ⟨j, hj⟩ : ∃ j : Fin (k + 1), j ≠ v₀ :=
+          ⟨⟨if v₀.val = 0 then 1 else 0, by split_ifs <;> omega⟩,
+           fun h => by simp only [Fin.ext_iff] at h; split_ifs at h <;> omega⟩
+        obtain ⟨path, hhead, hlast, hedges⟩ := hconn v₀ j
+        have hlen : 2 ≤ path.length := by
+          rcases path with _ | ⟨a, _ | ⟨b, rest⟩⟩
+          · simp at hhead
+          · -- path = [a], so head = some a = some v₀ and last = some a = some j
+            simp only [List.head?, List.getLast?_singleton] at hhead hlast
+            have ha := Option.some.inj hhead
+            have hb := Option.some.inj hlast
+            exact absurd (ha ▸ hb.symm) hj
+          · simp
+        -- Extract first edge
+        have hadj_01 := hedges 0 (by omega)
+        have hp0 : path.get ⟨0, by omega⟩ = v₀ := by
+          rcases path with _ | ⟨a, rest⟩
+          · simp at hhead
+          · exact Option.some.inj hhead
+        rw [hp0] at hadj_01
+        change 1 ≤ (Finset.univ.filter (fun j => adj v₀ j = 1)).card
+        exact Finset.one_le_card.mpr ⟨path.get ⟨1, by omega⟩,
+          Finset.mem_filter.mpr ⟨Finset.mem_univ _, hadj_01⟩⟩
+      -- Get unique neighbor v₁
+      have hv₁_nonempty : (Finset.univ.filter (fun j => adj v₀ j = 1)).Nonempty :=
+        Finset.card_pos.mp (by change 0 < vertexDegree adj v₀; omega)
+      obtain ⟨v₁, hv₁_mem_filter⟩ := hv₁_nonempty
+      have hv₁_adj : adj v₀ v₁ = 1 := (Finset.mem_filter.mp hv₁_mem_filter).2
+      have hv₁_unique : ∀ w, adj v₀ w = 1 → w = v₁ := by
+        intro w hw
+        by_contra hne
+        -- Both v₁ and w are distinct neighbors, so degree ≥ 2
+        have : 2 ≤ vertexDegree adj v₀ := by
+          change 2 ≤ (Finset.univ.filter (fun j => adj v₀ j = 1)).card
+          have hw_mem : w ∈ Finset.univ.filter (fun j => adj v₀ j = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+          calc 2 = ({v₁, w} : Finset _).card := by
+                rw [Finset.card_pair (Ne.symm hne)]
+            _ ≤ (Finset.univ.filter (fun j => adj v₀ j = 1)).card :=
+                Finset.card_le_card (fun x hx => by
+                  simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                  rcases hx with rfl | rfl
+                  · exact hv₁_mem_filter
+                  · exact hw_mem)
+        omega
+      have hv₁_ne : v₁ ≠ v₀ := by
+        intro h; subst h; rw [hdiag] at hv₁_adj; omega
+      -- Define reduced graph on Fin k by removing v₀
+      set adj' : Matrix (Fin k) (Fin k) ℤ :=
+        fun i j => adj (v₀.succAbove i) (v₀.succAbove j) with hadj'_def
+      -- Reduced graph is a Dynkin diagram
+      have hD' : IsDynkinDiagram k adj' := by
+        refine ⟨?_, ?_, ?_, ?_, ?_⟩
+        · exact Matrix.IsSymm.ext (fun i j => hsymm.apply _ _)
+        · intro i; exact hdiag _
+        · intro i j; exact h01 _ _
+        · -- Connectivity: removing a leaf preserves connectivity
+          -- For any u, w in V\{v₀}, path u → v₁ in V\{v₀} exists,
+          -- so u → v₁ → w works.
+          sorry
+        · -- Positive definiteness: principal submatrix of pos-def
+          intro x hx
+          set x' : Fin (k + 1) → ℤ := fun a =>
+            if h : a = v₀ then 0 else x (Fin.exists_succAbove_eq h).choose
+          have hx'_v₀ : x' v₀ = 0 := by simp [x']
+          have hx'_sa : ∀ i, x' (v₀.succAbove i) = x i := by
+            intro i; simp only [x']
+            rw [dif_neg (Fin.succAbove_ne v₀ i)]; congr 1
+            exact Fin.succAbove_right_injective
+              (Fin.exists_succAbove_eq (Fin.succAbove_ne v₀ i)).choose_spec
+          have hx'_ne : x' ≠ 0 := by
+            intro heq; apply hx; ext b
+            have := congr_fun heq (v₀.succAbove b)
+            rw [hx'_sa, Pi.zero_apply] at this; exact this
+          have hB_eq : dotProduct x' ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec x') =
+              dotProduct x ((2 • (1 : Matrix _ _ ℤ) - adj').mulVec x) := by
+            simp only [dotProduct, mulVec]
+            conv_lhs => rw [Fin.sum_univ_succAbove _ v₀]
+            simp only [hx'_v₀, zero_mul, zero_add]
+            congr 1; ext i; rw [hx'_sa]; congr 1
+            conv_lhs => rw [Fin.sum_univ_succAbove _ v₀]
+            simp only [hx'_v₀, mul_zero, zero_add]
+            congr 1; ext j; rw [hx'_sa]; congr 1
+            simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, hadj'_def,
+              Fin.succAbove_right_inj]
+          linarith [hpos x' hx'_ne]
+      -- Degree bounds for adj'
+      have hpath' : ∀ i, vertexDegree adj' i ≤ 2 := by
+        intro i
+        -- Degree in subgraph ≤ degree in parent graph (injection via succAbove)
+        unfold vertexDegree
+        have h_image : ((Finset.univ.filter (fun j : Fin k => adj' i j = 1)).image v₀.succAbove)
+            ⊆ Finset.univ.filter (fun j : Fin (k + 1) => adj (v₀.succAbove i) j = 1) := by
+          intro x hx
+          simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+          obtain ⟨y, hy, rfl⟩ := hx
+          exact hy
+        have h_card := Finset.card_le_card h_image
+        rw [Finset.card_image_of_injective _ Fin.succAbove_right_injective] at h_card
+        have := hpath (v₀.succAbove i)
+        unfold vertexDegree at this
+        linarith
+      -- Find v₁' (preimage of v₁ under succAbove)
+      obtain ⟨v₁', hv₁'⟩ := Fin.exists_succAbove_eq hv₁_ne
+      -- v₁' is an endpoint in adj' (degree ≤ 1)
+      have hv₁'_deg : vertexDegree adj' v₁' ≤ 1 := by
+        -- v₁ has degree ≤ 2 in adj. Its neighbor set in adj includes v₀.
+        -- Removing v₀ drops one neighbor, so degree in adj' ≤ 1.
+        unfold vertexDegree
+        -- Image of adj' neighbors under succAbove ⊆ (adj neighbors of v₁) \ {v₀}
+        have h_image : ((Finset.univ.filter (fun j : Fin k => adj' v₁' j = 1)).image v₀.succAbove)
+            ⊆ (Finset.univ.filter (fun j : Fin (k + 1) => adj v₁ j = 1)).erase v₀ := by
+          intro x hx
+          simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and] at hx
+          obtain ⟨y, hy, rfl⟩ := hx
+          refine Finset.mem_erase.mpr ⟨Fin.succAbove_ne v₀ y, ?_⟩
+          refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩
+          rw [← hv₁']; exact hy
+        have h_card := Finset.card_le_card h_image
+        rw [Finset.card_image_of_injective _ Fin.succAbove_right_injective] at h_card
+        have hv₀_mem : v₀ ∈ Finset.univ.filter (fun j : Fin (k + 1) => adj v₁ j = 1) :=
+          Finset.mem_filter.mpr ⟨Finset.mem_univ _, hsymm.apply v₀ v₁ ▸ hv₁_adj⟩
+        rw [Finset.card_erase_of_mem hv₀_mem] at h_card
+        have := hpath v₁; unfold vertexDegree at this
+        omega
+      -- Apply induction hypothesis
+      obtain ⟨σ', hσ'0, hσ'_fwd, hσ'_only⟩ := ih hD' (by omega) hpath' v₁' hv₁'_deg
+      -- Construct σ : Fin (k+1) ≃ Fin (k+1) from σ' by prepending v₀
+      -- σ(0) = v₀, σ(i+1) = v₀.succAbove(σ'(i))
+      -- Proof sketch:
+      -- Define f(0) = v₀, f(i+1) = succAbove(σ'(i)).
+      -- Injective: f(0) = v₀ ∉ range(succAbove); succAbove ∘ σ' injective.
+      -- Bijective by finite injective ↔ bijective.
+      -- σ(0) = v₀: by definition.
+      -- Consecutive adjacency: f(0)→f(1) = v₀→v₁ uses hv₁_adj;
+      --   f(i+1)→f(i+2) uses adj' = adj on succAbove images + hσ'_fwd.
+      -- Non-adjacency: f(0)↔f(j+1) forces succAbove(σ'(j)) = v₁,
+      --   hence σ'(j) = v₁' = σ'(0), so j = 0.
+      --   f(i+1)↔f(j+1) uses hσ'_only.
+      sorry
 
 private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
@@ -1642,7 +1883,7 @@ private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
   obtain ⟨hsymm, _, h01, _, _⟩ := hD
   refine ⟨σ, fun i j => ?_⟩
   -- Unfold DynkinType.adj for A_n
-  show adj (σ i) (σ j) = if (i.val + 1 = j.val) ∨ (j.val + 1 = i.val) then 1 else 0
+  change adj (σ i) (σ j) = if (i.val + 1 = j.val) ∨ (j.val + 1 = i.val) then 1 else 0
   -- i j : Fin (DynkinType.A n hn).rank = Fin n definitionally
   have hi : i.val < n := i.isLt
   have hj : j.val < n := j.isLt

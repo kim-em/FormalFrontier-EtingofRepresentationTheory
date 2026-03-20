@@ -192,6 +192,66 @@ theorem Etingof.Corollary6_8_4_simpleRoot
    Etingof.simpleRepresentation_indecomposable k p,
    fun v => Etingof.simpleRepresentation_finrank_eq_simpleRoot k p v⟩
 
+universe v_arrow in
+private lemma nonempty_of_eq {X Y : Sort v_arrow} (h : X = Y) :
+    Nonempty X → Nonempty Y :=
+  fun hx => match h with | rfl => hx
+
+universe v_arrow in
+private lemma isEmpty_of_eq {X Y : Sort v_arrow} (h : X = Y) :
+    IsEmpty Y → IsEmpty X :=
+  fun hy => match h with | rfl => hy
+
+/-- Reversing all arrows at a vertex preserves the orientation property. -/
+private lemma Etingof.reversedAtVertex_isOrientationOf
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hadj_symm : adj.IsSymm) (hnoloop : ∀ v, adj v v = 0)
+    {Q : Quiver (Fin n)} (hQ : Etingof.IsOrientationOf Q adj) (p : Fin n) :
+    Etingof.IsOrientationOf (@Etingof.reversedAtVertex (Fin n) _ Q p) adj := by
+  obtain ⟨hQ_nonarrow, hQ_edge, hQ_unique⟩ := hQ
+  have adj_symm : ∀ i j, adj i j = adj j i := by
+    intro i j
+    have := congr_fun (congr_fun hadj_symm j) i
+    simp [Matrix.transpose_apply] at this
+    exact this
+  refine ⟨fun a b hab => ?_, fun a b hab => ?_, fun a b ha_arr hb_arr => ?_⟩
+  · -- Non-edges: no arrows in reversed quiver
+    by_cases ha : a = p <;> by_cases hb : b = p
+    · exact isEmpty_of_eq (Etingof.ReversedAtVertexHom_eq_eq ha hb) (hQ_nonarrow a b hab)
+    · exact isEmpty_of_eq (Etingof.ReversedAtVertexHom_eq_ne ha hb)
+        (hQ_nonarrow b p fun h => hab (by rw [ha, adj_symm p b]; exact h))
+    · exact isEmpty_of_eq (Etingof.ReversedAtVertexHom_ne_eq ha hb)
+        (hQ_nonarrow p a fun h => hab (by rw [hb, adj_symm a p]; exact h))
+    · exact isEmpty_of_eq (Etingof.ReversedAtVertexHom_ne_ne ha hb) (hQ_nonarrow a b hab)
+  · -- Each edge has an arrow in reversed quiver
+    by_cases ha : a = p <;> by_cases hb : b = p
+    · exact absurd (by rw [ha, hb] at hab; rw [hnoloop] at hab; exact hab.symm) one_ne_zero
+    · have h_bp : adj b p = 1 := by rw [adj_symm b p, ← ha]; exact hab
+      rcases hQ_edge b p h_bp with h | h
+      · left; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_ne ha hb).symm h
+      · right; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_eq hb ha).symm h
+    · have h_pa : adj p a = 1 := by rw [adj_symm p a, ← hb]; exact hab
+      rcases hQ_edge p a h_pa with h | h
+      · left; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_eq ha hb).symm h
+      · right; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_ne hb ha).symm h
+    · rcases hQ_edge a b hab with h | h
+      · left; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_ne ha hb).symm h
+      · right; exact nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_ne hb ha).symm h
+  · -- No two-way arrows in reversed quiver
+    by_cases ha : a = p <;> by_cases hb : b = p
+    · exact hQ_unique a b
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_eq ha hb) ha_arr)
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_eq hb ha) hb_arr)
+    · exact hQ_unique b p
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_ne ha hb) ha_arr)
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_eq hb ha) hb_arr)
+    · exact hQ_unique p a
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_eq ha hb) ha_arr)
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_eq_ne hb ha) hb_arr)
+    · exact hQ_unique a b
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_ne ha hb) ha_arr)
+        (nonempty_of_eq (Etingof.ReversedAtVertexHom_ne_ne hb ha) hb_arr)
+
 universe u in
 /-- Every positive root of a Dynkin quiver is the dimension vector of some
 indecomposable representation.
@@ -212,65 +272,70 @@ theorem Etingof.Corollary6_8_4
       (_ : ∀ v, Module.Finite k (ρ.obj v)),
       ρ.IsIndecomposable ∧
       ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v)) := by
-  -- By Theorem 6.8.1, iterated simple reflections reduce α to a simple root αₚ.
-  obtain ⟨vertices, p, hreduce⟩ := Etingof.Theorem6_8_1 hDynkin α hα.2 hα.1.1 hα.1.2
-  -- Induction on the reflection chain.
-  revert Q α hα hQ hreduce
-  induction vertices with
-  | nil =>
-    intro α hα Q _hQ hreduce
-    -- α = simpleRoot n p: the simple representation realizes it.
-    -- iteratedSimpleReflection [] α = α, so α = simpleRoot n p
-    change α = Etingof.simpleRoot n p at hreduce
-    subst hreduce
-    exact Etingof.Corollary6_8_4_simpleRoot p k
-  | cons i rest ih =>
-    intro α hα Q _hQ hreduce
-    -- Step 1: Unfold iteratedSimpleReflection for the cons step.
-    -- (i :: rest).foldl f α = rest.foldl f (f α i), so the chain reduces to
-    -- applying the remaining reflections to sᵢ(α).
-    set A := Etingof.cartanMatrix n adj with hA_def
-    set α' := Etingof.simpleReflection n A i α with hα'_def
-    have hstep : Etingof.iteratedSimpleReflection n A rest α' =
-        Etingof.simpleRoot n p := by
-      rwa [← Etingof.iteratedSimpleReflection_cons]
-    -- Step 2: α' is a root (nonzero with B(α',α') = 2).
-    -- Simple reflections preserve the bilinear form and nonzero-ness.
-    have hα'_nonzero : α' ≠ 0 :=
-      Etingof.simpleReflection_nonzero hDynkin α i hα.1.2
-    have hα'_B : dotProduct α' (A.mulVec α') = 2 :=
-      (Etingof.simpleReflection_preserves_B hDynkin α i).trans hα.1.2
-    have hα'_isRoot : Etingof.IsRoot n adj α' := ⟨hα'_nonzero, hα'_B⟩
-    -- Step 3: α' has non-negative coordinates.
-    -- This requires that vertex i is a "good vertex" for α, meaning
-    -- 0 < (Aα)_i ≤ α_i. Theorem 6.8.1's proof constructs its vertex list by
-    -- repeatedly finding such good vertices via exists_good_vertex, but this
-    -- property is not currently exported from the theorem statement.
-    -- TODO: Strengthen Theorem 6.8.1 to export the good vertex property,
-    -- then use Etingof.simpleReflection_nonneg to close this goal.
-    have hα'_nonneg : ∀ j, 0 ≤ α' j := by sorry
-    have hα'_pos : Etingof.IsPositiveRoot n adj α' := ⟨hα'_isRoot, hα'_nonneg⟩
-    -- Step 4: The reversed quiver Q' = reversedAtVertex Q i is an orientation of adj.
-    -- Reversing arrows at one vertex of an oriented graph preserves the orientation
-    -- property: non-edges still have no arrows, each edge still has exactly one
-    -- direction (just flipped for edges involving i), and no two-way arrows.
-    let Q' := @Etingof.reversedAtVertex (Fin n) _ Q i
-    have hQ' : Etingof.IsOrientationOf Q' adj := by
-      -- Case analysis on (a = i?) and (b = i?) for each of the three conditions.
-      -- For each case, use ReversedAtVertexHom API lemmas to reduce Q'.Hom to Q.Hom
-      -- with appropriate index permutation, plus adj symmetry (hDynkin.1).
+  -- Strong induction on coordinate sum, using exists_good_vertex directly.
+  -- This avoids needing the vertex list from Theorem 6.8.1 to export the
+  -- "good vertex" property at each step.
+  set A := Etingof.cartanMatrix n adj with hA_def
+  have hAsymm : A.IsSymm := Etingof.cartanMatrix_isSymm hDynkin.1
+  suffices h : ∀ (m : ℕ) (α : Fin n → ℤ) (Q : Quiver (Fin n)),
+      (∑ j, α j).toNat = m →
+      Etingof.IsPositiveRoot n adj α →
+      Etingof.IsOrientationOf Q adj →
+      ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
+        (_ : ∀ v, Module.Free k (ρ.obj v))
+        (_ : ∀ v, Module.Finite k (ρ.obj v)),
+        ρ.IsIndecomposable ∧ ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v)) from
+    h _ α Q rfl hα hQ
+  intro m
+  induction m using Nat.strongRecOn with
+  | ind m ih =>
+    intro α Q hm hα_pos hQ_orient
+    have hα_nonneg := hα_pos.2
+    have hα_nonzero := hα_pos.1.1
+    have hα_root := hα_pos.1.2
+    have hsum_pos := Etingof.sum_pos_of_nonneg_ne_zero α hα_nonneg hα_nonzero
+    by_cases hle : ∑ j : Fin n, α j ≤ 1
+    · -- Base case: ∑ α = 1, so α is a simple root → use simple representation.
+      have hα_sum : ∑ j : Fin n, α j = 1 := by omega
+      obtain ⟨p, hp⟩ := Etingof.sum_one_is_simpleRoot α hα_nonneg hα_nonzero hα_sum
+      subst hp
+      exact Etingof.Corollary6_8_4_simpleRoot p k
+    · -- Inductive step: find good vertex, reflect, recurse.
+      push_neg at hle
+      have hd_sum2 : 2 ≤ ∑ j : Fin n, α j := by omega
+      -- Step 1: Find a good vertex i with 0 < (Aα)_i ≤ α_i.
+      obtain ⟨i, hi_pos, hi_le⟩ :=
+        Etingof.exists_good_vertex hDynkin α hα_nonneg hα_nonzero hα_root hd_sum2
+      -- Step 2: α' = s_i(α) is a positive root with strictly smaller coordinate sum.
+      set α' := Etingof.simpleReflection n A i α with hα'_def
+      have hα'_nonneg : ∀ j, 0 ≤ α' j :=
+        Etingof.simpleReflection_nonneg hAsymm α i hα_nonneg hi_le
+      have hα'_nonzero : α' ≠ 0 :=
+        Etingof.simpleReflection_nonzero hDynkin α i hα_root
+      have hα'_B : dotProduct α' (A.mulVec α') = 2 :=
+        (Etingof.simpleReflection_preserves_B hDynkin α i).trans hα_root
+      have hα'_positive : Etingof.IsPositiveRoot n adj α' :=
+        ⟨⟨hα'_nonzero, hα'_B⟩, hα'_nonneg⟩
+      have hα'_sum : ∑ j, α' j = (∑ j, α j) - (A.mulVec α) i :=
+        Etingof.simpleReflection_sum hAsymm α i
+      have hα'_sum_lt : (∑ j, α' j).toNat < m := by
+        have h1 : ∑ j, α' j < ∑ j, α j := by linarith
+        have h2 : 0 ≤ ∑ j, α' j := Finset.sum_nonneg fun i _ => hα'_nonneg i
+        omega
+      -- Step 3: The reversed quiver Q' is still an orientation of adj.
+      have hQ' : Etingof.IsOrientationOf
+          (@Etingof.reversedAtVertex (Fin n) _ Q i) adj :=
+        Etingof.reversedAtVertex_isOrientationOf hDynkin.1 hDynkin.2.1 hQ_orient _
+      -- Step 4: By IH, get an indecomposable ρ' on Q' with dimension vector α'.
+      obtain ⟨ρ', hfree', hfinite', hindec', hdim'⟩ :=
+        ih _ hα'_sum_lt α' (@Etingof.reversedAtVertex (Fin n) _ Q i) rfl hα'_positive hQ'
+      -- Step 5: Construct ρ on Q from ρ' on Q' via reflection functor at i.
+      -- The full argument requires:
+      -- (a) Determine if i is a sink or source in Q' and apply F⁺ᵢ or F⁻ᵢ.
+      -- (b) Double reversal: reversedAtVertex (reversedAtVertex Q i) i = Q,
+      --     so the result lives on Q.
+      -- (c) Proposition 6.6.7: reflection functor preserves indecomposability.
+      -- (d) Proposition 6.6.8: d(F±ᵢ(ρ')) = sᵢ(d(ρ')) = sᵢ(α') = α.
+      -- These require sorry'd Propositions 6.6.6/6.6.7 and quiver reversal
+      -- infrastructure not yet available.
       sorry
-    -- Step 5: By IH, get an indecomposable ρ' on Q' with dimension vector α'.
-    obtain ⟨ρ', hfree', hfinite', hindec', hdim'⟩ := ih α' hα'_pos hQ' hstep
-    -- Step 6: Construct ρ on Q from ρ' on Q' via reflection functor at i.
-    -- The full argument requires:
-    -- (a) Determine if i is a sink or source in Q' (it should be, since all arrows
-    --     at i in Q' are the reversal of those in Q, and the admissible ordering
-    --     from the book ensures i was a sink/source in Q).
-    -- (b) Apply F⁺ᵢ (if i is sink in Q') or F⁻ᵢ (if source) to ρ'.
-    -- (c) Double reversal identity: reversedAtVertex (reversedAtVertex Q i) i = Q,
-    --     so the resulting representation lives on Q.
-    -- (d) Proposition 6.6.7: the reflection functor preserves indecomposability
-    --     (or gives zero, but α ≠ 0 rules out zero).
-    -- (e) Proposition 6.6.8: dimension vector d(F±ᵢ(ρ')) = sᵢ(d(ρ')) = sᵢ(α') = α.
-    sorry
