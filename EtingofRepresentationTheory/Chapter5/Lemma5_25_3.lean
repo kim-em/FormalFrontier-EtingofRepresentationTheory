@@ -1996,7 +1996,112 @@ private lemma Etingof.induced_normSq_sum_elliptic
           else 0) =
     (Fintype.card (GaloisField p n) : ℂ) *
     ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 3 := by
-  sorry
+  -- Step 1: Factor out |K|⁻² from the sum
+  -- Each term is (c⁻¹ * S) * conj(c⁻¹ * S) = c⁻² * (S * conj(S)) where c = |K|
+  have h_factor : ∀ (S : ℂ),
+      ((Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ)⁻¹ * S) *
+      starRingEnd ℂ ((Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ)⁻¹ * S) =
+      (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ)⁻¹ ^ 2 *
+      (S * starRingEnd ℂ S) := by
+    intro S; simp only [map_mul, map_inv₀, Complex.conj_natCast]; ring
+  simp_rw [h_factor, ← Finset.mul_sum]
+  -- Step 2: The raw sum ∑_{g ell} f(g)·conj(f(g)) = |GL₂|·|K|·(q-1)²
+  -- via orbit-stabilizer decomposition and character orthogonality:
+  --   (a) Expand f(g)·conj(f(g)) as double sum over x, y
+  --   (b) Substitute k = x⁻¹gx ∈ K (non-scalar ↔ g elliptic), z = x⁻¹y
+  --   (c) The x sum is free → factor |GL₂|
+  --   (d) For non-scalar k ∈ K: {z : z⁻¹kz ∈ K} = N_{GL₂}(K), |N| = 2|K|
+  --       For z ∈ K: z⁻¹kz = k (K abelian); for z ∈ N\K: z⁻¹kz = k^q (Frobenius)
+  --   (e) ∑_{k ∈ K\F_q×} [ν(k)·conj(ν(k)) + ν(k)·conj(ν(k^q))]
+  --       = ∑_{K\F_q×} [1 + ν^{1-q}(k)]
+  --   (f) By sum_nontrivial_char_eq_zero: ∑_K ν^{1-q} = 0 (since ν^q ≠ ν)
+  --       On F_q×: ν^{1-q} = 1 (since a^{q-1} = 1), so ∑_{F_q×} ν^{1-q} = q-1
+  --       Hence ∑_{K\F_q×} ν^{1-q} = -(q-1)
+  --   (g) Total: |GL₂|·|K|·[q(q-1) - (q-1)] = |GL₂|·|K|·(q-1)²
+  have hraw : ∑ g ∈ Finset.univ.filter (fun g : GL2 p n => GL2.IsElliptic (p := p) (n := n) g),
+      (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) *
+      starRingEnd ℂ (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) =
+    (Fintype.card (GL2 p n) : ℂ) *
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+    ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 2 := by
+    -- Sub-step A: Sum rearrangement
+    -- Expand ∑_g (∑_x ν(x⁻¹gx))·conj(∑_y ν(y⁻¹gy)) as triple sum over (g,x,y).
+    -- Substitute k = x⁻¹gx ∈ K, z = x⁻¹y. The map (g,x,y) ↦ (k,x,z) is a bijection
+    -- restricted to {g elliptic, x⁻¹gx ∈ K, y⁻¹gy ∈ K} ↔ {k ∈ K\F_q×, x ∈ GL₂, z⁻¹kz ∈ K}.
+    -- The x variable is free → factor |GL₂|.
+    -- Result: |GL₂| · ∑_{z ∈ GL₂} ∑_{k ∈ K\F_q× : z⁻¹kz ∈ K} ν(k)·conj(ν(z⁻¹kz))
+    --
+    -- Sub-step B: Normalizer evaluation
+    -- For non-scalar k ∈ K with centralizer C_{GL₂}(k) = K:
+    --   {z : z⁻¹kz ∈ K} = N_{GL₂}(K), |N| = 2|K|
+    --   N/K ≅ Gal(F_{q²}/F_q) = {id, Frob}
+    -- So: ∑_z [...] = ∑_{z ∈ K} ν(k)·conj(ν(k)) + ∑_{z ∈ N\K} ν(k)·conj(ν(k^q))
+    --                = |K|·1 + |K|·ν^{1-q}(k)
+    -- Result: |GL₂|·|K| · ∑_{k ∈ K\F_q×} (1 + ν^{1-q}(k))
+    --
+    -- Sub-step C: Character orthogonality
+    -- ∑_K ν^{1-q} = 0 by sum_nontrivial_char_eq_zero (since ν^q ≠ ν implies ν^{1-q} ≠ 1)
+    -- ∑_{F_q×} ν^{1-q} = q-1 (since a^{q-1} = 1 for a ∈ F_q×, so ν^{1-q}(a) = ν(1) = 1)
+    -- ∑_{K\F_q×} ν^{1-q} = 0 - (q-1) = -(q-1)
+    -- ∑_{K\F_q×} (1 + ν^{1-q}(k)) = q(q-1) + (-(q-1)) = (q-1)²
+    -- Result: |GL₂|·|K|·(q-1)²
+    sorry
+  rw [hraw]
+  -- Step 3: Arithmetic: Kc⁻² · Gc · Kc · (q-1)² = q · (q-1)³
+  -- Using Gc = (q²-1)(q²-q) and Kc = q²-1
+  -- First establish cardinality facts
+  set q := Fintype.card (GaloisField p n) with hq_def
+  have hq_pos : 1 < q := by
+    rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+    exact Nat.one_lt_pow hn hp.out.one_lt
+  have hinj : Function.Injective (Etingof.GL2.fieldExtEmbed p n) := by
+    intro a b hab
+    unfold GL2.fieldExtEmbed at hab
+    simp only [dif_neg hn] at hab
+    exact Units.ext (RingHom.injective
+      (Algebra.leftMulMatrix (Module.finBasisOfFinrankEq (GaloisField p n)
+      (GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn))).toRingHom
+      (congr_arg (fun g => g.val) hab))
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  -- |K| as ℕ: goes through fieldExtEmbed injectivity
+  have hKc_units : Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) =
+      Fintype.card (GaloisField p (2 * n))ˣ := by
+    rw [← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
+    change Nat.card ↥(Etingof.GL2.fieldExtEmbed p n).range = _
+    exact Nat.card_congr ((Etingof.GL2.fieldExtEmbed p n).ofInjective hinj).symm.toEquiv
+  -- |K| = q² - 1 as ℕ
+  have hq_pn : q = p ^ n := by
+    rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+  have hKc_nat : Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) = q ^ 2 - 1 := by
+    rw [hKc_units, Fintype.card_units,
+      ← Nat.card_eq_fintype_card,
+      GaloisField.card p (2 * n) (Nat.mul_ne_zero two_ne_zero hn)]
+    congr 1
+    rw [hq_pn, show 2 * n = n * 2 from by ring, pow_mul]
+  -- |GL₂| = (q²-1)(q²-q) as ℕ
+  have hGc_nat : Fintype.card (GL2 p n) = (q ^ 2 - 1) * (q ^ 2 - q) := by
+    have := @Matrix.card_GL_field (GaloisField p n) _ _ 2
+    simp only [Fin.prod_univ_two, Fin.val_zero, Fin.val_one, pow_zero, pow_one,
+               ← Nat.card_eq_fintype_card] at this
+    rw [← Nat.card_eq_fintype_card, this, Nat.card_eq_fintype_card]
+  -- Cast to ℂ
+  have h1 : 1 ≤ q ^ 2 := by nlinarith
+  have h2 : q ≤ q ^ 2 := by nlinarith
+  have hKc_C : (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) =
+      (q : ℂ) ^ 2 - 1 := by
+    rw [hKc_nat]; push_cast [Nat.cast_sub h1]; ring
+  have hGc_C : (Fintype.card (GL2 p n) : ℂ) =
+      ((q : ℂ) ^ 2 - 1) * ((q : ℂ) ^ 2 - (q : ℂ)) := by
+    rw [hGc_nat, Nat.cast_mul]; push_cast [Nat.cast_sub h1, Nat.cast_sub h2]; ring
+  have hKc_ne : (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) ≠ 0 := by
+    exact_mod_cast Fintype.card_pos (α := ↥(Etingof.GL2.ellipticSubgroup p n)).ne'
+  rw [hGc_C, hKc_C]
+  have hq2_ne : (q : ℂ) ^ 2 - 1 ≠ 0 := by rw [← hKc_C]; exact hKc_ne
+  field_simp
 
 open Classical in
 /-- The elliptic contribution to ∑ |χ|² equals q(q-1)³.
