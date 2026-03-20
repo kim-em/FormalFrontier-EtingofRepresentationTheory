@@ -811,6 +811,33 @@ For recursive definitions where termination isn't structural:
 
 This pattern defined the hook walk weight function with termination via strictly decreasing hook length. Prove the decrease lemmas before attempting the definition — interleaving them causes elaboration issues.
 
+### Fin.cons + Equiv.ofBijective for Explicit Equivalences
+
+When constructing an equivalence between a finite type and `Fin n` (e.g., for counting conjugacy classes, enumerating roots):
+
+1. Build the forward map inductively using `Fin.cons` to handle each case
+2. Prove injectivity by case analysis on each pair
+3. Prove surjectivity by showing the image covers all elements
+4. Combine via `Equiv.ofBijective`
+
+```lean
+-- Example: equivalence between conjugacy class representatives and Fin 4
+def classEquiv : Fin 4 → ConjClass G :=
+  Fin.cons scalar (Fin.cons splitSS (Fin.cons parabolic (Fin.cons elliptic Fin.elim0)))
+
+theorem classEquiv_bijective : Function.Bijective classEquiv := by
+  refine ⟨fun i j h => ?_, fun c => ?_⟩
+  · fin_cases i <;> fin_cases j <;> simp_all [classEquiv]
+  · obtain ⟨g, rfl⟩ := c.exists_rep
+    -- case analysis on g to find preimage
+    sorry
+
+noncomputable def classFinEquiv : ConjClass G ≃ Fin 4 :=
+  (Equiv.ofBijective classEquiv classEquiv_bijective).symm
+```
+
+This pattern proved GL₂(𝔽_q) conjugacy class cardinalities and `SimpleGraph.Connected.induce_compl_singleton_of_degree_eq_one`. It works well because `fin_cases` handles all pairs for injectivity automatically.
+
 ### Bridge to Mathlib's Native Abstractions
 
 When the project uses a custom representation (e.g., list-based paths, adjacency matrices) but Mathlib has richer API for a different representation (e.g., `SimpleGraph`):
@@ -856,19 +883,33 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 20)
-The project has ~195+/583 items sorry-free (~33.5%), with ~70 remaining sorries across 29 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
+### Current Status (as of Wave 23)
+The project has ~193/583 items sorry-free (~33%), with 91 remaining sorries across 30 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (~48 sorries — ~69% of all remaining). Ch6 has ~34 sorries with Dynkin classification and reflection functor work progressing. Ch9 has ~8 sorries. Ch2 has ~3 sorries.
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (48 sorries — 53% of all remaining). Ch6 has 31 sorries with Dynkin classification and reflection functor work progressing. Ch9 has 9 sorries. Ch2 has 3 sorries.
 
-**Wave 18-20 highlights:**
-- Sorry count dropped from 104 (wave 17) to ~70 (wave 20) — 34 sorries eliminated
-- Key proofs merged: Theorem 2.1.1(i) sl(2) irrep classification, Theorem 5.14.3 character formula fully proved, GL2 conjugacy class cardinalities (bijection-based), Dynkin classification forward direction skeleton, no_cycle_in_dynkin + dynkin_edge_count
-- Polytabloid basis infrastructure built (1 sorry → framework + 2 well-specified sorries)
-- Lemma 5.25.3 decomposed (1 sorry → 4 character value sorries)
-- Hook quotient identity decomposed into 4 sub-issues (#1383-#1386)
+**Sorry feasibility breakdown (wave 23 audit):**
+- **Tractable (T):** 10 sorries — standard math, Mathlib APIs exist, just needs effort
+- **Hard (H):** 15 sorries — non-trivial proofs requiring novel approaches but mathematically clear
+- **Blocked (B):** 29 sorries — missing Mathlib infrastructure or known dead-ends
+- **Arithmetic (A):** 24 sorries — finite computation/case analysis, tedious but mechanical
+- **Remaining 13:** mixed across 1-2 sorry files
+
+**Major blockers (29 blocked sorries):**
+1. **SchurModule infrastructure** (3 files, ~12 sorries): AlgIrrepGL, Peter-Weyl for GL(V), Frobenius formula
+2. **Quiver representation machinery** (6 files, ~12 sorries): reflection functors, Gabriel's theorem, Decidable.casesOn wall
+3. **Mackey machine/Clifford theory** (1 file, 5 sorries): Theorem 5.27.1 semidirect product orbit method
+
+**Best ROI targets:** The 10 tractable sorries (Theorem9_2_1, Theorem6_5_2, Proposition5_19_1, FRTHelpers, Proposition5_21_1, Corollary9_7_3) and 24 arithmetic sorries (Example6_4_9_An/Dn root counting, Corollary5_19_2, various verifications).
+
+**Wave 18-23 highlights:**
+- Sorry count fluctuated: 104 (wave 17) → ~70 (wave 20) → 91 (wave 23, includes new scaffolding)
+- Key proofs merged: Theorem 2.1.1(i), Theorem 5.14.3, GL2 conjugacy class cardinalities, Dynkin classification skeleton, complementaryChar_parabolic_val structure, hook walk weight WF recursion
+- Polytabloid basis infrastructure + Lemma 5.25.3 decomposed into well-specified sub-sorries
+- Hook quotient identity decomposed into sub-issues (#1383-#1386)
 - Corollary 6.8.4 reduced from 3 inline sorries to 1
+- Theorem 5.15.1 rearrangement inequality structure proved
 
-**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (Wedderburn-Artin, Schur polynomials, Ext groups) or deep combinatorial identities (hook length formula, alternating Kostka).
+**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (SchurModule, Mackey machine, quiver representations) or deep combinatorial identities (hook length formula, alternating Kostka). Arithmetic sorries represent the highest-ROI targets.
 
 **Key velocity insight from waves 9-20:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem (29 across waves 15-17 alone).
