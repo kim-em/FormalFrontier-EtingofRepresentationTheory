@@ -6131,9 +6131,9 @@
     "end_page": "220",
     "start_line": 17,
     "end_line": 19,
-    "status": "blocked",
+    "status": "partial",
     "needs_statement": false,
-    "notes": "Triage (2026-03-18): 3 sorries (existence, uniqueness, dimension bound). Transitively blocked on Theorem 9.6.4 (Morita equivalence needs redesign). Once 9.6.4 is resolved, existence may be tractable; uniqueness and dimension bound need additional Morita theory. Defer until 9.6.4 redesign is complete.",
+    "notes": "2/3 sorry-free: uniqueness (dimension argument via MoritaStructural) and dimension bound proved. Existence (constructing basic algebra from Wedderburn-Artin + idempotent lifting) still sorry'd.",
     "attention_needed": false
   },
   {
