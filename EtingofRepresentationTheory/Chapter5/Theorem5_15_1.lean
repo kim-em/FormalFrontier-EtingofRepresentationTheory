@@ -543,11 +543,20 @@ decomposition of the isotypic component as a direct sum of copies of the simple 
 theorem isotypicComponent_linearEquiv_fun (n : ℕ) (mu nu : Nat.Partition n) :
     Nonempty (↥(permModuleIsotypicComponent n mu nu) ≃ₗ[ℂ]
       (Fin (spechtMultiplicity n mu nu) → ↥(SpechtModule n nu))) := by
-  -- The isotypic component is isotypic of type V_ν as SymGroupAlgebra-module
-  -- By IsIsotypicOfType.linearEquiv_fun, it decomposes as Fin m → V_ν for some m
-  -- Then m = spechtMultiplicity by Schur's lemma + Hom space dimension argument
-  sorry -- TODO: requires connecting IsIsotypicOfType.linearEquiv_fun multiplicity
-         -- to spechtMultiplicity (= finrank Hom) via Schur's lemma
+  -- Step 1: IsIsotypicOfType.linearEquiv_fun gives C_R ≃ₗ[A] Fin m' → V_ν for some m'.
+  -- Step 2: Restrict scalars to get C_R ≃ₗ[ℂ] Fin m' → V_ν.
+  -- Step 3: Show m' = spechtMultiplicity. This requires:
+  --   (a) finrank ℂ (U_μ →ₗ[A] V_ν) = finrank ℂ (C_R →ₗ[A] V_ν)
+  --       (restriction to isotypic component is iso on Hom spaces, by Schur:
+  --       bijective_or_eq_zero shows maps from non-ν simple summands to V_ν are zero)
+  --   (b) finrank ℂ (C_R →ₗ[A] V_ν) = m' * finrank ℂ (V_ν →ₗ[A] V_ν)
+  --       (Hom from Fin m' → V_ν decomposes via LinearMap.single/proj)
+  --   (c) finrank ℂ (V_ν →ₗ[A] V_ν) = 1
+  --       (Schur's lemma for algebraically closed fields: End_A(V_ν) is a
+  --       finite-dimensional division ℂ-algebra, so ℂ itself by
+  --       IsAlgClosed.algebraMap_bijective_of_isIntegral)
+  -- None of (a)-(c) exists in Mathlib in module-theoretic form (only categorical).
+  sorry
 
 /-- The trace of a "diagonal" endomorphism on a pi type `Fin m → V` that applies the same
 linear map `f` componentwise equals `m * trace f`. -/
