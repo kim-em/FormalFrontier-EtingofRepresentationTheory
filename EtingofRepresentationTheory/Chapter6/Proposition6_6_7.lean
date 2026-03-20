@@ -148,12 +148,22 @@ private theorem reflFunctorPlus_map_from_sink_component
         (arrowsIntoReversed hi a) x) =
     DirectSum.component k (Etingof.ArrowsInto Q i) (fun a => ρ.obj a.1) a
       ((Etingof.reflFunctorPlus_equivAt_eq hi ρ x).val) := by
-  -- BLOCKED: Same Decidable.casesOn dependent type issue as reflFunctorPlus_mapLinear_ne_ne
-  -- (#1228). After unfolding, the match expressions on `inst i i` and `inst a.1 i`
-  -- cannot be reduced because they appear in dependent type positions (Decidable.rec
-  -- motive). The proper fix requires refactoring reflectionFunctorPlus to use explicit
-  -- vertex-indexed data instead of Decidable.casesOn.
-  sorry
+  have h_da : inst i i = .isTrue rfl := by
+    cases inst i i with
+    | isTrue _ => rfl
+    | isFalse h => exact absurd rfl h
+  have h_db : inst a.1 i = .isFalse ha := by
+    cases inst a.1 i with
+    | isTrue h => exact absurd h ha
+    | isFalse _ => rfl
+  revert x
+  unfold Etingof.reflFunctorPlus_equivAt_ne Etingof.reflFunctorPlus_equivAt_eq
+    arrowsIntoReversed
+    Etingof.reflectionFunctorPlus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_da, h_db]
+  intro x
+  rfl
 
 set_option maxHeartbeats 400000 in
 -- reason: unfolding reflectionFunctorPlus + rewriting Decidable instances
@@ -174,11 +184,7 @@ private theorem reflFunctorPlus_mapLinear_ne_ne
         (Etingof.reflectionFunctorPlus Q i hi ρ) a b e w) =
     ρ.mapLinear (reversedArrow_ne_ne ha hb e)
       ((Etingof.reflFunctorPlus_equivAt_ne hi ρ a ha) w) := by
-  -- BLOCKED: The Decidable.casesOn in reflectionFunctorPlus creates opaque type-level
-  -- terms that rw/simp/generalize cannot rewrite due to dependent type constraints.
-  -- The proper fix is to refactor reflectionFunctorPlus to avoid Decidable.casesOn
-  -- (e.g., using a structure with explicit vertex-wise data instead of case-splitting).
-  sorry
+  exact Etingof.reflFunctorPlus_mapLinear_ne_ne hi ρ ha hb e w
 
 /-- Reflection functors preserve indecomposability at a sink:
 F⁺ᵢ(V) is either indecomposable or zero.
@@ -381,8 +387,31 @@ theorem Etingof.Proposition6_6_7_sink
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₁, dif_neg hb']
-          -- Needs reflFunctorPlus_mapLinear_ne_ne (sorry'd, #1228)
-          sorry
+          -- Extract subrep property at (a', b') before clearing W₁
+          have hsubrep : ∀ (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a' b'),
+              ∀ x ∈ W₁ a', @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i) (Etingof.reflectionFunctorPlus Q i hi ρ)
+                a' b' e x ∈ W₁ b' :=
+            fun e x hx => hW₁ e x hx
+          -- Generalize W₁ a' and W₁ b' to fresh variables
+          generalize W₁ a' = Sa at hw hsubrep ⊢
+          generalize W₁ b' = Sb at hsubrep ⊢
+          -- Clear everything that uses inst v i
+          clear hcompl hW₂ W₂ U₂ W₂_at U₁ W₁_at arrow_ne φ hnotsimple hρ hW₁ W₁
+          have h_da : ‹DecidableEq Q› a' i = .isFalse ha' := by
+            cases ‹DecidableEq Q› a' i with | isTrue h => exact absurd h ha' | isFalse _ => rfl
+          have h_db : ‹DecidableEq Q› b' i = .isFalse hb' := by
+            cases ‹DecidableEq Q› b' i with | isTrue h => exact absurd h hb' | isFalse _ => rfl
+          revert hw w e' hsubrep Sb Sa
+          unfold Etingof.reflFunctorPlus_equivAt_ne
+            Etingof.reflectionFunctorPlus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+          simp only []
+          rw [h_da, h_db]
+          simp only []
+          intro e' w Sa hw Sb hsubrep
+          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
+            LinearEquiv.refl_toLinearMap] at *
+          exact hsubrep e' w hw
       have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'), ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
         intro a' b' e' x hx
         have ha' : a' ≠ i := sink_no_out e'
@@ -401,7 +430,28 @@ theorem Etingof.Proposition6_6_7_sink
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₂, dif_neg hb']
-          sorry -- Same blocker as U₁ case
+          have hsubrep : ∀ (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a' b'),
+              ∀ x ∈ W₂ a', @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i) (Etingof.reflectionFunctorPlus Q i hi ρ)
+                a' b' e x ∈ W₂ b' :=
+            fun e x hx => hW₂ e x hx
+          generalize W₂ a' = Sa at hw hsubrep ⊢
+          generalize W₂ b' = Sb at hsubrep ⊢
+          clear hcompl hW₁ W₁ U₁ W₁_at U₂ W₂_at arrow_ne φ hnotsimple hρ hW₂ W₂ hU₁_subrep
+          have h_da : ‹DecidableEq Q› a' i = .isFalse ha' := by
+            cases ‹DecidableEq Q› a' i with | isTrue h => exact absurd h ha' | isFalse _ => rfl
+          have h_db : ‹DecidableEq Q› b' i = .isFalse hb' := by
+            cases ‹DecidableEq Q› b' i with | isTrue h => exact absurd h hb' | isFalse _ => rfl
+          revert hw w e' hsubrep Sb Sa
+          unfold Etingof.reflFunctorPlus_equivAt_ne
+            Etingof.reflectionFunctorPlus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+          simp only []
+          rw [h_da, h_db]
+          simp only []
+          intro e' w Sa hw Sb hsubrep
+          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
+            LinearEquiv.refl_toLinearMap] at *
+          exact hsubrep e' w hw
       have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
         intro v
         by_cases hv : v = i
