@@ -1287,7 +1287,22 @@ private theorem sorted_shifted_strict_dominates {n : ℕ}
         (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
         (sum_shifted_sub_permExponent la π hle))
       la := by
-  sorry
+  constructor
+  · -- Dominance: ∀ k, (la.sortedParts.take k).sum ≤ (mu.sortedParts.take k).sum
+    -- where mu = finsuppToPartition(la + ρ - e_π)
+    -- This is the rearrangement inequality for partial sums
+    sorry
+  · -- Inequality: finsuppToPartition(la + ρ - e_π) ≠ la
+    -- Since π ≠ rev, e_π ≠ ρ, so la + ρ - e_π ≠ la.toFinsupp componentwise
+    -- After sorting, the partition differs because the multiset of values differs
+    intro heq
+    apply hπ
+    -- If finsuppToPartition(la + ρ - e_π) = la, then the multisets of entries match.
+    -- Since la + ρ is strictly decreasing, this forces e_π = ρ, so π = rev.
+    -- Proof sketch: from heq, {u(j) - e_π(j)} = {u(j) - ρ(j)} as multisets where
+    -- u = la + ρ is strictly decreasing. So there exists σ with u(j) - e_π(j) = u(σ(j)) - ρ(σ(j))
+    -- for all j. Since u is strictly decreasing, this forces σ = id and e_π = ρ.
+    sorry
 
 /-- The alternating Kostka identity: the alternating sum of Kostka numbers over
 Vandermonde permutations equals sign(rev) times the Kronecker delta.
