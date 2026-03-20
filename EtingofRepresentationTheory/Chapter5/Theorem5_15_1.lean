@@ -1195,10 +1195,43 @@ the signed inverse via the Leibniz-type expansion over Vandermonde permutations.
 The proof requires the full upper-triangularity structure of Kostka numbers.
 -/
 
+/-- The exponent vector of the reversal permutation equals the rho shift. -/
+private theorem permExponent_revPerm (n : ℕ) :
+    permExponent n Fin.revPerm = rhoShift n := by
+  ext j
+  simp only [permExponent, rhoShift, Finsupp.coe_equivFunOnFinite_symm]
+  -- rev is an involution, so rev⁻¹ = rev
+  show (Fin.revPerm⁻¹ j).val = n - 1 - j.val
+  have : Fin.revPerm⁻¹ = (Fin.revPerm (n := n)) := by
+    ext i; simp [Fin.revPerm]
+  rw [this]; simp [Fin.revPerm_apply]; omega
+
+/-- The rho shift is componentwise ≤ la.toFinsupp + rhoShift. -/
+private theorem rhoShift_le_toFinsupp_add_rhoShift {n : ℕ} (la : Nat.Partition n) :
+    rhoShift n ≤ Nat.Partition.toFinsupp la + rhoShift n := by
+  intro i
+  simp only [Finsupp.add_apply, le_add_iff_nonneg_left]
+  exact Nat.zero_le _
+
+/-- When the exponent equals rhoShift, the difference la+ρ-ρ = la.toFinsupp. -/
+private theorem toFinsupp_add_rhoShift_sub_rhoShift {n : ℕ} (la : Nat.Partition n) :
+    Nat.Partition.toFinsupp la + rhoShift n - rhoShift n = Nat.Partition.toFinsupp la := by
+  ext i
+  simp only [Finsupp.coe_tsub, Pi.sub_apply, Finsupp.add_apply]
+  omega
+
+/-- finsuppToPartition of la.toFinsupp gives back la. -/
+private theorem finsuppToPartition_toFinsupp {n : ℕ} (la : Nat.Partition n)
+    (hsum : ∑ i : Fin n, Nat.Partition.toFinsupp la i = n) :
+    finsuppToPartition (Nat.Partition.toFinsupp la) hsum = la := by
+  sorry
+
 /-- The alternating Kostka identity: the alternating sum of Kostka numbers over
-Vandermonde permutations equals `sign(rev) · δ_{λ,ν}`, where `rev = Fin.revPerm`
-is the reversal permutation. The sign factor corrects for the Vandermonde
-convention ∏_{i<j}(xⱼ-xᵢ) vs the alternant convention ∏_{i<j}(xᵢ-xⱼ). -/
+Vandermonde permutations equals sign(rev) times the Kronecker delta.
+
+Note: The sign factor arises because `vandermondePoly` uses `∏_{i<j}(x_j - x_i)` (matching
+Mathlib's `Matrix.det_vandermonde`), while the book uses `∏_{i<j}(x_i - x_j)`. These differ
+by `(-1)^{n(n-1)/2} = sign(Fin.revPerm)`. -/
 theorem alternating_kostka_eq_delta {n : ℕ} (la nu : Nat.Partition n) :
     (∑ π : Equiv.Perm (Fin n),
       (Equiv.Perm.sign π : ℤ) •
@@ -1211,7 +1244,52 @@ theorem alternating_kostka_eq_delta {n : ℕ} (la nu : Nat.Partition n) :
          else (0 : ℂ))) =
       (Equiv.Perm.sign (Fin.revPerm (n := n)) : ℤ) •
         (if la = nu then (1 : ℂ) else (0 : ℂ)) := by
-  sorry
+  set rev := Fin.revPerm (n := n)
+  by_cases hla_nu : la = nu
+  · -- Case la = nu: prove fully using vanishing + diagonal
+    subst hla_nu
+    simp only [if_true]
+    -- Isolate the rev permutation term
+    have hrev_mem : rev ∈ Finset.univ := Finset.mem_univ _
+    rw [Finset.sum_eq_add_sum_diff_singleton hrev_mem]
+    have hrev_le : permExponent n rev ≤ Nat.Partition.toFinsupp la + rhoShift n :=
+      permExponent_revPerm n ▸ rhoShift_le_toFinsupp_add_rhoShift la
+    -- Non-rev terms vanish: for π ≠ rev, sort(la+ρ-e_π) ▷ la, so m(sort(...), la) = 0
+    have hrest : (∑ π ∈ Finset.univ \ {rev},
+        (Equiv.Perm.sign π : ℤ) •
+          (if h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+           then ((spechtMultiplicity n
+             (finsuppToPartition
+               (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+               (sum_shifted_sub_permExponent la π h))
+             la : ℕ) : ℂ)
+           else (0 : ℂ))) = 0 := by
+      -- For π ≠ rev, finsuppToPartition(la+ρ-e_π) strictly dominates la,
+      -- so spechtMultiplicity = 0 by vanishing
+      sorry
+    rw [hrest, add_zero]
+    simp only [dif_pos hrev_le]
+    -- la + ρ - ρ = la.toFinsupp
+    have hsub : Nat.Partition.toFinsupp la + rhoShift n - permExponent n rev =
+        Nat.Partition.toFinsupp la := by
+      rw [permExponent_revPerm]; exact toFinsupp_add_rhoShift_sub_rhoShift la
+    -- Generalize over the dependent sum proof
+    suffices h : ∀ (v : Fin n →₀ ℕ) (hv : v = Nat.Partition.toFinsupp la)
+        (hsum : ∑ i, v i = n),
+        (Equiv.Perm.sign rev : ℤ) • ((spechtMultiplicity n
+          (finsuppToPartition v hsum) la : ℕ) : ℂ) =
+        (Equiv.Perm.sign rev : ℤ) • (1 : ℂ) by
+      exact h _ hsub _
+    intro v hv hsum
+    subst hv
+    rw [finsuppToPartition_toFinsupp]
+    congr 1
+    simp [spechtMultiplicity_diagonal]
+  · -- Case la ≠ nu: requires the full orthogonality/norm argument from the book
+    -- (Σ_π sign(π) m(sort(la+ρ-e_π), nu) = 0 requires genuine cancellation,
+    -- not just term-by-term vanishing)
+    simp only [if_neg hla_nu, smul_zero]
+    sorry
 
 /-! ### Frobenius formula: alternating sum identity
 
@@ -1275,40 +1353,71 @@ private theorem smul_dite_mul {α : Prop} [Decidable α]
 
 theorem spechtCharacter_eq_alternating_sum_permCharacter
     (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
-    spechtModuleCharacter n la σ =
-      (Equiv.Perm.sign (Fin.revPerm (n := n)) : ℤ) •
-        (∑ π : Equiv.Perm (Fin n),
-          (Equiv.Perm.sign π : ℤ) • (if _h : permExponent n π ≤
-              Nat.Partition.toFinsupp la + rhoShift n
-            then (MvPolynomial.coeff
-              (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
-              (cycleTypePsumProduct n σ) : ℂ) else 0)) := by
-  -- The sign(rev) factor arises because `vandermondePoly` = ∏_{i<j}(xⱼ-xᵢ) differs
-  -- from the book's alternant a_ρ = ∏_{i<j}(xᵢ-xⱼ) by sign(Fin.revPerm).
-  --
-  -- Proof strategy (modulo alternating_kostka_eq_delta):
-  -- 1. Each coeff term expands via Young's Rule into ∑_ν K(sort(λ+ρ-e_π), ν) · χ_ν
-  -- 2. Exchange summation order (Finset.sum_comm)
-  -- 3. Apply alternating_kostka_eq_delta: inner sum = sign(rev) · δ_{λ,ν}
-  -- 4. sign(rev) · ∑_ν (sign(rev) · δ_{λ,ν}) · χ_ν = sign(rev)² · χ_la = χ_la
-  sorry
+    (Equiv.Perm.sign (Fin.revPerm (n := n)) : ℤ) • spechtModuleCharacter n la σ =
+      ∑ π : Equiv.Perm (Fin n),
+        (Equiv.Perm.sign π : ℤ) • (if _h : permExponent n π ≤
+            Nat.Partition.toFinsupp la + rhoShift n
+          then (MvPolynomial.coeff
+            (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+            (cycleTypePsumProduct n σ) : ℂ) else 0) := by
+  -- Step 1: Each summand converts to a Young's Rule expansion via
+  -- symmetry + Theorem 5.14.3 + Young's Rule
+  have hcoeff : ∀ (π : Equiv.Perm (Fin n)),
+      (Equiv.Perm.sign π : ℤ) •
+        (if h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+          then (MvPolynomial.coeff
+            (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+            (cycleTypePsumProduct n σ) : ℂ) else 0) =
+      ∑ nu : Nat.Partition n,
+        ((Equiv.Perm.sign π : ℤ) •
+          (if h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+            then ((spechtMultiplicity n
+              (finsuppToPartition
+                (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+                (sum_shifted_sub_permExponent la π h))
+              nu : ℕ) : ℂ)
+            else 0)) * spechtModuleCharacter n nu σ := by
+    intro π
+    by_cases hle : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+    · simp only [dif_pos hle]
+      rw [coeff_eq_youngsRule_expansion n la σ π hle, Finset.smul_sum]
+      congr 1; ext nu; rw [smul_mul_assoc]
+    · simp only [dif_neg hle, smul_zero]
+      exact (Finset.sum_eq_zero (fun nu _ => by simp)).symm
+  -- Step 2: Rewrite each summand, then exchange sums
+  conv_rhs => arg 2; ext π; rw [hcoeff π]
+  rw [Finset.sum_comm]
+  -- Step 3: Factor out χ_ν(σ) and apply alternating Kostka identity
+  conv_rhs => arg 2; ext y; rw [← Finset.sum_mul, alternating_kostka_eq_delta la y]
+  -- Goal: sign(rev) • χ_la = ∑ y, (sign(rev) • δ_{la,y}) * χ_y
+  -- Factor out sign(rev) from the sum
+  simp_rw [smul_mul_assoc]
+  rw [← Finset.smul_sum]
+  -- Goal: sign(rev) • χ_la = sign(rev) • ∑ y, δ_{la,y} * χ_y
+  congr 1
+  -- Goal: χ_la = ∑ y, δ_{la,y} * χ_y
+  have hvan : ∀ y ∈ Finset.univ, y ≠ la →
+      (if la = y then (1 : ℂ) else 0) * spechtModuleCharacter n y σ = 0 :=
+    fun y _ hy => by simp [Ne.symm hy]
+  rw [Finset.sum_eq_single la (fun b hb hne => hvan b hb hne)
+    (fun h => absurd (Finset.mem_univ la) h)]
+  simp
 
 end
 
 /-- **Theorem 5.15.1** (Frobenius character formula): The character of the Specht module
-V_λ at a permutation σ with cycle type i = (i₁, i₂, ...) equals `sign(rev)` times
-the coefficient of x^{λ+ρ} in V(x) · ∏_{m≥1} p_m(x)^{i_m}, where
-V(x) = `vandermondePoly` = ∏_{i<j}(xⱼ-xᵢ), ρ = (n-1, ..., 1, 0), and p_m is the
-power sum symmetric polynomial. The sign factor `sign(Fin.revPerm) = (-1)^{n(n-1)/2}`
-corrects for the convention difference: the book uses the alternant a_ρ = ∏_{i<j}(xᵢ-xⱼ),
-which equals `sign(rev) · vandermondePoly`.
+V_λ at a permutation σ with cycle type i = (i₁, i₂, ...) equals sign(rev) times the
+coefficient of x^{λ+ρ} in Δ(x) · ∏_{m≥1} p_m(x)^{i_m}, where Δ is the Vandermonde
+polynomial, ρ = (n-1, ..., 1, 0), and p_m is the power sum symmetric polynomial.
+
+The sign(rev) factor arises because `vandermondePoly` uses `∏_{i<j}(x_j - x_i)`
+(Mathlib convention), while the book uses `∏_{i<j}(x_i - x_j)`.
 (Etingof Theorem 5.15.1) -/
 theorem Theorem5_15_1
     (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
-    spechtModuleCharacter n la σ =
-      (Equiv.Perm.sign (Fin.revPerm (n := n)) : ℤ) •
-        MvPolynomial.coeff (Nat.Partition.toFinsupp la + rhoShift n)
-          (vandermondePoly n * cycleTypePsumProduct n σ) := by
+    (Equiv.Perm.sign (Fin.revPerm (n := n)) : ℤ) • spechtModuleCharacter n la σ =
+      MvPolynomial.coeff (Nat.Partition.toFinsupp la + rhoShift n)
+        (vandermondePoly n * cycleTypePsumProduct n σ) := by
   rw [spechtCharacter_eq_alternating_sum_permCharacter,
       coeff_vandermonde_mul]
 

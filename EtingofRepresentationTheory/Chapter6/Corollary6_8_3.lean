@@ -119,6 +119,36 @@ end SimpleAtIso
 
 section ReflectionFunctorChain
 
+/-- Two indecomposable representations with dimension vector equal to a simple root αₚ
+are isomorphic, provided there are no self-loops at p.
+
+This is the base case of the reflection functor chain: when d(V) = αₚ,
+V has finrank 1 at p and 0 elsewhere (i.e., V is simple at p).
+Two representations simple at the same vertex are isomorphic by `simpleAt_iso`. -/
+private lemma Etingof.indecomposable_simpleRoot_iso
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (_hDynkin : Etingof.IsDynkinDiagram n adj)
+    {k : Type*} [Field k]
+    {Q : Quiver (Fin n)}
+    (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
+    [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
+    [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)]
+    (p : Fin n)
+    (hNoSelfLoop : IsEmpty (@Quiver.Hom (Fin n) Q p p))
+    (hd₁ : ∀ v, (Module.finrank k (ρ₁.obj v) : ℤ) = Etingof.simpleRoot n p v)
+    (hd₂ : ∀ v, (Module.finrank k (ρ₂.obj v) : ℤ) = Etingof.simpleRoot n p v) :
+    Nonempty (@Etingof.QuiverRepresentation.Iso k _ (Fin n) Q ρ₁ ρ₂) := by
+  -- Both are simple at p
+  have h₁s : ρ₁.IsSimpleAt p := by
+    refine ⟨?_, fun j hj => ?_⟩
+    · have := hd₁ p; simp [Etingof.simpleRoot] at this; omega
+    · have := hd₁ j; simp [Etingof.simpleRoot, show p ≠ j from Ne.symm hj] at this; omega
+  have h₂s : ρ₂.IsSimpleAt p := by
+    refine ⟨?_, fun j hj => ?_⟩
+    · have := hd₂ p; simp [Etingof.simpleRoot] at this; omega
+    · have := hd₂ j; simp [Etingof.simpleRoot, show p ≠ j from Ne.symm hj] at this; omega
+  exact Etingof.simpleAt_iso ρ₁ ρ₂ p hNoSelfLoop h₁s h₂s
+
 /-- Iterated reflection functors reduce an indecomposable representation to a simple
 representation, following the reflection sequence from Theorem 6.8.1.
 
@@ -131,17 +161,26 @@ and ρ can be recovered (up to isomorphism) by applying the inverse functors.
 More precisely: if F_{i₁}⁺ ∘ ⋯ ∘ F_{iₖ}⁺ reduces ρ to a simple representation,
 then ρ ≅ F_{iₖ}⁻ ∘ ⋯ ∘ F_{i₁}⁻ applied to that simple representation.
 
-This lemma encapsulates the entire reflection functor chain argument:
-1. At each step, Proposition 6.6.5 ensures surjectivity/injectivity
-2. The dimension vector changes by the corresponding simple reflection
-3. At the end, the representation is simple at vertex p
-4. Proposition 6.6.6 provides the inverse functors to recover ρ
+## Blockers
 
-This requires significant infrastructure not yet formalized:
-- Connecting integer-level simple reflections to representation-level reflection functors
-- Showing reflection functors change dimension vectors by simple reflections
-- Iterated application of reflection functors (each step changes the quiver)
-- Preserving indecomposability through the functor chain -/
+This lemma requires infrastructure not yet formalized:
+
+1. **Quiver-adjacency connection**: The signature has no hypothesis connecting
+   the quiver Q to the adjacency matrix adj. Without this, we cannot derive
+   that vertices in the reflection sequence are sinks/sources in the appropriate
+   reversed quivers, nor that there are no self-loops (needed for the base case).
+
+2. **Type-changing iteration**: Each reflection functor application changes the
+   quiver from Q to `reversedAtVertex Q i`. Iterating this produces a chain of
+   different quiver types, making induction on `vertices` extremely challenging
+   in Lean's type system.
+
+3. **`Proposition6_6_7_source` (sorry'd)**: Preserving indecomposability through
+   source reflection functors is not yet proven.
+
+4. **Dimension vector tracking**: Proposition 6.6.8 connects finrank to simple
+   reflections, but composing this through an iterated chain requires careful
+   bookkeeping across type-changing quivers. -/
 private lemma Etingof.reflectionFunctors_reduce_and_recover
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
@@ -166,18 +205,33 @@ section TitsFormBound
 /-- The Tits form of the dimension vector of an indecomposable representation of a
 Dynkin quiver satisfies B(d, d) ≤ 2.
 
-The full proof requires Ringel's homological formula:
-  dim Hom(V, V) - dim Ext¹(V, V) = ½ B(d(V), d(V))
-For V indecomposable over an algebraically closed field:
-  - dim End(V) = 1 (Schur's lemma for finite-dimensional indecomposables)
-  - dim Ext¹(V, V) ≥ 0
-So 1 ≤ ½ B(d, d), i.e., B(d, d) ≤ 2 + 2·dim Ext¹(V, V).
-Combined with evenness and positive definiteness, this gives B(d, d) = 2
-(since B(d,d) ≥ 2 by posdef_min_value, and the Ext term would force B > 2
-only if dim Ext¹ > 0, but for Dynkin quivers Ext¹(V,V) = 0 for indecomposables).
+## Proof strategy (from the book)
 
-This requires homological algebra infrastructure (Ext groups for quiver
-representations) not yet formalized in this project. -/
+The proof uses Ringel's homological formula for hereditary algebras:
+  dim Hom(V, V) - dim Ext¹(V, V) = ½ B(d(V), d(V))
+
+For V indecomposable over an algebraically closed field k:
+  - dim End(V) = 1 by Schur's lemma (End(V) is a local algebra with
+    End(V)/rad(End(V)) ≅ k, and for finite-dimensional indecomposables
+    over algebraically closed fields, End(V) ≅ k)
+  - dim Ext¹(V, V) ≥ 0
+
+This gives ½ B(d, d) = 1 - dim Ext¹(V, V) ≤ 1, so B(d, d) ≤ 2.
+
+## Blockers
+
+1. **Ext groups**: No formalization of Ext¹ for quiver representations
+   (or more generally for modules over path algebras) exists in this project
+   or in Mathlib.
+
+2. **Homological formula**: The identity relating Hom, Ext¹, and the Euler/Tits
+   form requires the path algebra to be hereditary (global dimension ≤ 1),
+   which requires showing quivers without oriented cycles have hereditary
+   path algebras.
+
+3. **Schur's lemma variant**: While Schur's lemma for simple modules is standard,
+   the result that End(V) ≅ k for indecomposable finite-dimensional V over an
+   algebraically closed field requires the Fitting lemma / Krull-Schmidt theory. -/
 private lemma Etingof.indecomposable_titsForm_le_two
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (_hDynkin : Etingof.IsDynkinDiagram n adj)
