@@ -869,6 +869,42 @@ When the project uses a custom representation (e.g., list-based paths, adjacency
 
 This proved `dynkin_edge_count` by converting adjacency matrices to `SimpleGraph` and leveraging Mathlib's connected graph theory.
 
+## Issue Feasibility Triage (Before Committing to Work)
+
+Before spending a full session on an issue, spend 10-15 minutes on feasibility triage:
+
+### Step 1: Check sorry count and location
+```bash
+grep -n "sorry" <target-file>.lean | head -20
+```
+Count the sorries. If the issue claims "1 sorry remains" but the file has 5, the issue is stale.
+
+### Step 2: Identify the mathematical core
+Read the blob (`blobs/<Chapter>/<Item>.md`) and identify what mathematical result is needed. Ask:
+- Is this a computation (finite cases, arithmetic)? → Likely Tier 1
+- Does it need a named theorem not in Mathlib (Krull-Schmidt, Schur-Weyl)? → Likely Tier 3
+- Is it standard algebra/linear algebra with Mathlib API? → Likely Tier 1-2
+
+### Step 3: Check for known dead-ends
+Search the "Known Dead-Ends" section above. If the proof touches `Decidable.casesOn` in Ch6, `ExteriorAlgebra ↔ PiTensorProduct`, or `SchurModule`, it's blocked.
+
+### Step 4: Verify infrastructure exists
+For each dependency the proof needs:
+```bash
+grep -rn "theorem <dep_name>\|def <dep_name>" EtingofRepresentationTheory/
+```
+If a dependency is sorry'd, that's OK (sorry acts as axiom). But if a dependency doesn't exist at all, you need to build it — factor that into your time estimate.
+
+### Step 5: Skip or decompose if needed
+- If blocked → `coordination skip <N> "reason"` immediately
+- If too large → decompose into sub-issues (see agent-worker-flow Step 4b)
+- If feasible → proceed with confidence
+
+**Common triage mistakes:**
+- Spending 2 hours before realizing a theorem needs Krull-Schmidt
+- Not checking if the issue's sorry count matches reality (other agents may have merged changes)
+- Assuming a "1 sorry" issue is easy — the sorry may hide a 200-line proof
+
 ## Common Failure Modes
 
 From Phase 2 review patterns and Stage 3.2 proof experience (110+ merged PRs through wave 20):
@@ -904,33 +940,30 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 23)
-The project has ~193/583 items sorry-free (~33%), with 91 remaining sorries across 30 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
+### Current Status (as of Wave 24)
+The project has ~193/583 items sorry-free (~33%), with 84 remaining sorries across 29 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (48 sorries — 53% of all remaining). Ch6 has 31 sorries with Dynkin classification and reflection functor work progressing. Ch9 has 9 sorries. Ch2 has 3 sorries.
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (45 sorries — 54% of all remaining). Ch6 has 27 sorries with Dynkin classification and reflection functor work progressing. Ch9 has 9 sorries. Ch2 has 3 sorries.
 
-**Sorry feasibility breakdown (wave 23 audit):**
-- **Tractable (T):** 10 sorries — standard math, Mathlib APIs exist, just needs effort
-- **Hard (H):** 15 sorries — non-trivial proofs requiring novel approaches but mathematically clear
-- **Blocked (B):** 29 sorries — missing Mathlib infrastructure or known dead-ends
-- **Arithmetic (A):** 24 sorries — finite computation/case analysis, tedious but mechanical
-- **Remaining 13:** mixed across 1-2 sorry files
+**Sorry tiered breakdown (wave 24 audit — see `progress/sorry-landscape.md` for details):**
+- **Tier 1 — Achievable:** 8 sorries (10%) — standard math, Mathlib APIs exist (Example6_4_9_Dn, Problem6_9_1)
+- **Tier 2 — Hard but tractable:** 14 sorries (17%) — non-trivial but clear mathematical path (Theorem5_15_1, Lemma5_25_3, PolytabloidBasis, FRTHelpers, Dynkin classification)
+- **Tier 3 — Blocked on infrastructure:** ~50 sorries (60%) — missing Mathlib or project infrastructure
+- **Unclassified / mixed:** ~12 sorries (14%)
 
-**Major blockers (29 blocked sorries):**
-1. **SchurModule infrastructure** (3 files, ~12 sorries): AlgIrrepGL, Peter-Weyl for GL(V), Frobenius formula
-2. **Quiver representation machinery** (6 files, ~12 sorries): reflection functors, Gabriel's theorem, Decidable.casesOn wall
-3. **Mackey machine/Clifford theory** (1 file, 5 sorries): Theorem 5.27.1 semidirect product orbit method
+**Major blocker clusters (Tier 3):**
+1. **SchurModule** (~23 sorries, 27% of total): Mega-blocker. `SchurModule k N lam` is sorry'd, blocking AlgIrrepGL, Peter-Weyl for GL(V), Frobenius formula, Schur-Weyl duality
+2. **Gabriel's theorem / Decidable.casesOn** (~10 sorries): Reflection functor round-trip blocked by match-vs-cast opacity. **Highest-leverage fix: refactor `reversedArrow_eq_ne` in Definition6_6_3.lean to use `cast` internally**
+3. **Krull-Schmidt theorem** (9 sorries): Theorem9_2_1 parts ii+iii. Self-contained ~400-line project, no dependency on other blockers
+4. **Mackey machine / Clifford theory** (~5 sorries): Theorem 5.27.1 semidirect product orbit method
+5. **Complete reducibility extensions** (~3 sorries): Burnside, Schur extensions
 
-**Best ROI targets:** The 10 tractable sorries (Theorem9_2_1, Theorem6_5_2, Proposition5_19_1, FRTHelpers, Proposition5_21_1, Corollary9_7_3) and 24 arithmetic sorries (Example6_4_9_An/Dn root counting, Corollary5_19_2, various verifications).
+**Best ROI targets:**
+1. Example6_4_9_Dn (7 arithmetic sorries — single session, purely mechanical)
+2. Definition6_6_3 refactor (unblocks ~10 Gabriel's theorem sorries)
+3. Problem6_9_1 ker_sum_le_one (1 sorry, infrastructure already built)
+4. Krull-Schmidt theorem (unblocks 9 Ch9 sorries, self-contained)
 
-**Wave 18-23 highlights:**
-- Sorry count fluctuated: 104 (wave 17) → ~70 (wave 20) → 91 (wave 23, includes new scaffolding)
-- Key proofs merged: Theorem 2.1.1(i), Theorem 5.14.3, GL2 conjugacy class cardinalities, Dynkin classification skeleton, complementaryChar_parabolic_val structure, hook walk weight WF recursion
-- Polytabloid basis infrastructure + Lemma 5.25.3 decomposed into well-specified sub-sorries
-- Hook quotient identity decomposed into sub-issues (#1383-#1386)
-- Corollary 6.8.4 reduced from 3 inline sorries to 1
-- Theorem 5.15.1 rearrangement inequality structure proved
+**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (SchurModule, Mackey machine, quiver representations) or deep combinatorial identities (hook length formula, alternating Kostka). Tier 1 arithmetic sorries represent the highest-ROI targets.
 
-**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (SchurModule, Mackey machine, quiver representations) or deep combinatorial identities (hook length formula, alternating Kostka). Arithmetic sorries represent the highest-ROI targets.
-
-**Key velocity insight from waves 9-20:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem (29 across waves 15-17 alone).
+**Key velocity insight from waves 9-24:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
