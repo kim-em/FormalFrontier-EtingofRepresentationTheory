@@ -65,6 +65,58 @@ The proof of Theorem 9.2.1(i) proceeds by:
 
 namespace Etingof.Theorem921
 
+/-- Any nontrivial finitely generated module over an artinian ring has a maximal (coatom)
+submodule, giving a simple quotient. Uses Hopkins-Levitzki: f.g. over artinian ⟹ noetherian
+⟹ WellFoundedGT ⟹ coatomic.
+This is needed for Theorem 9.2.1(iii): an indecomposable projective has a simple quotient. -/
+theorem exists_isCoatom_submodule
+    {R : Type*} [Ring R] [IsArtinianRing R]
+    {M : Type*} [AddCommGroup M] [Module R M] [Module.Finite R M] [Nontrivial M] :
+    ∃ (N : Submodule R M), IsCoatom N := by
+  -- Hopkins-Levitzki: f.g. over artinian ⟹ noetherian
+  haveI : IsNoetherian R M := ((IsArtinianRing.tfae R M).out 0 1).mp ‹Module.Finite R M›
+  -- Noetherian ⟹ WellFoundedGT on submodules ⟹ coatomic
+  haveI : WellFoundedGT (Submodule R M) := isNoetherian_iff'.mp inferInstance
+  haveI : IsCoatomic (Submodule R M) :=
+    isCoatomic_of_orderTop_gt_wellFounded (wellFounded_gt)
+  obtain h | ⟨N, hN_coatom, _⟩ := IsCoatomic.eq_top_or_exists_le_coatom (⊥ : Submodule R M)
+  · exact absurd h bot_ne_top
+  · exact ⟨N, hN_coatom⟩
+
+/-- Any nontrivial f.g. module Q over an artinian ring with an exhaustive family of simples M_i
+has a nonzero A-linear map to some M_{j₀}. The quotient Q/N by a coatom N is simple,
+hence isomorphic to some M_{j₀}, and the composition Q → Q/N ≅ M_{j₀} is nonzero.
+This is the key step in Theorem 9.2.1(iii) that does NOT need #1487. -/
+theorem exists_nonzero_hom_to_simple
+    {R : Type u} [Ring R] [IsArtinianRing R]
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (M : ι → Type v) [∀ i, AddCommGroup (M i)] [∀ i, Module R (M i)]
+    [∀ i, IsSimpleModule R (M i)]
+    (hM_exhaustive : ∀ (S : Type v) [AddCommGroup S] [Module R S] [IsSimpleModule R S],
+      ∃ i, Nonempty (S ≃ₗ[R] M i))
+    {Q : Type v} [AddCommGroup Q] [Module R Q] [Module.Finite R Q] [Nontrivial Q] :
+    ∃ (j₀ : ι) (f : Q →ₗ[R] M j₀), f ≠ 0 := by
+  -- Q has a maximal submodule N (coatom), giving a simple quotient Q/N
+  obtain ⟨N, hN_coatom⟩ := exists_isCoatom_submodule (R := R) (M := Q)
+  -- Q/N is simple (coatom ↔ simple quotient)
+  haveI : IsSimpleModule R (Q ⧸ N) := isSimpleModule_iff_isCoatom.mpr hN_coatom
+  -- Q/N is isomorphic to some M_{j₀}
+  obtain ⟨j₀, ⟨e⟩⟩ := hM_exhaustive (Q ⧸ N)
+  -- The composition Q → Q/N ≅ M_{j₀} is nonzero
+  refine ⟨j₀, e.toLinearMap.comp N.mkQ, ?_⟩
+  intro h
+  -- If the composition is zero, then the image of mkQ in M_{j₀} is zero for all q
+  have hzero : ∀ q : Q, e (N.mkQ q) = 0 := fun q => by
+    have := LinearMap.congr_fun h q
+    simpa using this
+  -- This means mkQ = 0 (e is injective)
+  have hmkQ : ∀ q : Q, N.mkQ q = 0 := fun q => by
+    have := hzero q; rwa [map_eq_zero_iff e e.injective] at this
+  -- mkQ q = 0 means q ∈ N for all q, i.e., N = ⊤
+  exact hN_coatom.1 (Submodule.eq_top_iff'.mpr fun q => by
+    specialize hmkQ q
+    rwa [Submodule.mkQ_apply, Submodule.Quotient.mk_eq_zero] at hmkQ)
+
 /-- Over a simple artinian ring, any two simple modules are isomorphic.
 This follows from `IsSimpleRing.isIsotypic`: all simple submodules of any module
 are isomorphic, applied to the direct product M × N. -/
@@ -857,6 +909,44 @@ lemma leftIdeal_finite (e : A) :
     Module.Finite A ↥(Submodule.span A ({e} : Set A)) :=
   inferInstance
 
+/-- Conjugate idempotents give isomorphic left ideals as A-modules.
+If u * e₁ * u⁻¹ = e₂, then A·e₁ ≅ A·e₂ via right multiplication by u⁻¹.
+Key: a * e₁ * u⁻¹ = (a * u⁻¹) * e₂ and b * e₂ * u = (b * u) * e₁. -/
+def leftIdeal_equiv_of_conjugate
+    (e₁ e₂ : A) (u : Aˣ) (hconj : ↑u * e₁ * ↑u⁻¹ = e₂) :
+    ↥(Submodule.span A ({e₁} : Set A)) ≃ₗ[A]
+    ↥(Submodule.span A ({e₂} : Set A)) where
+  toFun := fun ⟨x, hx⟩ => by
+    refine ⟨x * ↑u⁻¹, ?_⟩
+    rw [Submodule.mem_span_singleton] at hx ⊢
+    obtain ⟨a, rfl⟩ := hx
+    refine ⟨a * ↑u⁻¹, ?_⟩
+    simp only [smul_eq_mul]
+    -- Goal: (a * ↑u⁻¹) * e₂ = a * e₁ * ↑u⁻¹
+    rw [← hconj]
+    -- Goal: (a * ↑u⁻¹) * (↑u * e₁ * ↑u⁻¹) = a * e₁ * ↑u⁻¹
+    simp only [← mul_assoc]
+    rw [show a * ↑u⁻¹ * ↑u = a from by rw [mul_assoc, Units.inv_mul, mul_one]]
+  invFun := fun ⟨y, hy⟩ => by
+    refine ⟨y * ↑u, ?_⟩
+    rw [Submodule.mem_span_singleton] at hy ⊢
+    obtain ⟨b, rfl⟩ := hy
+    refine ⟨b * ↑u, ?_⟩
+    simp only [smul_eq_mul]
+    -- Goal: (b * ↑u) * e₁ = b * e₂ * ↑u
+    rw [← hconj]
+    simp only [← mul_assoc]
+    rw [show b * ↑u * e₁ * ↑u⁻¹ * ↑u = b * ↑u * e₁ from by
+      rw [mul_assoc (b * ↑u * e₁), Units.inv_mul, mul_one]]
+  left_inv := fun ⟨x, _⟩ => by
+    ext; show x * ↑u⁻¹ * ↑u = x
+    rw [mul_assoc, Units.inv_mul, mul_one]
+  right_inv := fun ⟨y, _⟩ => by
+    ext; show y * ↑u * ↑u⁻¹ = y
+    rw [mul_assoc, Units.mul_inv, mul_one]
+  map_add' := fun ⟨x, _⟩ ⟨y, _⟩ => by ext; simp [add_mul]
+  map_smul' := fun r ⟨x, _⟩ => by ext; show r * x * ↑u⁻¹ = r * (x * ↑u⁻¹); rw [mul_assoc]
+
 /-- For complete orthogonal idempotents e₁,...,eₙ in a ring A, the left ideals Aeᵢ form
 an internal direct sum decomposition of A. The canonical map ⨁ᵢ Aeᵢ → A is bijective. -/
 lemma isInternal_leftIdeals_of_completeOrthogonalIdempotents
@@ -908,9 +998,10 @@ lemma isInternal_leftIdeals_of_completeOrthogonalIdempotents
     intro a
     refine ⟨∑ i, DirectSum.of (fun i => ↥(N i)) i
         ⟨a * e i, Submodule.smul_mem _ a (Submodule.subset_span rfl)⟩, ?_⟩
-    simp only [map_sum, DirectSum.coeLinearMap_of, AddSubmonoid.coe_finset_sum,
-      Submodule.coe_toAddSubmonoid]
-    rw [← Finset.mul_sum, he.complete, mul_one]
+    -- Goal reduces to ∑ (a * eᵢ) = a * ∑ eᵢ = a
+    simp only [map_sum, DirectSum.coeAddMonoidHom_of]
+    rw [show ∑ i, a * e i = a * ∑ i, e i from (Finset.mul_sum ..).symm,
+      he.complete, mul_one]
 
 /-- A left ideal A·e is indecomposable if the Hom dimension property holds:
 dim Hom(Ae, Mⱼ) = 0 for all j except exactly one j = i₀ where it equals 1.
@@ -1294,6 +1385,28 @@ theorem Etingof.Theorem_9_2_1_ii
     (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0) :
     Nonempty (A ≃ₗ[A] ⨁ (i : ι), Fin (Module.finrank k (M i)) → P i) := by
+  -- Proof outline (Etingof Theorem 9.2.1(ii)):
+  -- 1. From Part (i), construct primitive idempotents e_i in A (one per block) with
+  --    Ae_i projective, indecomposable, Hom(Ae_i, M_j) = δ_{ij}.
+  -- 2. FULL SYSTEM: Extend to complete orthogonal idempotents {e_{ij}} indexed by
+  --    (i : ι, j : Fin (dim M_i)). In A/J ≅ ∏ Mat_{d(σ(i))}(k), these are the
+  --    E_{jj} diagonal idempotents in each block. The key identity d(σ(i)) = dim(M_i)
+  --    follows from the standard representation of Mat_n(k) having dimension n.
+  -- 3. Lift the full system from A/J to A via Corollary 9.1.3.
+  -- 4. A = ⊕_{i,j} A·e_{ij} by isInternal_leftIdeals_of_completeOrthogonalIdempotents.
+  -- 5. Each A·e_{ij} has Hom(A·e_{ij}, M_k) = δ_{ik} (by finrank_hom_leftIdeal_eq + rank prop).
+  -- 6. Each A·e_{ij} is indecomposable (by leftIdeal_indecomposable_of_hom_delta).
+  -- 7. For fixed i, the e_{ij} are lifts of conjugate idempotents in A/J.
+  --    By Prop 9.1.1(ii), the lifts are conjugate in A×.
+  --    By leftIdeal_equiv_of_conjugate, A·e_{ij} ≅ A·e_{i1} for all j.
+  -- 8. UNIQUENESS (needs #1487): A·e_{i1} ≅ P_i (both indecomposable projective with
+  --    same Hom dimensions). This uses indecomposable_projective_iso_of_hom.
+  -- 9. Combine: A ≅ ⊕_i (dim M_i · A·e_{i1}) ≅ ⊕_i (dim M_i · P_i).
+  --
+  -- Infrastructure needed:
+  -- (a) Full system of primitive idempotents (step 2) — new construction
+  -- (b) d(σ(i)) = finrank_k(M_i) — dimension matching
+  -- (c) Uniqueness of projective covers (step 8) — issue #1487
   sorry
 
 /-- **Theorem 9.2.1(iii)**: Completeness of the projective cover classification.
@@ -1322,23 +1435,14 @@ theorem Etingof.Theorem_9_2_1_iii
     (Q : Type*) [AddCommGroup Q] [Module A Q]
     [Module.Projective A Q] [Module.Finite A Q] (hQ_indec : Etingof.IsIndecomposable A Q) :
     ∃ i, Nonempty (Q ≃ₗ[A] P i) := by
-  -- Proof outline (see GitHub issue for blockers):
-  -- (1) Embed Q into (Fin n → A) via finite generation + projectivity splitting
-  -- (2) Work with the image W ≅ Q in Type uA
-  -- (3) W has a simple quotient ≅ M_{j₀} (via hM_exhaustive in Type uA)
-  -- (4) P_{j₀} surjects onto M_{j₀} (from dim Hom = 1)
-  -- (5) Lift W → P_{j₀} via projectivity, show surjective via Nakayama
-  -- (6) Split using projectivity of P_{j₀}, use indecomposability to get W ≅ P_{j₀}
-  -- (7) Q ≅ W ≅ P_{j₀}
+  -- Proof strategy: Q has a simple quotient M_{j₀}, so Hom(Q, M_{j₀}) ≠ 0.
+  -- By uniqueness of projective covers (issue #1487), any indecomposable projective
+  -- with nonzero Hom to M_{j₀} must be isomorphic to P_{j₀}.
   --
-  -- Blockers:
-  -- (a) Universe issue: Q : Type* while hM_exhaustive requires Type uA.
-  --     Workaround: embed Q into (Fin n → A) : Type uA and work with the image.
-  --     This requires building the explicit surjection and splitting.
-  -- (b) Surjectivity via Nakayama: showing the lift is surjective requires
-  --     ker(π) = Rad(A)·P (unique maximal submodule of indecomposable projective),
-  --     which requires Fitting's lemma or the local endomorphism ring property.
-  -- (c) Both (a) and (b) require substantial infrastructure not in Mathlib:
-  --     non-commutative module decomposition from idempotents, uniqueness of
-  --     projective covers, local endomorphism ring of indecomposable modules.
+  -- The key sorry below is the uniqueness of projective covers:
+  -- "indecomposable projective with Hom(Q, M_j) ≠ 0 implies Q ≅ P_j"
+  -- This requires Fitting's lemma / local endomorphism ring (issue #1487).
+  --
+  -- Universe issue: Q : Type* while hM_exhaustive requires Type uA.
+  -- We work around this by embedding Q into A^n (Type uA) via projectivity.
   sorry
