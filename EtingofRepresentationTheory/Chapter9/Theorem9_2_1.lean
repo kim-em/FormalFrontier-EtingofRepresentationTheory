@@ -857,6 +857,44 @@ lemma leftIdeal_finite (e : A) :
     Module.Finite A ↥(Submodule.span A ({e} : Set A)) :=
   inferInstance
 
+/-- Conjugate idempotents give isomorphic left ideals as A-modules.
+If u * e₁ * u⁻¹ = e₂, then A·e₁ ≅ A·e₂ via right multiplication by u⁻¹.
+Key: a * e₁ * u⁻¹ = (a * u⁻¹) * e₂ and b * e₂ * u = (b * u) * e₁. -/
+def leftIdeal_equiv_of_conjugate
+    (e₁ e₂ : A) (u : Aˣ) (hconj : ↑u * e₁ * ↑u⁻¹ = e₂) :
+    ↥(Submodule.span A ({e₁} : Set A)) ≃ₗ[A]
+    ↥(Submodule.span A ({e₂} : Set A)) where
+  toFun := fun ⟨x, hx⟩ => by
+    refine ⟨x * ↑u⁻¹, ?_⟩
+    rw [Submodule.mem_span_singleton] at hx ⊢
+    obtain ⟨a, rfl⟩ := hx
+    refine ⟨a * ↑u⁻¹, ?_⟩
+    simp only [smul_eq_mul]
+    -- Goal: (a * ↑u⁻¹) * e₂ = a * e₁ * ↑u⁻¹
+    rw [← hconj]
+    -- Goal: (a * ↑u⁻¹) * (↑u * e₁ * ↑u⁻¹) = a * e₁ * ↑u⁻¹
+    simp only [← mul_assoc]
+    rw [show a * ↑u⁻¹ * ↑u = a from by rw [mul_assoc, Units.inv_mul, mul_one]]
+  invFun := fun ⟨y, hy⟩ => by
+    refine ⟨y * ↑u, ?_⟩
+    rw [Submodule.mem_span_singleton] at hy ⊢
+    obtain ⟨b, rfl⟩ := hy
+    refine ⟨b * ↑u, ?_⟩
+    simp only [smul_eq_mul]
+    -- Goal: (b * ↑u) * e₁ = b * e₂ * ↑u
+    rw [← hconj]
+    simp only [← mul_assoc]
+    rw [show b * ↑u * e₁ * ↑u⁻¹ * ↑u = b * ↑u * e₁ from by
+      rw [mul_assoc (b * ↑u * e₁), Units.inv_mul, mul_one]]
+  left_inv := fun ⟨x, _⟩ => by
+    ext; show x * ↑u⁻¹ * ↑u = x
+    rw [mul_assoc, Units.inv_mul, mul_one]
+  right_inv := fun ⟨y, _⟩ => by
+    ext; show y * ↑u * ↑u⁻¹ = y
+    rw [mul_assoc, Units.mul_inv, mul_one]
+  map_add' := fun ⟨x, _⟩ ⟨y, _⟩ => by ext; simp [add_mul]
+  map_smul' := fun r ⟨x, _⟩ => by ext; show r * x * ↑u⁻¹ = r * (x * ↑u⁻¹); rw [mul_assoc]
+
 /-- For complete orthogonal idempotents e₁,...,eₙ in a ring A, the left ideals Aeᵢ form
 an internal direct sum decomposition of A. The canonical map ⨁ᵢ Aeᵢ → A is bijective. -/
 lemma isInternal_leftIdeals_of_completeOrthogonalIdempotents
@@ -908,9 +946,10 @@ lemma isInternal_leftIdeals_of_completeOrthogonalIdempotents
     intro a
     refine ⟨∑ i, DirectSum.of (fun i => ↥(N i)) i
         ⟨a * e i, Submodule.smul_mem _ a (Submodule.subset_span rfl)⟩, ?_⟩
-    simp only [map_sum, DirectSum.coeLinearMap_of, AddSubmonoid.coe_finset_sum,
-      Submodule.coe_toAddSubmonoid]
-    rw [← Finset.mul_sum, he.complete, mul_one]
+    -- Goal reduces to ∑ (a * eᵢ) = a * ∑ eᵢ = a
+    simp only [map_sum, DirectSum.coeAddMonoidHom_of]
+    rw [show ∑ i, a * e i = a * ∑ i, e i from (Finset.mul_sum ..).symm,
+      he.complete, mul_one]
 
 /-- A left ideal A·e is indecomposable if the Hom dimension property holds:
 dim Hom(Ae, Mⱼ) = 0 for all j except exactly one j = i₀ where it equals 1.
