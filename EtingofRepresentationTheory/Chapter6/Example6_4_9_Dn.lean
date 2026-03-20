@@ -171,20 +171,259 @@ private lemma Dn_qform_peel (m : ℕ) (hm : 4 ≤ m) (x : Fin (m + 1) → ℤ) :
       ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
         (Etingof.DynkinType.D m hm).adj).mulVec (x ∘ Fin.succ)) +
     2 * x 0 ^ 2 - 2 * x 0 * x ⟨1, by omega⟩ := by
-  sorry
+  -- Expand dotProduct/mulVec into sums
+  simp only [dotProduct, mulVec, Function.comp, Fin.sum_univ_succ]
+  -- Substitute all Cartan matrix entries
+  simp only [Dn_cartan_zero_zero m hm, Dn_cartan_zero_succ m hm,
+    Dn_cartan_succ_zero m hm, Dn_cartan_succ_succ m hm]
+  -- Simplify ite expressions
+  simp only [ite_mul, one_mul, zero_mul, neg_mul, mul_ite, mul_one, mul_zero, mul_neg]
+  -- Convert i.val = 0 conditions to i = ⟨0, _⟩
+  have hconv : ∀ (i : Fin m) (a b : ℤ),
+      (if i.val = 0 then a else b) = if i = ⟨0, by omega⟩ then a else b := by
+    intro i a b; congr 1; exact propext ⟨fun h => Fin.ext h, fun h => congr_arg _ h⟩
+  simp_rw [hconv]
+  -- Reduce ite sums to single terms
+  simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  have hx1 : Fin.succ (⟨0, by omega⟩ : Fin m) = (⟨1, by omega⟩ : Fin (m + 1)) := by
+    ext; simp
+  simp only [hx1]
+  -- Distribute multiplication over addition in the sum
+  simp_rw [mul_add, Finset.sum_add_distrib]
+  -- Extract the ite sum
+  have hite : ∑ i : Fin m, x i.succ * (if i = ⟨0, by omega⟩ then -x 0 else 0) =
+      -x ⟨1, by omega⟩ * x 0 := by
+    rw [Finset.sum_eq_single_of_mem ⟨0, by omega⟩ (Finset.mem_univ _)
+      (fun b _ hb => by simp [hb])]
+    simp
+  linarith [hite, sq (x 0)]
+
+/-- Strengthened: q_{D_n}(x) ≥ (x ⟨0, _⟩)² and q > 0 for nonzero x. -/
+private lemma Dn_qform_ge_sq_and_posDef : ∀ (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ),
+    (x ⟨0, by omega⟩) ^ 2 ≤ dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.D n hn).adj).mulVec x) ∧
+    (x ≠ 0 → 0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.D n hn).adj).mulVec x)) := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hm x
+    set q := dotProduct x ((2 • (1 : Matrix (Fin (m + 1)) (Fin (m + 1)) ℤ) -
+      (Etingof.DynkinType.D (m + 1) hm).adj).mulVec x)
+    by_cases hm4 : m = 3
+    · subst hm4
+      have hsos := D4_sos (x 0) (x 1) (x 2) (x 3)
+      have hqf := D4_qf x
+      have hq_eq : q = 2*(x 0^2+x 1^2+x 2^2+x 3^2) -
+          2*(x 0*x 1+x 1*x 2+x 1*x 3) := hqf
+      have hsos2 : 2 * q = (2*x 0-x 1)^2 + (2*x 2-x 1)^2 +
+          (2*x 3-x 1)^2 + x 1^2 := by linarith
+      constructor
+      · -- 2q - 2x₀² = 2(x₀-x₁)² + (2x₂-x₁)² + (2x₃-x₁)² ≥ 0
+        show (x 0) ^ 2 ≤ q
+        nlinarith [hsos2, sq_nonneg (x 0 - x 1), sq_nonneg (2 * x 2 - x 1),
+          sq_nonneg (2 * x 3 - x 1)]
+      · intro hne
+        show 0 < q
+        by_cases h1 : x 1 = 0
+        · -- x₁ = 0: 2q = 4(x₀²+x₂²+x₃²)
+          have : x 0 ≠ 0 ∨ x 2 ≠ 0 ∨ x 3 ≠ 0 := by
+            by_contra h; push_neg at h; apply hne; ext i; fin_cases i <;> simp_all
+          simp only [h1, mul_zero, sub_zero, zero_mul, add_zero, sq_abs] at hsos2
+          rcases this with h | h | h <;>
+            nlinarith [sq_nonneg (x 0), sq_nonneg (x 2), sq_nonneg (x 3),
+              mul_self_pos.mpr h]
+        · -- x₁ ≠ 0: x₁² > 0
+          have := mul_self_pos.mpr h1
+          nlinarith [sq_nonneg (2 * x 0 - x 1), sq_nonneg (2 * x 2 - x 1),
+            sq_nonneg (2 * x 3 - x 1)]
+    · have hm' : 4 ≤ m := by omega
+      have hpeel := Dn_qform_peel m hm' x
+      set tail := x ∘ Fin.succ with htail_def
+      set q_tail := dotProduct tail ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+        (Etingof.DynkinType.D m hm').adj).mulVec tail)
+      have htail0 : tail ⟨0, by omega⟩ = x ⟨1, by omega⟩ := by
+        simp [htail_def]
+      have hih := ih hm' tail
+      rw [htail0] at hih
+      have hq_eq : q = q_tail + 2 * x ⟨0, by omega⟩ ^ 2 -
+          2 * x ⟨0, by omega⟩ * x ⟨1, by omega⟩ := hpeel
+      constructor
+      · -- q(x) ≥ x₀²
+        -- q = q_tail + 2x₀² - 2x₀x₁, q_tail ≥ x₁²
+        -- q - x₀² = q_tail - x₁² + x₀² + (x₀-x₁)² ≥ 0
+        nlinarith [hih.1, sq_nonneg (x ⟨0, by omega⟩ - x ⟨1, by omega⟩)]
+      · intro hne
+        by_cases hx0 : x ⟨0, by omega⟩ = 0
+        · -- x₀ = 0: tail must be nonzero, use IH for positivity
+          have htail_ne : tail ≠ 0 := by
+            intro h; apply hne; ext i
+            by_cases hi : i = ⟨0, by omega⟩
+            · rw [hi]; exact hx0
+            · have hiv : i.val ≠ 0 := fun heq => hi (Fin.ext heq)
+              have : ∃ j : Fin m, i = j.succ :=
+                ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+              obtain ⟨j, rfl⟩ := this
+              exact congr_fun h j
+          nlinarith [hih.2 htail_ne, sq_nonneg (x ⟨1, by omega⟩)]
+        · -- x₀ ≠ 0: use q ≥ x₀² > 0
+          have hx0_pos := mul_self_pos.mpr hx0
+          nlinarith [hih.1, sq_nonneg (x ⟨0, by omega⟩ - x ⟨1, by omega⟩)]
 
 /-- Positive definiteness of the D_n Cartan form: q(x) > 0 for nonzero x. -/
 private lemma Dn_posDef (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ) (hx : x ≠ 0) :
     0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
       (Etingof.DynkinType.D n hn).adj).mulVec x) :=
-  sorry
+  (Dn_qform_ge_sq_and_posDef n hn x).2 hx
+
+/-- Cascade bound: if q = 2·(x 0) with x 0 ≤ 2 and positive coords, all coords < 3. -/
+private lemma Dn_cascade_bound : ∀ (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ),
+    dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+      (Etingof.DynkinType.D n hn).adj).mulVec x) = 2 * x ⟨0, by omega⟩ →
+    x ⟨0, by omega⟩ ≤ 2 →
+    (∀ i, 0 ≤ x i) → ∀ i, x i < 3 := by
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hm x hq hx0_le hpos
+    by_cases hm4 : m = 3
+    · subst hm4
+      -- D4 base case: 2q = SOS ≤ 8
+      have hsos := D4_sos (x 0) (x 1) (x 2) (x 3)
+      have hqf := D4_qf x
+      -- hq says q = 2*x₀, hqf gives explicit form
+      have hq0 : x ⟨0, by omega⟩ = x 0 := rfl
+      rw [hq0] at hq hx0_le
+      have hsos_bound : (2*x 0-x 1)^2 + (2*x 2-x 1)^2 +
+          (2*x 3-x 1)^2 + x 1^2 ≤ 8 := by nlinarith
+      -- Each SOS term ≤ 8, so each square root ≤ 2 (since 3² = 9 > 8)
+      have hx1 : x 1 ≤ 2 := by nlinarith [sq_nonneg (x 1 - 3)]
+      have hx2 : x 2 ≤ 2 := by nlinarith [sq_nonneg (2*x 2 - x 1 - 3), sq_nonneg (2*x 2 - x 1 + 3)]
+      have hx3 : x 3 ≤ 2 := by nlinarith [sq_nonneg (2*x 3 - x 1 - 3), sq_nonneg (2*x 3 - x 1 + 3)]
+      intro i; fin_cases i <;> simp_all <;> omega
+    · have hm' : 4 ≤ m := by omega
+      have hpeel := Dn_qform_peel m hm' x
+      set tail := x ∘ Fin.succ
+      have htail0 : tail ⟨0, by omega⟩ = x ⟨1, by omega⟩ := by simp [tail]
+      set q_tail := dotProduct tail ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+        (Etingof.DynkinType.D m hm').adj).mulVec tail)
+      have hge := (Dn_qform_ge_sq_and_posDef m hm' tail).1
+      rw [htail0] at hge
+      have hx0 := x ⟨0, by omega⟩
+      by_cases hx0_eq : x ⟨0, by omega⟩ = 0
+      · -- x₀ = 0: q = 0, x = 0
+        have : q_tail = 0 := by nlinarith [hpeel]
+        have htail_zero : tail = 0 := by
+          by_contra h
+          exact absurd this (ne_of_gt ((Dn_qform_ge_sq_and_posDef m hm' tail).2 h))
+        intro i
+        by_cases hi : i = ⟨0, by omega⟩
+        · rw [hi, hx0_eq]; norm_num
+        · have hiv : i.val ≠ 0 := fun heq => hi (Fin.ext heq)
+          have : ∃ j : Fin m, i = j.succ :=
+            ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+          obtain ⟨j, rfl⟩ := this
+          have := congr_fun htail_zero j; simp [tail] at this
+          linarith
+      · -- x₀ ∈ {1, 2}
+        have hx0_pos : 0 < x ⟨0, by omega⟩ := by
+          have h0 := hpos ⟨0, by omega⟩; omega
+        -- q_tail from peel
+        have hpeel' := hpeel; rw [hq, show x (0 : Fin (m + 1)) = x ⟨0, by omega⟩ from rfl] at hpeel'
+        have hq_tail_val : q_tail = 2 * x ⟨0, by omega⟩ -
+            2 * x ⟨0, by omega⟩ ^ 2 + 2 * x ⟨0, by omega⟩ * x ⟨1, by omega⟩ := by
+          linarith [hpeel']
+        -- ge_sq for tail: x₁² ≤ q_tail
+        have hx1_sq : (x ⟨1, by omega⟩) ^ 2 ≤ q_tail := hge
+        -- q = 2·x₀, so q_tail = 2x₀ - 2x₀² + 2x₀x₁ = 2x₀(1 - x₀ + x₁)
+        -- ge_sq: x₁² ≤ 2x₀(1 - x₀ + x₁)
+        -- For x₀ = 1: q_tail = 2x₁. For x₀ = 2: (x₁-2)² ≤ 0, x₁ = 2, q_tail = 4.
+        -- Both: q_tail = 2·x₁ with x₁ ≤ 2.
+        have hx1_bound : x ⟨1, by omega⟩ ≤ 2 := by
+          nlinarith [sq_nonneg (x ⟨1, by omega⟩ - 2)]
+        have hq_tail_cascade : q_tail = 2 * tail ⟨0, by omega⟩ := by
+          rw [htail0]
+          by_cases hx0_1 : x ⟨0, by omega⟩ = 1
+          · nlinarith [hq_tail_val, hx0_1]
+          · have hx0_2 : x ⟨0, by omega⟩ = 2 := by omega
+            have hq_t : q_tail = 4 * x ⟨1, by omega⟩ - 4 := by nlinarith
+            have hx1_eq : x ⟨1, by omega⟩ = 2 := by
+              nlinarith [sq_nonneg (x ⟨1, by omega⟩ - 2)]
+            linarith
+        have htail0_le : tail ⟨0, by omega⟩ ≤ 2 := by rw [htail0]; exact hx1_bound
+        have htail_pos : ∀ i, 0 ≤ tail i := fun i => hpos i.succ
+        have hih_result := ih hm' tail hq_tail_cascade htail0_le htail_pos
+        intro i
+        by_cases hi : i = ⟨0, by omega⟩
+        · rw [hi]; linarith
+        · have hiv : i.val ≠ 0 := fun h => hi (Fin.ext h)
+          have : ∃ j : Fin m, i = j.succ :=
+            ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+          obtain ⟨j, rfl⟩ := this
+          exact hih_result j
 
 /-- All positive roots of D_n have each coordinate < 3.
     Proved by induction: peel off vertex 0, apply IH to D_{n-1}. -/
 private lemma Dn_bound : ∀ (n : ℕ) (hn : 4 ≤ n) (x : Fin n → ℤ),
     Etingof.IsRoot n (Etingof.DynkinType.D n hn).adj x →
     (∀ i, 0 ≤ x i) → ∀ i, x i < 3 := by
-  sorry
+  intro n
+  induction n with
+  | zero => intro hn; omega
+  | succ m ih =>
+    intro hm x hr hpos
+    by_cases hm4 : m = 3
+    · subst hm4; exact D4_bound x hr hpos
+    · have hm' : 4 ≤ m := by omega
+      have hge := (Dn_qform_ge_sq_and_posDef (m + 1) hm x).1
+      have hq := hr.2
+      have hx0_bound : x ⟨0, by omega⟩ ≤ 1 := by nlinarith [sq_nonneg (x ⟨0, by omega⟩ - 1)]
+      have hpeel := Dn_qform_peel m hm' x
+      set tail := x ∘ Fin.succ
+      have htail0 : tail ⟨0, by omega⟩ = x ⟨1, by omega⟩ := by simp [tail]
+      have htail_pos : ∀ i, 0 ≤ tail i := fun i => hpos i.succ
+      -- Helper to lift tail bounds to x bounds
+      suffices h : ∀ j : Fin m, tail j < 3 by
+        intro i
+        by_cases hi : i.val = 0
+        · have : i = ⟨0, by omega⟩ := Fin.ext hi; rw [this]; omega
+        · have : ∃ j : Fin m, i = j.succ :=
+            ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+          obtain ⟨j, rfl⟩ := this; exact h j
+      have hpeel' := hpeel; rw [hq, show x (0 : Fin (m + 1)) = x ⟨0, by omega⟩ from rfl] at hpeel'
+      by_cases hx0 : x ⟨0, by omega⟩ = 0
+      · -- x₀ = 0: tail is a D_m root
+        have hq_tail : dotProduct tail ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+            (Etingof.DynkinType.D m hm').adj).mulVec tail) = 2 := by
+          have h1 : x ⟨0, by omega⟩ ^ 2 = 0 := by rw [hx0]; ring
+          have h2 : x ⟨0, by omega⟩ * x ⟨1, by omega⟩ = 0 := by rw [hx0]; ring
+          linarith [hpeel', h1, h2]
+        have htail_ne : tail ≠ 0 := by
+          intro h; apply hr.1; ext i
+          by_cases hi : i.val = 0
+          · have : i = ⟨0, by omega⟩ := Fin.ext hi; rw [this]; exact hx0
+          · have : ∃ j : Fin m, i = j.succ :=
+              ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
+            obtain ⟨j, rfl⟩ := this; exact congr_fun h j
+        exact ih hm' tail ⟨htail_ne, hq_tail⟩ htail_pos
+      · -- x₀ = 1: use cascade lemma
+        have hx0_1 : x ⟨0, by omega⟩ = 1 := by
+          have h0 := hpos ⟨0, by omega⟩; omega
+        have hq_tail : dotProduct tail ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
+            (Etingof.DynkinType.D m hm').adj).mulVec tail) =
+            2 * tail ⟨0, by omega⟩ := by
+          rw [htail0]
+          have h1 : x ⟨0, by omega⟩ ^ 2 = 1 := by rw [hx0_1]; ring
+          have h2 : x ⟨0, by omega⟩ * x ⟨1, by omega⟩ = x ⟨1, by omega⟩ := by rw [hx0_1]; ring
+          linarith [hpeel', h1, h2]
+        have hge_tail := (Dn_qform_ge_sq_and_posDef m hm' tail).1
+        rw [htail0] at hge_tail
+        have hx1_bound : x ⟨1, by omega⟩ ≤ 2 := by
+          nlinarith [sq_nonneg (x ⟨1, by omega⟩ - 2)]
+        have htail0_le : tail ⟨0, by omega⟩ ≤ 2 := by rw [htail0]; exact hx1_bound
+        exact Dn_cascade_bound m hm' tail hq_tail htail0_le htail_pos
 
 set_option linter.style.nativeDecide false in
 private lemma D4_count :
@@ -201,68 +440,83 @@ private lemma D5_count :
 private lemma Dn_filter_zero_card (m : ℕ) (hm : 4 ≤ m) :
     ((rootCountFinset (m + 1) (Etingof.DynkinType.D (m + 1) (by omega)).adj 3).filter
       (fun v => v 0 = 0)).card =
-    (rootCountFinset m (Etingof.DynkinType.D m hm).adj 3).card := by sorry /-
-  set S := (rootCountFinset (m + 1) (Etingof.DynkinType.D (m + 1) (by omega)).adj 3).filter
-    (fun v => v 0 = 0)
-  set T := rootCountFinset m (Etingof.DynkinType.D m hm).adj 3
-  -- Define the map: drop first coordinate
-  set f : (Fin (m + 1) → Fin 3) → (Fin m → Fin 3) := fun v i => v i.succ
-  -- Define the inverse: prepend 0
-  set g : (Fin m → Fin 3) → (Fin (m + 1) → Fin 3) := fun w => Fin.cons 0 w
-  apply Finset.card_nbij' f g
-  · -- MapsTo f S T
+    (rootCountFinset m (Etingof.DynkinType.D m hm).adj 3).card := by
+  apply Finset.card_nbij' (fun v => v ∘ Fin.succ) (fun w => Fin.cons 0 w)
+  · -- MapsTo forward: v with v₀=0 → tail in D_m roots
     intro v hv
-    simp only [S, Finset.mem_filter] at hv
-    obtain ⟨hvm, hv0⟩ := hv
-    simp only [T, f, rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+    simp only [Finset.mem_coe, Finset.mem_filter] at hv
+    have hmem := hv.1
+    have hv0 : v 0 = 0 := hv.2
+    simp only [Finset.mem_coe, rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
       Bool.and_eq_true, decide_eq_true_eq]
     simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-      Bool.and_eq_true, decide_eq_true_eq] at hvm
-    obtain ⟨hne, hq⟩ := hvm
-    constructor
-    · intro h; apply hne; ext i
-      by_cases hi : i = 0
-      · subst hi; exact hv0
-      · have : ∃ j : Fin m, i = j.succ := ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-        obtain ⟨j, rfl⟩ := this; exact congr_fun h j
-    · have hpeel := Dn_qform_peel m hm (fun i => (v i : ℤ))
-      simp only [Function.comp] at hpeel
-      have hv0z : (v (0 : Fin (m + 1)) : ℤ) = 0 := by
-        have := hv0; simp [Fin.ext_iff] at this; exact_mod_cast this
-      rw [hq] at hpeel; simp [hv0z] at hpeel
-      convert hpeel using 2; ext i; simp
-  · -- MapsTo g T S
+      Bool.and_eq_true, decide_eq_true_eq] at hmem
+    refine ⟨?_, ?_⟩
+    · -- tail ≠ 0
+      intro htail
+      apply hmem.1; funext i; simp only [Pi.zero_apply]
+      refine Fin.cases ?_ (fun j => ?_) i
+      · exact_mod_cast hv0
+      · have := congr_fun htail j; simp only [Function.comp, Pi.zero_apply] at this; exact this
+    · -- q_{D_m}(tail) = 2: use peel + v₀=0
+      have hpeel := Dn_qform_peel m hm (fun i => (v i : ℤ))
+      -- Normalize composition in hpeel to match goal
+      have hcomp : (fun i ↦ (↑↑(v i) : ℤ)) ∘ Fin.succ =
+          fun i ↦ (↑↑((v ∘ Fin.succ) i) : ℤ) := rfl
+      rw [hcomp] at hpeel
+      rw [hmem.2] at hpeel
+      have hv0z : (↑↑(v 0) : ℤ) = 0 := by exact_mod_cast hv0
+      have h0sq : (↑↑(v 0) : ℤ) ^ 2 = 0 := by rw [hv0z]; ring
+      have h0prod : (↑↑(v 0) : ℤ) * ↑↑(v ⟨1, by omega⟩) = 0 := by rw [hv0z]; ring
+      linarith [hpeel, h0sq, h0prod]
+  · -- MapsTo backward: w in D_m roots → cons 0 w in filter
     intro w hw
-    simp only [S, T, g, Finset.mem_filter]
-    simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-      Bool.and_eq_true, decide_eq_true_eq] at hw ⊢
-    obtain ⟨hne, hq⟩ := hw
-    refine ⟨⟨?_, ?_⟩, ?_⟩
-    · intro h; apply hne; ext i
-      have := congr_fun h i.succ; simp [Fin.cons] at this; exact this
-    · have hpeel := Dn_qform_peel m hm
-        (fun i => ((Fin.cons (0 : Fin 3) w : Fin (m + 1) → Fin 3) i : ℤ))
-      simp only [Function.comp, Fin.cons_succ, Fin.cons_zero] at hpeel
-      rw [hpeel]; simp; convert hq using 2; ext i; simp
-    · simp [Fin.cons]
-  · -- LeftInvOn: g ∘ f = id on S
+    simp only [Finset.mem_coe, Finset.mem_filter]
+    simp only [Finset.mem_coe, rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+      Bool.and_eq_true, decide_eq_true_eq] at hw
+    set v : Fin (m + 1) → Fin 3 := Fin.cons 0 w with hv_def
+    constructor
+    · simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+        Bool.and_eq_true, decide_eq_true_eq]
+      refine ⟨?_, ?_⟩
+      · intro heq
+        apply hw.1; funext i
+        have := congr_fun heq (Fin.succ i)
+        simp only [hv_def, Fin.cons_succ, Pi.zero_apply] at this; exact this
+      · have hpeel := Dn_qform_peel m hm (fun i => (↑↑(v i) : ℤ))
+        have hcomp : (fun i ↦ (↑↑(v i) : ℤ)) ∘ Fin.succ = fun i ↦ (↑↑(w i) : ℤ) := by
+          funext i; simp [hv_def, Fin.cons_succ]
+        rw [hcomp] at hpeel
+        have h0 : (↑↑(v 0) : ℤ) = 0 := by simp [hv_def, Fin.cons_zero]
+        have h0sq : (↑↑(v 0) : ℤ) ^ 2 = 0 := by rw [h0]; ring
+        have h0prod : (↑↑(v 0) : ℤ) * ↑↑(v ⟨1, by omega⟩) = 0 := by rw [h0]; ring
+        linarith [hpeel, hw.2, h0sq, h0prod]
+    · show v 0 = 0
+      simp [hv_def, Fin.cons_zero]
+  · -- Left inverse: cons 0 (v ∘ succ) = v for v with v₀=0
     intro v hv
-    simp only [S, Finset.mem_filter] at hv
-    funext i; simp only [f, g]
-    by_cases hi : i = 0
-    · subst hi; simp [Fin.cons]; exact hv.2
-    · have : ∃ j : Fin m, i = j.succ := ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-      obtain ⟨j, rfl⟩ := this; simp [Fin.cons]
-  · -- RightInvOn: f ∘ g = id on T
+    simp only [Finset.mem_coe, Finset.mem_filter] at hv
+    funext i; refine Fin.cases ?_ (fun j => ?_) i
+    · simp only [Fin.cons_zero]; exact hv.2.symm
+    · simp only [Function.comp, Fin.cons_succ]
+  · -- Right inverse: (cons 0 w) ∘ succ = w
     intro w _
-    funext i; simp [f, g, Fin.cons]
--/
+    funext i; simp only [Function.comp, Fin.cons_succ]
 
 /-- No D_n root has first coordinate equal to 2. -/
 private lemma Dn_no_coord2_at_zero : ∀ (n : ℕ) (hn : 4 ≤ n) (v : Fin n → Fin 3),
     v ∈ rootCountFinset n (Etingof.DynkinType.D n hn).adj 3 →
     v ⟨0, by omega⟩ ≠ 2 := by
-  sorry
+  intro n hn v hv hv0
+  simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+    Bool.and_eq_true, decide_eq_true_eq] at hv
+  obtain ⟨hne, hq⟩ := hv
+  set x : Fin n → ℤ := fun i => (v i : ℤ)
+  have hge := (Dn_qform_ge_sq_and_posDef n hn x).1
+  rw [hq] at hge
+  have hv0z : x ⟨0, by omega⟩ = 2 := by
+    simp [x]; exact_mod_cast congr_arg Fin.val hv0
+  nlinarith [hv0z, sq_nonneg (x ⟨0, by omega⟩ - 1)]
 
 /-- Count of vectors with v₀ = 2, q_{D_n} = 4, all coords in Fin 3. -/
 private def qFourFinset (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) (hn : 0 < n := by omega) :
@@ -280,78 +534,82 @@ private lemma D4_qfour :
 /-- The q=4 count satisfies a recurrence: peeling off vertex 0. -/
 private lemma qFourFinset_peel (m : ℕ) (hm : 4 ≤ m) :
     (qFourFinset (m + 1) (Etingof.DynkinType.D (m + 1) (by omega)).adj).card =
-    (qFourFinset m (Etingof.DynkinType.D m hm).adj).card := by sorry
-/-  set S := qFourFinset (m + 1) (Etingof.DynkinType.D (m + 1) (by omega)).adj
-  set T := qFourFinset m (Etingof.DynkinType.D m hm).adj
-  set f : (Fin (m + 1) → Fin 3) → (Fin m → Fin 3) := fun v i => v i.succ
-  set g : (Fin m → Fin 3) → (Fin (m + 1) → Fin 3) := fun w => Fin.cons 2 w
-  apply Finset.card_nbij' f g
-  · -- MapsTo f S T
+    (qFourFinset m (Etingof.DynkinType.D m hm).adj).card := by
+  apply Finset.card_nbij' (fun v => v ∘ Fin.succ) (fun w => Fin.cons 2 w)
+  · -- MapsTo forward
     intro v hv
-    simp only [S, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-      Bool.and_eq_true, decide_eq_true_eq, Bool.decide_and] at hv ⊢
-    obtain ⟨hv0, hq⟩ := hv
-    have hpeel := Dn_qform_peel m hm (fun i => (v i : ℤ))
-    simp only [Function.comp] at hpeel
-    have hv0z : (v (0 : Fin (m + 1)) : ℤ) = 2 := by
-      have := hv0; simp [Fin.ext_iff] at this; exact_mod_cast this
-    -- Need tail₀ = v₁ = 2 and q_tail = 4
-    -- From peel: 4 = q_tail + 2·4 - 2·2·v₁ = q_tail + 8 - 4v₁
-    -- So q_tail = 4v₁ - 4
-    have hqy : dotProduct (fun i : Fin m => (v i.succ : ℤ))
-      ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-        (Etingof.DynkinType.D m hm).adj).mulVec (fun i => (v i.succ : ℤ))) =
-      4 * (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) - 4 := by linarith [hpeel, hv0z, hq]
-    by_cases hy0 : (fun i : Fin m => (v i.succ : ℤ)) = 0
-    · exfalso
-      have := congr_fun hy0 0; simp at this
-      have : dotProduct (fun i : Fin m => (v i.succ : ℤ))
-        ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-          (Etingof.DynkinType.D m hm).adj).mulVec (fun i => (v i.succ : ℤ))) = 0 := by
-        rw [hy0]; simp [dotProduct, mulVec]
-      linarith [(v ⟨1, by omega⟩).zero_le]
-    · have hpd := Dn_posDef m hm _ hy0
-      have hv1_bound : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) < 3 := by
-        have := (v ⟨1, by omega⟩).isLt; omega
-      constructor
-      · ext; simp
-        have : 4 * (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) - 4 > 0 := by linarith
-        have : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) ≥ 2 := by omega
-        have : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) = 2 := by omega
-        omega
-      · convert show dotProduct (fun i : Fin m => (v i.succ : ℤ))
-            ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-              (Etingof.DynkinType.D m hm).adj).mulVec
-                (fun i : Fin m => (v i.succ : ℤ))) = 4 by
-            have : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) = 2 := by omega
-            linarith
-          using 2 <;> ext i <;> simp
-  · -- MapsTo g T S
-    intro w hw
-    simp only [S, T, g, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-      Bool.and_eq_true, decide_eq_true_eq, Bool.decide_and] at hw ⊢
-    obtain ⟨hw0, hqw⟩ := hw
+    simp only [Finset.mem_coe, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+      Bool.and_eq_true, decide_eq_true_eq] at hv ⊢
+    have hv0 := hv.1
+    have hq := hv.2
+    -- Use peel lemma
+    have hpeel := Dn_qform_peel m hm (fun i => (↑↑(v i) : ℤ))
+    have hcomp : (fun i ↦ (↑↑(v i) : ℤ)) ∘ Fin.succ =
+        fun i ↦ (↑↑((v ∘ Fin.succ) i) : ℤ) := rfl
+    rw [hcomp] at hpeel
+    rw [hq] at hpeel
+    -- hpeel: 4 = q_tail + 2*↑↑(v 0)² - 2*↑↑(v 0)*↑↑(v ⟨1,_⟩)
+    have h0z : (↑↑(v 0) : ℤ) = 2 := by
+      have := congr_arg Fin.val hv0; simp at this; omega
+    have h0sq : (↑↑(v 0) : ℤ) ^ 2 = 4 := by rw [h0z]; ring
+    have h0prod : (↑↑(v 0) : ℤ) * ↑↑(v ⟨1, by omega⟩) = 2 * ↑↑(v ⟨1, by omega⟩) := by
+      rw [h0z]
+    -- From hpeel: q_tail = 4 - 8 + 4*v₁ = 4*v₁ - 4
+    -- Since q_tail ≥ (v₁)² ≥ 0, we get v₁ ≥ 1
+    -- If v₁ = 0: q_tail = -4 < 0, contradiction with posDef
+    -- If v₁ = 1: q_tail = 0, tail = 0, but v₁ = tail₀ = 1 ≠ 0, contradiction
+    -- So v₁ = 2 and q_tail = 4
+    -- First show v₁ = 2, which means (v ∘ Fin.succ) 0 = 2
+    have hv1bound : (↑↑(v ⟨1, by omega⟩) : ℤ) ∈ ({0, 1, 2} : Set ℤ) := by
+      simp only [Set.mem_insert_iff, Set.mem_singleton_iff]
+      have := (v ⟨1, by omega⟩).2; omega
+    have hge := (Dn_qform_ge_sq_and_posDef m hm (fun i => (↑↑((v ∘ Fin.succ) i) : ℤ))).1
+    -- hge: (tail ⟨0,_⟩)² ≤ q_tail = (v ⟨1,_⟩)²
+    -- But tail ⟨0,_⟩ = (v ∘ succ) ⟨0,_⟩ = v ⟨1,_⟩
+    have htail0 : (↑↑((v ∘ Fin.succ) ⟨0, by omega⟩) : ℤ) = ↑↑(v ⟨1, by omega⟩) := rfl
+    rw [htail0] at hge
+    -- From hpeel + h0sq + h0prod: q_tail = 4*v₁ - 4
+    -- From hge: v₁² ≤ q_tail = 4*v₁ - 4
+    -- So v₁² - 4*v₁ + 4 ≤ 0, i.e., (v₁-2)² ≤ 0, so v₁ = 2
+    have hv1eq : (↑↑(v ⟨1, by omega⟩) : ℤ) = 2 := by
+      nlinarith [hpeel, h0sq, h0prod, hge, sq_nonneg ((↑↑(v ⟨1, by omega⟩) : ℤ) - 2)]
     constructor
-    · simp [Fin.cons]
-    · have hpeel := Dn_qform_peel m hm
-        (fun i => ((Fin.cons (2 : Fin 3) w : Fin (m + 1) → Fin 3) i : ℤ))
-      simp only [Function.comp, Fin.cons_succ, Fin.cons_zero] at hpeel
-      rw [hpeel]
-      have hw0z : (w 0 : ℤ) = 2 := by exact_mod_cast congr_arg Fin.val hw0
-      simp [hw0z]; linarith
-  · -- LeftInvOn
+    · -- (v ∘ succ) ⟨0,_⟩ = 2
+      have : (v ∘ Fin.succ) ⟨0, by omega⟩ = v ⟨1, by omega⟩ := rfl
+      rw [this]; exact Fin.ext (by have := hv1eq; omega)
+    · -- q_tail = 4
+      linarith [hpeel, h0sq, h0prod, hv1eq]
+  · -- MapsTo backward
+    intro w hw
+    simp only [Finset.mem_coe, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+      Bool.and_eq_true, decide_eq_true_eq] at hw ⊢
+    set v : Fin (m + 1) → Fin 3 := Fin.cons 2 w with hv_def
+    constructor
+    · show v ⟨0, by omega⟩ = 2
+      simp [hv_def, Fin.cons_zero]
+    · have hpeel := Dn_qform_peel m hm (fun i => (↑↑(v i) : ℤ))
+      have hcomp : (fun i ↦ (↑↑(v i) : ℤ)) ∘ Fin.succ = fun i ↦ (↑↑(w i) : ℤ) := by
+        funext i; simp [hv_def, Fin.cons_succ]
+      rw [hcomp] at hpeel
+      have h0 : (↑↑(v 0) : ℤ) = 2 := by simp [hv_def, Fin.cons_zero]
+      have h0sq : (↑↑(v 0) : ℤ) ^ 2 = 4 := by rw [h0]; ring
+      have hw0z : (↑↑(w ⟨0, by omega⟩) : ℤ) = 2 := congrArg (fun x => (↑↑x : ℤ)) hw.1
+      -- v ⟨1,_⟩ = w ⟨0,_⟩ since v = Fin.cons 2 w
+      have hv1z : (↑↑(v ⟨1, by omega⟩) : ℤ) = ↑↑(w ⟨0, by omega⟩) := by
+        simp only [hv_def]; rfl
+      have h0prod : (↑↑(v 0) : ℤ) * ↑↑(v ⟨1, by omega⟩) = 2 * ↑↑(w ⟨0, by omega⟩) := by
+        rw [h0, hv1z]
+      linarith [hpeel, h0sq, h0prod, hw0z, hw.2]
+  · -- Left inverse
     intro v hv
-    simp only [S, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
+    simp only [Finset.mem_coe, qFourFinset, Finset.mem_filter, Finset.mem_univ, true_and,
       Bool.and_eq_true, decide_eq_true_eq] at hv
-    funext i; simp only [f, g]
-    by_cases hi : i = 0
-    · subst hi; simp [Fin.cons]; exact hv.1
-    · have : ∃ j : Fin m, i = j.succ := ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-      obtain ⟨j, rfl⟩ := this; simp [Fin.cons]
-  · -- RightInvOn
+    funext i; refine Fin.cases ?_ (fun j => ?_) i
+    · simp only [Fin.cons_zero]; exact hv.1.symm
+    · simp only [Function.comp, Fin.cons_succ]
+  · -- Right inverse
     intro w _
-    funext i; simp [f, g, Fin.cons]
--/
+    funext i; simp only [Function.comp, Fin.cons_succ]
 
 /-- The qFourFinset cardinality is always 1. -/
 private lemma qFourFinset_card (m : ℕ) (hm : 4 ≤ m) :
@@ -367,312 +625,8 @@ private lemma qFourFinset_card (m : ℕ) (hm : 4 ≤ m) :
 /-- The D_n root count equals n*(n-1). -/
 private lemma Dn_count : ∀ (n : ℕ) (hn : 4 ≤ n),
     (rootCountFinset n (Etingof.DynkinType.D n hn).adj 3).card =
-      n * (n - 1) := by sorry
-/-  intro n
-  induction n with
-  | zero => intro hn; omega
-  | succ m ih =>
-    intro hm
-    by_cases hm4 : m = 3
-    · subst hm4; exact D4_count
-    · by_cases hm5 : m = 4
-      · subst hm5; exact D5_count
-      · -- m ≥ 5, so m ≥ 4 and m-1 ≥ 4
-        have hm' : 4 ≤ m := by omega
-        have hm'' : 4 ≤ m - 1 := by omega
-        -- Split rootCountFinset(D_{m+1}) by v₀
-        set S := rootCountFinset (m + 1) (Etingof.DynkinType.D (m + 1) (by omega)).adj 3
-        set S0 := S.filter (fun v => v 0 = 0)
-        set S1 := S.filter (fun v => v 0 = 1)
-        set S2 := S.filter (fun v => v 0 = 2)
-        -- S = S0 ∪ S1 ∪ S2
-        have hpart : S.card = S0.card + S1.card + S2.card := by
-          have hcover : S = S0 ∪ S1 ∪ S2 := by
-            ext v; simp only [S0, S1, S2, Finset.mem_filter, Finset.mem_union]
-            constructor
-            · intro hv
-              have h0 : v 0 = 0 ∨ v 0 = 1 ∨ v 0 = 2 := by
-                have := (v 0).isLt; omega
-              rcases h0 with h0 | h0 | h0 <;> simp_all
-            · intro hv; rcases hv with ((hv | hv) | hv) <;> exact hv.1
-          have hd01 : Disjoint S0 S1 :=
-            Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all)
-          have hd012 : Disjoint (S0 ∪ S1) S2 := by
-            rw [Finset.disjoint_union_left]
-            exact ⟨Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all),
-                   Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all)⟩
-          rw [hcover, Finset.card_union_of_disjoint hd012,
-              Finset.card_union_of_disjoint hd01]
-        -- S₂ = ∅ (no D_n root has first coordinate 2)
-        have hS2 : S2.card = 0 := by
-          rw [Finset.card_eq_zero]
-          ext v; simp only [S2, Finset.mem_filter, Finset.mem_empty, iff_false, not_and]
-          intro hv hv0
-          exact Dn_no_coord2_at_zero (m + 1) (by omega) v hv hv0
-        -- S₀ card = D_m count = m(m-1)
-        have hS0 : S0.card = m * (m - 1) := by
-          rw [show S0 = (rootCountFinset (m + 1)
-            (Etingof.DynkinType.D (m + 1) (by omega)).adj 3).filter
-              (fun v => v 0 = 0) from rfl,
-            Dn_filter_zero_card m hm', ih hm']
-        -- Split S₁ by v₁
-        set S10 := S1.filter (fun v => (v ⟨1, by omega⟩ : Fin 3) = 0)
-        set S11 := S1.filter (fun v => (v ⟨1, by omega⟩ : Fin 3) = 1)
-        set S12 := S1.filter (fun v => (v ⟨1, by omega⟩ : Fin 3) = 2)
-        have hS1_split : S1.card = S10.card + S11.card + S12.card := by
-          have hcover : S1 = S10 ∪ S11 ∪ S12 := by
-            ext v; simp only [S10, S11, S12, Finset.mem_filter, Finset.mem_union]
-            constructor
-            · intro hv
-              have h1 : v ⟨1, by omega⟩ = 0 ∨ v ⟨1, by omega⟩ = 1 ∨ v ⟨1, by omega⟩ = 2 := by
-                have := (v ⟨1, by omega⟩).isLt; omega
-              rcases h1 with h1 | h1 | h1 <;> simp_all
-            · intro hv; rcases hv with ((hv | hv) | hv) <;> exact hv.1
-          have hd1 : Disjoint S10 S11 :=
-            Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all)
-          have hd2 : Disjoint (S10 ∪ S11) S12 := by
-            rw [Finset.disjoint_union_left]
-            exact ⟨Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all),
-                   Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all)⟩
-          rw [hcover, Finset.card_union_of_disjoint hd2,
-              Finset.card_union_of_disjoint hd1]
-        -- S₁₀ card = 1 (only (1, 0, ..., 0))
-        have hS10 : S10.card = 1 := by
-          rw [Finset.card_eq_one]
-          use fun i => if i = 0 then 1 else 0
-          ext v
-          simp only [S10, S1, S, Finset.mem_filter, Finset.mem_singleton]
-          constructor
-          · intro ⟨⟨hv, hv0⟩, hv1⟩
-            simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-              Bool.and_eq_true, decide_eq_true_eq] at hv
-            obtain ⟨hne, hq⟩ := hv
-            have hno2 := Dn_no_coord2_at_zero (m + 1) (by omega) v
-              (by simp [rootCountFinset, Finset.mem_filter, Finset.mem_univ, hne, hq])
-            have hv0_eq : (v 0 : ℤ) = 1 := by
-              have := (v 0).isLt; have := hv0; have := hno2
-              have : (v 0 : Fin 3) ≠ 0 := hv0
-              have : (v 0 : Fin 3) ≠ 2 := hno2
-              omega
-            have hv1_eq : (v ⟨1, by omega⟩ : ℤ) = 0 := by
-              have := hv1; simp [Fin.ext_iff] at this; exact_mod_cast this
-            set x : Fin (m + 1) → ℤ := fun i => (v i : ℤ)
-            set y : Fin m → ℤ := fun i => x i.succ
-            have hpeel := Dn_qform_peel m hm' x
-            have hcomp : x ∘ Fin.succ = y := rfl
-            rw [hcomp] at hpeel; rw [hq] at hpeel
-            set qy := dotProduct y ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-              (Etingof.DynkinType.D m hm').adj).mulVec y)
-            have hqy : qy = 0 := by show dotProduct _ _ = 0; nlinarith
-            have hy0 : y = 0 := by
-              by_contra h
-              have := Dn_posDef m hm' y h
-              linarith
-            funext i
-            by_cases hi : i = 0
-            · subst hi
-              ext; simp; omega
-            · have : ∃ j : Fin m, i = j.succ :=
-                ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-              obtain ⟨j, rfl⟩ := this
-              have hyj : y j = 0 := congr_fun hy0 j
-              simp [y, x] at hyj
-              simp [show ¬(Fin.succ j = (0 : Fin (m + 1))) from Fin.succ_ne_zero j]
-              ext; omega
-          · intro heq; subst heq
-            set w : Fin (m + 1) → Fin 3 := fun i => if i = 0 then 1 else 0
-            refine ⟨⟨?_, ?_⟩, ?_⟩
-            · simp only [rootCountFinset, Finset.mem_filter, Finset.mem_univ, true_and,
-                Bool.and_eq_true, decide_eq_true_eq]
-              constructor
-              · intro h; have := congr_fun h (0 : Fin (m + 1)); simp [w] at this
-              · have hpeel := Dn_qform_peel m hm' (fun i => (w i : ℤ))
-                simp only [Function.comp] at hpeel
-                have htail : ∀ i : Fin m, (w i.succ : ℤ) = 0 := by
-                  intro i; simp [w, Fin.succ_ne_zero]
-                have hw0 : (w (0 : Fin (m + 1)) : ℤ) = 1 := by simp [w]
-                have hw1 : (w (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) = 0 := by
-                  simp [w]; intro h; exact absurd h (by ext; simp; omega)
-                rw [show (fun i : Fin m => (w i.succ : ℤ)) = (fun _ => (0 : ℤ)) from
-                  funext htail] at hpeel
-                simp [dotProduct, mulVec] at hpeel
-                nlinarith
-            · simp [w]
-            · show (fun i => if i = 0 then (1 : Fin 3) else 0) ⟨1, by omega⟩ = 0
-              simp; intro h; exact absurd h (by ext; simp; omega)
-        -- S₁₁ card: bijection with D_m roots having v₀ = 1
-        have hS11 : S11.card = 2 * (m - 1) := by
-          have hbij : S11.card = ((rootCountFinset m (Etingof.DynkinType.D m hm').adj 3).filter
-              (fun w => w 0 = 1)).card := by
-            set T' := (rootCountFinset m (Etingof.DynkinType.D m hm').adj 3).filter
-              (fun w => w 0 = 1)
-            set f' : (Fin (m + 1) → Fin 3) → (Fin m → Fin 3) := fun v i => v i.succ
-            set g' : (Fin m → Fin 3) → (Fin (m + 1) → Fin 3) := fun w => Fin.cons 1 w
-            apply Finset.card_nbij' f' g'
-            · -- MapsTo f' S11 T'
-              intro v hv
-              simp only [S11, S1, S, T', Finset.mem_filter, rootCountFinset,
-                Finset.mem_univ, true_and, Bool.and_eq_true, decide_eq_true_eq] at hv ⊢
-              obtain ⟨⟨⟨hne, hq⟩, hv0⟩, hv1⟩ := hv
-              have hno2 := Dn_no_coord2_at_zero (m + 1) (by omega) v
-                (by simp [rootCountFinset, Finset.mem_filter, Finset.mem_univ, hne, hq])
-              have hv0_eq : (v (0 : Fin (m + 1)) : ℤ) = 1 := by
-                have := (v 0).isLt; omega
-              have hv1_eq : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) = 1 := by
-                have := hv1; simp [Fin.ext_iff] at this; exact_mod_cast this
-              have hpeel := Dn_qform_peel m hm' (fun i => (v i : ℤ))
-              simp only [Function.comp] at hpeel
-              rw [hq] at hpeel
-              refine ⟨⟨?_, ?_⟩, ?_⟩
-              · intro h; apply hne; ext i
-                by_cases hi : i = 0
-                · subst hi; ext; simp; omega
-                · have : ∃ j : Fin m, i = j.succ :=
-                    ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-                  obtain ⟨j, rfl⟩ := this; exact congr_fun h j
-              · convert show dotProduct (fun i : Fin m => (v i.succ : ℤ))
-                  ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-                    (Etingof.DynkinType.D m hm').adj).mulVec
-                      (fun i : Fin m => (v i.succ : ℤ))) = 2 by
-                    linarith [hv0_eq, hv1_eq]
-                  using 2 <;> ext i <;> simp
-              · ext; simp; omega
-            · -- MapsTo g' T' S11
-              intro w hw
-              simp only [S11, S1, S, T', Finset.mem_filter, rootCountFinset,
-                Finset.mem_univ, true_and, Bool.and_eq_true, decide_eq_true_eq] at hw ⊢
-              obtain ⟨⟨hne, hq⟩, hw0⟩ := hw
-              refine ⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩
-              · intro h; apply hne; ext i
-                have := congr_fun h i.succ; simp [Fin.cons] at this; exact this
-              · have hpeel := Dn_qform_peel m hm'
-                  (fun i => ((Fin.cons (1 : Fin 3) w : Fin (m+1) → Fin 3) i : ℤ))
-                simp only [Function.comp, Fin.cons_succ, Fin.cons_zero] at hpeel
-                rw [hpeel]
-                have hw0z : (w 0 : ℤ) = 1 := by exact_mod_cast congr_arg Fin.val hw0
-                simp [hw0z]; linarith
-              · simp [Fin.cons]
-              · show Fin.cons 1 w ⟨1, by omega⟩ = 1
-                simp [Fin.cons, show (⟨1, by omega⟩ : Fin (m + 1)) = Fin.succ ⟨0, by omega⟩
-                  from by ext; simp]
-                exact hw0
-            · -- LeftInvOn
-              intro v hv
-              simp only [S11, S1, Finset.mem_filter] at hv
-              funext i; simp only [f', g']
-              by_cases hi : i = 0
-              · subst hi; simp [Fin.cons]
-                have hno2 := Dn_no_coord2_at_zero (m + 1) (by omega) v (by exact hv.1.1)
-                have hv0ne := hv.1.2; have := (v 0).isLt
-                ext; omega
-              · have : ∃ j : Fin m, i = j.succ :=
-                  ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-                obtain ⟨j, rfl⟩ := this; simp [Fin.cons]
-            · -- RightInvOn
-              intro w _; funext i; simp [f', g', Fin.cons]
-          rw [hbij]
-          -- |{w ∈ D_m roots | w₀ = 1}| = |D_m roots| - |w₀ = 0| - |w₀ = 2|
-          have hsplit : (rootCountFinset m (Etingof.DynkinType.D m hm').adj 3).card =
-              ((rootCountFinset m _ 3).filter (fun w => w 0 = 0)).card +
-              ((rootCountFinset m _ 3).filter (fun w => w 0 = 1)).card +
-              ((rootCountFinset m _ 3).filter (fun w => w 0 = 2)).card := by
-            have hcover : rootCountFinset m (Etingof.DynkinType.D m hm').adj 3 =
-                (rootCountFinset m _ 3).filter (fun w => w 0 = 0) ∪
-                (rootCountFinset m _ 3).filter (fun w => w 0 = 1) ∪
-                (rootCountFinset m _ 3).filter (fun w => w 0 = 2) := by
-              ext w; simp only [Finset.mem_filter, Finset.mem_union]
-              constructor
-              · intro hw
-                have h0 : w 0 = 0 ∨ w 0 = 1 ∨ w 0 = 2 := by
-                  have := (w 0).isLt; omega
-                rcases h0 with h0 | h0 | h0 <;> simp_all
-              · intro hw; rcases hw with ((hw | hw) | hw) <;> exact hw.1
-            rw [hcover,
-              Finset.card_union_of_disjoint (by rw [Finset.disjoint_union_left]; exact
-                ⟨Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all),
-                 Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all)⟩),
-              Finset.card_union_of_disjoint
-                (Finset.disjoint_filter.mpr (fun _ _ h1 h2 => by simp_all))]
-          have hno2 : ((rootCountFinset m (Etingof.DynkinType.D m hm').adj 3).filter
-              (fun w => w 0 = 2)).card = 0 := by
-            rw [Finset.card_eq_zero]; ext w
-            simp only [Finset.mem_filter, Finset.mem_empty, iff_false, not_and]
-            intro hw hw0; exact Dn_no_coord2_at_zero m hm' w hw hw0
-          have hfilt0 : ((rootCountFinset m (Etingof.DynkinType.D m hm').adj 3).filter
-              (fun w => w 0 = 0)).card = (m - 1) * (m - 2) := by
-            rw [show m = (m - 1) + 1 from by omega] at hm' ⊢
-            rw [Dn_filter_zero_card (m - 1) hm'', ih hm'']
-          have hfm := ih hm'
-          omega
-        -- S₁₂ card = 1 (bijection with qFourFinset)
-        have hS12 : S12.card = 1 := by
-          have hbij : S12.card = (qFourFinset m (Etingof.DynkinType.D m hm').adj).card := by
-            set T' := qFourFinset m (Etingof.DynkinType.D m hm').adj
-            set f' : (Fin (m + 1) → Fin 3) → (Fin m → Fin 3) := fun v i => v i.succ
-            set g' : (Fin m → Fin 3) → (Fin (m + 1) → Fin 3) := fun w => Fin.cons 1 w
-            apply Finset.card_nbij' f' g'
-            · -- MapsTo f' S12 T'
-              intro v hv
-              simp only [S12, S1, S, T', Finset.mem_filter, rootCountFinset, qFourFinset,
-                Finset.mem_univ, true_and, Bool.and_eq_true, decide_eq_true_eq,
-                Bool.decide_and] at hv ⊢
-              obtain ⟨⟨⟨hne, hq⟩, hv0⟩, hv1⟩ := hv
-              have hno2 := Dn_no_coord2_at_zero (m + 1) (by omega) v
-                (by simp [rootCountFinset, Finset.mem_filter, Finset.mem_univ, hne, hq])
-              have hv0_eq : (v (0 : Fin (m + 1)) : ℤ) = 1 := by
-                have := (v 0).isLt; omega
-              have hv1_eq : (v (⟨1, by omega⟩ : Fin (m + 1)) : ℤ) = 2 := by
-                have := hv1; simp [Fin.ext_iff] at this; exact_mod_cast this
-              have hpeel := Dn_qform_peel m hm' (fun i => (v i : ℤ))
-              simp only [Function.comp] at hpeel
-              rw [hq] at hpeel
-              constructor
-              · ext; simp; omega
-              · convert show dotProduct (fun i : Fin m => (v i.succ : ℤ))
-                  ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) -
-                    (Etingof.DynkinType.D m hm').adj).mulVec
-                      (fun i : Fin m => (v i.succ : ℤ))) = 4 by
-                    linarith [hv0_eq, hv1_eq]
-                  using 2 <;> ext i <;> simp
-            · -- MapsTo g' T' S12
-              intro w hw
-              simp only [S12, S1, S, T', Finset.mem_filter, rootCountFinset, qFourFinset,
-                Finset.mem_univ, true_and, Bool.and_eq_true, decide_eq_true_eq,
-                Bool.decide_and] at hw ⊢
-              obtain ⟨hw0, hqw⟩ := hw
-              refine ⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩
-              · intro h
-                have := congr_fun h 0; simp [Fin.cons] at this
-              · have hpeel := Dn_qform_peel m hm'
-                  (fun i => ((Fin.cons (1 : Fin 3) w : Fin (m+1) → Fin 3) i : ℤ))
-                simp only [Function.comp, Fin.cons_succ, Fin.cons_zero] at hpeel
-                rw [hpeel]
-                have hw0z : (w 0 : ℤ) = 2 := by exact_mod_cast congr_arg Fin.val hw0
-                simp [hw0z]; linarith
-              · simp [Fin.cons]
-              · show Fin.cons 1 w ⟨1, by omega⟩ = 2
-                simp [Fin.cons, show (⟨1, by omega⟩ : Fin (m + 1)) = Fin.succ ⟨0, by omega⟩
-                  from by ext; simp]
-                exact hw0
-            · -- LeftInvOn
-              intro v hv
-              simp only [S12, S1, Finset.mem_filter] at hv
-              funext i; simp only [f', g']
-              by_cases hi : i = 0
-              · subst hi; simp [Fin.cons]
-                have hno2 := Dn_no_coord2_at_zero (m + 1) (by omega) v (by exact hv.1.1.1)
-                have hv0ne := hv.1.1.2; have := (v 0).isLt
-                ext; omega
-              · have : ∃ j : Fin m, i = j.succ :=
-                  ⟨⟨i.val - 1, by omega⟩, by ext; simp; omega⟩
-                obtain ⟨j, rfl⟩ := this; simp [Fin.cons]
-            · -- RightInvOn
-              intro w _; funext i; simp [f', g', Fin.cons]
-          rw [hbij, qFourFinset_card m hm']
-        -- Combine
-        rw [hpart, hS0, hS1_split, hS10, hS11, hS12, hS2]
-        omega
--/
+      n * (n - 1) := by
+  sorry
 
 private lemma Dn_result (n : ℕ) (hn : 4 ≤ n) :
     (Etingof.positiveRoots n (Etingof.DynkinType.D n hn).adj).Finite ∧
