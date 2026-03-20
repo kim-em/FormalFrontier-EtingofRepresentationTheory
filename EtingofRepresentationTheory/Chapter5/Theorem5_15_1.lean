@@ -667,6 +667,78 @@ theorem youngsRule_character (n : ℕ) (mu : Nat.Partition n) (σ : Equiv.Perm (
   congr 1; ext nu
   exact trace_isotypic_eq_mult_character n mu nu σ
 
+/-! ### Sorting infrastructure for the Frobenius formula proof
+
+To connect polynomial coefficients to permutation module characters, we need to
+"sort" a `Fin n →₀ ℕ` vector into a `Nat.Partition n`. The key facts are:
+1. A non-negative integer vector summing to n determines a partition (by sorting)
+2. Symmetric polynomial coefficients are invariant under permutation of exponents
+3. Theorem 5.14.3 converts partition coefficients to permutation module characters
+-/
+
+/-- Convert a `Fin n →₀ ℕ` whose values sum to `n` into a `Nat.Partition n`,
+by taking the multiset of values and filtering out zeros. -/
+noncomputable def finsuppToPartition {n : ℕ} (v : Fin n →₀ ℕ)
+    (hsum : ∑ i : Fin n, v i = n) : Nat.Partition n :=
+  Nat.Partition.ofSums n (Finset.univ.val.map v) (by
+    change Finset.univ.sum v = n
+    exact hsum)
+
+/-- The sum of entries of `la.toFinsupp + rhoShift n - permExponent n π` equals `n`,
+when the subtraction is componentwise valid. This follows from the fact that both
+`rhoShift` and `permExponent` are permutations of `{0, ..., n-1}`, so their sums
+cancel, leaving `∑ la.toFinsupp = n`. -/
+theorem sum_shifted_sub_permExponent {n : ℕ} (la : Nat.Partition n)
+    (π : Equiv.Perm (Fin n))
+    (h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n) :
+    ∑ i : Fin n, (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π) i = n := by
+  -- Both rhoShift and permExponent are bijections on {0,...,n-1},
+  -- so their sums both equal n(n-1)/2, and the la.toFinsupp sum equals n.
+  -- With componentwise h, the tsub sum equals ∑ la.toFinsupp = n.
+  sorry
+
+/-- For a symmetric polynomial P, the coefficient at any vector v equals the
+coefficient at `(finsuppToPartition v hsum).toFinsupp`. This follows from the
+fact that symmetric polynomials have permutation-invariant coefficients, and
+sorting v into a partition amounts to permuting the exponent indices. -/
+theorem coeff_symmetric_eq_coeff_partition {n : ℕ}
+    (P : MvPolynomial (Fin n) ℂ) (hP : P.IsSymmetric)
+    (v : Fin n →₀ ℕ) (hsum : ∑ i : Fin n, v i = n) :
+    P.coeff v = P.coeff (Nat.Partition.toFinsupp (finsuppToPartition v hsum)) := by
+  sorry
+
+/-! ### Alternating Kostka identity
+
+The key algebraic identity for the Frobenius formula proof. For partitions λ and ν of n:
+
+  ∑_π sign(π) · m(sort(λ+ρ-e_π), ν) = δ_{λ,ν}
+
+where m(μ,ν) = spechtMultiplicity (Kostka number), ρ = (n-1,...,1,0), and
+e_π is the Vandermonde exponent vector for permutation π.
+
+**Proof sketch**:
+- For π such that `permExponent n π = rhoShift n` (i.e., π = rev), the sorted
+  vector is just `la.toFinsupp`, contributing `sign(rev) · m(la, ν)`.
+- For all other π, the sorted vector `⟨la+ρ-e_π⟩` strictly dominates `la`,
+  so `m(⟨la+ρ-e_π⟩, ν) = 0` by `spechtMultiplicity_vanishing` when ν = la.
+- The identity follows from these cancellation properties.
+-/
+
+/-- The alternating Kostka identity: the alternating sum of Kostka numbers over
+Vandermonde permutations equals the Kronecker delta. -/
+theorem alternating_kostka_eq_delta {n : ℕ} (la nu : Nat.Partition n) :
+    (∑ π : Equiv.Perm (Fin n),
+      (Equiv.Perm.sign π : ℤ) •
+        (if h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+         then ((spechtMultiplicity n
+           (finsuppToPartition
+             (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+             (sum_shifted_sub_permExponent la π h))
+           nu : ℕ) : ℂ)
+         else (0 : ℂ))) =
+      if la = nu then (1 : ℂ) else (0 : ℂ) := by
+  sorry
+
 /-! ### Frobenius formula: alternating sum identity
 
 The main theorem reduces to showing:
@@ -682,14 +754,12 @@ The proof uses:
   Σ_π sign(π) · coeff(x^{λ+ρ-π(ρ)}, ∏ p_m^{i_m})
 equals the Specht module character χ_{V_λ}(σ).
 
-**Proof outline** (Etingof, proof of Theorem 5.15.1):
-1. Via Theorem 5.14.3 and symmetry, the RHS = Σ_π sign(π) χ_{U_{⟨λ+ρ-π(ρ)⟩}}(σ)
+**Proof** (Etingof, proof of Theorem 5.15.1):
+1. Via Theorem 5.14.3 and symmetry, each coeff term = permModuleCharacter at a sorted partition
 2. Via `youngsRule_character`: substitute χ_{U_μ} = Σ_ν m(μ,ν) χ_{V_ν}
 3. Exchange summation: RHS = Σ_ν (Σ_π sign(π) m(sort(λ+ρ-π(ρ)), ν)) χ_{V_ν}(σ)
-4. The inner sum = δ_{λ,ν} by the upper-triangular determinant identity
-5. Therefore RHS = χ_{V_λ}(σ)
-
-**Blocked on**: `youngsRule_character` and the alternating determinant identity. -/
+4. The inner sum = δ_{λ,ν} by `alternating_kostka_eq_delta`
+5. Therefore RHS = χ_{V_λ}(σ) -/
 theorem spechtCharacter_eq_alternating_sum_permCharacter
     (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
     spechtModuleCharacter n la σ =
@@ -699,6 +769,17 @@ theorem spechtCharacter_eq_alternating_sum_permCharacter
           then (MvPolynomial.coeff
             (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
             (cycleTypePsumProduct n σ) : ℂ) else 0) := by
+  -- Step 1: Convert each coefficient term.
+  -- For each π with h : e_π ≤ α, by symmetry + Thm 5.14.3:
+  --   coeff(α - e_π, P) = coeff(sort(α - e_π).toFinsupp, P) = permModuleCharacter(sort(α-e_π), σ)
+  -- Then by Young's Rule:
+  --   = ∑_ν m(sort(α-e_π), ν) · χ_{V_ν}(σ)
+  --
+  -- Step 2: Exchange summation.
+  -- RHS = ∑_ν (∑_π sign(π) · (if h then m(sort(α-e_π), ν) else 0)) · χ_{V_ν}(σ)
+  --
+  -- Step 3: Apply alternating_kostka_eq_delta.
+  -- Inner sum = δ_{λ,ν}, so RHS = χ_{V_λ}(σ).
   sorry
 
 end
