@@ -1470,6 +1470,16 @@ private lemma dynkin_no_cycle {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     linarith [hdeg2 i]
   exact subgraph_contradiction ⟨hsymm, _hdiag, h01, _hconn, hpos⟩ adj_sub φ hembed v hv_nonneg hv_ne hv_null
 
+/-- For a 0-1 adjacency matrix, the sum of row entries equals the vertex degree. -/
+private lemma adj_sum_eq_degree {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1) (a : Fin n) :
+    ∑ b : Fin n, adj a b = ↑(vertexDegree adj a) := by
+  simp only [vertexDegree]
+  rw [show ∑ b : Fin n, adj a b =
+      ∑ b : Fin n, (if adj a b = 1 then (1 : ℤ) else 0) from
+    Finset.sum_congr rfl (fun b _ => by rcases h01 a b with h | h <;> simp [h])]
+  simp [Finset.sum_boole]
+
 /-- A Dynkin diagram on n vertices has exactly n-1 edges (it's a tree).
     This follows from no-cycles + connectivity. -/
 private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
@@ -1492,19 +1502,17 @@ private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
         ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec (fun _ => (1 : ℤ))) a =
         2 - ∑ b : Fin n, adj a b := by
       intro a
-      simp only [mulVec, dotProduct, mul_one]
-      rw [show ∑ b, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) a b =
-          ∑ b, (2 * (1 : Matrix _ _ ℤ) a b - adj a b) from
-        Finset.sum_congr rfl (fun b _ => by
-          simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul])]
-      rw [Finset.sum_sub_distrib]
-      congr 1
-      simp [Matrix.one_apply, Finset.sum_ite_eq']
+      simp only [mulVec, dotProduct, mul_one, Matrix.sub_apply, Matrix.smul_apply]
+      simp_rw [show ∀ b : Fin n, (2 : ℕ) • (1 : Matrix (Fin n) (Fin n) ℤ) a b =
+        if a = b then (2 : ℤ) else 0 from fun b => by
+          simp [Matrix.one_apply, nsmul_eq_mul]]
+      simp [Finset.sum_sub_distrib, Finset.sum_ite_eq', Finset.mem_univ]
     simp only [dotProduct, one_mul, mulVec_eq] at hB
     rw [show ∑ a : Fin n, (2 - ∑ b : Fin n, adj a b) =
         2 * ↑n - ∑ a : Fin n, ∑ b : Fin n, adj a b from by
       rw [Finset.sum_sub_distrib]
-      simp [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]] at hB
+      simp [Finset.sum_const, Finset.card_univ, Fintype.card_fin]
+      ring] at hB
     rw [show ∑ a : Fin n, ∑ b : Fin n, adj a b =
         ↑(∑ i : Fin n, vertexDegree adj i) from by
       push_cast
@@ -1514,13 +1522,14 @@ private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     -- Convert to SimpleGraph and use Mathlib's connectivity lower bound
     let G : SimpleGraph (Fin n) :=
       { Adj := fun i j => adj i j = 1
-        symm := fun {i j} h => by rwa [hsymm.apply]
-        loopless := fun i h => by simp [hdiag i] at h }
+        symm := fun {i j} (h : adj i j = 1) => show adj j i = 1 by rwa [hsymm.apply]
+        loopless := ⟨fun i h => by simp [hdiag i] at h⟩ }
     haveI : DecidableRel G.Adj := fun i j =>
       show Decidable (adj i j = 1) from inferInstance
     -- Show G.Connected: build Reachable from list paths
     have hG_conn : G.Connected := by
-      refine ⟨fun u v => ?_, ⟨⟨0, by omega⟩⟩⟩
+      haveI : Nonempty (Fin n) := ⟨⟨0, by omega⟩⟩
+      refine ⟨fun u v => ?_⟩
       obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
       -- Build G.Reachable by induction on the path list
       suffices h : ∀ (l : List (Fin n)) (a b : Fin n),
@@ -1535,17 +1544,19 @@ private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
         intro a b ha hb hedges'
         simp at ha; subst ha
         cases t with
-        | nil => simp at hb; subst hb; exact .refl
+        | nil => simp at hb; subst hb; exact ⟨.nil⟩
         | cons y s =>
           have hadj_xy : G.Adj x y := show adj x y = 1 from
-            hedges' 0 (by simp; omega)
+            hedges' 0 (by simp)
           exact hadj_xy.reachable.trans
-            (ih y b (by simp) hb (fun k hk => hedges' (k + 1) (by omega)))
+            (ih y b (by simp) hb (fun k hk => hedges' (k + 1) (by simp at hk ⊢; omega)))
     -- Relate G.degree to vertexDegree
     have hdeg_eq : ∀ v : Fin n, G.degree v = vertexDegree adj v := by
-      intro v; unfold SimpleGraph.degree vertexDegree
+      intro w
+      simp only [SimpleGraph.degree, SimpleGraph.neighborFinset, vertexDegree]
       congr 1; ext j
-      simp only [SimpleGraph.neighborFinset, Finset.mem_filter, Finset.mem_univ, true_and]
+      simp only [Set.mem_toFinset, SimpleGraph.mem_neighborSet, Finset.mem_filter,
+        Finset.mem_univ, true_and, G]
     -- Relate edgeCount to G.edgeFinset.card via handshaking
     have hedge_eq : edgeCount adj = G.edgeFinset.card := by
       unfold edgeCount
@@ -1558,16 +1569,6 @@ private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     have h_lb := hG_conn.card_vert_le_card_edgeSet_add_one
     rw [Nat.card_fin, Nat.card_eq_fintype_card, ← SimpleGraph.edgeFinset_card] at h_lb
     omega
-
-/-- For a 0-1 adjacency matrix, the sum of row entries equals the vertex degree. -/
-private lemma adj_sum_eq_degree {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
-    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1) (a : Fin n) :
-    ∑ b : Fin n, adj a b = ↑(vertexDegree adj a) := by
-  simp only [vertexDegree]
-  rw [show ∑ b : Fin n, adj a b =
-      ∑ b : Fin n, (if adj a b = 1 then (1 : ℤ) else 0) from
-    Finset.sum_congr rfl (fun b _ => by rcases h01 a b with h | h <;> simp [h])]
-  simp [Finset.sum_boole]
 
 /-- In a Dynkin diagram with all degrees ≤ 2, there exists a vertex of degree ≤ 1 (endpoint).
     Proof: if all degrees = 2 then the all-ones vector has B(x,x) = 0, contradicting pos-def. -/
@@ -1809,47 +1810,93 @@ private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
       · exact h.1 h2
       · exact h.2 h2
 
-/-- For a tree with exactly one branch vertex of degree 3, the three arm lengths (p,q,r)
-    with p ≤ q ≤ r satisfy n = p + q + r + 1 and 1/(p+1) + 1/(q+1) + 1/(r+1) > 1.
-    The positive-definite solutions are:
-    - (1,1,r) → D_{r+3}
-    - (1,2,2) → E₆, (1,2,3) → E₇, (1,2,4) → E₈ -/
+/-- The reciprocal sum constraint on arm lengths of a Dynkin diagram with a branch vertex:
+    the only solutions of 1/(p+1) + 1/(q+1) + 1/(r+1) > 1 with 1 ≤ p ≤ q ≤ r are
+    (1,1,r) for r ≥ 1, (1,2,2), (1,2,3), and (1,2,4). -/
+private lemma arm_length_solutions (p q r : ℕ) (hp : 1 ≤ p) (hpq : p ≤ q) (hqr : q ≤ r)
+    (hrecip : (q + 1) * (r + 1) + (p + 1) * (r + 1) + (p + 1) * (q + 1) >
+              (p + 1) * (q + 1) * (r + 1)) :
+    (p = 1 ∧ q = 1) ∨ (p = 1 ∧ q = 2 ∧ r = 2) ∨
+    (p = 1 ∧ q = 2 ∧ r = 3) ∨ (p = 1 ∧ q = 2 ∧ r = 4) := by
+  -- Upper bound on p: if p ≥ 2, then p+1 ≥ 3 and q+1 ≥ 3, r+1 ≥ 3,
+  -- so 1/(p+1) + 1/(q+1) + 1/(r+1) ≤ 1/3 + 1/3 + 1/3 = 1, contradicting > 1.
+  -- Formally: product(p+1)(q+1)(r+1) ≥ sum of pairwise products.
+  have hp1 : p = 1 := by
+    by_contra hp_ne
+    have hp2 : 2 ≤ p := by omega
+    have hq2 : 2 ≤ q := le_trans hp2 hpq
+    have hr2 : 2 ≤ r := le_trans hq2 hqr
+    -- Key: p*q*r ≥ p + q + r + 2 for p,q,r ≥ 2
+    have h1 : 2 * (q * r) ≤ p * (q * r) :=
+      Nat.mul_le_mul_right _ hp2
+    have h2 : 2 * (2 * r) ≤ 2 * (q * r) :=
+      Nat.mul_le_mul_left 2 (Nat.mul_le_mul_right _ hq2)
+    have h3 : p + q ≤ 2 * r := by linarith
+    -- (p+1)(q+1)(r+1) = pqr + pq + pr + qr + p + q + r + 1
+    -- sum = qr + q + r + 1 + pr + p + r + 1 + pq + p + q + 1
+    -- diff = pqr - p - q - r - 2 ≥ 4r - p - q - r - 2 = 3r - (p+q) - 2 ≥ r - 2 ≥ 0
+    nlinarith
+  subst hp1
+  -- Now p = 1. Upper bound on q: if q ≥ 3 then 1/2 + 1/4 + 1/(r+1) ≤ 1 (since r ≥ q ≥ 3).
+  have hq_le : q ≤ 2 := by
+    by_contra hq_big; push_neg at hq_big
+    have hq3 : 3 ≤ q := by omega
+    have hr3 : 3 ≤ r := le_trans hq3 hqr
+    nlinarith
+  interval_cases q
+  · -- q = 1: any r ≥ 1 works (1/2 + 1/2 + 1/(r+1) > 1 always)
+    left; exact ⟨rfl, rfl⟩
+  · -- q = 2: 1/2 + 1/3 + 1/(r+1) > 1, so r ≤ 4
+    right
+    have hr_le : r ≤ 4 := by nlinarith
+    interval_cases r
+    · left; exact ⟨rfl, rfl, rfl⟩
+    · right; left; exact ⟨rfl, rfl, rfl⟩
+    · right; right; exact ⟨rfl, rfl, rfl⟩
+
+/-- A tree with a degree-3 vertex (branch) and all degrees ≤ 3 has exactly one such vertex,
+    three arms of lengths p ≤ q ≤ r with n = p + q + r + 1, and is uniquely determined
+    (up to graph isomorphism) by its arm lengths. Given the arm-length constraint from
+    positive definiteness, the graph must be isomorphic to D_n, E₆, E₇, or E₈. -/
 private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
     (hbranch : ∃ i, vertexDegree adj i = 3) :
     ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j := by
-  -- Strategy:
-  -- 1. There is exactly one vertex of degree 3 (two would give T̃_{p,q,r} subgraph
-  --    with null vector, contradicting positive definiteness via subgraph_contradiction)
-  -- 2. The branch vertex has 3 arms of lengths p, q, r with p ≤ q ≤ r
-  -- 3. n = p + q + r + 1
-  -- 4. Positive definiteness requires 1/(p+1) + 1/(q+1) + 1/(r+1) > 1
-  --    (otherwise T̃_{p,q,r} has a null vector)
-  -- 5. Solutions with p ≤ q ≤ r:
-  --    p=1, q=1, r≥1  → D_{r+3}
-  --    p=1, q=2, r=2   → E₆
-  --    p=1, q=2, r=3   → E₇
-  --    p=1, q=2, r=4   → E₈
-  -- 6. Construct explicit graph isomorphism for each case
+  -- Step 1: Extract the branch vertex
+  obtain ⟨v, hv⟩ := hbranch
+  -- Step 4: Extract arm structure.
+  -- The branch vertex has 3 neighbors. Since it's a tree with max degree 3,
+  -- each arm is a simple path from v to a degree-1 endpoint.
+  -- There are exactly 3 such endpoints (degree-1 vertices).
+  -- The arm lengths p, q, r satisfy n = p + q + r + 1 and
+  -- the positive-definiteness constraint forces
+  -- 1/(p+1) + 1/(q+1) + 1/(r+1) > 1.
+  --
+  -- By arm_length_solutions, the solutions are:
+  --   (1,1,r) for r ≥ 1 → D_{r+3}
+  --   (1,2,2) → E₆
+  --   (1,2,3) → E₇
+  --   (1,2,4) → E₈
+  --
+  -- For each case, we construct an explicit graph isomorphism
+  -- σ : Fin t.rank ≃ Fin n mapping the standard adjacency to adj.
+  --
+  -- Proof steps remaining:
+  -- (a) Formalize arm extraction from tree structure
+  -- (b) Derive the reciprocal-sum constraint from positive definiteness
+  --     (if constraint fails, T_{p,q,r} has a non-negative null vector
+  --      for the Cartan form, contradicting hpos)
+  -- (c) For (1,1,r): build σ mapping D_{r+3} vertices to the tree
+  -- (d) For (1,2,k) with k ∈ {2,3,4}: build σ mapping E₆/E₇/E₈
   sorry
 
-/-- Forward direction of the Dynkin classification: any Dynkin diagram is graph-isomorphic
-    to one of the standard types A_n, D_n, E₆, E₇, or E₈. -/
+/-- Forward direction of the Dynkin classification: any Dynkin diagram on n ≥ 1 vertices
+    is graph-isomorphic to one of the standard types A_n, D_n, E₆, E₇, or E₈. -/
 private lemma dynkin_classification_forward {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
-    (hD : IsDynkinDiagram n adj) :
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n) :
     ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j := by
-  -- A Dynkin diagram is connected, so n ≥ 1
-  have hn : 1 ≤ n := by
-    by_contra h
-    push_neg at h
-    interval_cases n
-    -- n = 0: No DynkinType has rank 0, so the conclusion is unprovable.
-    -- But IsDynkinDiagram 0 adj is vacuously true (no vertices).
-    -- This is a minor edge case in the theorem statement; the classification
-    -- is only meaningful for n ≥ 1.
-    sorry
   -- Every vertex has degree ≤ 3
   have hdeg := fun i => dynkin_degree_le_three hD i
   -- Case split: is there a vertex of degree 3?
@@ -1869,14 +1916,18 @@ private lemma dynkin_classification_forward {n : ℕ} {adj : Matrix (Fin n) (Fin
 /-- Classification of Dynkin diagrams: a connected graph with positive-definite Cartan form
 is a Dynkin diagram if and only if it is isomorphic (as a graph) to one of the standard
 types A_n, D_n, E₆, E₇, or E₈.
+
+Note: The hypothesis `1 ≤ n` is necessary because `IsDynkinDiagram 0 adj` is vacuously true
+(all conditions quantify over `Fin 0`, which is empty) but no `DynkinType` has rank 0.
+Mathematically, the empty graph is not a Dynkin diagram.
 (Etingof Theorem, Section 6.1) -/
-theorem Theorem_Dynkin_classification (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) :
+theorem Theorem_Dynkin_classification (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) (hn : 1 ≤ n) :
     IsDynkinDiagram n adj ↔
     ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j := by
   constructor
   · -- Forward direction: any Dynkin diagram is isomorphic to a standard type
-    exact fun hD => dynkin_classification_forward hD
+    exact fun hD => dynkin_classification_forward hD hn
   · -- Backward direction: isomorphism to a standard type → IsDynkinDiagram
     rintro ⟨t, σ, hiso⟩
     exact isDynkinDiagram_of_graph_iso σ hiso (isDynkinDiagram_of_type t)
