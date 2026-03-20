@@ -1000,6 +1000,152 @@ private lemma Etingof.ellipticSubgroup_disc (hp2 : p ≠ 2) (k : GL2 p n)
       have hs_frob : s ^ (p ^ n : ℕ) = -s := Etingof.frob_diff_neg p n hn ↑α
       exact Etingof.not_isSquare_of_antisymmetric_root p n hp2 hn d s hd hs hs_frob
 
+/-- Conjugation preserves IsScalar: if x⁻¹gx is scalar, then g is scalar. -/
+private lemma Etingof.conj_isScalar (g x : GL2 p n)
+    (h : GL2.IsScalar (p := p) (n := n) (x⁻¹ * g * x)) :
+    GL2.IsScalar (p := p) (n := n) g := by
+  -- Scalar matrices commute with everything, so x⁻¹ * (x⁻¹gx) * x⁻¹⁻¹ = x⁻¹gx
+  -- But x⁻¹⁻¹ = x, so LHS = x⁻¹ * (x⁻¹gx) * x = (by assoc) x⁻¹ * x⁻¹ * g * x * x
+  -- Use scalar_conj_eq_self with x⁻¹: (x⁻¹)⁻¹ * (x⁻¹gx) * x⁻¹ = x⁻¹gx
+  -- i.e., x * (x⁻¹gx) * x⁻¹ = x⁻¹gx, and x * (x⁻¹gx) * x⁻¹ = g (by group)
+  have heq : x⁻¹ * g * x = g := by
+    have hcomm := Etingof.scalar_conj_eq_self p n (x⁻¹ * g * x) h x⁻¹
+    rw [inv_inv] at hcomm
+    -- hcomm : x * (x⁻¹ * g * x) * x⁻¹ = x⁻¹ * g * x
+    -- LHS simplifies to g by group laws
+    have hsimp : x * (x⁻¹ * g * x) * x⁻¹ = g := by group
+    rw [hsimp] at hcomm
+    exact hcomm.symm
+  rwa [← heq]
+
+/-- For parabolic g, no conjugate lies in the elliptic subgroup K. -/
+private lemma Etingof.parabolic_conj_not_in_ellipticSubgroup
+    (g : GL2 p n)
+    (hg : GL2.IsParabolic (p := p) (n := n) g) :
+    ∀ x : GL2 p n, ¬(x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n) := by
+  intro x hcontra
+  obtain ⟨hdisc_zero, hnotscalar⟩ := hg
+  have hdisc_eq : GL2.disc (x⁻¹ * g * x : GL2 p n) = GL2.disc g :=
+    Etingof.disc_conj_eq p n g x
+  by_cases hn : n = 0
+  · -- n = 0: K is trivial, range = {1}
+    obtain ⟨α, hα⟩ := hcontra
+    have h1 : GL2.fieldExtEmbed p n α = 1 := by
+      unfold GL2.fieldExtEmbed; simp [hn]
+    have hone : x⁻¹ * g * x = 1 := hα ▸ h1
+    have hg1 : g = 1 := by
+      have key : x * (x⁻¹ * g * x) * x⁻¹ = g := by group
+      rw [hone] at key
+      simpa using key.symm
+    exact hnotscalar (hg1 ▸ ⟨by simp [Units.val_one],
+      by simp [Units.val_one],
+      by simp [Units.val_one]⟩)
+  · -- n ≥ 1: disc(x⁻¹gx) = disc(g) = 0, and K ∩ {disc=0} ⊂ {scalar}
+    obtain ⟨α, hα⟩ := hcontra
+    letI := Etingof.algebraGaloisFieldExt p n
+    have hconj_disc : GL2.disc (GL2.fieldExtEmbed p n α) = 0 := by
+      rw [hα, hdisc_eq]; exact hdisc_zero
+    -- algebraMap(disc(embed(α))) = (α - α^q)²
+    set s := (α : GaloisField p (2 * n)) - (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)
+    have hd := Etingof.algebraMap_disc_fieldExtEmbed p n hn α
+    have hinj : Function.Injective
+        (algebraMap (GaloisField p n) (GaloisField p (2 * n))) :=
+      (algebraMap (GaloisField p n) (GaloisField p (2 * n))).injective
+    have hs : s = 0 := by
+      have : s ^ 2 = 0 := by rw [← hd, hconj_disc, map_zero]
+      exact pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this
+    -- From hs: α^(p^n) = α, so α is in the base field GaloisField p n
+    have hα_frob : (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ) = (α : GaloisField p (2 * n)) := by
+      exact (sub_eq_zero.mp hs).symm
+    -- Extract a base field element mapping to α
+    -- The elements x with x^(p^n) = x are exactly the roots of X^(p^n) - X,
+    -- and algebraMap maps GaloisField p n bijectively onto these roots.
+    -- We use: algebraMap is injective + both sides have p^n elements + image ⊆ fixed set
+    have hα_in_range : (α : GaloisField p (2 * n)) ∈ Set.range
+        (algebraMap (GaloisField p n) (GaloisField p (2 * n))) := by
+      haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+      haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+      haveI : DecidableEq (GaloisField p n) := Classical.typeDecidableEq _
+      haveI : DecidableEq (GaloisField p (2 * n)) := Classical.typeDecidableEq _
+      -- Define the set of elements fixed by Frobenius
+      set fixed := Finset.univ.filter
+        (fun x : GaloisField p (2 * n) => x ^ (p ^ n : ℕ) = x)
+      set img := Finset.univ.image
+        (algebraMap (GaloisField p n) (GaloisField p (2 * n)))
+      have hcard_n : Fintype.card (GaloisField p n) = p ^ n := by
+        rw [← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+      -- α ∈ fixed
+      have hα_mem : (α : GaloisField p (2 * n)) ∈ fixed := by
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, fixed]
+        exact hα_frob
+      -- img ⊆ fixed
+      have himg_sub : img ⊆ fixed := by
+        intro x hx
+        simp only [Finset.mem_image, Finset.mem_univ, true_and, img] at hx
+        obtain ⟨r, hr⟩ := hx
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, fixed]
+        rw [← hr, ← map_pow]; congr 1; rw [← hcard_n]; exact FiniteField.pow_card r
+      -- |img| = p^n
+      have himg_card : img.card = p ^ n := by
+        simp only [img, Finset.card_image_of_injective _ hinj, Finset.card_univ, hcard_n]
+      -- |fixed| ≤ p^n: elements of fixed are roots of X^(p^n) - X
+      have hfixed_le : fixed.card ≤ p ^ n := by
+        -- fixed ⊆ (X^(p^n) - X).roots.toFinset, and roots.card ≤ natDegree = p^n
+        open Polynomial in
+        set f := (X ^ (p ^ n) - X : Polynomial (GaloisField p (2 * n)))
+        have hf_ne : f ≠ 0 :=
+          FiniteField.X_pow_card_pow_sub_X_ne_zero (GaloisField p (2 * n)) hn hp.out.one_lt
+        have hfixed_sub_roots : fixed ⊆ f.roots.toFinset := by
+          intro x hx
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and, fixed] at hx
+          rw [Multiset.mem_toFinset, Polynomial.mem_roots hf_ne, Polynomial.IsRoot.def,
+            Polynomial.eval_sub, Polynomial.eval_pow, Polynomial.eval_X]
+          exact sub_eq_zero.mpr hx
+        calc fixed.card ≤ f.roots.toFinset.card := Finset.card_le_card hfixed_sub_roots
+          _ ≤ Multiset.card f.roots := Multiset.toFinset_card_le _
+          _ ≤ f.natDegree := Polynomial.card_roots' _
+          _ = p ^ n := by
+              simp only [f]
+              exact FiniteField.X_pow_card_pow_sub_X_natDegree_eq
+                (GaloisField p (2 * n)) hn hp.out.one_lt
+      -- By sandwich: img ⊆ fixed and |img| = |fixed| = p^n, so img = fixed
+      have : fixed = img :=
+        (Finset.eq_of_subset_of_card_le himg_sub (himg_card ▸ hfixed_le)).symm
+      -- α ∈ fixed = img, so α is in the image
+      rw [this] at hα_mem
+      simp only [Finset.mem_image, Finset.mem_univ, true_and, img] at hα_mem
+      exact hα_mem
+    obtain ⟨a, ha⟩ := hα_in_range
+    -- Now fieldExtEmbed(α) = fieldExtEmbed(Units.map algebraMap (Units.mk0 a _))
+    -- which is a scalar matrix by the same argument as scalar_eq_fieldExtEmbed
+    have hconj_scalar : GL2.IsScalar (p := p) (n := n) (GL2.fieldExtEmbed p n α) := by
+      set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+        (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+      have hval : (GL2.fieldExtEmbed p n α).val =
+          Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) := by
+        unfold GL2.fieldExtEmbed; simp only [dif_neg hn]; rfl
+      have hentry : ∀ i j : Fin 2,
+          (GL2.fieldExtEmbed p n α).val i j =
+            a * if j = i then 1 else 0 := by
+        intro i j
+        change (GL2.fieldExtEmbed p n α).val i j = _
+        rw [show (GL2.fieldExtEmbed p n α).val i j =
+            (Algebra.leftMulMatrix b (α : GaloisField p (2 * n))) i j from
+          congr_fun (congr_fun hval i) j]
+        rw [Algebra.leftMulMatrix_eq_repr_mul, ← ha,
+          Algebra.algebraMap_eq_smul_one, smul_mul_assoc, one_mul,
+          map_smul, Finsupp.smul_apply, smul_eq_mul, b.repr_self,
+          Finsupp.single_apply]
+      refine ⟨?_, ?_, ?_⟩
+      · change (GL2.fieldExtEmbed p n α).val 0 1 = 0
+        rw [hentry]; simp
+      · change (GL2.fieldExtEmbed p n α).val 1 0 = 0
+        rw [hentry]; simp
+      · change (GL2.fieldExtEmbed p n α).val 0 0 = (GL2.fieldExtEmbed p n α).val 1 1
+        rw [hentry 0 0, hentry 1 1]; simp
+    have hconj_scalar' : GL2.IsScalar (p := p) (n := n) (x⁻¹ * g * x) := hα ▸ hconj_scalar
+    exact hnotscalar (Etingof.conj_isScalar p n g x hconj_scalar')
+
 /-- On elliptic elements, charVα₁ = 0 (no conjugate is upper triangular).
 If x⁻¹gx were upper triangular, its (1,0) entry would be 0, making
 disc(x⁻¹gx) = (M₀₀-M₁₁)², a perfect square. But disc(x⁻¹gx) = disc(g)
