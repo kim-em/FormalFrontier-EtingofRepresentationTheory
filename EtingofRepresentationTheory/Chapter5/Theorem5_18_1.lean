@@ -21,10 +21,12 @@ itself is not yet formalized in Mathlib.
 
 open scoped TensorProduct
 
+universe u v
+
 namespace Etingof
 
-variable (k : Type*) [Field k]
-  (E : Type*) [AddCommGroup E] [Module k E] [Module.Finite k E]
+variable (k : Type u) [Field k]
+  (E : Type v) [AddCommGroup E] [Module k E] [Module.Finite k E]
 
 /-- Double centralizer theorem, part (i): For a semisimple subalgebra
 A of End(E) where E is a faithful A-module, the double centralizer
@@ -116,8 +118,45 @@ theorem Theorem5_18_1_commutant_semisimple
     IsSemisimpleRing
       (Subalgebra.centralizer k
         (A : Set (Module.End k E))) := by
-  sorry
+  -- E is semisimple as an A-module since A is a semisimple ring
+  haveI : IsSemisimpleModule A E := IsSemisimpleRing.isSemisimpleModule
+  -- E is finite over A (since finite over k and k → A → E is a scalar tower)
+  haveI : Module.Finite A E := Module.Finite.of_restrictScalars_finite k A E
+  -- Module.End A E is semisimple by Wedderburn-Artin
+  haveI : IsSemisimpleRing (Module.End A E) := IsSemisimpleRing.moduleEnd A E
+  -- Build ring isomorphism: centralizer(A) ≅ Module.End A E
+  -- Then transfer IsSemisimpleRing across it
+  -- Forward: Module.End A E → centralizer
+  let toEnd : (Subalgebra.centralizer k (A : Set (Module.End k E))) →+* Module.End A E :=
+    { toFun := fun ⟨f, hf⟩ =>
+        { f with
+          map_smul' := fun (a : A) e => by
+            rw [Subalgebra.mem_centralizer_iff] at hf
+            have h := hf a.1 a.2
+            exact (LinearMap.congr_fun h e).symm }
+      map_one' := by ext; rfl
+      map_mul' := fun _ _ => by ext; rfl
+      map_zero' := by ext; rfl
+      map_add' := fun _ _ => by ext; rfl }
+  let fromEnd : Module.End A E →+* (Subalgebra.centralizer k (A : Set (Module.End k E))) :=
+    { toFun := fun g =>
+        ⟨g.restrictScalars k, by
+          rw [Subalgebra.mem_centralizer_iff]
+          intro a ha
+          ext e
+          have := g.map_smul (⟨a, ha⟩ : A) e
+          exact this.symm⟩
+      map_one' := by ext; rfl
+      map_mul' := fun _ _ => by ext; rfl
+      map_zero' := by ext; rfl
+      map_add' := fun _ _ => by ext; rfl }
+  let e : (Subalgebra.centralizer k (A : Set (Module.End k E))) ≃+* Module.End A E :=
+    RingEquiv.ofRingHom toEnd fromEnd (by ext; rfl) (by ext; rfl)
+  exact e.symm.isSemisimpleRing
 
+-- Instance resolution needs more time due to deep Subalgebra → End → Module chain
+set_option maxHeartbeats 400000 in
+set_option synthInstance.maxHeartbeats 200000 in
 /-- Double centralizer theorem, part (iii): Bimodule decomposition.
 
 If A is a semisimple subalgebra of End_k(E) with E faithful, and
@@ -135,7 +174,7 @@ theorem Theorem5_18_1_decomposition
     [IsSemisimpleRing A]
     [FaithfulSMul A E] :
     ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
-      (V W : ι → Type)
+      (V : ι → Type v) (W : ι → Type u)
       (_ : ∀ i, AddCommGroup (V i)) (_ : ∀ i, Module k (V i))
       (_ : ∀ i, Module A (V i))
       (_ : ∀ i, IsSimpleModule A (V i))
@@ -143,6 +182,17 @@ theorem Theorem5_18_1_decomposition
       (_ : ∀ i, Module k (W i)),
       Nonempty
         (E ≃ₗ[k] DirectSum ι (fun i => V i ⊗[k] W i)) := by
-  sorry
+  haveI : IsSemisimpleModule A E := IsSemisimpleRing.isSemisimpleModule
+  haveI : Module.Finite A E := Module.Finite.of_restrictScalars_finite k A E
+  -- Decompose E as direct sum of simple A-modules
+  obtain ⟨n, S, e, hS⟩ := IsSemisimpleModule.exists_linearEquiv_fin_dfinsupp A E
+  -- V i = S i (simple A-submodule), W i = k
+  exact ⟨Fin n, inferInstance, inferInstance,
+    fun i => ↥(S i), fun _ => k,
+    inferInstance, inferInstance,
+    inferInstance, hS,
+    inferInstance, inferInstance,
+    ⟨(e.restrictScalars k).trans
+      (DFinsupp.mapRange.linearEquiv (fun i => (TensorProduct.rid k ↥(S i)).symm))⟩⟩
 
 end Etingof
