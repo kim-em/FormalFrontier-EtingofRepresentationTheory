@@ -740,6 +740,27 @@ When two `Finset.univ` expressions use different `Fintype` instances:
 convert rfl using 2  -- handles instance mismatch via Subsingleton
 ```
 
+### Pattern 5: `unfold + match` for `Decidable.casesOn` composition
+When two functions both use `match inst a b, inst c d with ...` on the same decidable instances,
+their composition should reduce to identity. Standard tactics (`rw`, `simp`, `▸`, `split`, `cases`)
+ALL fail because the scrutinee is an opaque application. Use `match` in the proof itself:
+```lean
+-- After unfolding both function definitions:
+unfold foo bar
+simp only [id]  -- remove @id wrappers from `change`/`unfold` in tactic definitions
+revert e  -- revert the variable so its type enters the goal
+exact match inst a b, inst c d with
+| .isFalse h, _ => fun _ => (absurd rfl h).elim  -- vacuous
+| .isTrue _, .isTrue h => fun _ => (absurd h hne).elim  -- vacuous
+| .isTrue _, .isFalse _ => fun _ => rfl  -- both matches reduce to id
+```
+**Limitation**: This works for arrow-level (homogeneous) equalities but NOT for Sigma-level
+equalities where the Sigma TYPE itself contains `Decidable.casesOn`. For Sigma-level round-trips,
+define both conversion directions in the SAME file as the type definition, or use `Equiv.ofBijective`.
+
+**Stop after 3 failed approaches** — if `match`-based proof doesn't work, the issue is structural
+(needs upstream definition changes), not tactical.
+
 ## Issue Description Feasibility Check
 
 **Issue descriptions sometimes contain mathematically incorrect proof strategies.** Before committing to a proof approach described in an issue:
