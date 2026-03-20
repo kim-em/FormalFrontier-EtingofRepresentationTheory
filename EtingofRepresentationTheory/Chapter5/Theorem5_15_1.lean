@@ -1667,8 +1667,20 @@ private theorem rhoShift_partial_sum_ge {n : ℕ}
     -- F = univ, F.map π⁻¹ = univ
     have hF_univ : F = Finset.univ := by ext ⟨i, hi⟩; simp [F]; omega
     rw [hF_univ]
-    -- Both sides equal ∑ i
-    sorry
+    -- Both sides equal ∑ j : Fin n, j.val
+    -- LHS: univ.map π⁻¹ = univ (since π⁻¹ is a bijection)
+    have hmap_univ : Finset.univ.map (π⁻¹).toEmbedding = Finset.univ := by
+      ext j; simp
+    rw [hmap_univ]
+    -- Both sides = ∑ j : Fin n, j.val
+    -- RHS: ∑ i in range n, (n-1-i) = ∑ j : Fin n, j.val (by reverse substitution)
+    rw [← Fin.sum_univ_eq_sum_range]
+    apply le_of_eq
+    apply Finset.sum_nbij Fin.rev
+      (fun i _ => Finset.mem_univ _)
+      (fun i j _ _ h => Fin.rev_injective h)
+      (fun j _ => ⟨Fin.rev j, Finset.mem_univ _, Fin.rev_rev j⟩)
+      (fun ⟨i, hi⟩ _ => by simp [Fin.rev]; push_cast; omega)
 
 /-- For π ≠ rev and permExponent n π ≤ la.toFinsupp + rhoShift n, the sorted partition
 `finsuppToPartition(la + ρ - e_π)` strictly dominates `la`.
