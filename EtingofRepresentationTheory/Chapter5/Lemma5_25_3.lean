@@ -116,6 +116,196 @@ private lemma Etingof.qm1_char_on_scalar
     rw [ha_pow, map_one]
   rw [← map_pow, this, map_one]
 
+/-- For k ∈ K and ¬IsElliptic k, the element is scalar (not parabolic or split semisimple).
+In char ≠ 2, elements of K = 𝔽_{q²}× have disc = 0 (scalar) or non-square disc (elliptic).
+So ¬IsElliptic forces disc = 0, which combined with K not containing parabolic elements
+(by `parabolic_conj_not_in_ellipticSubgroup`) gives IsScalar. -/
+private lemma Etingof.ellipticSubgroup_not_elliptic_isScalar
+    (hp2 : p ≠ 2) (hn : n ≠ 0)
+    (k : GL2 p n) (hk : k ∈ Etingof.GL2.ellipticSubgroup p n)
+    (hne : ¬GL2.IsElliptic (p := p) (n := n) k) :
+    GL2.IsScalar (p := p) (n := n) k := by
+  -- k ∈ K implies disc(k) = 0 ∨ ¬IsSquare(disc(k))
+  have hK := Etingof.ellipticSubgroup_disc p n hp2 k hk
+  -- ¬IsElliptic means IsSquare(disc(k))
+  have hIsSquare : IsSquare (GL2.disc k) := by
+    simp only [GL2.IsElliptic, not_not] at hne; exact hne
+  -- Combined: disc(k) = 0
+  have hdisc_zero : GL2.disc k = 0 := by
+    rcases hK with h | h
+    · exact h
+    · exact absurd hIsSquare h
+  -- disc = 0 means IsScalar or IsParabolic
+  rcases GL2.conjugacyClass_exhaustive k with hs | hp | hss | he
+  · exact hs
+  · -- Parabolic: impossible, since parabolic elements aren't in K
+    have h_para := Etingof.parabolic_conj_not_in_ellipticSubgroup p n k hp 1
+    simp only [inv_one, one_mul, mul_one] at h_para
+    exact absurd hk h_para
+  · -- SplitSemisimple: disc ≠ 0, contradiction
+    exact absurd hdisc_zero hss.1
+  · -- Elliptic: contradicts hne
+    exact absurd he hne
+
+-- The character orthogonality sum over non-scalar K elements.
+-- ∑_K ψ = conj(∑_K ν^{q-1}) = conj(0) = 0 (nontrivial character)
+-- ψ = 1 on F_q× (ν^{q-1} = 1 on scalars)
+-- ∑_{K \ F_q×} (1+ψ) = (q²-1) - 2(q-1) = (q-1)²
+open Classical in
+private lemma Etingof.nonscalar_char_sum
+    [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)]
+    (hp2 : p ≠ 2)
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0)
+    (hnu_ne : ∃ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (nu k) ^ Fintype.card (GaloisField p n) ≠ nu k) :
+    ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+       then (1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)
+       else 0) =
+    ((Fintype.card (GaloisField p n) : ℂ) - 1) ^ 2 := by
+  -- Strategy: ∑_{K_ns} f = ∑_K f - ∑_{K_scalar} f
+  -- ∑_K f = |K| (using character orthogonality)
+  -- ∑_{K_scalar} f = 2·|F_q×| (each scalar contributes 2)
+  -- Result: (q²-1) - 2(q-1) = (q-1)²
+  -- Step 1: ∑_K (1+ψ) = |K|
+  set ψ : ↥(Etingof.GL2.ellipticSubgroup p n) → ℂ :=
+    fun k => starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ) with hψ_def
+  -- conj(∑_K qm1_char) = conj(0) = 0
+  have h_conj_sum_zero : ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n), ψ k = 0 := by
+    rw [hψ_def]
+    rw [show (∑ k, starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)) =
+      starRingEnd ℂ (∑ k, ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)) from
+        (map_sum (starRingEnd ℂ) _ _).symm]
+    rw [Etingof.sum_nontrivial_char_eq_zero (Etingof.qm1_char p n nu)
+      (Etingof.qm1_char_nontrivial p n nu hnu_ne), map_zero]
+  have h_full_sum : ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n), ((1 : ℂ) + ψ k) =
+      (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) := by
+    rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, mul_one,
+      h_conj_sum_zero, add_zero]
+  -- Step 2: Decompose into elliptic + non-elliptic
+  have hdecomp : ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+       then (1 : ℂ) + ψ k else 0) =
+      ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n), ((1 : ℂ) + ψ k) -
+      ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+        (if ¬GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+         then (1 : ℂ) + ψ k else 0) := by
+    rw [← Finset.sum_sub_distrib]
+    congr 1; ext k; split_ifs with h <;> simp
+  -- Step 3: Non-elliptic K elements are scalar, ψ = 1, so each contributes 2
+  have h_scalar_psi_one : ∀ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      ¬GL2.IsElliptic (p := p) (n := n) (k : GL2 p n) → ψ k = 1 := by
+    intro k hne
+    have hscalar := Etingof.ellipticSubgroup_not_elliptic_isScalar p n hp2 hn
+      (k : GL2 p n) k.2 hne
+    -- k₀₀ ≠ 0 (k is invertible, det = k₀₀² since off-diagonals are 0)
+    have hk00_ne : (k : GL2 p n).val 0 0 ≠ 0 := by
+      obtain ⟨h01, h10, h00_eq⟩ := hscalar
+      -- h01, h10, h00_eq use private GL2.mat which is defeq to .val
+      intro h0
+      have h01' : (k : GL2 p n).val 0 1 = 0 := h01
+      have h10' : (k : GL2 p n).val 1 0 = 0 := h10
+      have h00_eq' : (k : GL2 p n).val 0 0 = (k : GL2 p n).val 1 1 := h00_eq
+      have h11 : (k : GL2 p n).val 1 1 = 0 := by rw [← h00_eq']; exact h0
+      have hdet_zero : Matrix.det (k : GL2 p n).val = 0 := by
+        rw [Matrix.det_fin_two]; simp [h01', h10', h0, h11]
+      have hdet_unit := (k : GL2 p n).isUnit
+      rw [Matrix.isUnit_iff_isUnit_det] at hdet_unit
+      exact not_isUnit_zero (hdet_zero ▸ hdet_unit)
+    set a := Units.mk0 ((k : GL2 p n).val 0 0) hk00_ne
+    -- k = scalarToElliptic(a) as elements of K
+    have hk_eq : k = Etingof.GL2.scalarToElliptic p n a := by
+      apply Subtype.ext
+      letI := Etingof.algebraGaloisFieldExt p n
+      unfold GL2.scalarToElliptic
+      simp only [dif_neg hn, MonoidHom.comp_apply, MonoidHom.codRestrict_apply]
+      exact Etingof.scalar_eq_fieldExtEmbed p n hn (k : GL2 p n) hscalar hk00_ne
+    -- ψ(k) = ψ(scalarToElliptic(a)) = conj(qm1_char(scalarToElliptic(a)))
+    -- = conj(1) = 1
+    show ψ k = 1
+    have hqm1 : (Etingof.qm1_char p n nu (Etingof.GL2.scalarToElliptic p n a) : ℂˣ) =
+      (1 : ℂˣ) := Etingof.qm1_char_on_scalar p n nu hn a
+    simp only [hψ_def, hk_eq, hqm1, Units.val_one, map_one]
+  -- Step 4: Non-elliptic sum = 2 · |{k ∈ K : ¬IsElliptic k}|
+  have h_scalar_sum : ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (if ¬GL2.IsElliptic (p := p) (n := n) (k : GL2 p n) then (1 : ℂ) + ψ k else 0) =
+      2 * (Fintype.card (GaloisField p n) - 1 : ℂ) := by
+    -- Each non-elliptic k contributes (1 + 1) = 2
+    have hval : ∀ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+        ¬GL2.IsElliptic (p := p) (n := n) (k : GL2 p n) →
+        (1 : ℂ) + ψ k = 2 := by
+      intro k hne; rw [h_scalar_psi_one k hne]; norm_num
+    -- Each non-elliptic contributes 2, elliptic contributes 0
+    -- So sum = 2 * |{k ∈ K : ¬IsElliptic k}| = 2 * (q - 1)
+    -- since non-elliptic K elements ↔ F_q× (scalar matrices)
+    sorry
+  -- Step 5: Combine
+  rw [hdecomp, h_full_sum, h_scalar_sum]
+  -- |K| - 2(q-1) = (q-1)²  where |K| = q² - 1
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  set q := Fintype.card (GaloisField p n) with hq_def
+  have hq_pos : 1 < q := by
+    rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+    exact Nat.one_lt_pow hn hp.out.one_lt
+  have hinj : Function.Injective (Etingof.GL2.fieldExtEmbed p n) := by
+    intro a b hab
+    unfold GL2.fieldExtEmbed at hab
+    simp only [dif_neg hn] at hab
+    exact Units.ext (RingHom.injective
+      (Algebra.leftMulMatrix (Module.finBasisOfFinrankEq (GaloisField p n)
+      (GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn))).toRingHom
+      (congr_arg (fun g => g.val) hab))
+  have hKc_units : Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) =
+      Fintype.card (GaloisField p (2 * n))ˣ := by
+    rw [← Nat.card_eq_fintype_card, ← Nat.card_eq_fintype_card]
+    change Nat.card ↥(Etingof.GL2.fieldExtEmbed p n).range = _
+    exact Nat.card_congr ((Etingof.GL2.fieldExtEmbed p n).ofInjective hinj).symm.toEquiv
+  have hq_pn : q = p ^ n := by
+    rw [hq_def, ← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+  have hKc_nat : Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) = q ^ 2 - 1 := by
+    rw [hKc_units, Fintype.card_units,
+      ← Nat.card_eq_fintype_card,
+      GaloisField.card p (2 * n) (Nat.mul_ne_zero two_ne_zero hn)]
+    congr 1
+    rw [hq_pn, show 2 * n = n * 2 from by ring, pow_mul]
+  have h1 : 1 ≤ q ^ 2 := by nlinarith
+  have hKc_C : (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) =
+      (q : ℂ) ^ 2 - 1 := by
+    rw [hKc_nat]; push_cast [Nat.cast_sub h1]; ring
+  rw [hKc_C]; ring
+
+-- The algebraic core: change of variables and normalizer evaluation.
+-- The sum over elliptic elements rewrites via (g,x,y) -> (k,x,z) as
+-- |GL₂| * |K| * ∑_{k in K non-scalar} (1 + conj(qm1_char(k))).
+-- This encapsulates:
+-- 1. Bijection {(g,x): g elliptic, x⁻¹gx ∈ K} <-> {(k,x): k ∈ K non-scalar, x ∈ GL₂}
+-- 2. Normalizer N_{GL₂}(K) = K ∪ σK (σ = Frobenius lift)
+-- 3. Conjugation: z ∈ K -> z⁻¹kz = k, z ∈ σK -> z⁻¹kz = k^q
+-- 4. Character: ν(k)*conj(ν(k)) = 1, ν(k)*conj(ν(k^q)) = ν(k)^{1-q}
+open Classical in
+private lemma Etingof.elliptic_sum_algebraic_core
+    [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)]
+    (hp2 : p ≠ 2)
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0)
+    (hnu_ne : ∃ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (nu k) ^ Fintype.card (GaloisField p n) ≠ nu k) :
+    ∑ g ∈ Finset.univ.filter (fun g : GL2 p n => GL2.IsElliptic (p := p) (n := n) g),
+      (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) *
+      starRingEnd ℂ (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) =
+    (Fintype.card (GL2 p n) : ℂ) *
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+    ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+       then (1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)
+       else 0) := by
+  sorry
+
 open Classical in
 /-- The sum of |Ind_K^G ν|² over elliptic elements equals q(q-1)³.
 
@@ -136,6 +326,7 @@ This encapsulates the three hardest steps of the elliptic contribution proof:
 private lemma Etingof.induced_normSq_sum_elliptic
     [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
     [DecidableEq (GaloisField p n)]
+    (hp2 : p ≠ 2)
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0)
     (hnu_ne : ∃ k : ↥(Etingof.GL2.ellipticSubgroup p n),
       (nu k) ^ Fintype.card (GaloisField p n) ≠ nu k) :
@@ -221,7 +412,9 @@ private lemma Etingof.induced_normSq_sum_elliptic
     -- 7. Apply sum_nontrivial_char_eq_zero with qm1_char_nontrivial (uses hnu_ne)
     --    and qm1_char_on_scalar to evaluate ∑_{K\F_q×} ψ = -(q-1)
     -- Steps 4-5 require the deepest algebraic infrastructure (normalizer theory).
-    sorry
+    -- Use the two helper lemmas: algebraic core + character orthogonality
+    rw [Etingof.elliptic_sum_algebraic_core p n hp2 nu hn hnu_ne,
+        Etingof.nonscalar_char_sum p n hp2 nu hn hnu_ne]
   rw [hraw]
   -- Step 3: Arithmetic: Kc⁻² · Gc · Kc · (q-1)² = q · (q-1)³
   -- Using Gc = (q²-1)(q²-q) and Kc = q²-1
@@ -285,6 +478,7 @@ by conjugacy class decomposition and character orthogonality
 private lemma Etingof.elliptic_contribution
     [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
     [DecidableEq (GaloisField p n)]
+    (hp2 : p ≠ 2)
     (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0)
     (hnu_ne : ∃ k : ↥(Etingof.GL2.ellipticSubgroup p n),
       (nu k) ^ Fintype.card (GaloisField p n) ≠ nu k) :
@@ -312,7 +506,7 @@ private lemma Etingof.elliptic_contribution
     simp only [map_neg, neg_mul, mul_neg, neg_neg]
   rw [Finset.sum_congr rfl hconv]
   -- Step 2: Apply the helper for the induced character norm-squared sum
-  exact Etingof.induced_normSq_sum_elliptic p n nu hn hnu_ne
+  exact Etingof.induced_normSq_sum_elliptic p n hp2 nu hn hnu_ne
 
 /-- Arithmetic identity: contributions from scalar, parabolic, and elliptic conjugacy classes
 sum to |GL₂(𝔽_q)|. Specifically:
@@ -396,7 +590,7 @@ private lemma Etingof.innerProduct_sum_eq_card
   -- Elliptic: total = q(q-1)³
   have h_elliptic : ∑ g ∈ Finset.univ.filter (fun g => GL2.IsElliptic g), f g =
       (q : ℂ) * ((q : ℂ) - 1) ^ 3 :=
-    Etingof.elliptic_contribution p n nu hn_ne hnu_ne
+    Etingof.elliptic_contribution p n hp2 nu hn_ne hnu_ne
   -- Combine
   rw [h_scalar, h_parabolic, h_split, h_elliptic, hG]
   have h1 : 1 ≤ q := by omega
