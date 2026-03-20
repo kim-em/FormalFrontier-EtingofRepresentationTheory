@@ -809,6 +809,18 @@ private lemma YoungDiagram.hookLengthProduct_removeCorner
   unfold YoungDiagram.hookLengthProduct
   rfl
 
+-- The ratio H(μ)/H(μ\c) expressed via product over erase'd cells
+private lemma YoungDiagram.hookRatio_eq_prod_div
+    {μ : YoungDiagram} {i j : ℕ} (hc : μ.IsOuterCorner i j) :
+    (μ.hookLengthProduct : ℚ) /
+      ((μ.removeCorner i j hc).hookLengthProduct : ℚ) =
+    (μ.cells.erase (i, j)).prod (fun c =>
+      (μ.hookLength c.1 c.2 : ℚ) /
+        ((μ.removeCorner i j hc).hookLength c.1 c.2 : ℚ)) := by
+  rw [hookLengthProduct_erase_corner hc, hookLengthProduct_removeCorner hc]
+  push_cast
+  rw [Finset.prod_div_distrib]
+
 private lemma YoungDiagram.hook_quotient_identity_yd
     (μ : YoungDiagram) :
     μ.outerCorners.attach.sum (fun c =>
