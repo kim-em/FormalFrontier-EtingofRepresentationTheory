@@ -191,7 +191,7 @@ theorem Nat.Partition.toYoungDiagram_removeOuterCorner {n : ℕ} (la : Nat.Parti
   unfold Nat.Partition.toYoungDiagram Nat.Partition.removeOuterCorner
   convert YoungDiagram.ofRowLens_to_rowLens_eq_self (μ := μ') using 2
   -- Goal: sort of already-sorted rowLens = rowLens
-  show (μ'.rowLens : Multiset ℕ).sort (· ≥ ·) = μ'.rowLens
+  change (μ'.rowLens : Multiset ℕ).sort (· ≥ ·) = μ'.rowLens
   rw [Multiset.coe_sort]
   exact List.mergeSort_eq_self _ (List.sortedGE_iff_pairwise.mp μ'.rowLens_sorted)
 
@@ -243,16 +243,251 @@ theorem syt_branching_rule (n : ℕ) (la : Nat.Partition (n + 1)) :
   -- via "remove the cell containing the largest entry n+1"
   sorry
 
-/-- The hook quotient identity: for a partition λ of n+1, the sum over outer
-corners c of hookProd(λ)/hookProd(λ\c) equals n+1. Individual terms may be
-non-integer, so this is stated over ℚ. -/
-private lemma hook_quotient_identity (n : ℕ) (la : Nat.Partition (n + 1)) :
+/-! ## Infrastructure for hook quotient identity -/
+
+/-- Membership in removeCorner: in μ and not the removed corner. -/
+lemma YoungDiagram.mem_removeCorner_iff {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {a b : ℕ} :
+    (a, b) ∈ (μ.removeCorner i j hc) ↔
+      (a, b) ∈ μ ∧ (a, b) ≠ (i, j) := by
+  change (a, b) ∈ μ.cells.erase (i, j) ↔ (a, b) ∈ μ.cells ∧ _
+  simp [Finset.mem_erase]
+  tauto
+
+/-- An outer corner (i,j) has rowLen(i) = j + 1. -/
+lemma YoungDiagram.IsOuterCorner.rowLen_eq
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) : μ.rowLen i = j + 1 := by
+  have h1 : j < μ.rowLen i :=
+    YoungDiagram.mem_iff_lt_rowLen.mp hc.1
+  have h2 : ¬(j + 1 < μ.rowLen i) := by
+    intro h
+    exact hc.2.2 (YoungDiagram.mem_iff_lt_rowLen.mpr h)
+  omega
+
+/-- An outer corner (i,j) has colLen(j) = i + 1. -/
+lemma YoungDiagram.IsOuterCorner.colLen_eq
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) : μ.colLen j = i + 1 := by
+  have h1 : i < μ.colLen j :=
+    YoungDiagram.mem_iff_lt_colLen.mp hc.1
+  have h2 : ¬(i + 1 < μ.colLen j) := by
+    intro h
+    exact hc.2.1 (YoungDiagram.mem_iff_lt_colLen.mpr h)
+  omega
+
+/-- The hook length at an outer corner is 1. -/
+lemma YoungDiagram.hookLength_outerCorner
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) :
+    μ.hookLength i j = 1 := by
+  unfold YoungDiagram.hookLength
+  rw [YoungDiagram.IsOuterCorner.rowLen_eq hc,
+      YoungDiagram.IsOuterCorner.colLen_eq hc]
+  omega
+
+/-- Row a cells in μ are the same as in removeCorner when a ≠ i. -/
+private lemma YoungDiagram.removeCorner_mem_row
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {a : ℕ} (ha : a ≠ i)
+    (b : ℕ) :
+    (a, b) ∈ (μ.removeCorner i j hc) ↔ (a, b) ∈ μ := by
+  rw [mem_removeCorner_iff hc]
+  constructor
+  · exact And.left
+  · exact fun h => ⟨h, by simp [Prod.ext_iff, ha]⟩
+
+/-- rowLen after removing corner: unchanged for rows ≠ i. -/
+lemma YoungDiagram.removeCorner_rowLen_ne
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {a : ℕ} (ha : a ≠ i) :
+    (μ.removeCorner i j hc).rowLen a = μ.rowLen a := by
+  apply le_antisymm
+  · by_contra h; push_neg at h
+    have := (removeCorner_mem_row hc ha (μ.rowLen a)).mp
+      (YoungDiagram.mem_iff_lt_rowLen.mpr h)
+    exact absurd (YoungDiagram.mem_iff_lt_rowLen.mp this)
+      (lt_irrefl _)
+  · by_contra h; push_neg at h
+    have := (removeCorner_mem_row hc ha _).mpr
+      (YoungDiagram.mem_iff_lt_rowLen.mpr h)
+    exact absurd (YoungDiagram.mem_iff_lt_rowLen.mp this)
+      (lt_irrefl _)
+
+/-- rowLen after removing corner: row i decreases by 1. -/
+lemma YoungDiagram.removeCorner_rowLen_eq
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) :
+    (μ.removeCorner i j hc).rowLen i = j := by
+  apply le_antisymm
+  · -- removeCorner.rowLen i ≤ j: cell (i, j) was removed
+    by_contra h; push_neg at h
+    have : (i, j) ∈ (μ.removeCorner i j hc) :=
+      YoungDiagram.mem_iff_lt_rowLen.mpr h
+    rw [mem_removeCorner_iff hc] at this
+    exact this.2 rfl
+  · -- j ≤ removeCorner.rowLen i: cells (i, b) for b < j still in
+    by_contra h; push_neg at h
+    have hr := YoungDiagram.IsOuterCorner.rowLen_eq hc
+    have : (i, (μ.removeCorner i j hc).rowLen i) ∈ μ :=
+      YoungDiagram.mem_iff_lt_rowLen.mpr (by omega)
+    have hne : (i, (μ.removeCorner i j hc).rowLen i) ≠ (i, j) :=
+      by simp [Prod.ext_iff]; omega
+    have : (i, (μ.removeCorner i j hc).rowLen i) ∈
+        (μ.removeCorner i j hc) :=
+      (mem_removeCorner_iff hc).mpr ⟨this, hne⟩
+    exact absurd (YoungDiagram.mem_iff_lt_rowLen.mp this)
+      (lt_irrefl _)
+
+/-- Col b cells in μ are the same as in removeCorner when b ≠ j. -/
+private lemma YoungDiagram.removeCorner_mem_col
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {b : ℕ} (hb : b ≠ j)
+    (a : ℕ) :
+    (a, b) ∈ (μ.removeCorner i j hc) ↔ (a, b) ∈ μ := by
+  rw [mem_removeCorner_iff hc]
+  constructor
+  · exact And.left
+  · exact fun h => ⟨h, fun heq => by cases heq; exact hb rfl⟩
+
+/-- colLen after removing corner: unchanged for cols ≠ j. -/
+lemma YoungDiagram.removeCorner_colLen_ne
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {b : ℕ} (hb : b ≠ j) :
+    (μ.removeCorner i j hc).colLen b = μ.colLen b := by
+  apply le_antisymm
+  · by_contra h; push_neg at h
+    have := (removeCorner_mem_col hc hb (μ.colLen b)).mp
+      (YoungDiagram.mem_iff_lt_colLen.mpr h)
+    exact absurd (YoungDiagram.mem_iff_lt_colLen.mp this)
+      (lt_irrefl _)
+  · by_contra h; push_neg at h
+    have := (removeCorner_mem_col hc hb _).mpr
+      (YoungDiagram.mem_iff_lt_colLen.mpr h)
+    exact absurd (YoungDiagram.mem_iff_lt_colLen.mp this)
+      (lt_irrefl _)
+
+/-- colLen after removing corner: col j decreases by 1. -/
+lemma YoungDiagram.removeCorner_colLen_eq
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) :
+    (μ.removeCorner i j hc).colLen j = i := by
+  apply le_antisymm
+  · by_contra h; push_neg at h
+    have : (i, j) ∈ (μ.removeCorner i j hc) :=
+      YoungDiagram.mem_iff_lt_colLen.mpr h
+    rw [mem_removeCorner_iff hc] at this
+    exact this.2 rfl
+  · by_contra h; push_neg at h
+    have hc_col := YoungDiagram.IsOuterCorner.colLen_eq hc
+    have : ((μ.removeCorner i j hc).colLen j, j) ∈ μ :=
+      YoungDiagram.mem_iff_lt_colLen.mpr (by omega)
+    have hne :
+        ((μ.removeCorner i j hc).colLen j, j) ≠ (i, j) :=
+      by simp [Prod.ext_iff]; omega
+    have : ((μ.removeCorner i j hc).colLen j, j) ∈
+        (μ.removeCorner i j hc) :=
+      (mem_removeCorner_iff hc).mpr ⟨this, hne⟩
+    exact absurd (YoungDiagram.mem_iff_lt_colLen.mp this)
+      (lt_irrefl _)
+
+/-- Hook length at (i₀, b) for b < j₀ decreases by 1. -/
+lemma YoungDiagram.removeCorner_hookLength_row
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {b : ℕ} (hb : b < j) :
+    (μ.removeCorner i j hc).hookLength i b =
+      μ.hookLength i b - 1 := by
+  unfold YoungDiagram.hookLength
+  rw [removeCorner_rowLen_eq hc, removeCorner_colLen_ne hc
+    (by omega : b ≠ j)]
+  have := YoungDiagram.IsOuterCorner.rowLen_eq hc
+  omega
+
+/-- Hook length at (a, j₀) for a < i₀ decreases by 1. -/
+lemma YoungDiagram.removeCorner_hookLength_col
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {a : ℕ} (ha : a < i) :
+    (μ.removeCorner i j hc).hookLength a j =
+      μ.hookLength a j - 1 := by
+  unfold YoungDiagram.hookLength
+  rw [removeCorner_rowLen_ne hc (by omega : a ≠ i),
+      removeCorner_colLen_eq hc]
+  have := YoungDiagram.IsOuterCorner.colLen_eq hc
+  omega
+
+/-- Hook length at (a, b) unchanged when a ≠ i₀ and b ≠ j₀. -/
+lemma YoungDiagram.removeCorner_hookLength_other
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) {a b : ℕ}
+    (ha : a ≠ i) (hb : b ≠ j) :
+    (μ.removeCorner i j hc).hookLength a b =
+      μ.hookLength a b := by
+  unfold YoungDiagram.hookLength
+  rw [removeCorner_rowLen_ne hc ha,
+      removeCorner_colLen_ne hc hb]
+
+/-- Hook quotient identity for Young diagrams: for any Young diagram μ,
+∑_{c ∈ outerCorners} hookProd(μ)/hookProd(μ\c) = |μ|.
+
+This is a deep combinatorial identity. Known proofs:
+- Greene–Nijenhuis–Wilf (1979): probabilistic hook walk argument
+- Novelli–Pak–Stoyanovskii (1997): bijective proof
+- Pak (2002): direct algebraic via Frobenius character formula
+All are substantial and require significant formalization effort.
+
+Infrastructure provided: `IsOuterCorner.rowLen_eq`, `colLen_eq`,
+`hookLength_outerCorner`, `removeCorner_rowLen_ne/eq`,
+`removeCorner_colLen_ne/eq`, `removeCorner_hookLength_row/col/other`.
+-/
+private lemma YoungDiagram.hookLengthProduct_erase_corner
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) :
+    μ.hookLengthProduct =
+      (μ.cells.erase (i, j)).prod
+        (fun c => μ.hookLength c.1 c.2) := by
+  unfold YoungDiagram.hookLengthProduct
+  rw [← Finset.mul_prod_erase _ _ hc.1,
+      YoungDiagram.hookLength_outerCorner hc, one_mul]
+
+private lemma YoungDiagram.hookLengthProduct_removeCorner
+    {μ : YoungDiagram} {i j : ℕ}
+    (hc : μ.IsOuterCorner i j) :
+    (μ.removeCorner i j hc).hookLengthProduct =
+      (μ.cells.erase (i, j)).prod
+        (fun c => (μ.removeCorner i j hc).hookLength
+          c.1 c.2) := by
+  unfold YoungDiagram.hookLengthProduct
+  rfl
+
+private lemma YoungDiagram.hook_quotient_identity_yd
+    (μ : YoungDiagram) :
+    μ.outerCorners.attach.sum (fun c =>
+      (μ.hookLengthProduct : ℚ) /
+        ((μ.removeCorner c.val.1 c.val.2
+          (YoungDiagram.mem_outerCorners.mp
+            c.property)).hookLengthProduct : ℚ)) =
+      (μ.cells.card : ℚ) := by
+  sorry
+
+/-- The hook quotient identity: for a partition λ of n+1, the sum over
+outer corners c of hookProd(λ)/hookProd(λ\c) equals n+1. Individual
+terms may be non-integer, so this is stated over ℚ. -/
+private lemma hook_quotient_identity
+    (n : ℕ) (la : Nat.Partition (n + 1)) :
     la.toYoungDiagram.outerCorners.attach.sum (fun c =>
       (la.toYoungDiagram.hookLengthProduct : ℚ) /
-        ((la.removeOuterCorner c.val
-          (YoungDiagram.mem_outerCorners.mp c.property)).toYoungDiagram.hookLengthProduct)) =
+        (((la.removeOuterCorner c.val
+          (YoungDiagram.mem_outerCorners.mp
+            c.property)).toYoungDiagram
+              ).hookLengthProduct)) =
       (n + 1 : ℚ) := by
-  sorry
+  have h := YoungDiagram.hook_quotient_identity_yd
+    la.toYoungDiagram
+  rw [Nat.Partition.toYoungDiagram_card] at h
+  simp_rw [Nat.Partition.toYoungDiagram_removeOuterCorner]
+    at h ⊢
+  push_cast at h ⊢
+  exact h
 
 /-- Hook length product identity: for the inductive step, we need that
 multiplying the branching count by the hook product and using the IH gives (n+1)!.
@@ -285,7 +520,8 @@ theorem hook_corner_sum (n : ℕ) (la : Nat.Partition (n + 1))
       (la.toYoungDiagram.hookLengthProduct : ℚ) =
       (n.factorial : ℚ) * ((la.toYoungDiagram.hookLengthProduct : ℚ) /
         ((la.removeOuterCorner ↑x
-          (YoungDiagram.mem_outerCorners.mp x.property)).toYoungDiagram.hookLengthProduct : ℚ)) := by
+          (YoungDiagram.mem_outerCorners.mp x.property)
+            ).toYoungDiagram.hookLengthProduct : ℚ)) := by
     intro x
     set la' := la.removeOuterCorner ↑x (YoungDiagram.mem_outerCorners.mp x.property)
     have ih_c := ih la'
