@@ -69,7 +69,7 @@ private lemma simpleReflection_apply_self {A : Matrix (Fin n) (Fin n) ℤ}
     Pi.single_apply, if_pos rfl, mul_one, key, ite_true, smul_eq_mul]
 
 /-- Sum of coordinates after reflection. -/
-private lemma simpleReflection_sum {A : Matrix (Fin n) (Fin n) ℤ}
+lemma simpleReflection_sum {A : Matrix (Fin n) (Fin n) ℤ}
     (hA : A.IsSymm) (v : Fin n → ℤ) (i : Fin n) :
     ∑ j : Fin n, simpleReflection n A i v j = (∑ j : Fin n, v j) - (A.mulVec v) i := by
   have : ∀ j, simpleReflection n A i v j =
@@ -146,7 +146,7 @@ lemma simpleReflection_nonzero
   linarith
 
 /-- A non-negative nonzero integer vector has positive sum. -/
-private lemma sum_pos_of_nonneg_ne_zero
+lemma sum_pos_of_nonneg_ne_zero
     (d : Fin n → ℤ) (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0) :
     1 ≤ ∑ i : Fin n, d i := by
   by_contra h; push_neg at h
@@ -157,7 +157,7 @@ private lemma sum_pos_of_nonneg_ne_zero
   exact hd_nonzero (funext this)
 
 /-- Non-negative integer entries summing to 1 means exactly one entry is 1. -/
-private lemma sum_one_is_simpleRoot
+lemma sum_one_is_simpleRoot
     (d : Fin n → ℤ) (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0)
     (hd_sum : ∑ i : Fin n, d i = 1) :
     ∃ p, d = simpleRoot n p := by
@@ -189,7 +189,7 @@ private lemma sum_one_is_simpleRoot
 
 /-- **Key lemma**: For a positive root d with ∑ d ≥ 2, there exists k
 with 0 < (Ad)_k ≤ d_k. Proof by contradiction via positive definiteness. -/
-private lemma exists_good_vertex
+lemma exists_good_vertex
     (hDynkin : IsDynkinDiagram n adj) (d : Fin n → ℤ)
     (hd_pos : ∀ i, 0 ≤ d i) (hd_nonzero : d ≠ 0)
     (hd_root : dotProduct d ((cartanMatrix n adj).mulVec d) = 2)
