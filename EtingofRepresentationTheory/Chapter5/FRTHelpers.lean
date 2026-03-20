@@ -1168,7 +1168,63 @@ private lemma YoungDiagram.hookCellsExcl_mem_cells
     {v : ℕ × ℕ} (hv : v ∈ μ.hookCellsExcl a b) : v ∈ μ.cells :=
   YoungDiagram.hookCellsExcl_subset_cells hmem hv
 
-/-- Column identity (Property 2 of GNW hook walk).
+/-- Hook walk weight is zero when the target corner c = (i, j) has
+smaller row index than u. The hook walk from (a, b) only visits cells
+(a', b') with a' ≥ a, so it can never reach (i, j) when a > i. -/
+private lemma YoungDiagram.hookWalkWeight_zero_of_row_gt
+    {μ : YoungDiagram} {a b i j : ℕ} (ha : i < a)
+    (hmem : (a, b) ∈ μ.cells) :
+    μ.hookWalkWeight a b (i, j) = 0 := by
+  -- By well-founded induction on hookLength
+  suffices h : ∀ (n : ℕ) (a b : ℕ), i < a → (a, b) ∈ μ.cells →
+      μ.hookLength a b = n → μ.hookWalkWeight a b (i, j) = 0 from
+    h _ a b ha hmem rfl
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+    intro a b ha hmem hlen
+    by_cases hone : μ.hookLength a b = 1
+    · rw [YoungDiagram.hookWalkWeight, dif_pos hmem, if_pos hone,
+          if_neg (by intro h; exact absurd (congr_arg Prod.fst h).symm (by omega))]
+    · rw [YoungDiagram.hookWalkWeight_unfold_noncorner hmem hone]
+      rw [Finset.sum_eq_zero, zero_div]
+      intro ⟨v, hv⟩ _
+      have hv_mem := YoungDiagram.hookCellsExcl_subset_cells hmem hv
+      have hv_lt := YoungDiagram.hookLength_lt_of_hookCellsExcl hmem hv
+      simp only [YoungDiagram.hookCellsExcl, Finset.mem_union, Finset.mem_image,
+        Finset.mem_Ico] at hv
+      rcases hv with ⟨b', _, rfl⟩ | ⟨a', ⟨ha', _⟩, rfl⟩
+      · exact ih _ (hlen ▸ hv_lt) a b' (by omega) hv_mem rfl
+      · exact ih _ (hlen ▸ hv_lt) a' b (by omega) hv_mem rfl
+
+/-- Hook walk weight is zero when the target corner c = (i, j) has
+smaller column index than u. Symmetric to `hookWalkWeight_zero_of_row_gt`. -/
+private lemma YoungDiagram.hookWalkWeight_zero_of_col_gt
+    {μ : YoungDiagram} {a b i j : ℕ} (hb : j < b)
+    (hmem : (a, b) ∈ μ.cells) :
+    μ.hookWalkWeight a b (i, j) = 0 := by
+  suffices h : ∀ (n : ℕ) (a b : ℕ), j < b → (a, b) ∈ μ.cells →
+      μ.hookLength a b = n → μ.hookWalkWeight a b (i, j) = 0 from
+    h _ a b hb hmem rfl
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+    intro a b hb hmem hlen
+    by_cases hone : μ.hookLength a b = 1
+    · rw [YoungDiagram.hookWalkWeight, dif_pos hmem, if_pos hone,
+          if_neg (by intro h; exact absurd (congr_arg Prod.snd h).symm (by omega))]
+    · rw [YoungDiagram.hookWalkWeight_unfold_noncorner hmem hone]
+      rw [Finset.sum_eq_zero, zero_div]
+      intro ⟨v, hv⟩ _
+      have hv_mem := YoungDiagram.hookCellsExcl_subset_cells hmem hv
+      have hv_lt := YoungDiagram.hookLength_lt_of_hookCellsExcl hmem hv
+      simp only [YoungDiagram.hookCellsExcl, Finset.mem_union, Finset.mem_image,
+        Finset.mem_Ico] at hv
+      rcases hv with ⟨b', ⟨hb', _⟩, rfl⟩ | ⟨a', _, rfl⟩
+      · exact ih _ (hlen ▸ hv_lt) a b' (by omega) hv_mem rfl
+      · exact ih _ (hlen ▸ hv_lt) a' b (by omega) hv_mem rfl
+
+/- Column identity (Property 2 of GNW hook walk).
 
 For each outer corner c, the sum of hook walk weights over all cells
 equals HP(μ)/HP(μ\c). This is the hard direction of the GNW proof.
@@ -1179,18 +1235,65 @@ Available infrastructure:
 - `hookWalkWeight_unfold_noncorner`: recursive unfolding for h > 1
 - `hookRatio_arm_leg_decomp`: RHS = ∏_{arm} h/(h-1) × ∏_{leg} h/(h-1)
 - `hookWalkWeight_row_sum`: Property 1 (∑_c w(u,c) = 1)
-- `hookRatio_eq_prod_div`: RHS as product of per-cell ratios
+- `hookRatio_eq_prod_div`: RHS as product of per-cell ratios -/
 
-Potential proof strategies:
-1. Induction on |μ.cells| with careful corner-removal commutation
-2. Double counting via Fubini after establishing a per-cell ratio identity
-3. Direct algebraic manipulation of the arm-leg product form -/
+/-- When μ has exactly one cell (which must be a corner), the column sum is 1
+and the hook ratio is 1, so the identity holds. -/
+private lemma YoungDiagram.hookWalkWeight_col_sum_singleton
+    (μ : YoungDiagram) {i j : ℕ} (hc : μ.IsOuterCorner i j)
+    (hcard : μ.cells.card = 1) :
+    μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 (i, j)) =
+      (μ.hookLengthProduct : ℚ) /
+        ((μ.removeCorner i j hc).hookLengthProduct : ℚ) := by
+  -- μ has exactly one cell, which must be (i, j)
+  have honly : μ.cells = {(i, j)} := by
+    have := Finset.card_eq_one.mp hcard
+    obtain ⟨a, ha⟩ := this
+    rw [ha]
+    have : (i, j) ∈ μ.cells := hc.1
+    rw [ha] at this
+    exact congrArg _ (Finset.mem_singleton.mp this).symm
+  -- LHS: only one cell (i,j), w(c,c) = 1
+  rw [honly, Finset.sum_singleton]
+  rw [YoungDiagram.hookWalkWeight_corner hc]
+  -- RHS: HP(μ) = 1 (single cell with hook length 1), HP(μ\c) = 1 (empty)
+  have hHP : μ.hookLengthProduct = 1 := by
+    unfold YoungDiagram.hookLengthProduct
+    rw [honly, Finset.prod_singleton]
+    exact Etingof.YoungDiagram.hookLength_outerCorner hc
+  have hHP' : (μ.removeCorner i j hc).hookLengthProduct = 1 := by
+    unfold YoungDiagram.hookLengthProduct
+    have : (μ.removeCorner i j hc).cells = ∅ := by
+      simp [YoungDiagram.removeCorner, honly]
+    rw [this, Finset.prod_empty]
+  rw [hHP, hHP']
+  simp
+
 theorem YoungDiagram.hookWalkWeight_col_sum
     (μ : YoungDiagram) {i j : ℕ} (hc : μ.IsOuterCorner i j) :
     μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 (i, j)) =
       (μ.hookLengthProduct : ℚ) /
         ((μ.removeCorner i j hc).hookLengthProduct : ℚ) := by
-  sorry
+  -- Strong induction on |μ.cells|
+  suffices h : ∀ (n : ℕ) (μ : YoungDiagram) (i j : ℕ) (hc : μ.IsOuterCorner i j),
+      μ.cells.card = n →
+      μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 (i, j)) =
+        (μ.hookLengthProduct : ℚ) /
+          ((μ.removeCorner i j hc).hookLengthProduct : ℚ) from
+    h _ μ i j hc rfl
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+    intro μ i j hc hcard
+    -- Base case: single cell
+    by_cases hn : n ≤ 1
+    · have hcard1 : μ.cells.card = 1 := by
+        have hpos : 0 < μ.cells.card := Finset.card_pos.mpr ⟨(i, j), hc.1⟩
+        omega
+      exact hookWalkWeight_col_sum_singleton μ hc hcard1
+    · -- Inductive step: n > 1
+      push_neg at hn
+      sorry
 
 namespace Etingof
 
