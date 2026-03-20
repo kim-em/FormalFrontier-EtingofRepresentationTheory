@@ -99,7 +99,7 @@
     "end_line": 25,
     "status": "proof_formalized",
     "needs_statement": false,
-    "notes": "Part (i) fully proved: existence + uniqueness via highest weight theory (primitive vectors, f-orbit bases, Lie module equiv). Part (ii) has 1 sorry: complete reducibility requires Weyl theorem, not in Mathlib."
+    "notes": "Part (i) fully proved: existence + uniqueness via highest weight theory (primitive vectors, f-orbit bases, Lie module equiv). Part (ii) has 1 sorry: complete reducibility requires Weyl theorem — prove it here."
   },
   {
     "id": "Chapter2/Discussion_after_Theorem2.1.1",
@@ -3429,7 +3429,7 @@
     "end_line": 14,
     "status": "proof_partial",
     "needs_statement": true,
-    "notes": "(\u2287) direction fully proved. (\u2286) direction blocked: requires Schur-Weyl duality / first fundamental theorem of invariant theory, not in Mathlib. 1 sorry remains."
+    "notes": "(\u2287) direction fully proved. (\u2286) direction needs Schur-Weyl duality / first fundamental theorem of invariant theory — prove it here. 1 sorry remains."
   },
   {
     "id": "Chapter5/Lemma5.18.3",
@@ -5586,10 +5586,10 @@
     "end_page": "217",
     "start_line": 5,
     "end_line": 6,
-    "status": "blocked",
+    "status": "statement_formalized",
     "needs_statement": false,
     "attention_needed": false,
-    "notes": "Triage (2026-03-18): Hilbert syzygy theorem not in Mathlib (no globalDimension, no HilbertSyzygy). Deep result requiring Koszul resolution machinery. Not tractable for automated proof. Defer indefinitely."
+    "notes": "Hilbert syzygy theorem: the book proves this via Koszul resolution in Problem 8.2.10(iv). Follow the book's proof. High priority."
   },
   {
     "id": "Chapter9/Problem9.4.5",

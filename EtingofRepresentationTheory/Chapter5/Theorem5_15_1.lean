@@ -1224,7 +1224,85 @@ private theorem toFinsupp_add_rhoShift_sub_rhoShift {n : ℕ} (la : Nat.Partitio
 private theorem finsuppToPartition_toFinsupp {n : ℕ} (la : Nat.Partition n)
     (hsum : ∑ i : Fin n, Nat.Partition.toFinsupp la i = n) :
     finsuppToPartition (Nat.Partition.toFinsupp la) hsum = la := by
-  sorry
+  -- Show parts are equal as multisets
+  have hsorted : (la.sortedParts : Multiset ℕ) = la.parts :=
+    Multiset.sort_eq la.parts (· ≥ ·)
+  have hlen : la.sortedParts.length ≤ n := by
+    calc la.sortedParts.length
+        ≤ la.sortedParts.sum := List.length_le_sum_of_one_le _ (fun i hi => by
+          exact la.parts_pos (hsorted ▸ Multiset.mem_coe.mpr hi))
+      _ = n := by
+          have h := congrArg Multiset.sum hsorted
+          rw [Multiset.sum_coe] at h; linarith [la.parts_sum]
+  suffices h : (finsuppToPartition (Nat.Partition.toFinsupp la) hsum).parts = la.parts from
+    Nat.Partition.ext h
+  simp only [finsuppToPartition, Nat.Partition.ofSums_parts,
+    Nat.Partition.toFinsupp, Finsupp.coe_equivFunOnFinite_symm]
+  -- Goal: filter (· ≠ 0) (map (fun i => sortedParts.getD i 0) univ.val) = la.parts
+  rw [← hsorted]
+  -- Show: map getD over Fin n = sortedParts + zeros (as multiset), then filter removes zeros
+  -- The mapped list = sortedParts ++ zeros
+  set sp := la.sortedParts
+  have hmap : (List.map (fun i : Fin n => sp.getD i.val 0) (List.finRange n)) =
+      sp ++ List.replicate (n - sp.length) 0 := by
+    apply List.ext_getElem
+    · simp [List.length_finRange]; omega
+    · intro i h1 h2
+      simp only [List.getElem_map, List.getElem_finRange]
+      simp only [List.getElem_finRange, Fin.val_cast, List.getD]
+      by_cases hlt : i < sp.length
+      · rw [List.getElem_append_left hlt, sp.getElem?_eq_getElem hlt, Option.getD_some]
+      · push_neg at hlt
+        rw [List.getElem_append_right (by omega), List.getElem_replicate,
+            sp.getElem?_eq_none (by omega), Option.getD_none]
+  rw [show Finset.univ.val = ↑(List.finRange n) from rfl,
+      Multiset.map_coe, hmap]
+  -- ↑(sp ++ replicate ...) = ↑sp + ↑(replicate ...)
+  simp only [← Multiset.coe_add]
+  rw [Multiset.filter_add]
+  have hfsp : Multiset.filter (fun x => x ≠ 0) (↑sp : Multiset ℕ) = ↑sp :=
+    Multiset.filter_eq_self.mpr (fun x hx => by
+      exact Nat.pos_iff_ne_zero.mp (la.parts_pos (hsorted ▸ hx)))
+  have hfrep : Multiset.filter (fun x => x ≠ 0)
+      (↑(List.replicate (n - sp.length) 0) : Multiset ℕ) = 0 :=
+    Multiset.filter_eq_nil.mpr (fun x hx => by
+      simp only [ne_eq, not_not]
+      exact (List.mem_replicate.mp (Multiset.mem_coe.mp hx)).2)
+  rw [hfsp, hfrep, add_zero]
+
+/-- For π ≠ rev and permExponent n π ≤ la.toFinsupp + rhoShift n, the sorted partition
+`finsuppToPartition(la + ρ - e_π)` strictly dominates `la`.
+
+This follows from the rearrangement inequality: since `la + ρ` is strictly decreasing
+and `ρ` is the uniquely matched decreasing permutation of `{0,...,n-1}`, subtracting
+any other permutation `e_π ≠ ρ` produces a vector whose sorted version has strictly
+larger initial partial sums. -/
+private theorem sorted_shifted_strict_dominates {n : ℕ}
+    (la : Nat.Partition n)
+    (π : Equiv.Perm (Fin n))
+    (hπ : π ≠ Fin.revPerm)
+    (hle : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n) :
+    Nat.Partition.StrictDominates
+      (finsuppToPartition
+        (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+        (sum_shifted_sub_permExponent la π hle))
+      la := by
+  constructor
+  · -- Dominance: ∀ k, (la.sortedParts.take k).sum ≤ (mu.sortedParts.take k).sum
+    -- where mu = finsuppToPartition(la + ρ - e_π)
+    -- This is the rearrangement inequality for partial sums
+    sorry
+  · -- Inequality: finsuppToPartition(la + ρ - e_π) ≠ la
+    -- Since π ≠ rev, e_π ≠ ρ, so la + ρ - e_π ≠ la.toFinsupp componentwise
+    -- After sorting, the partition differs because the multiset of values differs
+    intro heq
+    apply hπ
+    -- If finsuppToPartition(la + ρ - e_π) = la, then the multisets of entries match.
+    -- Since la + ρ is strictly decreasing, this forces e_π = ρ, so π = rev.
+    -- Proof sketch: from heq, {u(j) - e_π(j)} = {u(j) - ρ(j)} as multisets where
+    -- u = la + ρ is strictly decreasing. So there exists σ with u(j) - e_π(j) = u(σ(j)) - ρ(σ(j))
+    -- for all j. Since u is strictly decreasing, this forces σ = id and e_π = ρ.
+    sorry
 
 /-- The alternating Kostka identity: the alternating sum of Kostka numbers over
 Vandermonde permutations equals sign(rev) times the Kronecker delta.
@@ -1266,7 +1344,22 @@ theorem alternating_kostka_eq_delta {n : ℕ} (la nu : Nat.Partition n) :
            else (0 : ℂ))) = 0 := by
       -- For π ≠ rev, finsuppToPartition(la+ρ-e_π) strictly dominates la,
       -- so spechtMultiplicity = 0 by vanishing
-      sorry
+      apply Finset.sum_eq_zero
+      intro π hπ
+      simp only [Finset.mem_sdiff, Finset.mem_univ, Finset.mem_singleton, true_and] at hπ
+      -- Each summand is sign(π) • (either 0 or spechtMultiplicity = 0)
+      by_cases hle : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+      · simp only [dif_pos hle]
+        -- Need: spechtMultiplicity n (finsuppToPartition ...) la = 0
+        -- because finsuppToPartition(la+ρ-e_π) strictly dominates la when π ≠ rev
+        have hdom : Nat.Partition.StrictDominates
+            (finsuppToPartition
+              (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+              (sum_shifted_sub_permExponent la π hle))
+            la := sorted_shifted_strict_dominates la π hπ hle
+        rw [spechtMultiplicity_vanishing n _ la hdom]
+        simp
+      · simp [dif_neg hle]
     rw [hrest, add_zero]
     simp only [dif_pos hrev_le]
     -- la + ρ - ρ = la.toFinsupp

@@ -55,6 +55,7 @@ Read the item's blob text and its `.refs.md` file (Mathlib coverage + external s
 - Don't invent type classes. If Mathlib doesn't have a concept, use a `structure` or `def` with explicit fields.
 - Don't use `True` as a placeholder for propositions — it compiles but hides the real requirement.
 - Check that universe levels are consistent. Representation theory often needs `Type*` not `Type`.
+- **WF-recursive definitions** (`termination_by`): Don't use `rw [f]` or `simp [f]` to unfold — they fail on WF-recursive functions. Instead, prove a separate `have` using `unfold f` (works inside `conv` blocks), or extract a standalone unfolding lemma.
 
 ### 2. Scaffold: Set Up the Proof Structure
 
@@ -123,7 +124,7 @@ Mathlib.LinearAlgebra.TensorProduct.Basic
 Mathlib.GroupTheory.GroupAction.Basic
 ```
 
-**When Mathlib doesn't have it:** Check the `.refs.md` file for the item. If coverage is "gap", you need to build the definition from scratch. State it clearly, add a comment `-- not in Mathlib as of v4.28`, and use sorry for the proof.
+**When Mathlib doesn't have it:** This is the most important work in the project — prove it here. Check the `.refs.md` file for the item. If coverage is "gap", build the definition and proof from scratch. These are the highest-priority items, not items to defer. If the book proves the result (or assigns it as an exercise with hints), follow the book's approach. If it's genuinely external mathematics, prove it anyway — that's what this project is for.
 
 ## Scaffolding Anti-Patterns
 
@@ -227,7 +228,7 @@ Based on Phase 2 experience with issue sizing:
 
 ## Proven Proof Strategies
 
-Patterns that have succeeded in this project, derived from 90+ merged proof PRs (through wave 14).
+Patterns that have succeeded in this project, derived from 110+ merged proof PRs (through wave 20).
 
 ### Mathlib Alias Pattern (Chapter 2)
 
@@ -682,6 +683,75 @@ When a theorem has conceptually independent parts (e.g., symmetric power + exter
 
 This is strictly better than leaving the entire theorem sorry'd. Downstream work that only needs the proved part can proceed. Example: Example 5.19.3 symmetric power was proved completely while the exterior power part (blocked by the ExteriorAlgebra/PiTensorProduct coercion gap) was sorry'd with an issue.
 
+## Verify Statement Correctness Before Proving (Convention Check)
+
+**Before attempting any proof involving Mathlib conventions** (signs, orderings, normalizations), verify the statement is correct with a small concrete example.
+
+**The problem:** Convention mismatches between the book and Mathlib silently make statements unprovable. These appear as "unprovable goals" rather than type errors. Agents spend entire sessions trying proof strategies before discovering the statement itself is wrong.
+
+**Known convention differences:**
+- `vandermondePoly` uses `∏_{i<j}(x_j - x_i)` (Mathlib) vs the book's `∏_{i<j}(x_i - x_j)`, differing by `Equiv.Perm.sign(Fin.revPerm)`
+- Alternating sum conventions may differ in sign
+- Partition/Young diagram indexing conventions may differ
+
+**Verification pattern:**
+```lean
+-- Before proving: test with n=2 or smallest non-trivial case
+#eval do
+  let lhs := <your_LHS_computed_for_n_2>
+  let rhs := <your_RHS_computed_for_n_2>
+  return (lhs == rhs)  -- should be true!
+```
+
+If the concrete example fails, the statement has a convention bug. Fix the statement before attempting the proof. This check takes 5 minutes and can save an entire session.
+
+## Dependent Type Rewriting Patterns
+
+Direct `rw` on dependent types is a recurring friction point. These patterns work:
+
+### Pattern 1: `congrArg` with `Fin.ext` (for Fin-indexed access)
+When you need to rewrite a `Fin` value inside a dependent context (e.g., cycle access, list indexing):
+```lean
+-- Instead of: rw [some_fin_equality]  -- fails with "motive is not type correct"
+-- Use:
+exact congrArg cycle.get (Fin.ext (by omega))
+```
+
+### Pattern 2: `suffices ∀ s, ...` (generalize-then-instantiate)
+When rewriting a term `b` that appears in dependent types like `hab : a ≤ b`:
+```lean
+suffices ∀ s, statement_about s by
+  convert this ?_ <;> exact the_specific_equality
+intro s
+-- Now prove for arbitrary s (no dependent type issues)
+```
+
+### Pattern 3: `show`/`change` for `Fin.cons` goals
+`Fin.cons_zero`/`Fin.cons_succ` don't match literal `(0, _)`/`(n+1, _)` syntactically:
+```lean
+-- Instead of relying on simp to reduce Fin.cons:
+show <explicit_expected_form>  -- or use `change`
+-- Then apply the appropriate lemma
+```
+
+### Pattern 4: `convert rfl using N` for Fintype instance mismatches
+When two `Finset.univ` expressions use different `Fintype` instances:
+```lean
+convert rfl using 2  -- handles instance mismatch via Subsingleton
+```
+
+## Issue Description Feasibility Check
+
+**Issue descriptions sometimes contain mathematically incorrect proof strategies.** Before committing to a proof approach described in an issue:
+
+1. **Spend 10 minutes verifying feasibility** — check whether the described approach actually works mathematically
+2. **Look for hidden complexity** — "the terms vanish individually" may only be true in special cases
+3. **Test with small examples** — if the strategy says "by counting" or "by cancellation", check on a 2×2 or 3×3 case
+
+**Evidence:** The alternating Kostka delta identity issue claimed "all non-rev terms vanish individually" — true only for λ=ν, not in general. The hook quotient identity was estimated at difficulty 2/3 but required 3 fundamentally different approaches before being decomposed into 4 sub-issues.
+
+If the issue's strategy doesn't work after verification, **update the issue comment** with your findings before trying alternative approaches. This saves the next agent from repeating your investigation.
+
 ## Known Dead-Ends (Don't Waste Context Windows)
 
 These are proof approaches that multiple agents have attempted and failed. Don't retry them without new Mathlib infrastructure.
@@ -721,7 +791,39 @@ These are proof approaches that multiple agents have attempted and failed. Don't
 
 ## Common Failure Modes
 
-From Phase 2 review patterns and Stage 3.2 proof experience (90+ merged PRs through wave 14):
+### Explicit Bijection Construction (Counting Proofs)
+
+When proving cardinality results or counting arguments, prefer explicit bijection constructions over abstract reasoning:
+
+1. Define the forward map explicitly
+2. Define the inverse map explicitly
+3. Prove round-trip properties
+
+This pattern proved GL2 conjugacy class cardinalities (disc=0 split into g01=0 and g01≠0 cases) and the `invColorEquivMC` equivalence (σ-invariant colorings ↔ monochromatic colorings). It works well because Lean's `Equiv` API is rich and `simp` handles most round-trip goals.
+
+### Well-Founded Recursion on Natural Measures
+
+For recursive definitions where termination isn't structural:
+
+1. Identify a natural `ℕ`-valued measure that strictly decreases
+2. Prove the decrease lemmas as separate helper lemmas first
+3. Define the function using `WellFoundedRelation` or `termination_by`
+
+This pattern defined the hook walk weight function with termination via strictly decreasing hook length. Prove the decrease lemmas before attempting the definition — interleaving them causes elaboration issues.
+
+### Bridge to Mathlib's Native Abstractions
+
+When the project uses a custom representation (e.g., list-based paths, adjacency matrices) but Mathlib has richer API for a different representation (e.g., `SimpleGraph`):
+
+1. Build a conversion function to Mathlib's type
+2. Prove key properties transfer across the conversion
+3. Use Mathlib's existing API on the converted representation
+
+This proved `dynkin_edge_count` by converting adjacency matrices to `SimpleGraph` and leveraging Mathlib's connected graph theory.
+
+## Common Failure Modes
+
+From Phase 2 review patterns and Stage 3.2 proof experience (110+ merged PRs through wave 20):
 
 1. **Wrong Mathlib declaration name.** Always `#check` the declaration before using it.
 2. **Fabricated references.** If `.refs.md` cites a Mathlib declaration, verify it exists.
@@ -733,7 +835,9 @@ From Phase 2 review patterns and Stage 3.2 proof experience (90+ merged PRs thro
 8. **Universe level mismatches.** Representation theory proofs sometimes need explicit universe annotations (`.{v}`) especially when working with Jacobson radical or maximal ideal APIs. If type unification fails mysteriously, try adding explicit universe parameters.
 9. **Sinking entire context windows on known dead-ends.** Before starting a proof, check the "Known Dead-Ends" section above. If the proof requires bridging `ExteriorAlgebra` ↔ `PiTensorProduct` or resolving the `if`-branching diamond, sorry it immediately and move on. Multiple agents have confirmed these are blocked on missing infrastructure.
 10. **Opaque placeholder accumulation.** Defining key structures as `sorry : FDRep k G` (e.g., `SchurModule k N lam`) creates downstream dependency chains that block entire proof clusters. When you must sorry a definition, prefer making the carrier type concrete and sorry-ing only specific operations/instances (see "Never sorry a Type" above). Each opaque placeholder blocks all items that depend on it.
-11. **Namespace dot-notation mismatch.** Most Lean files in this project wrap code in `namespace Etingof` (and `noncomputable section`). If you define `def YoungDiagram.foo` inside `namespace Etingof`, the full name is `Etingof.YoungDiagram.foo` — dot notation `μ.foo` (where `μ : YoungDiagram`) will NOT find it. **Symptoms:** The definition silently fails to register (no error reported) and downstream references get "Invalid field" errors. **Fix:** Close the namespace before defining `YoungDiagram.*` declarations that need dot-notation access, then reopen it. Remember to also close/reopen any `noncomputable section`.
+11. **Convention mismatch between book and Mathlib.** Sign conventions, ordering conventions, and normalization conventions can silently make statements unprovable. See "Verify Statement Correctness Before Proving" section above. The vandermondePoly sign mismatch wasted multiple agent sessions before being discovered via a concrete n=2 counterexample.
+12. **Issue description proof strategies are sometimes wrong.** The proof approach described in an issue body may be mathematically incorrect or only work for special cases. Always spend 10 minutes verifying the described approach before committing to it. See "Issue Description Feasibility Check" section above.
+13. **Namespace dot-notation mismatch.** Most Lean files in this project wrap code in `namespace Etingof` (and `noncomputable section`). If you define `def YoungDiagram.foo` inside `namespace Etingof`, the full name is `Etingof.YoungDiagram.foo` — dot notation `μ.foo` (where `μ : YoungDiagram`) will NOT find it. **Symptoms:** The definition silently fails to register (no error reported) and downstream references get "Invalid field" errors. **Fix:** Close the namespace before defining `YoungDiagram.*` declarations that need dot-notation access, then reopen it. Remember to also close/reopen any `noncomputable section`.
 
 
 ## Breadth-vs-Depth Phase Awareness
@@ -752,17 +856,19 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 17)
-The project has ~193/583 items sorry-free (33.1%), with 104 remaining sorries across 39 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is mostly complete for Chapters 5-6; the remaining backlog is proof-heavy.
+### Current Status (as of Wave 20)
+The project has ~195+/583 items sorry-free (~33.5%), with ~70 remaining sorries across 29 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 is the bottleneck (63/104 remaining sorries — 61% of all remaining). Gabriel's theorem chain (Ch6) is progressing with Theorem 6.8.1 (linchpin) proven; reflection functor infrastructure (#1097) blocks 3 remaining Gabriel chain items. Ch9 has 9 sorries across 4 files.
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (~48 sorries — ~69% of all remaining). Ch6 has ~34 sorries with Dynkin classification and reflection functor work progressing. Ch9 has ~8 sorries. Ch2 has ~3 sorries.
 
-**Wave 17 highlights:**
-- 20 PRs merged (largest merge wave)
-- Queue health review (#1154) released 13 stale claims — agents terminated without committing
-- Key proofs merged: Sl2Irrep irreducibility (#1155), Proposition 5.25.1 commutator (#1152), schurPoly + alternant identity (#1148), Lemma 5.18.3 symmetric power span (#1139)
-- Remaining high-value targets: `exists_young_symmetrizer_nontrivial` (#1156, difficulty 3/3) completes the Specht module classification; Proposition 5.21.2 dimension formula (#1046, difficulty 2-3)
+**Wave 18-20 highlights:**
+- Sorry count dropped from 104 (wave 17) to ~70 (wave 20) — 34 sorries eliminated
+- Key proofs merged: Theorem 2.1.1(i) sl(2) irrep classification, Theorem 5.14.3 character formula fully proved, GL2 conjugacy class cardinalities (bijection-based), Dynkin classification forward direction skeleton, no_cycle_in_dynkin + dynkin_edge_count
+- Polytabloid basis infrastructure built (1 sorry → framework + 2 well-specified sorries)
+- Lemma 5.25.3 decomposed (1 sorry → 4 character value sorries)
+- Hook quotient identity decomposed into 4 sub-issues (#1383-#1386)
+- Corollary 6.8.4 reduced from 3 inline sorries to 1
 
-**Velocity trend:** Declining as remaining items are harder. Two stale claim triages (#1096, #1154) released 27 claimed issues across waves 15-17 — a recurring pattern of agents hitting items that resist standard tactics. The easy wins are done.
+**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (Wedderburn-Artin, Schur polynomials, Ext groups) or deep combinatorial identities (hook length formula, alternating Kostka).
 
-**Key velocity insight from waves 9-17:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — 13 stale claims in wave 17 represent hours of lost compute.
+**Key velocity insight from waves 9-20:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem (29 across waves 15-17 alone).

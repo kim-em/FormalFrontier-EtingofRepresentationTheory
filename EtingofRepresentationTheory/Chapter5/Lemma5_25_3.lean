@@ -506,7 +506,134 @@ private lemma Etingof.normSq_complementaryChar_scalar
   rw [hG_val, hKc_val, hB_val]
   exact Etingof.scalar_coeff_eq q hq_ne hq1_ne hq_plus_1
 
-/-- On parabolic matrices, |χ|² = 1 (since χ = -α(x) and |α(x)| = 1). -/
+/-- A quadratic ax² + bx + c with a ≠ 0 and zero discriminant b²-4ac = 0
+has exactly one distinct root. -/
+private lemma Etingof.quadratic_one_root_zero_disc
+    {F : Type*} [Field F] [Fintype F] [DecidableEq F]
+    (a b c : F) (ha : a ≠ 0) (hdisc : b ^ 2 - 4 * a * c = 0) :
+    (Finset.univ.filter fun x : F => a * x ^ 2 + b * x + c = 0).card = 1 := by
+  -- Uniqueness: if r ≠ s are both roots, disc = a²(r-s)² = 0, contradiction
+  have hatmost : ∀ r s : F, a * r ^ 2 + b * r + c = 0 →
+      a * s ^ 2 + b * s + c = 0 → r = s := by
+    intro r s hr hs
+    by_contra hne
+    have hne' : r - s ≠ 0 := sub_ne_zero.mpr hne
+    -- a(r²-s²) + b(r-s) = 0 → (r-s)(a(r+s)+b) = 0 → a(r+s)+b = 0
+    have hab : a * (r + s) + b = 0 := by
+      have : (r - s) * (a * (r + s) + b) = 0 := by linear_combination hr - hs
+      exact (mul_eq_zero.mp this).resolve_left hne'
+    -- disc = a²(r-s)² via Vieta, so a²(r-s)² = 0
+    have hars : a ^ 2 * (r - s) ^ 2 = 0 := by
+      have hb_eq : b = -(a * (r + s)) := by linear_combination hab
+      have hc_eq : c = a * r * s := by
+        have : c = -(a * r ^ 2 + b * r) := by linear_combination hr
+        rw [this, hb_eq]; ring
+      calc a ^ 2 * (r - s) ^ 2 = b ^ 2 - 4 * a * c := by rw [hb_eq, hc_eq]; ring
+        _ = 0 := hdisc
+    rcases mul_eq_zero.mp hars with h | h
+    · exact ha (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp h)
+    · exact hne' (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp h)
+  -- Existence: construct a root
+  have hexist : ∃ r, a * r ^ 2 + b * r + c = 0 := by
+    -- The key identity: 4a(ax²+bx+c) = (2ax+b)² - (b²-4ac) = (2ax+b)²
+    -- So ax²+bx+c = 0 iff (2ax+b)² = 0 (when 2a ≠ 0) iff 2ax = -b iff x = -b/(2a)
+    -- In char 2: b² = 0, b = 0, equation is ax² + c = 0, use Frobenius for square root
+    by_cases h2 : (2 : F) = 0
+    · -- char 2: b = 0 (from b² = 4ac = 0), use Frobenius for square root
+      sorry
+    · -- char ≠ 2: root is -b/(2a)
+      have h2a : (2 * a) ≠ (0 : F) := mul_ne_zero h2 ha
+      refine ⟨-b / (2 * a), ?_⟩
+      -- 4a · f(-b/(2a)) = (2a·(-b/(2a)) + b)² = (-b+b)² = 0, and 4a ≠ 0, so f = 0
+      have h4a_ne : (4 * a : F) ≠ 0 := by
+        refine mul_ne_zero ?_ ha
+        intro h4
+        apply h2
+        have : (2 : F) ^ 2 = 4 := by ring
+        rw [← this] at h4
+        exact pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp h4
+      have key : a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c = 0 := by
+        suffices 4 * a * (a * (-b / (2 * a)) ^ 2 + b * (-b / (2 * a)) + c) = 0 by
+          exact (mul_eq_zero.mp this).resolve_left h4a_ne
+        have h_sum : 2 * a * (-b / (2 * a)) + b = 0 := by field_simp; ring
+        have identity : ∀ (x : F), 4 * a * (a * x ^ 2 + b * x + c) =
+            (2 * a * x + b) ^ 2 - (b ^ 2 - 4 * a * c) := by intro x; ring
+        rw [identity, h_sum, hdisc]; ring
+      exact key
+  obtain ⟨r, hr⟩ := hexist
+  rw [Finset.card_eq_one]
+  exact ⟨r, by ext x; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+    Finset.mem_singleton]; exact ⟨fun h => hatmost x r h hr, fun h => h ▸ hr⟩⟩
+
+/-- On parabolic elements, charW₁ = 0 (exactly 1 fixed point on P¹). -/
+private lemma Etingof.charW₁_parabolic
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g) :
+    Etingof.GL2.charW₁ p n g = 0 := by
+  obtain ⟨hdisc, hnotscalar⟩ := hg
+  simp only [Etingof.GL2.charW₁]
+  set M := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  have hdisc' : (M 0 0 - M 1 1) ^ 2 + 4 * M 0 1 * M 1 0 = 0 := by rwa [← GL2.disc_eq]
+  by_cases h01 : M 0 1 = 0
+  · -- Case M₀₁ = 0: from disc = 0, (M₀₀-M₁₁)² = 0, so M₀₀ = M₁₁
+    have h00_eq_11 : M 0 0 = M 1 1 := by
+      have : (M 0 0 - M 1 1) ^ 2 = 0 := by
+        have := hdisc'; rw [h01] at this; linear_combination this
+      exact sub_eq_zero.mp (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this)
+    have h10 : M 1 0 ≠ 0 := fun h10 => hnotscalar ⟨h01, h10, h00_eq_11⟩
+    have hfilt : (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0).card = 0 := by
+      rw [Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+      intro t _
+      simp only [h01, zero_mul, h00_eq_11, sub_self, zero_mul, zero_add]
+      exact sub_ne_zero.mpr (Ne.symm h10)
+    rw [hfilt]; simp [h01]
+  · -- Case M₀₁ ≠ 0: quadratic with zero discriminant has 1 root
+    have hfilt_eq : (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t - M 1 0 = 0) =
+        (Finset.univ.filter fun t : GaloisField p n =>
+        M 0 1 * t ^ 2 + (M 0 0 - M 1 1) * t + (-(M 1 0)) = 0) := by
+      congr 1; ext t; simp [sub_eq_add_neg]
+    have hdisc_zero : (M 0 0 - M 1 1) ^ 2 - 4 * M 0 1 * (-(M 1 0)) = 0 := by
+      linear_combination hdisc'
+    rw [hfilt_eq, Etingof.quadratic_one_root_zero_disc _ _ _ h01 hdisc_zero]
+    simp [h01]
+
+/-- For a monoid homomorphism from a finite group to ℂˣ, the norm squared
+of any value is 1 (since all values are roots of unity). -/
+private lemma Etingof.normSq_monoidHom_val_eq_one
+    {G : Type*} [Group G] [Fintype G]
+    (χ : G →* ℂˣ) (g : G) :
+    (χ g : ℂ) * starRingEnd ℂ (χ g : ℂ) = 1 := by
+  -- χ(g)^|G| = 1 (Lagrange's theorem)
+  have hord : ((χ g : ℂˣ) : ℂ) ^ Fintype.card G = 1 := by
+    have : (χ g) ^ Fintype.card G = (1 : ℂˣ) := by rw [← map_pow, pow_card_eq_one, map_one]
+    calc ((χ g : ℂˣ) : ℂ) ^ Fintype.card G
+        = ((χ g) ^ Fintype.card G : ℂˣ) := (Units.val_pow_eq_pow_val _ _).symm
+      _ = (1 : ℂˣ) := by rw [this]
+      _ = 1 := Units.val_one
+  -- ‖χ(g)‖ = 1
+  have hnorm : ‖(χ g : ℂ)‖ = 1 :=
+    Complex.norm_eq_one_of_pow_eq_one hord (Fintype.card_pos.ne')
+  -- z * conj(z) = ‖z‖² = 1
+  calc (χ g : ℂ) * starRingEnd ℂ (χ g : ℂ)
+      = ‖(χ g : ℂ)‖ ^ 2 := RCLike.mul_conj (χ g : ℂ)
+    _ = (1 : ℝ) ^ 2 := by rw [hnorm]
+    _ = 1 := one_pow 2
+
+/-- On parabolic g, the complementary series character equals -α(eigenvalue).
+This follows from charW₁ = 0 and Ind = 0, giving χ = -charVα₁.
+For parabolic g, charVα₁(g) = α(a) where a is the repeated eigenvalue. -/
+private lemma Etingof.complementaryChar_parabolic_val
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g) :
+    ∃ a : (GaloisField p n)ˣ,
+      Etingof.GL2.complementarySeriesChar p n nu g =
+      -((nu.comp (Etingof.GL2.scalarToElliptic p n) : (GaloisField p n)ˣ →* ℂˣ) a : ℂ) := by
+  sorry
+
 private lemma Etingof.normSq_complementaryChar_parabolic
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
     [Fintype (GL2 p n)]
@@ -514,7 +641,11 @@ private lemma Etingof.normSq_complementaryChar_parabolic
     (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g) :
     Etingof.GL2.complementarySeriesChar p n nu g *
     starRingEnd ℂ (Etingof.GL2.complementarySeriesChar p n nu g) = 1 := by
-  sorry
+  obtain ⟨a, ha⟩ := Etingof.complementaryChar_parabolic_val p n nu g hg
+  set alpha := nu.comp (Etingof.GL2.scalarToElliptic p n)
+  rw [ha]
+  simp only [map_neg, neg_mul, mul_neg, neg_neg]
+  exact Etingof.normSq_monoidHom_val_eq_one alpha a
 
 /-- A quadratic polynomial a*x² + b*x + c over a field of char ≠ 2 with a ≠ 0 and
 discriminant b² - 4ac ≠ 0 being a square has exactly 2 roots. -/

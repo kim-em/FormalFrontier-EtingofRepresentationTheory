@@ -40,7 +40,7 @@ If the book's proof says "by Lemma X.Y.Z" or "the result follows from [earlier r
 - **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on
 - **Dependency blocked:** Post an issue with `- [ ] depends on #X` and add the `blocked` label
 - **Definition seems wrong:** Post an issue describing the problem — don't silently work around bad definitions
-- **Missing Mathlib API:** First check whether the missing result is an earlier item in the book. If it is, that's a dependency, not a missing Mathlib API. If genuinely missing from Mathlib, work around it or sorry the proof and move on.
+- **Missing Mathlib API:** First check whether the missing result is an earlier item in the book. If it is, that's a dependency, not a missing Mathlib API. If genuinely missing from Mathlib, **prove it here** — that's the highest-priority work, not a reason to defer. This project exists to formalize what isn't in Mathlib.
 - **Ordering mistake in the plan:** Report it — request a replan rather than hacking around it
 
 ## PR Workflow

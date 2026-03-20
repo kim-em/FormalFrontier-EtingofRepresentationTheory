@@ -1,5 +1,3 @@
-import Mathlib
-import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.Definition5_14_2
 import EtingofRepresentationTheory.Chapter5.SYTFintype
 
@@ -824,7 +822,7 @@ private lemma YoungDiagram.hookRatio_eq_prod_div
 /-- Empty diagram has no outer corners. -/
 private lemma YoungDiagram.outerCorners_eq_empty_of_cells_eq_empty
     {μ : YoungDiagram} (h : μ.cells = ∅) : μ.outerCorners = ∅ := by
-  simp only [YoungDiagram.outerCorners, h]
+  simp only [_root_.YoungDiagram.outerCorners, h]
   simp
 
 /-- If c₀ and c are distinct outer corners of μ, then c remains
@@ -838,13 +836,13 @@ private lemma YoungDiagram.IsOuterCorner.persist_removeCorner
   · -- (i+1, j) ∉ removeCorner: it's not in μ (since (i,j) is outer corner)
     intro hmem
     have : (i + 1, j) ∈ μ.cells := by
-      rw [YoungDiagram.removeCorner] at hmem
+      rw [_root_.YoungDiagram.removeCorner] at hmem
       exact (Finset.mem_erase.mp hmem).2
     exact hc.2.1 this
   · -- (i, j+1) ∉ removeCorner: it's not in μ (since (i,j) is outer corner)
     intro hmem
     have : (i, j + 1) ∈ μ.cells := by
-      rw [YoungDiagram.removeCorner] at hmem
+      rw [_root_.YoungDiagram.removeCorner] at hmem
       exact (Finset.mem_erase.mp hmem).2
     exact hc.2.2 this
 
@@ -864,10 +862,9 @@ private lemma YoungDiagram.hookLength_lt_of_right
     (hb : (a, b) ∈ μ.cells) (hb' : (a, b') ∈ μ.cells)
     (hlt : b < b') :
     μ.hookLength a b' < μ.hookLength a b := by
-  unfold YoungDiagram.hookLength
-  have hrl : b < μ.rowLen a := YoungDiagram.mem_iff_lt_rowLen.mp hb
-  have hcl : a < μ.colLen b := YoungDiagram.mem_iff_lt_colLen.mp hb
-  have hcl' : a < μ.colLen b' := YoungDiagram.mem_iff_lt_colLen.mp hb'
+  have h1 := YoungDiagram.hookLength_pos μ a b hb
+  have h2 := YoungDiagram.hookLength_pos μ a b' hb'
+  unfold YoungDiagram.hookLength at h1 h2 ⊢
   have hanti := μ.colLen_anti b b' (Nat.le_of_lt hlt)
   omega
 
@@ -877,10 +874,9 @@ private lemma YoungDiagram.hookLength_lt_of_down
     (ha : (a, b) ∈ μ.cells) (ha' : (a', b) ∈ μ.cells)
     (hlt : a < a') :
     μ.hookLength a' b < μ.hookLength a b := by
-  unfold YoungDiagram.hookLength
-  have hrl : b < μ.rowLen a := YoungDiagram.mem_iff_lt_rowLen.mp ha
-  have hrl' : b < μ.rowLen a' := YoungDiagram.mem_iff_lt_rowLen.mp ha'
-  have hcl : a < μ.colLen b := YoungDiagram.mem_iff_lt_colLen.mp ha
+  have h1 := YoungDiagram.hookLength_pos μ a b ha
+  have h2 := YoungDiagram.hookLength_pos μ a' b ha'
+  unfold YoungDiagram.hookLength at h1 h2 ⊢
   have hanti := μ.rowLen_anti a a' (Nat.le_of_lt hlt)
   omega
 
@@ -971,6 +967,130 @@ lemma YoungDiagram.hookWalkWeight_not_mem
     (c : ℕ × ℕ) : μ.hookWalkWeight i j c = 0 := by
   rw [YoungDiagram.hookWalkWeight, dif_neg h]
 
+/-! ## hookCellsExcl infrastructure -/
+
+/-- Cells in hookCellsExcl are cells of μ. -/
+lemma YoungDiagram.hookCellsExcl_subset_cells
+    {μ : YoungDiagram} {i j : ℕ} (_ : (i, j) ∈ μ.cells)
+    {v : ℕ × ℕ} (hv : v ∈ μ.hookCellsExcl i j) :
+    v ∈ μ.cells := by
+  simp only [YoungDiagram.hookCellsExcl, Finset.mem_union, Finset.mem_image,
+    Finset.mem_Ico] at hv
+  rcases hv with ⟨b', ⟨_, hhi⟩, rfl⟩ | ⟨a', ⟨_, hhi⟩, rfl⟩
+  · exact YoungDiagram.mem_iff_lt_rowLen.mpr hhi
+  · exact YoungDiagram.mem_iff_lt_colLen.mpr hhi
+
+/-- The row and column parts of hookCellsExcl are disjoint. -/
+private lemma YoungDiagram.hookCellsExcl_disjoint
+    (μ : YoungDiagram) (i j : ℕ) :
+    Disjoint
+      ((Finset.Ico (j + 1) (μ.rowLen i)).image (fun b' => (i, b')))
+      ((Finset.Ico (i + 1) (μ.colLen j)).image (fun a' => (a', j))) := by
+  rw [Finset.disjoint_left]
+  intro x hx1 hx2
+  simp only [Finset.mem_image, Finset.mem_Ico] at hx1 hx2
+  obtain ⟨b', _, rfl⟩ := hx1
+  obtain ⟨a', ⟨ha', _⟩, h⟩ := hx2
+  simp [Prod.ext_iff] at h
+  omega
+
+/-- The cardinality of hookCellsExcl equals hookLength - 1. -/
+lemma YoungDiagram.card_hookCellsExcl
+    {μ : YoungDiagram} {i j : ℕ} (hmem : (i, j) ∈ μ.cells) :
+    (μ.hookCellsExcl i j).card = μ.hookLength i j - 1 := by
+  unfold YoungDiagram.hookCellsExcl
+  rw [Finset.card_union_of_disjoint (hookCellsExcl_disjoint μ i j)]
+  have hrl := YoungDiagram.mem_iff_lt_rowLen.mp hmem
+  have hcl := YoungDiagram.mem_iff_lt_colLen.mp hmem
+  rw [Finset.card_image_of_injective _ (fun a b h => by simpa [Prod.ext_iff] using h),
+      Finset.card_image_of_injective _ (fun a b h => by simpa [Prod.ext_iff] using h),
+      Nat.card_Ico, Nat.card_Ico]
+  unfold YoungDiagram.hookLength
+  omega
+
+/-! ## GNW Property 1: Row sums equal 1 -/
+
+/-- Property 1 of the GNW hook walk: for each cell (i,j) ∈ μ, the sum of
+hook walk weights over all outer corners equals 1.
+
+Proof: by well-founded induction on hookLength.
+- Base (hookLength = 1): (i,j) is a corner, w = δ, sum = 1.
+- Step (hookLength > 1): swap sums, apply IH, use |hookCellsExcl| = h-1. -/
+theorem YoungDiagram.hookWalkWeight_row_sum
+    (μ : YoungDiagram) (i j : ℕ) (hmem : (i, j) ∈ μ.cells) :
+    μ.outerCorners.sum (fun c => μ.hookWalkWeight i j c) = 1 := by
+  -- Generalize to induct on hookLength
+  suffices h : ∀ (n : ℕ) (i j : ℕ), (i, j) ∈ μ.cells → μ.hookLength i j = n →
+      μ.outerCorners.sum (fun c => μ.hookWalkWeight i j c) = 1 from
+    h _ i j hmem rfl
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+  intro i j hmem h_wf
+  by_cases hone : μ.hookLength i j = 1
+  · -- Base case: hookLength = 1, (i,j) is a corner
+    have hoc := (Etingof.YoungDiagram.hookLength_eq_one_iff_outerCorner hmem).mp hone
+    have hcorner : (i, j) ∈ μ.outerCorners := by
+      rw [YoungDiagram.mem_outerCorners]; exact hoc
+    -- Each w(i,j,c) = δ((i,j),c)
+    have hsummand : ∀ c ∈ μ.outerCorners,
+        μ.hookWalkWeight i j c = if (i, j) = c then 1 else 0 := by
+      intro c _
+      rw [YoungDiagram.hookWalkWeight, dif_pos hmem, if_pos hone]
+    rw [Finset.sum_congr rfl hsummand]
+    rw [Finset.sum_eq_single (i, j)
+      (fun b _ hne => if_neg (Ne.symm hne))
+      (fun h => absurd hcorner h),
+      if_pos rfl]
+  · -- Inductive case: hookLength > 1
+    -- Each w(i,j,c) = (∑_v w(v,c)) / (h-1)
+    have hsummand : ∀ c ∈ μ.outerCorners,
+        μ.hookWalkWeight i j c =
+          ((μ.hookCellsExcl i j).attach.sum fun ⟨v, hv⟩ =>
+            YoungDiagram.hookWalkWeight μ v.1 v.2 c) /
+            (μ.hookLength i j - 1 : ℚ) := by
+      intro c _
+      rw [YoungDiagram.hookWalkWeight, dif_pos hmem, if_neg hone]
+    rw [Finset.sum_congr rfl hsummand]
+    -- Factor out the denominator: ∑_c (∑_v w(v,c))/(h-1) = (∑_c ∑_v w(v,c))/(h-1)
+    rw [← Finset.sum_div]
+    -- Swap the double sum: ∑_c ∑_v = ∑_v ∑_c
+    rw [Finset.sum_comm]
+    -- Each ∑_c w(v,c) = 1 by IH
+    have hinner : ∀ (w : { v // v ∈ μ.hookCellsExcl i j }),
+        w ∈ (μ.hookCellsExcl i j).attach →
+        (μ.outerCorners.sum fun c =>
+          YoungDiagram.hookWalkWeight μ w.val.1 w.val.2 c) = 1 := by
+      intro ⟨v, hv⟩ _
+      exact ih (μ.hookLength v.1 v.2)
+        (h_wf ▸ YoungDiagram.hookLength_lt_of_hookCellsExcl hmem hv)
+        _ _ (hookCellsExcl_subset_cells hmem hv) rfl
+    rw [Finset.sum_congr rfl hinner]
+    -- Now sum of 1's divided by (h-1)
+    simp only [Finset.sum_const, nsmul_eq_mul, mul_one]
+    rw [Finset.card_attach, card_hookCellsExcl hmem]
+    have hh_ge2 : 2 ≤ μ.hookLength i j := by
+      have := YoungDiagram.hookLength_pos μ i j hmem; omega
+    rw [Nat.cast_sub (by omega : 1 ≤ μ.hookLength i j)]
+    have hne : (↑(μ.hookLength i j) : ℚ) - ↑1 ≠ 0 := by
+      have : (2 : ℚ) ≤ μ.hookLength i j := by exact_mod_cast hh_ge2
+      linarith
+    exact div_self hne
+
+/-! ## GNW Property 2: Column identity -/
+
+/-- Property 2 of the GNW hook walk (column identity): for each outer corner c,
+the sum of hook walk weights over all cells equals HP(μ)/HP(μ\c).
+
+This is the hard direction of the GNW proof. Together with Property 1 and
+Fubini's theorem (finite sum interchange), it gives the hook quotient identity. -/
+theorem YoungDiagram.hookWalkWeight_col_sum
+    (μ : YoungDiagram) {i j : ℕ} (hc : μ.IsOuterCorner i j) :
+    μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 (i, j)) =
+      (μ.hookLengthProduct : ℚ) /
+        ((μ.removeCorner i j hc).hookLengthProduct : ℚ) := by
+  sorry
+
 namespace Etingof
 
 noncomputable section
@@ -1002,7 +1122,32 @@ private lemma YoungDiagram.hook_quotient_identity_yd
           (YoungDiagram.mem_outerCorners.mp
             c.property)).hookLengthProduct : ℚ)) =
       (μ.cells.card : ℚ) := by
-  sorry
+  -- Step 1: Replace each HP/HP(μ\c) by ∑_u w(u,c) using the column identity
+  have hstep1 : μ.outerCorners.attach.sum (fun c =>
+      (μ.hookLengthProduct : ℚ) /
+        ((μ.removeCorner c.val.1 c.val.2
+          (YoungDiagram.mem_outerCorners.mp c.property)).hookLengthProduct : ℚ)) =
+      μ.outerCorners.attach.sum (fun c =>
+        μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 c.val)) := by
+    apply Finset.sum_congr rfl
+    intro c _
+    exact (YoungDiagram.hookWalkWeight_col_sum μ
+      (YoungDiagram.mem_outerCorners.mp c.property)).symm
+  rw [hstep1]
+  -- Step 2: Swap the sums (Fubini): ∑_c ∑_u = ∑_u ∑_c
+  rw [Finset.sum_comm]
+  -- Step 3: Each ∑_c w(u,c) = 1 by Property 1, after converting attach sum
+  have hstep3 : μ.cells.sum (fun u =>
+      μ.outerCorners.attach.sum (fun c =>
+        μ.hookWalkWeight u.1 u.2 c.val)) =
+      μ.cells.sum (fun _ => (1 : ℚ)) := by
+    apply Finset.sum_congr rfl
+    intro u hu
+    rw [Finset.sum_attach]
+    exact YoungDiagram.hookWalkWeight_row_sum μ u.1 u.2 hu
+  rw [hstep3]
+  -- Step 4: ∑_u 1 = |μ|
+  simp
 
 /-- The hook quotient identity: for a partition λ of n+1, the sum over
 outer corners c of hookProd(λ)/hookProd(λ\c) equals n+1. Individual
