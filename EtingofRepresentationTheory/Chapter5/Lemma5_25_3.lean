@@ -700,7 +700,7 @@ private lemma Etingof.innerProduct_sum_eq_card
         f g = 1 := fun g hg => by
       rw [Finset.mem_filter] at hg
       exact Etingof.normSq_complementaryChar_parabolic p n nu g hg.2
-    rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isParabolic hn_ne, nsmul_eq_mul,
+    rw [Finset.sum_congr rfl hval, Finset.sum_const, GL2.card_isParabolic hp2 hn_ne, nsmul_eq_mul,
       mul_one]
     have h1 : 1 ≤ q := by omega
     have h2 : 1 ≤ q ^ 2 := by nlinarith
