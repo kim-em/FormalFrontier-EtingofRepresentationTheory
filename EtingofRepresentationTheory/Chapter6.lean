@@ -1,4 +1,6 @@
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.DynkinTypes
+import EtingofRepresentationTheory.Chapter6.DynkinForward
 import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
 import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
 import EtingofRepresentationTheory.Chapter6.Example6_2_2

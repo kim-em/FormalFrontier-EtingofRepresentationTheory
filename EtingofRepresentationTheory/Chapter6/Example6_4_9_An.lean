@@ -1,5 +1,5 @@
 import EtingofRepresentationTheory.Chapter6.Example6_4_9_Shared
-import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
+import EtingofRepresentationTheory.Chapter6.DynkinTypes
 
 /-!
 # Example 6.4.9: A_n Root Count

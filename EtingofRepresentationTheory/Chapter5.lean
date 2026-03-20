@@ -97,6 +97,7 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_23_2
 -- Section 5.25: Representations of GL₂(𝔽_q)
 import EtingofRepresentationTheory.Chapter5.Proposition5_25_1
 import EtingofRepresentationTheory.Chapter5.Theorem5_25_2
+import EtingofRepresentationTheory.Chapter5.GL2CharacterValues
 import EtingofRepresentationTheory.Chapter5.Lemma5_25_3
 
 -- Section 5.26: Artin's Theorem
