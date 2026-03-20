@@ -179,23 +179,186 @@ def polytabloidMap (n : ℕ) (la : Nat.Partition n) :
     StandardYoungTableau n la → SpechtModule n la :=
   polytabloidInSpecht n la
 
+/-! ### Infrastructure for the linear independence proof -/
+
+/-- A permutation in both the row and column subgroups must be the identity.
+This is because (rowOfPos, colOfPos) is injective on valid positions. -/
+private theorem row_col_inter_trivial' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hrow : σ ∈ RowSubgroup n la) (hcol : σ ∈ ColumnSubgroup n la) :
+    σ = 1 := by
+  ext k
+  simp only [Equiv.Perm.one_apply]
+  have hsum : la.sortedParts.sum = n := sortedParts_sum n la
+  have hk : k.val < la.sortedParts.sum := by rw [hsum]; exact k.isLt
+  have hσk : (σ k).val < la.sortedParts.sum := by rw [hsum]; exact (σ k).isLt
+  exact rowOfPos_colOfPos_injective la.sortedParts
+    (σ k).val k.val hσk hk (hrow k) (hcol k)
+
+/-- The ColumnAntisymmetrizer is zero at permutations outside Q_λ. -/
+private lemma columnAntisymmetrizer_apply_not_mem' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hσ : σ ∉ ColumnSubgroup n la) :
+    (ColumnAntisymmetrizer n la : SymGroupAlgebra n) σ = 0 := by
+  classical
+  simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+  rw [Finsupp.finset_sum_apply]
+  apply Finset.sum_eq_zero
+  intro q _
+  change ((↑(↑(Equiv.Perm.sign (q : Equiv.Perm (Fin n))) : ℤ) : ℂ) •
+    (Finsupp.single (q : Equiv.Perm (Fin n)) (1 : ℂ))) σ = 0
+  rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+  split_ifs with h
+  · exact absurd (h ▸ q.prop) hσ
+  · ring
+
+/-- The coefficient of the identity permutation in the Young symmetrizer is 1.
+Uses P_λ ∩ Q_λ = {id}. -/
+private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
+    (YoungSymmetrizer n la : SymGroupAlgebra n) 1 = 1 := by
+  classical
+  simp only [YoungSymmetrizer, RowSymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
+  rw [Finsupp.finset_sum_apply]
+  simp only [MonoidAlgebra.single_mul_apply, one_mul, mul_one]
+  -- Goal: ∑ p : RowSubgroup, (ColumnAntisymmetrizer)(p⁻¹) = 1
+  rw [Finset.sum_eq_single (⟨1, (RowSubgroup n la).one_mem⟩ : ↑(RowSubgroup n la))]
+  · -- p = 1: ColumnAntisymmetrizer(1⁻¹) = ColumnAntisymmetrizer(1)
+    simp only [inv_one]
+    -- ColumnAntisymmetrizer at 1 ∈ Q_λ gives sign(1) = 1
+    simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+    rw [Finsupp.finset_sum_apply]
+    rw [Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ : ↑(ColumnSubgroup n la))]
+    · simp [Equiv.Perm.sign_one]
+    · intro q _ hq
+      change ((↑(↑(Equiv.Perm.sign (q : Equiv.Perm (Fin n))) : ℤ) : ℂ) •
+        (Finsupp.single (q : Equiv.Perm (Fin n)) (1 : ℂ))) 1 = 0
+      rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+      have : (q : Equiv.Perm (Fin n)) ≠ 1 := fun h => hq (Subtype.ext h)
+      simp [this]
+    · intro h; exact absurd (Finset.mem_univ _) h
+  · -- p ≠ 1: ColumnAntisymmetrizer(p⁻¹) = 0 because p⁻¹ ∉ Q_λ
+    intro p _ hp
+    have hp_ne : (p : Equiv.Perm (Fin n)) ≠ 1 := fun h => hp (Subtype.ext h)
+    apply columnAntisymmetrizer_apply_not_mem'
+    intro hcol
+    exact hp_ne (row_col_inter_trivial' n la p.val p.prop
+      ((ColumnSubgroup n la).inv_mem_iff.mp hcol))
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- Evaluation formula: the coefficient of σ in a polytabloid e_T = σ_T · c_λ. -/
+private lemma polytabloid_apply (n : ℕ) (la : Nat.Partition n)
+    (T : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n)) :
+    (polytabloid n la T : SymGroupAlgebra n) σ =
+      (YoungSymmetrizer n la : SymGroupAlgebra n) ((sytPerm n la T)⁻¹ * σ) := by
+  unfold polytabloid
+  simp only [MonoidAlgebra.of_apply]
+  rw [MonoidAlgebra.single_mul_apply, one_mul]
+
+/-- The coefficient of σ_T in polytabloid e_T is 1. This is the diagonal
+entry of the evaluation matrix. -/
+private lemma polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
+    (T : StandardYoungTableau n la) :
+    (polytabloid n la T : SymGroupAlgebra n) (sytPerm n la T) = 1 := by
+  rw [polytabloid_apply, inv_mul_cancel, youngSymmetrizer_one_coeff]
+
+/-! ### Dominance triangularity
+
+For distinct standard Young tableaux T and T', if c_λ(σ_T⁻¹ · σ_{T'}) ≠ 0 then
+the tabloid of T strictly dominates the tabloid of T' in the dominance order.
+
+**Proof strategy** (not yet formalized):
+1. c_λ(g) ≠ 0 implies g ∈ P_λ · Q_λ (support of c_λ = a_λ · b_λ is P_λ · Q_λ)
+2. σ_T⁻¹ · σ_{T'} = p · q for p ∈ P_λ, q ∈ Q_λ means σ_{T'} = σ_T · p · q
+3. σ_T · p has the same tabloid as T (p is a row permutation)
+4. Applying column permutation q can only decrease dominance
+5. Since T ≠ T' give different tabloids, the dominance decrease is strict
+
+This requires formalizing the dominance order on tabloids and the effect of column
+permutations on dominance (standard results in James, Chapter 3).
+-/
+
+/-- There exists a well-founded strict partial order on SYT(λ) such that the
+evaluation matrix of polytabloids is unitriangular: if c_λ(σ_T⁻¹ · σ_{T'}) ≠ 0
+and T ≠ T', then T is strictly greater than T' in this order (the dominance
+order on tabloids).
+
+Concretely: for any nonempty finite subset S ⊆ SYT(λ), there exists a maximal
+element T₀ ∈ S such that for all T ∈ SYT(λ) with T ≠ T₀,
+c_λ(σ_T⁻¹ · σ_{T₀}) ≠ 0 implies T ∉ S.
+
+**Proof**: Take T₀ to be the element of S whose tabloid is maximal in the
+dominance order (which is a partial order on a finite set, hence has maximal
+elements). If c_λ(σ_T⁻¹ · σ_{T₀}) ≠ 0 and T ≠ T₀, then by the triangularity
+lemma, the tabloid of T strictly dominates the tabloid of T₀. But T₀ was
+chosen to be maximal in S, so T ∉ S. -/
+private lemma exists_maximal_for_eval (n : ℕ) (la : Nat.Partition n)
+    (s : Finset (StandardYoungTableau n la)) (hs : s.Nonempty) :
+    ∃ T₀ ∈ s, ∀ T : StandardYoungTableau n la, T ≠ T₀ →
+      (YoungSymmetrizer n la : SymGroupAlgebra n)
+        ((sytPerm n la T)⁻¹ * sytPerm n la T₀) ≠ 0 →
+      T ∉ s := by
+  sorry
+
 /-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
-This is the harder direction: it requires showing that the polytabloids
-indexed by distinct standard Young tableaux do not satisfy any nontrivial
-linear relation. The standard proof uses the straightening algorithm
-(Garnir relations) and the dominance ordering on tabloids.
-
-**Proof sketch:**
-1. Define a partial order on tabloids using dominance of the corresponding
-   row equivalence classes
-2. Show that the leading tabloid of e_T (in the dominance order) is {T} itself
-3. Different standard tableaux give different leading tabloids
-4. A triangularity argument gives linear independence -/
+**Proof**: By contradiction. Suppose Σ aₜ eₜ = 0 with some aₜ ≠ 0.
+Let S = {T : aₜ ≠ 0}. By `exists_maximal_for_eval`, there exists T₀ ∈ S
+maximal for the dominance order. Evaluating the linear combination at σ_{T₀}:
+  Σ_T aₜ · eₜ(σ_{T₀}) = 0
+For T = T₀: contribution is a_{T₀} · 1 = a_{T₀} (by `polytabloid_self_coeff`).
+For T ≠ T₀ with eₜ(σ_{T₀}) ≠ 0: T ∉ S by maximality, so aₜ = 0.
+Hence a_{T₀} = 0, contradicting T₀ ∈ S. -/
 theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
     LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
-  sorry
+  classical
+  rw [linearIndependent_iff']
+  intro s g hg T hT
+  -- hg says: ∑ T ∈ s, g T • polytabloidInSpecht T = 0
+  -- We need: g T = 0
+  -- Proof by contradiction: suppose some g values are nonzero
+  by_contra h_ne
+  -- Let S = {T ∈ s : g T ≠ 0}
+  set S := s.filter (fun T' => g T' ≠ 0) with hS_def
+  have hS_nonempty : S.Nonempty := ⟨T, Finset.mem_filter.mpr ⟨hT, h_ne⟩⟩
+  -- Get a maximal element T₀
+  obtain ⟨T₀, hT₀_mem, hT₀_max⟩ := exists_maximal_for_eval n la S hS_nonempty
+  have hT₀_in_s : T₀ ∈ s := (Finset.mem_filter.mp hT₀_mem).1
+  have hgT₀_ne : g T₀ ≠ 0 := (Finset.mem_filter.mp hT₀_mem).2
+  -- Evaluate the linear combination at σ_{T₀}
+  -- The overall sum is 0 as a Finsupp, so evaluating at any permutation gives 0
+  -- Evaluate the zero sum at σ_{T₀}
+  have h0 : (∑ T' ∈ s, g T' • (polytabloidInSpecht n la T' : SymGroupAlgebra n)) = 0 := hg
+  -- Pointwise evaluation at σ_{T₀}
+  have heval_raw : (∑ T' ∈ s, g T' •
+      (polytabloidInSpecht n la T' : SymGroupAlgebra n)) (sytPerm n la T₀) = 0 := by
+    rw [h0]; rfl
+  -- Rewrite to use polytabloid directly
+  have heval : ∑ T' ∈ s, g T' * (polytabloid n la T' : SymGroupAlgebra n)
+      (sytPerm n la T₀) = 0 := by
+    have : ∀ T' ∈ s, (g T' • (polytabloidInSpecht n la T' : SymGroupAlgebra n))
+        (sytPerm n la T₀) =
+        g T' * (polytabloid n la T' : SymGroupAlgebra n) (sytPerm n la T₀) := by
+      intro T' _; rfl
+    rw [Finsupp.finset_sum_apply] at heval_raw
+    rwa [Finset.sum_congr rfl this] at heval_raw
+  -- Split out the T₀ term
+  rw [← Finset.add_sum_erase s _ hT₀_in_s] at heval
+  rw [polytabloid_self_coeff, mul_one] at heval
+  -- Each non-T₀ term is zero by triangularity
+  have sum_zero : ∑ T' ∈ s.erase T₀,
+      g T' * (polytabloid n la T' : SymGroupAlgebra n) (sytPerm n la T₀) = 0 := by
+    apply Finset.sum_eq_zero
+    intro T' hT'
+    have hT'_ne : T' ≠ T₀ := (Finset.mem_erase.mp hT').1
+    have hT'_in_s : T' ∈ s := (Finset.mem_erase.mp hT').2
+    by_cases hgT' : g T' = 0
+    · simp [hgT']
+    · have hT'_in_S : T' ∈ S := Finset.mem_filter.mpr ⟨hT'_in_s, hgT'⟩
+      rw [polytabloid_apply]
+      by_cases hc : (YoungSymmetrizer n la : SymGroupAlgebra n)
+          ((sytPerm n la T')⁻¹ * sytPerm n la T₀) = 0
+      · simp [hc]
+      · exact absurd hT'_in_S (hT₀_max T' hT'_ne hc)
+  exact hgT₀_ne (by rw [sum_zero, add_zero] at heval; exact heval)
 
 /-- **Straightening lemma**: any permutation applied to the Young symmetrizer
 lies in the ℂ-span of standard polytabloids. This is the key step that
