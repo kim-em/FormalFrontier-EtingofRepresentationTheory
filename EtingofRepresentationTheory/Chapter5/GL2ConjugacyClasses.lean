@@ -180,7 +180,39 @@ theorem GL2.sum_split [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)
     (∑ g ∈ Finset.univ.filter (fun g : GL2' p n => GL2.IsParabolic g), f g) +
     (∑ g ∈ Finset.univ.filter (fun g : GL2' p n => GL2.IsSplitSemisimple g), f g) +
     (∑ g ∈ Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g), f g) := by
-  sorry
+  -- Pairwise disjointness of the four filtered sets
+  set S := Finset.univ.filter (fun g : GL2' p n => GL2.IsScalar g)
+  set P := Finset.univ.filter (fun g : GL2' p n => GL2.IsParabolic g)
+  set SS := Finset.univ.filter (fun g : GL2' p n => GL2.IsSplitSemisimple g)
+  set E := Finset.univ.filter (fun g : GL2' p n => GL2.IsElliptic g)
+  have hSP : Disjoint S P := Finset.disjoint_filter.mpr
+    fun g _ hs hp => (GL2.isScalar_not_isParabolic g hs) hp
+  have hSSS : Disjoint S SS := Finset.disjoint_filter.mpr
+    fun g _ hs hss => (GL2.isScalar_not_isSplitSemisimple g hs) hss
+  have hSE : Disjoint S E := Finset.disjoint_filter.mpr
+    fun g _ hs he => (GL2.isScalar_not_isElliptic g hs) he
+  have hPSS : Disjoint P SS := Finset.disjoint_filter.mpr
+    fun g _ hp hss => (GL2.isParabolic_not_isSplitSemisimple g hp) hss
+  have hPE : Disjoint P E := Finset.disjoint_filter.mpr
+    fun g _ hp he => (GL2.isParabolic_not_isElliptic g hp) he
+  have hSSE : Disjoint SS E := Finset.disjoint_filter.mpr
+    fun g _ hss he => (GL2.isSplitSemisimple_not_isElliptic g hss) he
+  -- Composite disjointness
+  have hSPuSS : Disjoint (S ∪ P) SS :=
+    disjoint_sup_left.mpr ⟨hSSS, hPSS⟩
+  have hSPSSuE : Disjoint (S ∪ P ∪ SS) E :=
+    disjoint_sup_left.mpr ⟨disjoint_sup_left.mpr ⟨hSE, hPE⟩, hSSE⟩
+  -- The four sets cover univ
+  have hunion : Finset.univ = S ∪ P ∪ SS ∪ E := by
+    ext g; simp only [S, P, SS, E]
+    simp only [Finset.mem_univ, Finset.mem_union, Finset.mem_filter, true_and, true_iff]
+    rcases GL2.conjugacyClass_exhaustive g with h | h | h | h
+    · exact Or.inl (Or.inl (Or.inl h))
+    · exact Or.inl (Or.inl (Or.inr h))
+    · exact Or.inl (Or.inr h)
+    · exact Or.inr h
+  conv_lhs => rw [hunion]
+  rw [Finset.sum_union hSPSSuE, Finset.sum_union hSPuSS, Finset.sum_union hSP]
 
 end SumDecomposition
 
@@ -193,7 +225,46 @@ theorem GL2.card_isScalar [Fintype (GaloisField p n)]
     [DecidableEq (GaloisField p n)] [Fintype (GL2' p n)] (hn : n ≠ 0) :
     (Finset.univ.filter (fun g : GL2' p n => GL2.IsScalar g)).card =
     Fintype.card (GaloisField p n) - 1 := by
-  sorry
+  -- Scalar matrices biject with nonzero field elements
+  -- Define the scalar matrix construction
+  let scalarMat : (GaloisField p n)ˣ → GL2' p n := fun x =>
+    ⟨Matrix.diagonal (fun _ => (x : GaloisField p n)),
+     Matrix.diagonal (fun _ => (↑x⁻¹ : GaloisField p n)),
+     by rw [Matrix.diagonal_mul_diagonal]; simp [Matrix.diagonal_one],
+     by rw [Matrix.diagonal_mul_diagonal]; simp [Matrix.diagonal_one]⟩
+  -- scalarMat is injective
+  have scalarMat_inj : Function.Injective scalarMat := by
+    intro a b hab
+    have h := congr_arg (fun g => (g : GL2' p n).val 0 0) hab
+    simp only [scalarMat, Matrix.diagonal_apply, ite_true] at h
+    exact Units.ext h
+  -- Image of scalarMat = scalar filter
+  have scalarMat_image : (Finset.univ.image scalarMat) =
+      Finset.univ.filter (fun g : GL2' p n => GL2.IsScalar g) := by
+    ext g
+    simp only [Finset.mem_image, Finset.mem_univ, true_and, Finset.mem_filter]
+    constructor
+    · rintro ⟨x, rfl⟩
+      refine ⟨?_, ?_, ?_⟩ <;> simp [GL2.IsScalar, GL2.mat, scalarMat, Matrix.diagonal]
+    · intro hg
+      obtain ⟨h01, h10, h00⟩ := hg
+      -- g₀₀ is nonzero (since g ∈ GL₂ and det = g₀₀²)
+      have h00_ne : g.val 0 0 ≠ 0 := by
+        intro h0
+        have hdet : Matrix.det g.val = 0 := by
+          simp only [GL2.mat] at h01 h10 h00
+          rw [Matrix.det_fin_two, h01, h10, ← h00, h0]; ring
+        have hmul : g.val * (g⁻¹ : GL2' p n).val = 1 := by
+          rw [← Units.val_mul, mul_inv_cancel, Units.val_one]
+        have hdet1 : Matrix.det g.val * Matrix.det (g⁻¹ : GL2' p n).val = 1 := by
+          rw [← Matrix.det_mul, hmul, Matrix.det_one]
+        rw [hdet, zero_mul] at hdet1; exact one_ne_zero hdet1.symm
+      refine ⟨Units.mk0 (g.val 0 0) h00_ne, Units.ext (Matrix.ext fun i j => ?_)⟩
+      fin_cases i <;> fin_cases j <;>
+        simp [scalarMat, Matrix.diagonal_apply, h01, h10, h00]
+  -- Compute the cardinality
+  rw [← scalarMat_image, Finset.card_image_of_injective _ scalarMat_inj,
+      Finset.card_univ, Fintype.card_units]
 
 /-- The number of parabolic elements in GL₂(𝔽_q) is (q-1)(q²-1). -/
 theorem GL2.card_isParabolic [Fintype (GaloisField p n)]
