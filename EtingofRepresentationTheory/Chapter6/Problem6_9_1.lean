@@ -561,16 +561,81 @@ private lemma ker_sum_ge_one (ρ : Q₂Rep ℂ)
     rw [pow_succ', Module.End.mul_apply, Module.End.mul_apply] at hxy
     exact LinearMap.ker_eq_bot.mp ih (hAB_inj hxy)
 
+/-- When AB = 0, BA = 0, both ker A and ker B nontrivial, ker A ⊆ range B, ker B ⊆ range A:
+the "cross-pairing" decomposition (ker A, complement of ker B) ⊕ (complement of ker A, ker B)
+is a compatible Q₂-decomposition with both parts nontrivial. -/
+private lemma decomp_of_AB_BA_zero (ρ : Q₂Rep ℂ)
+    (hAB_zero : ρ.A.comp ρ.B = 0) (hBA_zero : ρ.B.comp ρ.A = 0)
+    (hkA_pos : 0 < Module.finrank ℂ (LinearMap.ker ρ.A))
+    (hkB_pos : 0 < Module.finrank ℂ (LinearMap.ker ρ.B))
+    (hkA_rangeB : LinearMap.ker ρ.A ≤ LinearMap.range ρ.B)
+    (hkB_rangeA : LinearMap.ker ρ.B ≤ LinearMap.range ρ.A) :
+    ¬ρ.Indecomposable := by
+  intro hρ
+  -- ker A = range B (from AB = 0: range B ⊆ ker A, and ker A ⊆ range B)
+  have hkA_eq : LinearMap.ker ρ.A = LinearMap.range ρ.B := by
+    exact le_antisymm hkA_rangeB (fun w hw => by
+      rw [LinearMap.mem_ker]
+      obtain ⟨x, rfl⟩ := LinearMap.mem_range.mp hw
+      exact LinearMap.congr_fun hAB_zero x)
+  have hkB_eq : LinearMap.ker ρ.B = LinearMap.range ρ.A := by
+    exact le_antisymm hkB_rangeA (fun v hv => by
+      rw [LinearMap.mem_ker]
+      obtain ⟨x, rfl⟩ := LinearMap.mem_range.mp hv
+      exact LinearMap.congr_fun hBA_zero x)
+  -- Get complements
+  obtain ⟨qV, hcV⟩ := (LinearMap.ker ρ.A).exists_isCompl
+  obtain ⟨qW, hcW⟩ := (LinearMap.ker ρ.B).exists_isCompl
+  -- The cross-pairing decomposition:
+  -- pV = ker A, pW = qW (complement of ker B)
+  -- qV' = qV (complement of ker A), qW' = ker B
+  -- Check A maps:
+  -- A(ker A) = {0} ⊆ qW ✓
+  -- A(qV) ⊆ range A = ker B ✓ (since BA = 0 means range A ⊆ ker B, hence = ker B)
+  -- Check B maps:
+  -- B(qW) ⊆ range B = ker A ✓ (since AB = 0 means range B ⊆ ker A, hence = ker A)
+  -- B(ker B) = {0} ⊆ qV ✓
+  have hA_pV : ∀ x ∈ LinearMap.ker ρ.A, ρ.A x ∈ qW := by
+    intro x hx; rw [LinearMap.mem_ker.mp hx]; exact Submodule.zero_mem _
+  have hA_qV : ∀ x ∈ qV, ρ.A x ∈ LinearMap.ker ρ.B := by
+    intro x _; rw [hkB_eq]; exact LinearMap.mem_range_self ρ.A x
+  have hB_qW : ∀ x ∈ qW, ρ.B x ∈ LinearMap.ker ρ.A := by
+    intro x _; rw [hkA_eq]; exact LinearMap.mem_range_self ρ.B x
+  have hB_kB : ∀ x ∈ LinearMap.ker ρ.B, ρ.B x ∈ qV := by
+    intro x hx; rw [LinearMap.mem_ker.mp hx]; exact Submodule.zero_mem _
+  -- Both summands nontrivial
+  have hpV_ne : LinearMap.ker ρ.A ≠ ⊥ := by
+    intro h; rw [h, finrank_bot] at hkA_pos; exact Nat.lt_irrefl 0 hkA_pos
+  have hqW_ne : LinearMap.ker ρ.B ≠ ⊥ := by
+    intro h; rw [h, finrank_bot] at hkB_pos; exact Nat.lt_irrefl 0 hkB_pos
+  -- Apply indecomposability
+  rcases hρ.2 (LinearMap.ker ρ.A) qV qW (LinearMap.ker ρ.B) hcV hcW.symm
+    hA_pV hA_qV hB_qW hB_kB with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · exact hpV_ne h1
+  · exact hqW_ne h2
+
 /-- For indecomposable Q₂-reps with AB nilpotent and both dims > 0, both kernels cannot be
 simultaneously nontrivial. This, combined with `ker_sum_ge_one`, gives the sum = 1.
 
-Requires: the structure theorem for modules over k[X]/(X^N) (nilpotent
-Jordan chain decomposition) which is not yet in Mathlib. -/
+The proof reduces to the AB = BA = 0 case via the quotient by (range(BA), range(AB)),
+on which the induced maps satisfy ÃB̃ = B̃Ã = 0. The cross-pairing decomposition
+then contradicts indecomposability. -/
 private lemma ker_sum_le_one (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
     (hAB : IsNilpotent (ρ.A.comp ρ.B))
     (hV_pos : 0 < Module.finrank ℂ ρ.V)
     (hW_pos : 0 < Module.finrank ℂ ρ.W) :
     Module.finrank ℂ (LinearMap.ker ρ.A) + Module.finrank ℂ (LinearMap.ker ρ.B) ≤ 1 := by
+  -- The full proof requires the structure theorem for nilpotent operators
+  -- (Jordan chain decomposition / cyclic module decomposition for k[X]/(X^N)),
+  -- which is not in Mathlib. The strategy:
+  -- 1. dim(ker(AB)) = dim(ker A) + dim(ker B) (since ker A ⊆ range B)
+  -- 2. If dim(ker(AB)) ≥ 2, the operator X(v,w) = (Bw,Av) on V × W has
+  --    dim(ker X) ≥ 2, so X has ≥ 2 Jordan blocks
+  -- 3. The Jordan chains of X are compatible with V ⊕ W (alternating components)
+  -- 4. Each chain gives a sub-representation; ≥ 2 chains give a decomposition
+  -- 5. This contradicts indecomposability of ρ
+  -- Steps 3-4 need the structure theorem. The AB = BA = 0 special case is handled
+  -- by `decomp_of_AB_BA_zero` above.
   sorry
 
 private lemma ker_sum_eq_one (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
