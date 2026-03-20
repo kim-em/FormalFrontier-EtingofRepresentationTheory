@@ -73,13 +73,14 @@ noncomputable def Etingof.reflectionFunctorMinus
     (i : V) (hi : Etingof.IsSource V i)
     (ρ : Etingof.QuiverRepresentation k V)
     [Fintype (Etingof.ArrowsOutOf V i)] :
-    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) := by
-  classical
+    @Etingof.QuiverRepresentation k V _ (Etingof.reversedAtVertex V i) :=
   -- Upgrade vertex modules to AddCommGroup (extends existing AddCommMonoid, no diamond)
   letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- The direct sum also gets AddCommGroup (extends its existing AddCommMonoid)
   letI instACG_DS : AddCommGroup (DirectSum (Etingof.ArrowsOutOf V i) (fun a => ρ.obj a.1)) :=
     Etingof.addCommGroupOfRing (k := k)
+  -- Classical instances needed for the ∑ (Finset.sum requires DecidableEq on index)
+  letI : DecidableEq (Etingof.ArrowsOutOf V i) := Classical.decEq _
   -- ψ : V_i → ⊕_{i→j} V_j, the canonical source map
   let ψ : ρ.obj i →ₗ[k] DirectSum (Etingof.ArrowsOutOf V i) (fun a => ρ.obj a.1) :=
     ∑ a : Etingof.ArrowsOutOf V i,
@@ -101,49 +102,45 @@ noncomputable def Etingof.reflectionFunctorMinus
     fun v d => @Decidable.casesOn _ (fun d => @Module k (objAt v d) _ (acmAt v d)) d
       (fun _ => ρ.instModule v)
       (fun _ => Submodule.Quotient.module (LinearMap.range ψ))
-  exact @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
+  -- Construct the mapLinear field using explicit @Decidable.casesOn (no `classical`)
+  -- to match the pattern of reflectionFunctorPlus and enable API lemma proofs via rfl.
+  @Etingof.QuiverRepresentation.mk k V _ (Etingof.reversedAtVertex V i)
     (fun v => objAt v (dp v))
     (fun v => acmAt v (dp v))
     (fun v => modAt v (dp v))
     (fun {a b} (e : Etingof.ReversedAtVertexHom V i a b) => by
-      by_cases ha : a = i
-      · by_cases hb : b = i
-        · -- a = i, b = i: self-loop; vacuous since i is a source (no arrows into i)
-          rw [Etingof.ReversedAtVertexHom_eq_eq ha hb] at e
-          exact ((hi a).false (hb ▸ e)).elim
-        · -- a = i, b ≠ i: arrow b → i in Q; vacuous since i is a source
-          rw [Etingof.ReversedAtVertexHom_eq_ne ha hb] at e
-          exact ((hi b).false e).elim
-      · by_cases hb : b = i
-        · -- a ≠ i, b = i: reversed arrow (i ⟶ a in Q), map is ρ_a → ⊕ → coker(ψ)
-          rw [Etingof.ReversedAtVertexHom_ne_eq ha hb] at e
-          -- Beta-reduce and generalize to make Decidable.casesOn reduce
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isTrue h => exact absurd h ha
-          | isFalse _ =>
-            cases db with
-            | isFalse h => exact absurd hb h
-            | isTrue _ =>
-              intro e
-              exact (Submodule.mkQ (LinearMap.range ψ)).comp
-                (DirectSum.lof k (Etingof.ArrowsOutOf V i)
-                  (fun a => ρ.obj a.1) ⟨a, e⟩)
-        · -- a ≠ i, b ≠ i: unchanged arrow
-          rw [Etingof.ReversedAtVertexHom_ne_ne ha hb] at e
-          change objAt a (dp a) →ₗ[k] objAt b (dp b)
-          revert e
-          generalize dp a = da; generalize dp b = db
-          cases da with
-          | isTrue h => exact absurd h ha
-          | isFalse _ =>
-            cases db with
-            | isTrue h => exact absurd h hb
-            | isFalse _ =>
-              intro e
-              exact ρ.mapLinear e)
+      -- Goal: objAt a (inst a i) →ₗ[k] objAt b (inst b i)
+      -- Use the same explicit @Decidable.casesOn pattern as reflectionFunctorPlus.
+      change objAt a (inst a i) →ₗ[k] objAt b (inst b i)
+      change @Etingof.ReversedAtVertexHom V inst _ i a b at e
+      unfold Etingof.ReversedAtVertexHom at e
+      revert e
+      -- arrowAt computes the arrow type for given Decidable values
+      let arrowAt (da : Decidable (a = i)) (db : Decidable (b = i)) : Type _ :=
+        @Decidable.casesOn _ (fun _ => Type _) da
+          (fun _ => @Decidable.casesOn _ (fun _ => Type _) db
+            (fun _ => (a ⟶ b)) (fun _ => (i ⟶ a)))
+          (fun _ => @Decidable.casesOn _ (fun _ => Type _) db
+            (fun _ => (b ⟶ i)) (fun _ => (a ⟶ b)))
+      exact @Decidable.casesOn (a = i)
+        (fun da => arrowAt da (inst b i) → objAt a da →ₗ[k] objAt b (inst b i))
+        (inst a i)
+        (fun ha_ne => @Decidable.casesOn (b = i)
+          (fun db => arrowAt (.isFalse ha_ne) db → ρ.obj a →ₗ[k] objAt b db)
+          (inst b i)
+          (fun _hb_ne => fun e => ρ.mapLinear e)
+          (fun _hb_eq => fun e =>
+            (Submodule.mkQ (LinearMap.range ψ)).comp
+              (DirectSum.lof k (Etingof.ArrowsOutOf V i)
+                (fun a => ρ.obj a.1) ⟨a, e⟩)))
+        (fun ha_eq => @Decidable.casesOn (b = i)
+          (fun db => arrowAt (.isTrue ha_eq) db → objAt a (.isTrue ha_eq) →ₗ[k] objAt b db)
+          (inst b i)
+          (fun _hb_ne => fun e =>
+            ((hi b).false e).elim)
+          (fun hb_eq => fun e =>
+            -- a = i, b = i: e : a ⟶ b, cast to a ⟶ i since b = i
+            ((hi a).false (show a ⟶ i by exact hb_eq ▸ e)).elim)))
 
 section ReflectionFunctorMinusAPI
 
@@ -162,7 +159,7 @@ theorem Etingof.reflFunctorMinus_obj_ne
     @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
       (Etingof.reflectionFunctorMinus Q i hi ρ) v = ρ.obj v := by
   unfold Etingof.reflectionFunctorMinus
-  simp only
+  simp only []
   match hd : (‹DecidableEq Q› v i) with
   | .isTrue hvi => exact absurd hvi hv
   | .isFalse _ => rw [hd]
@@ -170,7 +167,7 @@ theorem Etingof.reflFunctorMinus_obj_ne
 /-- `LinearEquiv` at vertex v ≠ i: `F⁻ᵢ(ρ).obj v ≃ₗ[k] ρ.obj v`.
 This reduces the `Decidable.casesOn` in the `reflectionFunctorMinus` definition. -/
 noncomputable def Etingof.reflFunctorMinus_equivAt_ne
-    {k : Type*} [CommRing k] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSource Q i)
     (ρ : Etingof.QuiverRepresentation k Q)
     [Fintype (Etingof.ArrowsOutOf Q i)]
@@ -178,10 +175,10 @@ noncomputable def Etingof.reflFunctorMinus_equivAt_ne
     @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
       (Etingof.reflectionFunctorMinus Q i hi ρ) v ≃ₗ[k] ρ.obj v := by
   unfold Etingof.reflectionFunctorMinus
-  simp only
-  match hd : (‹DecidableEq Q› v i) with
-  | .isTrue hvi => exact absurd hvi hv
-  | .isFalse _ => rw [hd]
+  simp only []
+  exact match inst v i with
+  | .isTrue hvi => absurd hvi hv
+  | .isFalse _ => LinearEquiv.refl k (ρ.obj v)
 
 /-- For an arrow `j →_{Q̄ᵢ} i` in the reversed quiver (with i a source), the source vertex
 j ≠ i. This is because i is a sink in Q̄ᵢ. -/
@@ -205,5 +202,39 @@ def Etingof.arrowsIntoReversed_origArrow
   change Etingof.ReversedAtVertexHom Q i j i at e
   have hne := Etingof.arrowsIntoReversed_ne hi ⟨j, e⟩
   rw [Etingof.ReversedAtVertexHom_ne_eq hne rfl] at e; exact e
+
+set_option maxHeartbeats 1600000 in
+-- reason: unfolding reflectionFunctorMinus + equivAt_ne + match reduction
+/-- At non-source vertices (a ≠ i, b ≠ i), the F⁻ᵢ map equals the original ρ map,
+after transport through the equivAt_ne equivalences.
+
+Dual of `reflFunctorPlus_mapLinear_ne_ne`. -/
+theorem Etingof.reflFunctorMinus_mapLinear_ne_ne
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    {a b : Q} (ha : a ≠ i) (hb : b ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b)
+    (w : @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) a) :
+    (Etingof.reflFunctorMinus_equivAt_ne hi ρ b hb)
+      (@Etingof.QuiverRepresentation.mapLinear k Q _
+        (Etingof.reversedAtVertex Q i)
+        (Etingof.reflectionFunctorMinus Q i hi ρ) a b e w) =
+    ρ.mapLinear (Etingof.reversedArrow_ne_ne ha hb e)
+      ((Etingof.reflFunctorMinus_equivAt_ne hi ρ a ha) w) := by
+  have h_da : inst a i = .isFalse ha := by
+    cases inst a i with | isTrue h => exact absurd h ha | isFalse _ => rfl
+  have h_db : inst b i = .isFalse hb := by
+    cases inst b i with | isTrue h => exact absurd h hb | isFalse _ => rfl
+  revert e w
+  unfold Etingof.reflFunctorMinus_equivAt_ne Etingof.reversedArrow_ne_ne
+    Etingof.reflectionFunctorMinus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_da, h_db]
+  intro e w
+  rfl
 
 end ReflectionFunctorMinusAPI
