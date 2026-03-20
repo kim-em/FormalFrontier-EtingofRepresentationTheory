@@ -1361,13 +1361,112 @@ private theorem inner_product_eq_of_partition_eq {n : ℕ}
         (permExponent n π i : ℤ) =
     ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)) *
         (rhoShift n i : ℤ) := by
-  -- From heq: multiset of values {v(i)} = {la.toFinsupp(i)} (via multiset_entries_eq_of_partition_eq)
-  -- → ∑ v(i)² = ∑ la.toFinsupp(i)² (same multiset → same sum of squares)
-  -- → expanding v(i) = a(i) - e_π(i), la(i) = a(i) - ρ(i):
-  --   ∑ a² - 2∑ a·e_π + ∑ e_π² = ∑ a² - 2∑ a·ρ + ∑ ρ²
-  -- → ∑ e_π(i)² = ∑ ρ(i)² (both are ∑ i² over {0,...,n-1}, via permutation reindexing)
-  -- → ∑ a·e_π = ∑ a·ρ
-  sorry
+  -- Step 1: multiset equality of v = la.toFinsupp + ρ - e_π and la.toFinsupp
+  set v := Nat.Partition.toFinsupp la + rhoShift n - permExponent n π with hv_def
+  have hsum_v := sum_shifted_sub_permExponent la π hle
+  have hmulti := multiset_entries_eq_of_partition_eq la v hsum_v heq
+  -- Step 2: From multiset equality, derive sum-of-squares equality (in ℤ)
+  have hsq_int : ∑ i : Fin n, ((v i : ℤ)) ^ 2 =
+      ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ)) ^ 2 := by
+    have hmaps : (Finset.univ.val.map v).map (fun x : ℕ => (x : ℤ) ^ 2) =
+        (Finset.univ.val.map (Nat.Partition.toFinsupp la)).map (fun x : ℕ => (x : ℤ) ^ 2) := by
+      rw [hmulti]
+    have lhs : (Finset.univ.val.map v).map (fun x : ℕ => (x : ℤ) ^ 2) =
+        Finset.univ.val.map (fun i => (v i : ℤ) ^ 2) := by rw [Multiset.map_map]; rfl
+    have rhs : (Finset.univ.val.map (Nat.Partition.toFinsupp la)).map (fun x : ℕ => (x : ℤ) ^ 2) =
+        Finset.univ.val.map (fun i => (Nat.Partition.toFinsupp la i : ℤ) ^ 2) := by
+      rw [Multiset.map_map]; rfl
+    rw [lhs, rhs] at hmaps
+    exact congr_arg Multiset.sum hmaps
+  -- v(i) = a(i) - e_π(i) in ℤ
+  have hv_eq : ∀ i : Fin n, (v i : ℤ) =
+      (Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ) - (permExponent n π i : ℤ) := by
+    intro i
+    simp only [hv_def, Finsupp.coe_tsub, Finsupp.coe_add, Pi.sub_apply, Pi.add_apply]
+    have := Finsupp.coe_le_coe.mpr hle i
+    simp only [Finsupp.coe_add, Pi.add_apply] at this
+    omega
+  -- Substitute into sum of squares: ∑(a-e)² = ∑ la²
+  have hsq2 : ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ) -
+      (permExponent n π i : ℤ)) ^ 2 =
+    ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ)) ^ 2 := by
+    convert hsq_int using 1; congr 1; ext i; rw [hv_eq]
+  -- Step 3: ∑ e_π(i)² = ∑ ρ(i)² (both are ∑ i² under permutation/reversal)
+  have hperm_sq : ∑ i : Fin n, ((permExponent n π i : ℤ)) ^ 2 =
+      ∑ i : Fin n, ((rhoShift n i : ℤ)) ^ 2 := by
+    -- ∑ (π⁻¹ i).val² = ∑ i.val² (reindex by π)
+    have h1 : ∑ i : Fin n, ((permExponent n π i : ℤ)) ^ 2 =
+        ∑ i : Fin n, ((i.val : ℤ)) ^ 2 := by
+      have hf : ∀ i : Fin n, (permExponent n π i : ℤ) = ((π⁻¹ i).val : ℤ) := by
+        intro i; simp [permExponent, Finsupp.equivFunOnFinite]
+      simp_rw [hf]
+      exact Equiv.sum_comp π⁻¹ (fun i : Fin n => ((i.val : ℤ)) ^ 2)
+    -- ∑ (n-1-i)² = ∑ i² (reindex by Fin.rev)
+    have h2 : ∑ i : Fin n, ((rhoShift n i : ℤ)) ^ 2 =
+        ∑ i : Fin n, ((i.val : ℤ)) ^ 2 := by
+      have hg : ∀ i : Fin n, (rhoShift n i : ℤ) = ((Fin.rev i).val : ℤ) := by
+        intro i; simp [rhoShift, Finsupp.equivFunOnFinite, Fin.rev]; omega
+      simp_rw [hg]
+      exact Equiv.sum_comp (Fin.revOrderIso (n := n)).toEquiv
+        (fun i : Fin n => ((i.val : ℤ)) ^ 2)
+    linarith
+  -- Step 4: ∑(a-e)² = ∑(a-ρ)² (since RHS of hsq2 = ∑la² = ∑(a-ρ)²)
+  have hsq3 : ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ) -
+      (rhoShift n i : ℤ)) ^ 2 =
+    ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ)) ^ 2 := by
+    congr 1; ext i; congr 1; omega
+  have hsq4 : ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ) -
+      (permExponent n π i : ℤ)) ^ 2 =
+    ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ) -
+      (rhoShift n i : ℤ)) ^ 2 := by rw [hsq2, hsq3]
+  -- Step 5: Expand and conclude using hperm_sq
+  -- ∑(a-e)² = ∑a² - 2∑a·e + ∑e², ∑(a-r)² = ∑a² - 2∑a·r + ∑r²
+  -- From hsq4 + hperm_sq: ∑a·e = ∑a·r
+  set af : Fin n → ℤ := fun i => (Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)
+  set ef : Fin n → ℤ := fun i => (permExponent n π i : ℤ)
+  set rf : Fin n → ℤ := fun i => (rhoShift n i : ℤ)
+  -- From hsq4: ∑(a-e)² = ∑(a-r)², expand to get the inner product equality
+  -- Instead of expanding, compute ∑(a-e)² - ∑(a-r)² = 0 pointwise
+  -- ∑ [(a-e)² - (a-r)²] = 0
+  -- (a-e)² - (a-r)² = (r-e)(2a-e-r)
+  -- So ∑(r-e)(2a-r-e) = 0
+  -- Also ∑e² = ∑r² from hperm_sq
+  -- Directly use linarith on the expanded sums
+  -- Actually, let's just use a direct calculation:
+  -- ∑ a*e - ∑ a*r = (1/2)(∑(a-r)² - ∑(a-e)² + ∑e² - ∑r²) = 0
+  -- From hsq4 and hperm_sq, derive the goal
+  -- ∑(a-e)² - ∑(a-r)² = 0  and  ∑e² - ∑r² = 0
+  -- Pointwise: (a-e)² - (a-r)² = -2ae + e² + 2ar - r²
+  -- Sum: -2∑ae + ∑e² + 2∑ar - ∑r² = 0
+  -- Using ∑e² = ∑r²: -2∑ae + 2∑ar = 0  →  ∑ae = ∑ar
+  -- Pointwise: (a-e)² - (a-r)² = 2a(r-e) + e² - r²
+  -- So ∑[(a-e)² - (a-r)²] = 2∑a(r-e) + ∑(e²-r²)
+  -- From hsq4: ∑(a-e)² = ∑(a-r)², so LHS = 0
+  -- From hperm_sq: ∑e² = ∑r², so ∑(e²-r²) = 0
+  -- Therefore 2∑a(r-e) = 0, i.e., ∑ar = ∑ae
+  -- Rewrite goal in terms of ar and ae
+  suffices h : ∑ i, af i * rf i = ∑ i, af i * ef i by linarith
+  -- Use the two sum equalities (hsq4 and hperm_sq) pointwise
+  -- ∑[(a-e)²] = ∑[(a-r)²]  from hsq4
+  -- Subtract pointwise then sum: ∑[(a-e)² - (a-r)²] = 0
+  have hzero : ∑ i, ((af i - ef i) ^ 2 - (af i - rf i) ^ 2) = 0 := by
+    rw [Finset.sum_sub_distrib]; linarith
+  -- Rewrite pointwise difference
+  have hpw : ∀ i : Fin n,
+      (af i - ef i) ^ 2 - (af i - rf i) ^ 2 =
+      2 * af i * (rf i - ef i) + (ef i ^ 2 - rf i ^ 2) := by intro i; ring
+  simp_rw [hpw] at hzero
+  rw [Finset.sum_add_distrib] at hzero
+  have hperm_sq' : ∑ i, (ef i ^ 2 - rf i ^ 2) = 0 := by
+    rw [Finset.sum_sub_distrib]; linarith
+  have hmul : ∑ i, 2 * af i * (rf i - ef i) = 0 := by linarith
+  have hmul' : ∑ i, (af i * rf i - af i * ef i) = 0 := by
+    have : ∀ i : Fin n, 2 * af i * (rf i - ef i) = 2 * (af i * rf i - af i * ef i) := by
+      intro i; ring
+    simp_rw [this, ← Finset.mul_sum] at hmul
+    linarith
+  linarith [Finset.sum_sub_distrib (f := fun i => af i * rf i) (g := fun i => af i * ef i)
+    (s := Finset.univ)]
 
 /-- The shifted partition la + ρ is strictly decreasing: if i < j then
 (la.toFinsupp + ρ)(i) > (la.toFinsupp + ρ)(j). -/
