@@ -632,6 +632,346 @@ private lemma Etingof.normSq_monoidHom_val_eq_one
     _ = (1 : ℝ) ^ 2 := by rw [hnorm]
     _ = 1 := one_pow 2
 
+/-! ### Discriminant infrastructure (moved here for dependency ordering) -/
+
+/-- disc = tr² - 4·det for 2×2 matrices. -/
+private lemma Etingof.disc_eq_tr_det (M : Matrix (Fin 2) (Fin 2) (GaloisField p n)) :
+    (M 0 0 - M 1 1) ^ 2 + 4 * M 0 1 * M 1 0 =
+    (Matrix.trace M) ^ 2 - 4 * Matrix.det M := by
+  simp [Matrix.trace_fin_two, Matrix.det_fin_two]; ring
+
+/-- The discriminant is a conjugation invariant: disc(x⁻¹gx) = disc(g). -/
+private lemma Etingof.disc_conj_eq (g x : GL2 p n) :
+    GL2.disc (x⁻¹ * g * x : GL2 p n) = GL2.disc g := by
+  simp only [GL2.disc_eq]
+  set h := x⁻¹ * g * x
+  set G := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  set H := (h : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+  rw [Etingof.disc_eq_tr_det (M := H), Etingof.disc_eq_tr_det (M := G)]
+  have htr : Matrix.trace H = Matrix.trace G := by
+    change Matrix.trace (x⁻¹ * g * x).val = Matrix.trace g.val
+    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by simp [Units.val_mul]]
+    exact Matrix.trace_units_conj' x g.val
+  have hdet : Matrix.det H = Matrix.det G := by
+    change Matrix.det (x⁻¹ * g * x).val = Matrix.det g.val
+    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by simp [Units.val_mul]]
+    exact Matrix.det_units_conj' x g.val
+  rw [htr, hdet]
+
+/-- disc(embed(α)) = trace(α)² - 4·norm(α) in the base field. -/
+private lemma Etingof.disc_fieldExtEmbed (hn : n ≠ 0) (α : (GaloisField p (2 * n))ˣ) :
+    letI := Etingof.algebraGaloisFieldExt p n
+    GL2.disc (Etingof.GL2.fieldExtEmbed p n α) =
+    Algebra.trace (GaloisField p n) (GaloisField p (2 * n)) (α : GaloisField p (2 * n)) ^ 2 -
+    4 * Algebra.norm (GaloisField p n) (α : GaloisField p (2 * n)) := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  rw [GL2.disc_eq, Etingof.disc_eq_tr_det]
+  have hval : (Etingof.GL2.fieldExtEmbed p n α).val =
+      Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) := by
+    change (Etingof.GL2.fieldExtEmbed p n α).val = _
+    simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; rfl
+  congr 1
+  · congr 1; rw [hval]; exact (Algebra.trace_eq_matrix_trace b _).symm
+  · congr 1; rw [hval]; exact (Algebra.norm_eq_matrix_det b _).symm
+
+/-- The algebraMap of disc(embed(α)) equals (α - α^q)² in the extension field. -/
+private lemma Etingof.algebraMap_disc_fieldExtEmbed (hn : n ≠ 0)
+    (α : (GaloisField p (2 * n))ˣ) :
+    letI := Etingof.algebraGaloisFieldExt p n
+    algebraMap (GaloisField p n) (GaloisField p (2 * n))
+      (GL2.disc (Etingof.GL2.fieldExtEmbed p n α)) =
+    ((α : GaloisField p (2 * n)) -
+     (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)) ^ 2 := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  rw [Etingof.disc_fieldExtEmbed p n hn α, map_sub, map_mul, map_pow]
+  have hfinrank : Module.finrank (GaloisField p n) (GaloisField p (2 * n)) = 2 :=
+    Etingof.finrank_galoisField_ext p n hn
+  have hcard : Nat.card (GaloisField p n) = p ^ n := GaloisField.card p n hn
+  rw [FiniteField.algebraMap_trace_eq_sum_pow, FiniteField.algebraMap_norm_eq_prod_pow]
+  rw [hfinrank]
+  simp only [Finset.sum_range_succ, Finset.sum_range_zero, Finset.prod_range_succ,
+    Finset.prod_range_zero, one_mul, zero_add, pow_zero, pow_one, hcard]
+  have h4 : algebraMap (GaloisField p n) (GaloisField p (2 * n)) 4 = 4 := map_ofNat _ 4
+  rw [h4]
+  ring
+
+/-- Conjugation preserves IsScalar: if x⁻¹gx is scalar, then g is scalar. -/
+private lemma Etingof.conj_isScalar (g x : GL2 p n)
+    (h : GL2.IsScalar (p := p) (n := n) (x⁻¹ * g * x)) :
+    GL2.IsScalar (p := p) (n := n) g := by
+  have heq : x⁻¹ * g * x = g := by
+    have hcomm := Etingof.scalar_conj_eq_self p n (x⁻¹ * g * x) h x⁻¹
+    rw [inv_inv] at hcomm
+    have hsimp : x * (x⁻¹ * g * x) * x⁻¹ = g := by group
+    rw [hsimp] at hcomm
+    exact hcomm.symm
+  rwa [← heq]
+
+/-! ### Parabolic character values -/
+
+/-- charVα₁ is a class function: charVα₁(y⁻¹gy) = charVα₁(g). -/
+private lemma Etingof.charVα₁_conj
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (alpha : (GaloisField p n)ˣ →* ℂˣ)
+    (g y : GL2 p n) :
+    Etingof.GL2.charVα₁ p n alpha (y⁻¹ * g * y) =
+    Etingof.GL2.charVα₁ p n alpha g := by
+  -- charVα₁(y⁻¹gy) = borelCard⁻¹ * ∑ x, f(x⁻¹(y⁻¹gy)x)
+  -- = borelCard⁻¹ * ∑ x, f((yx)⁻¹g(yx))  (since x⁻¹(y⁻¹gy)x = (yx)⁻¹g(yx))
+  -- = borelCard⁻¹ * ∑ z, f(z⁻¹gz)  (reindex z = yx)
+  -- = charVα₁(g)
+  simp only [Etingof.GL2.charVα₁]
+  congr 1
+  -- After congr 1, goal is about the sums only
+  have hconj : ∀ x : GL2 p n,
+      (x⁻¹ * (y⁻¹ * g * y) * x : GL2 p n) = (y * x)⁻¹ * g * (y * x) := by
+    intro x; group
+  simp_rw [hconj]
+  -- Goal: ∑ x, f(y*x) = ∑ x, f(x) where f involves let-bindings
+  -- Convert ∑ to Fintype.sum form and apply reindexing
+  let f' : GL2 p n → ℂ := fun z =>
+    if (z⁻¹ * g * z : GL2 p n).val 1 0 = 0 then
+      if h : (z⁻¹ * g * z : GL2 p n).val 0 0 ≠ 0 then
+        (alpha (Units.mk0 ((z⁻¹ * g * z : GL2 p n).val 0 0) h) : ℂ)
+      else 0
+    else 0
+  show ∑ x, f' ((Equiv.mulLeft y) x) = ∑ x, f' x
+  exact Equiv.sum_comp (Equiv.mulLeft y) f'
+
+/-- For upper-triangular parabolic g (g₁₀ = 0), the diagonal entry is nonzero. -/
+private lemma Etingof.parabolic_diag_ne_zero
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g)
+    (h10 : g.val 1 0 = 0) :
+    g.val 0 0 ≠ 0 := by
+  intro h
+  obtain ⟨hdisc_zero, hnotscalar⟩ := hg
+  have hdisc : (g.val 0 0 - g.val 1 1) ^ 2 + 4 * g.val 0 1 * g.val 1 0 = 0 := by
+    rwa [← GL2.disc_eq]
+  rw [h10] at hdisc
+  have h00_eq_11 : g.val 0 0 = g.val 1 1 := by
+    have : (g.val 0 0 - g.val 1 1) ^ 2 = 0 := by linear_combination hdisc
+    exact sub_eq_zero.mp (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this)
+  have hdet : Matrix.det g.val = 0 := by
+    simp [Matrix.det_fin_two, h, h10, h00_eq_11.symm ▸ h]
+  have hunit := g.isUnit
+  rw [Matrix.isUnit_iff_isUnit_det] at hunit
+  exact hunit.ne_zero hdet
+
+/-- For upper-triangular parabolic g (g₁₀ = 0), the (0,0) entry of any
+upper-triangular conjugate x⁻¹gx equals g₀₀. -/
+private lemma Etingof.parabolic_upperTri_entry
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g)
+    (h10 : g.val 1 0 = 0)
+    (x : GL2 p n)
+    (hx10 : (x⁻¹ * g * x : GL2 p n).val 1 0 = 0) :
+    (x⁻¹ * g * x : GL2 p n).val 0 0 = g.val 0 0 := by
+  set M := (x⁻¹ * g * x : GL2 p n).val
+  -- disc(x⁻¹gx) = disc(g) = 0
+  have hdisc_eq : GL2.disc (x⁻¹ * g * x : GL2 p n) = GL2.disc g :=
+    Etingof.disc_conj_eq p n g x
+  -- From disc = 0 and M₁₀ = 0: (M₀₀ - M₁₁)² = 0, so M₀₀ = M₁₁
+  have hdisc_conj : GL2.disc (x⁻¹ * g * x) = 0 := by rw [hdisc_eq]; exact hg.1
+  have hdisc' : (M 0 0 - M 1 1) ^ 2 + 4 * M 0 1 * M 1 0 = 0 := by rwa [← GL2.disc_eq]
+  have h00_eq_11 : M 0 0 = M 1 1 := by
+    have : (M 0 0 - M 1 1) ^ 2 = 0 := by rw [hx10] at hdisc'; linear_combination hdisc'
+    exact sub_eq_zero.mp (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this)
+  -- tr(x⁻¹gx) = tr(g), and tr(x⁻¹gx) = 2·M₀₀, tr(g) = 2·g₀₀
+  -- From disc(g) = 0 and g₁₀ = 0: g₀₀ = g₁₁
+  have hg00_eq_11 : g.val 0 0 = g.val 1 1 := by
+    have hdisc_g : (g.val 0 0 - g.val 1 1) ^ 2 + 4 * g.val 0 1 * g.val 1 0 = 0 := by
+      have := hg.1; rw [GL2.disc_eq] at this; exact this
+    have : (g.val 0 0 - g.val 1 1) ^ 2 = 0 := by rw [h10] at hdisc_g; linear_combination hdisc_g
+    exact sub_eq_zero.mp (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this)
+  -- tr(x⁻¹gx) = M₀₀ + M₁₁ = 2·M₀₀
+  -- tr(g) = g₀₀ + g₁₁ = 2·g₀₀
+  have htr_eq : Matrix.trace M = Matrix.trace g.val := by
+    change Matrix.trace (x⁻¹ * g * x).val = Matrix.trace g.val
+    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by simp [Units.val_mul]]
+    exact Matrix.trace_units_conj' x g.val
+  -- M₀₀ + M₁₁ = g₀₀ + g₁₁
+  have htr' : M 0 0 + M 1 1 = g.val 0 0 + g.val 1 1 := by
+    have h1 : Matrix.trace M = M 0 0 + M 1 1 := Matrix.trace_fin_two M
+    have h2 : Matrix.trace g.val = g.val 0 0 + g.val 1 1 := Matrix.trace_fin_two g.val
+    rw [← h1, ← h2]; exact htr_eq
+  -- Use det(x⁻¹gx) = det(g) to get M₀₀² = g₀₀²
+  have hdet_eq : Matrix.det M = Matrix.det g.val := by
+    change Matrix.det (x⁻¹ * g * x).val = Matrix.det g.val
+    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by simp [Units.val_mul]]
+    exact Matrix.det_units_conj' x g.val
+  -- det(M) = M₀₀² (since M₁₀ = 0 and M₀₀ = M₁₁)
+  have hdetM : Matrix.det M = M 0 0 * M 0 0 - M 0 1 * 0 := by
+    rw [Matrix.det_fin_two]; congr 1; rw [h00_eq_11]; rw [hx10]
+  have hdetG : Matrix.det g.val = g.val 0 0 * g.val 0 0 - g.val 0 1 * 0 := by
+    rw [Matrix.det_fin_two]; congr 1; rw [hg00_eq_11]; rw [h10]
+  simp only [mul_zero, sub_zero] at hdetM hdetG
+  -- M₀₀² = g₀₀²
+  have hsq : M 0 0 * M 0 0 = g.val 0 0 * g.val 0 0 := by
+    rw [← hdetM, ← hdetG, hdet_eq]
+  -- (M₀₀ - g₀₀) * (M₀₀ + g₀₀) = 0
+  have hprod : (M 0 0 - g.val 0 0) * (M 0 0 + g.val 0 0) = 0 := by
+    have : M 0 0 * M 0 0 - g.val 0 0 * g.val 0 0 = 0 := sub_eq_zero.mpr hsq
+    linear_combination this
+  rcases mul_eq_zero.mp hprod with h | h
+  · exact sub_eq_zero.mp h
+  · -- M₀₀ + g₀₀ = 0 means M₀₀ = -g₀₀
+    -- From trace: M₀₀ + M₁₁ = g₀₀ + g₁₁, i.e. M₀₀ + M₀₀ = g₀₀ + g₀₀
+    -- Combined with M₀₀ = -g₀₀: 4·g₀₀ = 0
+    have h4 : (4 : GaloisField p n) * g.val 0 0 = 0 := by
+      linear_combination -htr' - h00_eq_11 + hg00_eq_11 + 2 * h
+    have hg00_ne : g.val 0 0 ≠ 0 := Etingof.parabolic_diag_ne_zero p n g hg h10
+    rcases mul_eq_zero.mp h4 with h4z | h4z
+    · -- 4 = 0 means char = 2, so M₀₀ + g₀₀ = 0 iff M₀₀ = g₀₀
+      have h2 : (2 : GaloisField p n) = 0 := by
+        have : (4 : GaloisField p n) = 2 * 2 := by ring
+        rw [this] at h4z
+        rcases mul_eq_zero.mp h4z with h2z | h2z <;> exact h2z
+      -- In char 2: M₀₀ - g₀₀ = (M₀₀ + g₀₀) - 2*g₀₀ = 0 - 0 = 0
+      exact sub_eq_zero.mp (by linear_combination h - g.val 0 0 * h2)
+    · exact absurd h4z hg00_ne
+
+/-- For upper-triangular parabolic g (g₁₀ = 0), the set of x ∈ GL₂ with
+(x⁻¹gx)₁₀ = 0 consists exactly of upper-triangular matrices (y = 0).
+This follows from the formula (x⁻¹gx)₁₀ = d⁻¹ · (-g₀₁ · y²) where y = x.val 1 0
+and g₀₁ ≠ 0 (since g is parabolic with g₁₀ = 0 and not scalar). -/
+private lemma Etingof.parabolic_upperTri_count
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g)
+    (h10 : g.val 1 0 = 0) :
+    ∀ x : GL2 p n, (x⁻¹ * g * x : GL2 p n).val 1 0 = 0 → x.val 1 0 = 0 := by
+  -- g₀₁ ≠ 0 (since g is parabolic, g₁₀ = 0, not scalar → g₀₁ ≠ 0 or g₀₀ ≠ g₁₁, but disc = 0
+  -- and g₁₀ = 0 forces g₀₀ = g₁₁, so must have g₀₁ ≠ 0)
+  obtain ⟨hdisc, hnotscalar⟩ := hg
+  have hdisc' : (g.val 0 0 - g.val 1 1) ^ 2 + 4 * g.val 0 1 * g.val 1 0 = 0 := by
+    rwa [← GL2.disc_eq]
+  rw [h10] at hdisc'
+  have h00_eq_11 : g.val 0 0 = g.val 1 1 := by
+    have : (g.val 0 0 - g.val 1 1) ^ 2 = 0 := by linear_combination hdisc'
+    exact sub_eq_zero.mp (pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this)
+  have h01 : g.val 0 1 ≠ 0 := fun h01 => hnotscalar ⟨h01, h10, h00_eq_11⟩
+  intro x hx
+  -- Key idea: from x * (x⁻¹gx) = g * x, comparing (0,0) entries:
+  -- x₀₀ * (x⁻¹gx)₀₀ + x₀₁ * (x⁻¹gx)₁₀ = g₀₀ * x₀₀ + g₀₁ * x₁₀
+  -- With (x⁻¹gx)₁₀ = 0 (by hx) and (x⁻¹gx)₀₀ = g₀₀ (by parabolic_upperTri_entry):
+  -- g₀₀ * x₀₀ = g₀₀ * x₀₀ + g₀₁ * x₁₀
+  -- So g₀₁ * x₁₀ = 0, and since g₀₁ ≠ 0, x₁₀ = 0.
+  set conj := (x⁻¹ * g * x : GL2 p n) with hconjdef
+  have hconj00 : conj.val 0 0 = g.val 0 0 :=
+    Etingof.parabolic_upperTri_entry p n g ⟨hdisc, hnotscalar⟩ h10 x hx
+  -- x * conj = g * x (since conj = x⁻¹gx)
+  have hmul : x * conj = g * x := by
+    rw [hconjdef]; group
+  -- Compare (0,0) entries of x.val * conj.val = (g * x).val
+  have hmul_val : (x * conj).val = x.val * conj.val := by simp [Units.val_mul]
+  have hgx_val : (g * x).val = g.val * x.val := by simp [Units.val_mul]
+  have hmul_eq : x.val * conj.val = g.val * x.val := by
+    rw [← hmul_val, ← hgx_val]; exact congrArg _ hmul
+  -- Extract (0,0) entries
+  have h00 : (x.val * conj.val) 0 0 = (g.val * x.val) 0 0 := by
+    rw [hmul_eq]
+  -- Expand using Fin.sum_univ_two
+  simp only [Matrix.mul_apply, Fin.sum_univ_two] at h00
+  -- h00: x₀₀ * conj₀₀ + x₀₁ * conj₁₀ = g₀₀ * x₀₀ + g₀₁ * x₁₀
+  -- After simp, h00 should be:
+  -- x₀₀ * conj₀₀ + x₀₁ * conj₁₀ = g₀₀ * x₀₀ + g₀₁ * x₁₀
+  -- Substitute conj₀₀ = g₀₀ and conj₁₀ = 0:
+  have hconj10 : conj.val 1 0 = 0 := hx
+  rw [hconj10, hconj00] at h00
+  simp only [mul_zero, add_zero] at h00
+  -- h00: g₀₀ * x₀₀ = g₀₀ * x₀₀ + g₀₁ * x₁₀
+  have : g.val 0 1 * x.val 1 0 = 0 := by linear_combination -h00
+  rcases mul_eq_zero.mp this with h | h
+  · exact absurd h h01
+  · exact h
+
+/-- For upper-triangular parabolic g, charVα₁(g) = α(g₀₀). -/
+private lemma Etingof.charVα₁_parabolic_upperTri
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (alpha : (GaloisField p n)ˣ →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g)
+    (h10 : g.val 1 0 = 0) :
+    Etingof.GL2.charVα₁ p n alpha g =
+    (alpha (Units.mk0 (g.val 0 0) (Etingof.parabolic_diag_ne_zero p n g hg h10)) : ℂ) := by
+  unfold Etingof.GL2.charVα₁
+  set a := g.val 0 0
+  set ha := Etingof.parabolic_diag_ne_zero p n g hg h10
+  set borelCard : ℂ := (((Fintype.card (GaloisField p n) - 1) ^ 2 *
+    Fintype.card (GaloisField p n) : ℕ) : ℂ)
+  -- Every term in the sum: if (x⁻¹gx)₁₀ = 0 then α(a) else 0
+  -- Because (x⁻¹gx)₀₀ = a for all such x (by parabolic_upperTri_entry)
+  -- And (x⁻¹gx)₀₀ ≠ 0 (since a ≠ 0)
+  have hterm : ∀ x : GL2 p n,
+      (let conj := (x⁻¹ * g * x : GL2 p n)
+       let M := (conj : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+       if M 1 0 = 0 then
+         if h : M 0 0 ≠ 0 then (alpha (Units.mk0 (M 0 0) h) : ℂ)
+         else 0
+       else 0) =
+      if (x⁻¹ * g * x : GL2 p n).val 1 0 = 0 then
+        (alpha (Units.mk0 a ha) : ℂ)
+      else 0 := by
+    intro x
+    by_cases hx10 : (x⁻¹ * g * x : GL2 p n).val 1 0 = 0
+    · -- upper-tri conjugate: entry = a
+      simp only [hx10, ite_true]
+      have hentry := Etingof.parabolic_upperTri_entry p n g hg h10 x hx10
+      rw [dif_pos (hentry ▸ ha)]
+      have : Units.mk0 ((x⁻¹ * g * x : GL2 p n).val 0 0) (hentry ▸ ha) =
+             Units.mk0 a ha := by
+        ext; exact hentry
+      simp only [this]
+    · simp only [hx10, ite_false]
+  conv in (Finset.univ.sum _) =>
+    arg 2; ext x; rw [hterm]
+  -- Sum = α(a) * |{x : (x⁻¹gx)₁₀ = 0}|
+  rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul]
+  -- |{x : (x⁻¹gx)₁₀ = 0}| = borelCard
+  -- For x with (x⁻¹gx)₁₀ = 0: x.val 1 0 = 0 (by parabolic_upperTri_count)
+  -- and conversely, any upper-tri invertible x gives upper-tri conjugate
+  -- Count of upper-tri GL₂ = (q-1)²·q = borelCard
+  sorry
+
+/-- For parabolic g, charVα₁(g) = α(a) for some unit a (the repeated eigenvalue).
+
+Uses the class function property (charVα₁ is conjugation-invariant) to reduce to the
+upper-triangular case, then direct computation shows every upper-tri conjugate has
+the same (0,0) entry and the count of such conjugates equals borelCard. -/
+private lemma Etingof.charVα₁_parabolic
+    [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
+    [Fintype (GL2 p n)]
+    (alpha : (GaloisField p n)ˣ →* ℂˣ)
+    (g : GL2 p n) (hg : GL2.IsParabolic (p := p) (n := n) g) :
+    ∃ a : (GaloisField p n)ˣ, Etingof.GL2.charVα₁ p n alpha g = (alpha a : ℂ) := by
+  -- Case split: either g₁₀ = 0 (already upper-triangular) or g₁₀ ≠ 0
+  by_cases h10 : g.val 1 0 = 0
+  · -- Already upper-triangular, apply charVα₁_parabolic_upperTri
+    exact ⟨Units.mk0 (g.val 0 0) (Etingof.parabolic_diag_ne_zero p n g hg h10),
+           Etingof.charVα₁_parabolic_upperTri p n alpha g hg h10⟩
+  · -- g₁₀ ≠ 0: conjugate to make it upper-triangular.
+    -- The eigenvector for eigenvalue λ = g₀₀ + g₁₀⁻¹*(some expression) gives
+    -- a change of basis matrix y such that (y⁻¹gy)₁₀ = 0.
+    -- Since disc(g) = 0: (g₀₀ - g₁₁)² = -4·g₀₁·g₁₀.
+    -- The eigenvalue is λ = (g₀₀ + g₁₁)/2 (both eigenvalues equal).
+    -- Column [[1], [(λ - g₀₀)/g₀₁]] ... or just [[g₀₁], [λ - g₀₀]] if g₀₁ ≠ 0
+    -- Or since g₁₀ ≠ 0, the vector [[(g₁₁ - g₀₀)/(2*g₁₀)], [1]] is an eigenvector.
+    -- But over char 2, "divide by 2" doesn't work.
+    -- Simpler: since g₁₀ ≠ 0, just conjugate by [[1,0],[c,1]] for suitable c.
+    -- After conjugation by y = [[1,0],[c,1]]:
+    -- (y⁻¹gy)₁₀ = c*(g₀₀ - g₁₁) + g₁₀ + c²*g₀₁
+    -- Wait, need to find c such that this is 0.
+    -- For now, sorry the triangularization.
+    sorry
+
+open Classical in
 /-- On parabolic g, the complementary series character equals -α(eigenvalue).
 This follows from charW₁ = 0 and Ind = 0, giving χ = -charVα₁.
 For parabolic g, charVα₁(g) = α(a) where a is the repeated eigenvalue. -/
@@ -643,7 +983,125 @@ private lemma Etingof.complementaryChar_parabolic_val
     ∃ a : (GaloisField p n)ˣ,
       Etingof.GL2.complementarySeriesChar p n nu g =
       -((nu.comp (Etingof.GL2.scalarToElliptic p n) : (GaloisField p n)ˣ →* ℂˣ) a : ℂ) := by
-  sorry
+  -- Step 1: charW₁(g) = 0 for parabolic g
+  have hW : Etingof.GL2.charW₁ p n g = 0 := Etingof.charW₁_parabolic p n g hg
+  -- Step 2: No conjugate of parabolic g lies in elliptic subgroup K.
+  -- Inline proof: disc is a conjugation invariant (uses tr²-4det form),
+  -- K elements with disc=0 must be scalar, and conjugation preserves IsScalar.
+  have hnoK : ∀ x : GL2 p n, ¬(x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n) := by
+    intro x hcontra
+    obtain ⟨hdisc_zero, hnotscalar⟩ := hg
+    have hdisc_conj : GL2.disc (x⁻¹ * g * x : GL2 p n) = GL2.disc g :=
+      Etingof.disc_conj_eq p n g x
+    obtain ⟨α, hα⟩ := hcontra
+    by_cases hn : n = 0
+    · -- n = 0: K is trivial
+      have h1 : GL2.fieldExtEmbed p n α = 1 := by unfold GL2.fieldExtEmbed; simp [hn]
+      have hone : x⁻¹ * g * x = 1 := hα ▸ h1
+      have hg1 : g = 1 := by
+        have key : x * (x⁻¹ * g * x) * x⁻¹ = g := by group
+        rw [hone] at key; simpa using key.symm
+      exact hnotscalar (hg1 ▸ ⟨by simp [Units.val_one], by simp [Units.val_one],
+        by simp [Units.val_one]⟩)
+    · letI := Etingof.algebraGaloisFieldExt p n
+      have hconj_disc : GL2.disc (GL2.fieldExtEmbed p n α) = 0 := by
+        rw [hα, hdisc_conj]; exact hdisc_zero
+      -- α^q = α (from disc = 0), so α ∈ base field
+      set s := (α : GaloisField p (2 * n)) - (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)
+      have hd := Etingof.algebraMap_disc_fieldExtEmbed p n hn α
+      have hinj := (algebraMap (GaloisField p n) (GaloisField p (2 * n))).injective
+      have hs : s = 0 := by
+        have : s ^ 2 = 0 := by rw [← hd, hconj_disc, map_zero]
+        exact pow_eq_zero_iff (by omega : 2 ≠ 0) |>.mp this
+      have hα_frob : (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ) =
+          (α : GaloisField p (2 * n)) := (sub_eq_zero.mp hs).symm
+      -- α is in the image of algebraMap
+      have hα_in_range : (α : GaloisField p (2 * n)) ∈ Set.range
+          (algebraMap (GaloisField p n) (GaloisField p (2 * n))) := by
+        haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+        set fixed := Finset.univ.filter
+          (fun x : GaloisField p (2 * n) => x ^ (p ^ n : ℕ) = x)
+        set img := Finset.univ.image
+          (algebraMap (GaloisField p n) (GaloisField p (2 * n)))
+        have hcard_n : Fintype.card (GaloisField p n) = p ^ n := by
+          rw [← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+        have hα_mem : (α : GaloisField p (2 * n)) ∈ fixed := by
+          simp only [fixed, Finset.mem_filter, Finset.mem_univ, true_and]; exact hα_frob
+        have himg_sub : img ⊆ fixed := by
+          intro y hy
+          simp only [img, Finset.mem_image, Finset.mem_univ, true_and] at hy
+          obtain ⟨r, hr⟩ := hy
+          simp only [fixed, Finset.mem_filter, Finset.mem_univ, true_and]
+          rw [← hr, ← map_pow]; congr 1; rw [← hcard_n]; exact FiniteField.pow_card r
+        have himg_card : img.card = p ^ n := by
+          simp only [img, Finset.card_image_of_injective _ hinj, Finset.card_univ, hcard_n]
+        have hfixed_le : fixed.card ≤ p ^ n := by
+          open Polynomial in
+          set f := (X ^ (p ^ n) - X : Polynomial (GaloisField p (2 * n)))
+          have hf_ne : f ≠ 0 :=
+            FiniteField.X_pow_card_pow_sub_X_ne_zero (GaloisField p (2 * n)) hn hp.out.one_lt
+          calc fixed.card
+            ≤ f.roots.toFinset.card := Finset.card_le_card (by
+                intro y hy
+                simp only [fixed, Finset.mem_filter, Finset.mem_univ, true_and] at hy
+                rw [Multiset.mem_toFinset, Polynomial.mem_roots hf_ne, Polynomial.IsRoot.def,
+                  Polynomial.eval_sub, Polynomial.eval_pow, Polynomial.eval_X]
+                exact sub_eq_zero.mpr hy)
+            _ ≤ Multiset.card f.roots := Multiset.toFinset_card_le _
+            _ ≤ f.natDegree := Polynomial.card_roots' _
+            _ = p ^ n := FiniteField.X_pow_card_pow_sub_X_natDegree_eq
+                  (GaloisField p (2 * n)) hn hp.out.one_lt
+        have : fixed = img :=
+          (Finset.eq_of_subset_of_card_le himg_sub (himg_card ▸ hfixed_le)).symm
+        rw [this] at hα_mem
+        simp only [img, Finset.mem_image, Finset.mem_univ, true_and] at hα_mem
+        exact hα_mem
+      obtain ⟨a, ha⟩ := hα_in_range
+      -- embed(α) is scalar since α is in the base field
+      have hconj_scalar : GL2.IsScalar (p := p) (n := n) (GL2.fieldExtEmbed p n α) := by
+        set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+          (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+        have hval : (GL2.fieldExtEmbed p n α).val =
+            Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) := by
+          unfold GL2.fieldExtEmbed; simp only [dif_neg hn]; rfl
+        have hentry : ∀ i j : Fin 2,
+            (GL2.fieldExtEmbed p n α).val i j = a * if j = i then 1 else 0 := by
+          intro i j
+          rw [show (GL2.fieldExtEmbed p n α).val i j =
+              (Algebra.leftMulMatrix b (α : GaloisField p (2 * n))) i j from
+            congr_fun (congr_fun hval i) j]
+          rw [Algebra.leftMulMatrix_eq_repr_mul, ← ha,
+            Algebra.algebraMap_eq_smul_one, smul_mul_assoc, one_mul,
+            map_smul, Finsupp.smul_apply, smul_eq_mul, b.repr_self,
+            Finsupp.single_apply]
+        refine ⟨?_, ?_, ?_⟩
+        · change (GL2.fieldExtEmbed p n α).val 0 1 = 0; rw [hentry]; simp
+        · change (GL2.fieldExtEmbed p n α).val 1 0 = 0; rw [hentry]; simp
+        · change (GL2.fieldExtEmbed p n α).val 0 0 = (GL2.fieldExtEmbed p n α).val 1 1
+          rw [hentry 0 0, hentry 1 1]; simp
+      -- x⁻¹gx is scalar, hence g is scalar (contradicts parabolic)
+      have hconj_scalar' : GL2.IsScalar (p := p) (n := n) (x⁻¹ * g * x) := hα ▸ hconj_scalar
+      exact hnotscalar (Etingof.conj_isScalar p n g x hconj_scalar')
+  have hInd : ∑ x : GL2 p n,
+      (if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+       then (nu ⟨x⁻¹ * g * x, h⟩).val
+       else 0) = 0 := by
+    apply Finset.sum_eq_zero; intro x _
+    rw [dif_neg (hnoK x)]
+  -- Step 3: charVα₁(g) = α(a) for some unit a
+  set alpha := nu.comp (Etingof.GL2.scalarToElliptic p n)
+  obtain ⟨a, ha⟩ := Etingof.charVα₁_parabolic p n alpha g hg
+  -- Step 4: Combine
+  refine ⟨a, ?_⟩
+  change Etingof.GL2.charW₁ p n g * Etingof.GL2.charVα₁ p n alpha g -
+    Etingof.GL2.charVα₁ p n alpha g -
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ)⁻¹ *
+    ∑ x : GL2 p n,
+      (if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+       then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) =
+    -↑(alpha a)
+  rw [hW, hInd, ha]
+  ring
 
 private lemma Etingof.normSq_complementaryChar_parabolic
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
@@ -808,35 +1266,6 @@ private lemma Etingof.charW₁_elliptic
   rw [hfilt, Etingof.quadratic_no_roots _ _ _ h01 hdisc]
   simp only [h01, ite_false, Nat.add_zero, Nat.cast_zero, zero_sub]
 
-/-- The discriminant is a conjugation invariant: disc(x⁻¹gx) = disc(g).
-This follows from disc = tr² - 4·det and both tr and det being similarity invariants. -/
-private lemma Etingof.disc_eq_tr_det (M : Matrix (Fin 2) (Fin 2) (GaloisField p n)) :
-    (M 0 0 - M 1 1) ^ 2 + 4 * M 0 1 * M 1 0 =
-    (Matrix.trace M) ^ 2 - 4 * Matrix.det M := by
-  simp [Matrix.trace_fin_two, Matrix.det_fin_two]; ring
-
-private lemma Etingof.disc_conj_eq (g x : GL2 p n) :
-    GL2.disc (x⁻¹ * g * x : GL2 p n) = GL2.disc g := by
-  -- disc = tr² - 4·det for 2×2 matrices
-  simp only [GL2.disc_eq]
-  set h := x⁻¹ * g * x
-  set G := (g : Matrix (Fin 2) (Fin 2) (GaloisField p n))
-  set H := (h : Matrix (Fin 2) (Fin 2) (GaloisField p n))
-  -- Express disc in terms of trace and det
-  rw [Etingof.disc_eq_tr_det (M := H), Etingof.disc_eq_tr_det (M := G)]
-  -- trace(h) = trace(g)  and  det(h) = det(g)
-  have htr : Matrix.trace H = Matrix.trace G := by
-    change Matrix.trace (x⁻¹ * g * x).val = Matrix.trace g.val
-    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by
-      simp [Units.val_mul]]
-    exact Matrix.trace_units_conj' x g.val
-  have hdet : Matrix.det H = Matrix.det G := by
-    change Matrix.det (x⁻¹ * g * x).val = Matrix.det g.val
-    rw [show (x⁻¹ * g * x).val = x⁻¹.val * g.val * x.val from by
-      simp [Units.val_mul]]
-    exact Matrix.det_units_conj' x g.val
-  rw [htr, hdet]
-
 /-- If d ∈ 𝔽_q has a square root s in 𝔽_{q²} with s^q = -s and s ≠ 0 (char ≠ 2),
 then d is not a square in 𝔽_q. -/
 private lemma Etingof.not_isSquare_of_antisymmetric_root (hp2 : p ≠ 2) (hn : n ≠ 0)
@@ -911,55 +1340,6 @@ private lemma Etingof.not_isSquare_of_antisymmetric_root (hp2 : p ≠ 2) (hn : n
       linear_combination this
     exact absurd ((mul_eq_zero.mp h4).resolve_left h2ne) hr'_ne
 
-/-- disc(embed(α)) = trace(α)² - 4·norm(α) in the base field.
-This connects the matrix discriminant to algebraic trace and norm. -/
-private lemma Etingof.disc_fieldExtEmbed (hn : n ≠ 0) (α : (GaloisField p (2 * n))ˣ) :
-    letI := Etingof.algebraGaloisFieldExt p n
-    GL2.disc (Etingof.GL2.fieldExtEmbed p n α) =
-    Algebra.trace (GaloisField p n) (GaloisField p (2 * n)) (α : GaloisField p (2 * n)) ^ 2 -
-    4 * Algebra.norm (GaloisField p n) (α : GaloisField p (2 * n)) := by
-  letI := Etingof.algebraGaloisFieldExt p n
-  letI := Etingof.scalarTowerGaloisField p n
-  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
-  let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
-    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
-  -- disc = tr² - 4·det via disc_eq_tr_det
-  rw [GL2.disc_eq, Etingof.disc_eq_tr_det]
-  -- The key: fieldExtEmbed α has matrix = leftMulMatrix b α
-  have hval : (Etingof.GL2.fieldExtEmbed p n α).val =
-      Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) := by
-    show (Etingof.GL2.fieldExtEmbed p n α).val = _
-    simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; rfl
-  -- Relate matrix trace/det to algebra trace/norm
-  congr 1
-  · congr 1; rw [hval]; exact (Algebra.trace_eq_matrix_trace b _).symm
-  · congr 1; rw [hval]; exact (Algebra.norm_eq_matrix_det b _).symm
-
-/-- The algebraMap of disc(embed(α)) equals (α - α^q)² in the extension field. -/
-private lemma Etingof.algebraMap_disc_fieldExtEmbed (hn : n ≠ 0)
-    (α : (GaloisField p (2 * n))ˣ) :
-    letI := Etingof.algebraGaloisFieldExt p n
-    algebraMap (GaloisField p n) (GaloisField p (2 * n))
-      (GL2.disc (Etingof.GL2.fieldExtEmbed p n α)) =
-    ((α : GaloisField p (2 * n)) -
-     (α : GaloisField p (2 * n)) ^ (p ^ n : ℕ)) ^ 2 := by
-  letI := Etingof.algebraGaloisFieldExt p n
-  letI := Etingof.scalarTowerGaloisField p n
-  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
-  rw [Etingof.disc_fieldExtEmbed p n hn α, map_sub, map_mul, map_pow]
-  -- Use trace/norm formulas for finite fields
-  have hfinrank : Module.finrank (GaloisField p n) (GaloisField p (2 * n)) = 2 :=
-    Etingof.finrank_galoisField_ext p n hn
-  have hcard : Nat.card (GaloisField p n) = p ^ n := GaloisField.card p n hn
-  rw [FiniteField.algebraMap_trace_eq_sum_pow, FiniteField.algebraMap_norm_eq_prod_pow]
-  rw [hfinrank]
-  simp only [Finset.sum_range_succ, Finset.sum_range_zero, Finset.prod_range_succ,
-    Finset.prod_range_zero, one_mul, zero_add, pow_zero, pow_one, hcard]
-  -- Handle algebraMap 4 = 4 and close by ring
-  have h4 : algebraMap (GaloisField p n) (GaloisField p (2 * n)) 4 = 4 := map_ofNat _ 4
-  rw [h4]
-  ring
-
 /-- Frobenius s^q = -s for s = α - α^q. -/
 private lemma Etingof.frob_diff_neg (hn : n ≠ 0) (α : GaloisField p (2 * n)) :
     (α - α ^ (p ^ n : ℕ)) ^ (p ^ n : ℕ) =
@@ -999,24 +1379,6 @@ private lemma Etingof.ellipticSubgroup_disc (hp2 : p ≠ 2) (k : GL2 p n)
       right
       have hs_frob : s ^ (p ^ n : ℕ) = -s := Etingof.frob_diff_neg p n hn ↑α
       exact Etingof.not_isSquare_of_antisymmetric_root p n hp2 hn d s hd hs hs_frob
-
-/-- Conjugation preserves IsScalar: if x⁻¹gx is scalar, then g is scalar. -/
-private lemma Etingof.conj_isScalar (g x : GL2 p n)
-    (h : GL2.IsScalar (p := p) (n := n) (x⁻¹ * g * x)) :
-    GL2.IsScalar (p := p) (n := n) g := by
-  -- Scalar matrices commute with everything, so x⁻¹ * (x⁻¹gx) * x⁻¹⁻¹ = x⁻¹gx
-  -- But x⁻¹⁻¹ = x, so LHS = x⁻¹ * (x⁻¹gx) * x = (by assoc) x⁻¹ * x⁻¹ * g * x * x
-  -- Use scalar_conj_eq_self with x⁻¹: (x⁻¹)⁻¹ * (x⁻¹gx) * x⁻¹ = x⁻¹gx
-  -- i.e., x * (x⁻¹gx) * x⁻¹ = x⁻¹gx, and x * (x⁻¹gx) * x⁻¹ = g (by group)
-  have heq : x⁻¹ * g * x = g := by
-    have hcomm := Etingof.scalar_conj_eq_self p n (x⁻¹ * g * x) h x⁻¹
-    rw [inv_inv] at hcomm
-    -- hcomm : x * (x⁻¹ * g * x) * x⁻¹ = x⁻¹ * g * x
-    -- LHS simplifies to g by group laws
-    have hsimp : x * (x⁻¹ * g * x) * x⁻¹ = g := by group
-    rw [hsimp] at hcomm
-    exact hcomm.symm
-  rwa [← heq]
 
 /-- For parabolic g, no conjugate lies in the elliptic subgroup K. -/
 private lemma Etingof.parabolic_conj_not_in_ellipticSubgroup
