@@ -239,7 +239,76 @@ private lemma Etingof.nonscalar_char_sum
     -- Each non-elliptic contributes 2, elliptic contributes 0
     -- So sum = 2 * |{k ∈ K : ¬IsElliptic k}| = 2 * (q - 1)
     -- since non-elliptic K elements ↔ F_q× (scalar matrices)
-    sorry
+    -- Step A: Replace each term with 2 or 0
+    have h_ite_eq : ∀ k' : ↥(Etingof.GL2.ellipticSubgroup p n),
+        (if ¬GL2.IsElliptic (p := p) (n := n) (k' : GL2 p n) then (1 : ℂ) + ψ k' else 0) =
+        if ¬GL2.IsElliptic (p := p) (n := n) (k' : GL2 p n) then (2 : ℂ) else 0 := by
+      intro k'; split_ifs with h
+      · rfl
+      · exact hval k' h
+    simp_rw [h_ite_eq]
+    -- Step B: Convert sum to 2 * card
+    rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const, nsmul_eq_mul]
+    -- Step C: Card of non-elliptic K elements = q - 1
+    letI := Etingof.algebraGaloisFieldExt p n
+    set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+      (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+    -- Matrix entry: scalarToElliptic(a) i j = if i = j then a else 0
+    have h_entry : ∀ (a : (GaloisField p n)ˣ) (i j : Fin 2),
+        ((Etingof.GL2.scalarToElliptic p n a :
+          ↥(Etingof.GL2.ellipticSubgroup p n)) : GL2 p n).val i j =
+        if i = j then (a : GaloisField p n) else 0 := by
+      intro a i j
+      unfold GL2.scalarToElliptic GL2.fieldExtEmbed
+      simp only [dif_neg hn, MonoidHom.comp_apply, MonoidHom.codRestrict_apply]
+      show (Algebra.leftMulMatrix b
+        ((algebraMap (GaloisField p n) (GaloisField p (2 * n))) (a : GaloisField p n))) i j = _
+      rw [Algebra.leftMulMatrix_eq_repr_mul, Algebra.algebraMap_eq_smul_one,
+          smul_mul_assoc, one_mul, map_smul, Finsupp.smul_apply, smul_eq_mul,
+          b.repr_self, Finsupp.single_apply, mul_ite, mul_one, mul_zero]
+      simp only [eq_comm]
+    -- scalarToElliptic(a) is not elliptic (it's scalar)
+    have h_ste_not_ell : ∀ a : (GaloisField p n)ˣ,
+        ¬GL2.IsElliptic (p := p) (n := n)
+          ((Etingof.GL2.scalarToElliptic p n a :
+            ↥(Etingof.GL2.ellipticSubgroup p n)) : GL2 p n) :=
+      fun a => GL2.isScalar_not_isElliptic _
+        ((GL2.isScalar_iff _).mpr ⟨by simp [h_entry], by simp [h_entry], by simp [h_entry]⟩)
+    -- scalarToElliptic is injective
+    have h_ste_inj : Function.Injective (Etingof.GL2.scalarToElliptic p n) := by
+      intro a₁ a₂ h
+      have h₀ := h_entry a₁ 0 0; simp only [ite_true] at h₀
+      have h₁ := h_entry a₂ 0 0; simp only [ite_true] at h₁
+      have : (a₁ : GaloisField p n) = (a₂ : GaloisField p n) := by
+        have := congr_arg (fun k : ↥(Etingof.GL2.ellipticSubgroup p n) =>
+          (k : GL2 p n).val 0 0) h
+        simp only [h₀, h₁] at this; exact this
+      exact Units.ext this
+    -- Card of non-elliptic filter = q - 1 via bijection with F_q×
+    have h_card : (Finset.univ.filter (fun k : ↥(Etingof.GL2.ellipticSubgroup p n) =>
+        ¬GL2.IsElliptic (p := p) (n := n) (k : GL2 p n))).card =
+        Fintype.card (GaloisField p n) - 1 := by
+      rw [← Fintype.card_units, ← Finset.card_univ (α := (GaloisField p n)ˣ)]
+      symm
+      apply Finset.card_nbij (Etingof.GL2.scalarToElliptic p n)
+      · intro a _; exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, h_ste_not_ell a⟩
+      · intro a₁ _ a₂ _ h; exact h_ste_inj h
+      · intro k hk
+        rw [Finset.mem_coe, Finset.mem_filter] at hk
+        have hscalar := Etingof.ellipticSubgroup_not_elliptic_isScalar p n hp2 hn
+          (k : GL2 p n) k.2 hk.2
+        have hk00_ne : (k : GL2 p n).val 0 0 ≠ 0 := by
+          obtain ⟨h01, h10, _⟩ := (GL2.isScalar_iff _).mp hscalar
+          intro h0
+          have : Matrix.det (k : GL2 p n).val = 0 := by
+            rw [Matrix.det_fin_two]; simp [h01, h10, h0]
+          exact (Matrix.isUnits_det_units (k : GL2 p n)).ne_zero this
+        refine ⟨Units.mk0 _ hk00_ne, Finset.mem_coe.mpr (Finset.mem_univ _), ?_⟩
+        apply Subtype.ext
+        unfold GL2.scalarToElliptic
+        simp only [dif_neg hn, MonoidHom.comp_apply, MonoidHom.codRestrict_apply]
+        exact (Etingof.scalar_eq_fieldExtEmbed p n hn _ hscalar hk00_ne).symm
+    rw [h_card]; push_cast [Nat.cast_sub Fintype.card_pos]; ring
   -- Step 5: Combine
   rw [hdecomp, h_full_sum, h_scalar_sum]
   -- |K| - 2(q-1) = (q-1)²  where |K| = q² - 1
