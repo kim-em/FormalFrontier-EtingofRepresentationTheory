@@ -630,7 +630,7 @@ lemma YoungDiagram.hookLength_outerCorner
     (hc : μ.IsOuterCorner i j) :
     μ.hookLength i j = 1 := by
   unfold YoungDiagram.hookLength
-  rw [YoungDiagram.IsOuterCorner.rowLen_eq hc,
+  rw [Etingof.YoungDiagram.IsOuterCorner.rowLen_eq hc,
       YoungDiagram.IsOuterCorner.colLen_eq hc]
   omega
 
@@ -676,7 +676,7 @@ lemma YoungDiagram.removeCorner_rowLen_eq
     exact this.2 rfl
   · -- j ≤ removeCorner.rowLen i: cells (i, b) for b < j still in
     by_contra h; push_neg at h
-    have hr := YoungDiagram.IsOuterCorner.rowLen_eq hc
+    have hr := Etingof.YoungDiagram.IsOuterCorner.rowLen_eq hc
     have : (i, (μ.removeCorner i j hc).rowLen i) ∈ μ :=
       YoungDiagram.mem_iff_lt_rowLen.mpr (by omega)
     have hne : (i, (μ.removeCorner i j hc).rowLen i) ≠ (i, j) :=
@@ -748,7 +748,7 @@ lemma YoungDiagram.removeCorner_hookLength_row
   unfold YoungDiagram.hookLength
   rw [removeCorner_rowLen_eq hc, removeCorner_colLen_ne hc
     (by omega : b ≠ j)]
-  have := YoungDiagram.IsOuterCorner.rowLen_eq hc
+  have := Etingof.YoungDiagram.IsOuterCorner.rowLen_eq hc
   omega
 
 /-- Hook length at (a, j₀) for a < i₀ decreases by 1. -/
@@ -808,7 +808,7 @@ private lemma YoungDiagram.hookLengthProduct_removeCorner
   rfl
 
 -- The ratio H(μ)/H(μ\c) expressed via product over erase'd cells
-private lemma YoungDiagram.hookRatio_eq_prod_div
+lemma YoungDiagram.hookRatio_eq_prod_div
     {μ : YoungDiagram} {i j : ℕ} (hc : μ.IsOuterCorner i j) :
     (μ.hookLengthProduct : ℚ) /
       ((μ.removeCorner i j hc).hookLengthProduct : ℚ) =
@@ -1079,11 +1079,99 @@ theorem YoungDiagram.hookWalkWeight_row_sum
 
 /-! ## GNW Property 2: Column identity -/
 
-/-- Property 2 of the GNW hook walk (column identity): for each outer corner c,
-the sum of hook walk weights over all cells equals HP(μ)/HP(μ\c).
+/-- The hook walk weight at cell u for corner c, when u is not a corner itself
+(hookLength > 1), unfolds to the recursive formula. -/
+private lemma YoungDiagram.hookWalkWeight_unfold_noncorner
+    {μ : YoungDiagram} {a b : ℕ} (hmem : (a, b) ∈ μ.cells)
+    (hne : μ.hookLength a b ≠ 1) (c : ℕ × ℕ) :
+    μ.hookWalkWeight a b c =
+      ((μ.hookCellsExcl a b).attach.sum fun ⟨v, hv⟩ =>
+        μ.hookWalkWeight v.1 v.2 c) /
+        (μ.hookLength a b - 1 : ℚ) := by
+  rw [YoungDiagram.hookWalkWeight, dif_pos hmem, if_neg hne]
 
-This is the hard direction of the GNW proof. Together with Property 1 and
-Fubini's theorem (finite sum interchange), it gives the hook quotient identity. -/
+/-- Cells of μ that are outer corners different from (i,j) contribute 0
+to hookWalkWeight _ _ (i,j). -/
+private lemma YoungDiagram.hookWalkWeight_other_corner
+    {μ : YoungDiagram} {a b i j : ℕ}
+    (hoc : μ.IsOuterCorner a b) (hne : (a, b) ≠ (i, j)) :
+    μ.hookWalkWeight a b (i, j) = 0 := by
+  rw [YoungDiagram.hookWalkWeight, dif_pos hoc.1,
+      if_pos (Etingof.YoungDiagram.hookLength_outerCorner hoc), if_neg hne]
+
+/-- The hookWalkWeight for a cell not in μ is 0 (variant for Finset.sum). -/
+private lemma YoungDiagram.hookWalkWeight_zero_of_not_mem
+    {μ : YoungDiagram} {u : ℕ × ℕ} (h : u ∉ μ.cells) (c : ℕ × ℕ) :
+    μ.hookWalkWeight u.1 u.2 c = 0 :=
+  YoungDiagram.hookWalkWeight_not_mem h c
+
+/-- The cells of μ.erase (i,j) can be partitioned into three groups:
+arm cells (same row i, col < j), leg cells (same col j, row < i),
+and other cells (different row and column).
+For the hook ratio, arm/leg cells contribute h/(h-1), others contribute 1. -/
+private lemma YoungDiagram.hookRatio_arm_leg_decomp
+    {μ : YoungDiagram} {i j : ℕ} (hc : μ.IsOuterCorner i j) :
+    (μ.cells.erase (i, j)).prod (fun c =>
+      (μ.hookLength c.1 c.2 : ℚ) /
+        ((μ.removeCorner i j hc).hookLength c.1 c.2 : ℚ)) =
+    (μ.cells.erase (i, j)).prod (fun c =>
+      if c.1 = i ∧ c.2 < j then
+        (μ.hookLength c.1 c.2 : ℚ) / (μ.hookLength c.1 c.2 - 1 : ℚ)
+      else if c.2 = j ∧ c.1 < i then
+        (μ.hookLength c.1 c.2 : ℚ) / (μ.hookLength c.1 c.2 - 1 : ℚ)
+      else 1) := by
+  apply Finset.prod_congr rfl
+  intro ⟨a, b⟩ hmem
+  simp only
+  have hmem' : (a, b) ∈ μ.cells := Finset.mem_of_mem_erase hmem
+  have hne : (a, b) ≠ (i, j) := Finset.ne_of_mem_erase hmem
+  by_cases hai : a = i
+  · -- Same row: a = i, so need b < j (since rowLen i = j+1 and (a,b) ≠ (i,j))
+    have hbj : b ≠ j := fun h => hne (by rw [hai, h])
+    have hblt : b < j := by
+      rcases Nat.lt_or_gt_of_ne hbj with h | h
+      · exact h
+      · exfalso
+        have := Etingof.YoungDiagram.IsOuterCorner.rowLen_eq hc
+        have := YoungDiagram.mem_iff_lt_rowLen.mp (hai ▸ hmem')
+        omega
+    -- The first `if` is true: a = i ∧ b < j
+    rw [if_pos ⟨hai, hblt⟩]
+    congr 1
+    rw [hai, Etingof.YoungDiagram.removeCorner_hookLength_row hc hblt]
+    have hpos := YoungDiagram.hookLength_pos μ i b (hai ▸ hmem')
+    simp [Nat.cast_sub (by omega : 1 ≤ μ.hookLength i b)]
+  · by_cases hbj : b = j
+    · -- Same column: b = j, need a < i
+      have halt : a < i := by
+        rcases Nat.lt_or_gt_of_ne hai with h | h
+        · exact h
+        · exfalso
+          have := Etingof.YoungDiagram.IsOuterCorner.colLen_eq hc
+          have := YoungDiagram.mem_iff_lt_colLen.mp (hbj ▸ hmem')
+          omega
+      -- The first `if` is false (a ≠ i), second is true (b = j ∧ a < i)
+      rw [if_neg (fun h => hai h.1), if_pos ⟨hbj, halt⟩]
+      congr 1
+      rw [hbj, Etingof.YoungDiagram.removeCorner_hookLength_col hc halt]
+      have hpos := YoungDiagram.hookLength_pos μ a j (hbj ▸ hmem')
+      simp [Nat.cast_sub (by omega : 1 ≤ μ.hookLength a j)]
+    · -- Neither row nor column: hook length unchanged, ratio = 1
+      rw [if_neg (fun h => hai h.1), if_neg (fun h => hbj h.1)]
+      rw [Etingof.YoungDiagram.removeCorner_hookLength_other hc hai hbj]
+      have hpos := YoungDiagram.hookLength_pos μ a b hmem'
+      exact div_self (by positivity)
+
+/-- For a cell u in the hook of v (excluding v), v is in μ. -/
+private lemma YoungDiagram.hookCellsExcl_mem_cells
+    {μ : YoungDiagram} {a b : ℕ} (hmem : (a, b) ∈ μ.cells)
+    {v : ℕ × ℕ} (hv : v ∈ μ.hookCellsExcl a b) : v ∈ μ.cells :=
+  YoungDiagram.hookCellsExcl_subset_cells hmem hv
+
+/-- Column identity (Property 2 of GNW hook walk).
+
+For each outer corner c, the sum of hook walk weights over all cells
+equals HP(μ)/HP(μ\c). This is the hard direction of the GNW proof. -/
 theorem YoungDiagram.hookWalkWeight_col_sum
     (μ : YoungDiagram) {i j : ℕ} (hc : μ.IsOuterCorner i j) :
     μ.cells.sum (fun u => μ.hookWalkWeight u.1 u.2 (i, j)) =
