@@ -1628,7 +1628,21 @@ private theorem rhoShift_partial_sum_ge {n : ℕ}
   -- RHS = ∑_{i<k} (n-1-i) = sum of top k elements
   have hRHS : F.sum (fun i => (rhoShift n i : ℤ)) =
       ∑ i ∈ Finset.range (min k n), ((n - 1 - i : ℕ) : ℤ) := by
-    sorry
+    have hrho : ∀ i : Fin n, (rhoShift n i : ℤ) = ((n - 1 - i.val : ℕ) : ℤ) := by
+      intro i; simp [rhoShift, Finsupp.equivFunOnFinite]
+    simp_rw [hrho]
+    -- Use sum_nbij to biject F ↔ range (min k n) via Fin.val
+    apply Finset.sum_nbij (fun i : Fin n => i.val) (fun i hi => ?_) (fun i j hi hj h => ?_)
+        (fun b hb => ?_) (fun i hi => ?_)
+    · -- i ∈ F → i.val ∈ range (min k n)
+      simp [F] at hi; simp; omega
+    · -- Injectivity of Fin.val
+      exact Fin.val_injective h
+    · -- Surjectivity: b ∈ range (min k n) → ∃ i ∈ F, i.val = b
+      simp at hb; refine ⟨⟨b, by omega⟩, ?_, rfl⟩
+      simp [F]; omega
+    · -- Values match
+      rfl
   rw [hLHS, hRHS]
   by_cases hk : k ≤ n
   · rw [min_eq_left hk]
