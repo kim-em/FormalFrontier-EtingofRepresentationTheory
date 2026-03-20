@@ -387,12 +387,94 @@ private lemma Etingof.disc_conj_eq (g x : GL2 p n) :
     exact Matrix.det_units_conj' x g.val
   rw [htr, hdet]
 
-/-- Elements of K (elliptic subgroup) are either scalar or have non-square discriminant (elliptic).
-This means no element of K is split semisimple or parabolic-non-scalar. -/
+/-- If d ∈ 𝔽_q has a square root s in 𝔽_{q²} with s^q = -s and s ≠ 0 (char ≠ 2),
+then d is not a square in 𝔽_q. -/
+private lemma Etingof.not_isSquare_of_antisymmetric_root (hp2 : p ≠ 2) (hn : n ≠ 0)
+    (d : GaloisField p n) (s : GaloisField p (2 * n))
+    (hd : algebraMap (GaloisField p n) (GaloisField p (2 * n)) d = s ^ 2)
+    (hs_ne : s ≠ 0)
+    (hs_frob : s ^ (p ^ n : ℕ) = -s) :
+    ¬IsSquare d := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  intro ⟨r, hr⟩
+  -- If d = r * r in 𝔽_q, then algebraMap(r * r) = s² in 𝔽_{q²}
+  have hrs : (algebraMap (GaloisField p n) (GaloisField p (2 * n)) r) ^ 2 = s ^ 2 := by
+    rw [sq, ← map_mul, ← hr]; exact hd
+  -- So (alg_map(r))² = s², meaning (alg_map(r) - s)(alg_map(r) + s) = 0
+  set r' := algebraMap (GaloisField p n) (GaloisField p (2 * n)) r
+  have h_prod : (r' - s) * (r' + s) = 0 := by
+    have h1 : r' ^ 2 = s ^ 2 := hrs
+    have : (r' - s) * (r' + s) = r' ^ 2 - s ^ 2 := by ring
+    rw [this, h1, sub_self]
+  -- Key fact: algebraMap(r)^{p^n} = algebraMap(r) since r ∈ 𝔽_{p^n}
+  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  have hr_frob : r' ^ (p ^ n : ℕ) = r' := by
+    show (algebraMap (GaloisField p n) (GaloisField p (2 * n)) r) ^ (p ^ n : ℕ) = _
+    rw [← map_pow]
+    congr 1
+    have hcard : Fintype.card (GaloisField p n) = p ^ n := by
+      rw [← Nat.card_eq_fintype_card, GaloisField.card p n hn]
+    rw [← hcard]
+    exact FiniteField.pow_card r
+  -- NeZero (2 : GaloisField p (2*n)) since char = p ≠ 2
+  have h2ne : (2 : GaloisField p (2 * n)) ≠ 0 := by
+    intro h2; apply hp2
+    have h2' : (Nat.cast 2 : GaloisField p (2 * n)) = 0 := h2
+    rw [CharP.cast_eq_zero_iff (GaloisField p (2 * n)) p 2] at h2'
+    exact Nat.le_antisymm (Nat.le_of_dvd (by omega) h2') hp.out.two_le
+  -- p^n is odd since p is an odd prime
+  have hodd : Odd (p ^ n) := by
+    exact Odd.pow (Nat.Prime.odd_of_ne_two hp.out hp2)
+  rcases mul_eq_zero.mp h_prod with h | h
+  · -- r' = s (from r' - s = 0)
+    have hs_eq : s = r' := (sub_eq_zero.mp h).symm
+    -- s^{p^n} = r'^{p^n} = r' = s, but also s^{p^n} = -s
+    have hcontra : s = -s := by
+      calc s = r' := hs_eq
+        _ = r' ^ (p ^ n : ℕ) := hr_frob.symm
+        _ = s ^ (p ^ n : ℕ) := by rw [hs_eq]
+        _ = -s := hs_frob
+    -- So s + s = 0, i.e., 2 * s = 0
+    have h2s : (2 : GaloisField p (2 * n)) * s = 0 := by
+      have : s - (-s) = 0 := sub_eq_zero.mpr hcontra
+      have : 2 * s = 0 := by linear_combination this
+      exact this
+    exact absurd ((mul_eq_zero.mp h2s).resolve_left h2ne) hs_ne
+  · -- r' + s = 0, so s = -r'
+    have hs_eq : s = -r' := by
+      have : r' = -s := add_eq_zero_iff_eq_neg.mp h
+      rw [this]; ring
+    have hr'_ne : r' ≠ 0 := by
+      intro h0; rw [hs_eq, h0, neg_zero] at hs_ne; exact hs_ne rfl
+    -- s^{p^n} = (-r')^{p^n} = -(r'^{p^n}) = -r' (since p^n is odd)
+    have h1 : s ^ (p ^ n : ℕ) = -(r' ^ (p ^ n : ℕ)) := by
+      rw [hs_eq]; exact hodd.neg_pow r'
+    -- But s^{p^n} = -s = -(-r') = r'
+    have h2 : s ^ (p ^ n : ℕ) = r' := by rw [hs_frob, hs_eq, neg_neg]
+    -- So -r' = r'
+    have h3 : -r' = r' := by
+      have : -(r' ^ (p ^ n : ℕ)) = r' := by rw [← h1, h2]
+      rwa [hr_frob] at this
+    -- So 2r' = 0
+    have h4 : (2 : GaloisField p (2 * n)) * r' = 0 := by
+      have : r' - (-r') = 0 := sub_eq_zero.mpr h3.symm
+      linear_combination this
+    exact absurd ((mul_eq_zero.mp h4).resolve_left h2ne) hr'_ne
+
 private lemma Etingof.ellipticSubgroup_disc (hp2 : p ≠ 2) (k : GL2 p n)
     (hk : k ∈ Etingof.GL2.ellipticSubgroup p n) :
     GL2.disc k = 0 ∨ ¬IsSquare (GL2.disc k) := by
-  sorry
+  -- k ∈ K means k = fieldExtEmbed(α) for some α ∈ 𝔽_{q²}×
+  obtain ⟨α, rfl⟩ := hk
+  by_cases hn : n = 0
+  · -- Degenerate case n=0
+    left; simp [GL2.disc_eq, GL2.fieldExtEmbed, hn]
+  · -- Main case: disc = tr² - 4·det = (Algebra.trace α)² - 4·(Algebra.norm α)
+    -- = (α + α^q)² - 4·α^(q+1) = (α - α^q)²
+    -- If α ∈ 𝔽_q: α = α^q, so disc = 0
+    -- If α ∉ 𝔽_q: α ≠ α^q, so α - α^q ≠ 0, and (α-α^q)^q = -(α-α^q) in char ≠ 2
+    --   This means (α-α^q)² ∈ 𝔽_q but not a square in 𝔽_q
+    sorry
 
 private lemma Etingof.induced_char_splitSemisimple_eq_zero
     [Fintype (GaloisField p n)] [DecidableEq (GaloisField p n)]
