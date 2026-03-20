@@ -1270,6 +1270,148 @@ private theorem finsuppToPartition_toFinsupp {n : ℕ} (la : Nat.Partition n)
       exact (List.mem_replicate.mp (Multiset.mem_coe.mp hx)).2)
   rw [hfsp, hfrep, add_zero]
 
+/-- If `finsuppToPartition v = la`, then the multisets of ALL entries (including zeros)
+of `v` and `la.toFinsupp` are equal. This follows because both have cardinality n,
+and the same nonzero parts (= la.parts), hence the same number of zeros. -/
+private theorem multiset_entries_eq_of_partition_eq {n : ℕ}
+    (la : Nat.Partition n)
+    (v : Fin n →₀ ℕ) (hsum : ∑ i, v i = n)
+    (heq : finsuppToPartition v hsum = la) :
+    Finset.univ.val.map v = Finset.univ.val.map (Nat.Partition.toFinsupp la) := by
+  -- Two multisets with equal cardinality and equal nonzero parts are equal.
+  set M₁ := Finset.univ.val.map (v : Fin n → ℕ)
+  set M₂ := Finset.univ.val.map (Nat.Partition.toFinsupp la : Fin n → ℕ)
+  -- Both have cardinality n
+  have hcard : M₁.card = M₂.card := by simp [M₁, M₂]
+  -- Both have the same nonzero filter (= la.parts)
+  have hfilt_v : M₁.filter (· ≠ 0) = la.parts := by
+    have h1 : (finsuppToPartition v hsum).parts = M₁.filter (· ≠ 0) := by
+      simp [finsuppToPartition, Nat.Partition.ofSums_parts, M₁]
+    rw [heq] at h1; exact h1.symm
+  have hla_sum : ∑ i : Fin n, (Nat.Partition.toFinsupp la) i = n := by
+    have hfs : (Nat.Partition.toFinsupp la).sum (fun _ m => m) =
+        ∑ i : Fin n, (Nat.Partition.toFinsupp la) i :=
+      Finsupp.sum_fintype _ _ (fun _ => rfl)
+    rw [← hfs, Nat.Partition.toFinsupp, Finsupp.equivFunOnFinite_symm_sum]
+    have hsorted : la.sortedParts.sum = n := by
+      unfold Nat.Partition.sortedParts
+      have h := congrArg Multiset.sum (Multiset.sort_eq la.parts (· ≥ ·))
+      rw [Multiset.sum_coe] at h; linarith [la.parts_sum]
+    have hlen : la.sortedParts.length ≤ n := by
+      calc la.sortedParts.length
+          ≤ la.sortedParts.sum := List.length_le_sum_of_one_le _ (fun i hi => by
+            unfold Nat.Partition.sortedParts at hi
+            exact la.parts_pos (Multiset.sort_eq la.parts (· ≥ ·) ▸ Multiset.mem_coe.mpr hi))
+        _ = n := hsorted
+    linarith [list_sum_eq_fin_sum_getD la.sortedParts n hlen]
+  have hfilt_la : M₂.filter (· ≠ 0) = la.parts := by
+    have hla_eq := finsuppToPartition_toFinsupp la hla_sum
+    have h1 : (finsuppToPartition (Nat.Partition.toFinsupp la) hla_sum).parts =
+        M₂.filter (· ≠ 0) := by
+      simp [finsuppToPartition, Nat.Partition.ofSums_parts, M₂]
+    rw [hla_eq] at h1; exact h1.symm
+  -- Equal cardinality + equal nonzero filter → equal multisets
+  have hfilt : M₁.filter (· ≠ 0) = M₂.filter (· ≠ 0) := by rw [hfilt_v, hfilt_la]
+  ext a
+  by_cases ha : a = 0
+  · -- For a = 0: count 0 = card - (filter ≠ 0).card
+    subst ha
+    -- count 0 M = card M - card (filter (· ≠ 0) M)
+    -- because filter (· = 0) M = replicate (count 0 M) 0
+    suffices h : M₁.count 0 = M₂.count 0 from h
+    -- Both: count 0 M = card M - ∑_{a≠0} count a M
+    -- Since counts of nonzero elements agree (from hfilt) and total cards agree:
+    have := congrArg Multiset.card hfilt
+    -- card (filter (· ≠ 0) M₁) = card (filter (· ≠ 0) M₂)
+    -- count 0 M = card M - card (filter (· ≠ 0) M) [since filter + complement = full]
+    have hc1 : M₁.count 0 + (M₁.filter (· ≠ 0)).card = M₁.card := by
+      have := congrArg Multiset.card (Multiset.filter_add_not (p := (· ≠ 0)) M₁)
+      simp only [Multiset.card_add] at this
+      have : (M₁.filter (fun x => ¬(x ≠ 0))).card = M₁.count 0 := by
+        simp only [not_not]
+        rw [Multiset.filter_eq' M₁ 0, Multiset.card_replicate]
+      omega
+    have hc2 : M₂.count 0 + (M₂.filter (· ≠ 0)).card = M₂.card := by
+      have := congrArg Multiset.card (Multiset.filter_add_not (p := (· ≠ 0)) M₂)
+      simp only [Multiset.card_add] at this
+      have : (M₂.filter (fun x => ¬(x ≠ 0))).card = M₂.count 0 := by
+        simp only [not_not]
+        rw [Multiset.filter_eq' M₂ 0, Multiset.card_replicate]
+      omega
+    omega
+  · -- For a ≠ 0: count in M = count in M.filter(≠0)
+    have h1 : ∀ M : Multiset ℕ, Multiset.count a (M.filter (fun x => x ≠ 0)) = Multiset.count a M := by
+      intro M; exact Multiset.count_filter_of_pos ha
+    have : Multiset.count a (M₁.filter (· ≠ 0)) = Multiset.count a (M₂.filter (· ≠ 0)) := by
+      rw [hfilt]
+    rw [h1, h1] at this; exact this
+
+/-- From multiset equality of entries, derive inner product equality with any function.
+If `v` and `w` have the same multiset of values over `Fin n`, then for any `u`,
+`∑ v(i)² = ∑ w(i)²`. Combined with `∑(a-v)² = ∑(a-w)²` expansion, this gives
+`∑ a·v = ∑ a·w`. -/
+private theorem inner_product_eq_of_partition_eq {n : ℕ}
+    (la : Nat.Partition n)
+    (π : Equiv.Perm (Fin n))
+    (hle : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n)
+    (heq : finsuppToPartition
+      (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+      (sum_shifted_sub_permExponent la π hle) = la) :
+    ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)) *
+        (permExponent n π i : ℤ) =
+    ∑ i : Fin n, ((Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)) *
+        (rhoShift n i : ℤ) := by
+  -- From heq: multiset of values {v(i)} = {la.toFinsupp(i)} (via multiset_entries_eq_of_partition_eq)
+  -- → ∑ v(i)² = ∑ la.toFinsupp(i)² (same multiset → same sum of squares)
+  -- → expanding v(i) = a(i) - e_π(i), la(i) = a(i) - ρ(i):
+  --   ∑ a² - 2∑ a·e_π + ∑ e_π² = ∑ a² - 2∑ a·ρ + ∑ ρ²
+  -- → ∑ e_π(i)² = ∑ ρ(i)² (both are ∑ i² over {0,...,n-1}, via permutation reindexing)
+  -- → ∑ a·e_π = ∑ a·ρ
+  sorry
+
+/-- The shifted partition la + ρ is strictly decreasing: if i < j then
+(la.toFinsupp + ρ)(i) > (la.toFinsupp + ρ)(j). -/
+private theorem shifted_partition_strict_mono {n : ℕ} (la : Nat.Partition n) :
+    StrictAnti (fun i : Fin n => (Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)) := by
+  intro i j hij
+  simp only
+  -- la.toFinsupp is weakly decreasing (sorted partition)
+  -- ρ is strictly decreasing: ρ(i) = n-1-i > n-1-j = ρ(j) when i < j
+  -- Sum of weakly decreasing + strictly decreasing = strictly decreasing
+  have hla_mono : (Nat.Partition.toFinsupp la j : ℤ) ≤ (Nat.Partition.toFinsupp la i : ℤ) := by
+    simp only [Nat.Partition.toFinsupp, Finsupp.coe_equivFunOnFinite_symm]
+    push_cast; apply Int.ofNat_le.mpr
+    set sp := la.sortedParts
+    have hsorted : sp.Pairwise (· ≥ ·) := Multiset.pairwise_sort la.parts (· ≥ ·)
+    by_cases hj : j.val < sp.length
+    · have hi : i.val < sp.length := by omega
+      have hsorted' := List.pairwise_iff_getElem.mp hsorted i.val j.val hi hj hij
+      simp only [List.getD] at hsorted' ⊢
+      rw [sp.getElem?_eq_getElem hi, sp.getElem?_eq_getElem hj, Option.getD_some, Option.getD_some]
+      exact hsorted'
+    · push_neg at hj
+      simp only [List.getD, sp.getElem?_eq_none (by omega), Option.getD_none]
+      exact Nat.zero_le _
+  have hρ_strict : (rhoShift n j : ℤ) < (rhoShift n i : ℤ) := by
+    simp [rhoShift, Finsupp.equivFunOnFinite]
+    omega
+  linarith
+
+/-- If `e_π = ρ` (i.e., `permExponent n π = rhoShift n`), then `π = Fin.revPerm`. -/
+private theorem rev_of_permExponent_eq_rhoShift {n : ℕ} (π : Equiv.Perm (Fin n))
+    (h : permExponent n π = rhoShift n) : π = Fin.revPerm := by
+  -- permExponent n π maps i ↦ (π⁻¹ i).val, rhoShift n maps i ↦ n-1-i
+  -- So π⁻¹ = revPerm, hence π = revPerm (since revPerm is self-inverse).
+  have hinv : π⁻¹ = Fin.revPerm := by
+    ext i
+    have hi := congr_fun (congr_arg DFunLike.coe h) i
+    simp [permExponent, rhoShift, Finsupp.equivFunOnFinite] at hi
+    simp [Fin.ext_iff, Fin.revPerm]
+    omega
+  have : Fin.revPerm⁻¹ = (Fin.revPerm : Equiv.Perm (Fin n)) := by
+    ext i; simp [Fin.revPerm]
+  rw [← inv_inv π, hinv, this]
+
 /-- For π ≠ rev and permExponent n π ≤ la.toFinsupp + rhoShift n, the sorted partition
 `finsuppToPartition(la + ρ - e_π)` strictly dominates `la`.
 
@@ -1290,19 +1432,116 @@ private theorem sorted_shifted_strict_dominates {n : ℕ}
   constructor
   · -- Dominance: ∀ k, (la.sortedParts.take k).sum ≤ (mu.sortedParts.take k).sum
     -- where mu = finsuppToPartition(la + ρ - e_π)
-    -- This is the rearrangement inequality for partial sums
+    -- This is the rearrangement inequality for partial sums (majorization)
     sorry
   · -- Inequality: finsuppToPartition(la + ρ - e_π) ≠ la
-    -- Since π ≠ rev, e_π ≠ ρ, so la + ρ - e_π ≠ la.toFinsupp componentwise
-    -- After sorting, the partition differs because the multiset of values differs
+    -- Proof via rearrangement inequality: partition equality → inner product equality
+    -- → Monovary → e_π = ρ → π = rev (contradicting hπ)
     intro heq
     apply hπ
-    -- If finsuppToPartition(la + ρ - e_π) = la, then the multisets of entries match.
-    -- Since la + ρ is strictly decreasing, this forces e_π = ρ, so π = rev.
-    -- Proof sketch: from heq, {u(j) - e_π(j)} = {u(j) - ρ(j)} as multisets where
-    -- u = la + ρ is strictly decreasing. So there exists σ with u(j) - e_π(j) = u(σ(j)) - ρ(σ(j))
-    -- for all j. Since u is strictly decreasing, this forces σ = id and e_π = ρ.
-    sorry
+    -- Step 1: From partition equality, derive inner product equality
+    have hip := inner_product_eq_of_partition_eq la π hle heq
+    -- Step 2: a = la.toFinsupp + ρ is strictly decreasing
+    have hmono := shifted_partition_strict_mono la
+    -- Step 3: Set up functions for rearrangement inequality
+    -- f(i) = a(i) = la.toFinsupp(i) + ρ(i), g(i) = ρ(i) = n-1-i
+    -- Both are strictly decreasing, hence Monovary.
+    set f : Fin n → ℤ := fun i => (Nat.Partition.toFinsupp la i : ℤ) + (rhoShift n i : ℤ)
+    set g : Fin n → ℤ := fun i => (rhoShift n i : ℤ)
+    -- σ(i) = rev(π⁻¹(i)), so g(σ(i)) = n-1-rev(π⁻¹(i)).val = (π⁻¹ i).val = e_π(i)
+    set σ := (π⁻¹ : Equiv.Perm (Fin n)).trans Fin.revPerm
+    -- Step 3a: Show Monovary f g
+    -- Both f and g are strictly anti-monotone → they monovary
+    have hg_anti : StrictAnti g := by
+      intro i j hij
+      simp [g, rhoShift, Finsupp.equivFunOnFinite]
+      omega
+    have hfg : Monovary f g := by
+      -- Monovary f g = ∀ i j, g i < g j → f i ≤ f j
+      intro i j hlt
+      -- hlt : g i < g j. g is strictly anti, so g i < g j → j < i.
+      have hji : j < i := by
+        by_contra h; push_neg at h
+        rcases h.eq_or_lt with rfl | hlt2
+        · exact lt_irrefl _ hlt
+        · exact not_lt.mpr (le_of_lt (hg_anti hlt2)) hlt
+      -- j < i and f strictly anti → f i < f j → f i ≤ f j
+      exact le_of_lt (hmono hji)
+    -- Step 3b: Show ∑ f(i) * g(σ(i)) = ∑ f(i) * g(i) (= hip after rewriting)
+    have hsum_eq : ∑ i, f i * g (σ i) = ∑ i, f i * g i := by
+      -- g(σ(i)) = (permExponent n π i : ℤ), so LHS = hip's LHS
+      -- g(i) = (rhoShift n i : ℤ), so RHS = hip's RHS
+      suffices hsuff : ∀ i, g (σ i) = (permExponent n π i : ℤ) by
+        simp_rw [hsuff]; exact hip
+      intro i
+      simp [σ, g, rhoShift, permExponent, Finsupp.equivFunOnFinite, Fin.revPerm]
+      omega
+    -- Step 3c: By Monovary equality condition, Monovary f (g ∘ σ)
+    have hm := hfg.sum_mul_comp_perm_eq_sum_mul_iff.mp hsum_eq
+    -- Step 3d: g ∘ σ = e_π (as functions). Monovary f (g∘σ) means e_π is weakly decreasing.
+    -- Since f is strictly anti and Monovary f (g∘σ), (g∘σ) is weakly anti (decreasing).
+    -- (g∘σ)(i) = (permExponent n π i : ℤ), which takes distinct values.
+    -- Weakly decreasing + distinct → strictly decreasing = ρ.
+    -- Therefore permExponent n π = rhoShift n.
+    -- Step 3d: From Monovary f (g∘σ) + StrictAnti f → Antitone (g∘σ)
+    have hanti : Antitone (g ∘ σ) := by
+      intro i j hij
+      by_contra h; push_neg at h
+      -- h : (g ∘ σ) j < (g ∘ σ) i, i.e., (g∘σ) increases from j to i
+      -- Wait, we need (g∘σ)(j) < (g∘σ)(i) to apply hm
+      -- From hm: (g∘σ)(j) < (g∘σ)(i) → f(j) ≤ f(i)
+      have := hm h
+      -- this : f j ≤ f i. But i ≤ j and f strictly anti:
+      rcases hij.eq_or_lt with rfl | hlt
+      · exact lt_irrefl _ h
+      · exact not_le.mpr (hmono hlt) this
+    -- Step 3e: (g∘σ)(i) = (π⁻¹ i).val (as ℤ)
+    -- So π⁻¹ is antitone on Fin n
+    -- The unique antitone bijection on Fin n is revPerm
+    have hpe : permExponent n π = rhoShift n := by
+      ext i
+      -- permExponent n π i = (π⁻¹ i).val, rhoShift n i = n-1-i
+      -- From antitone: for all i j, i ≤ j → (g∘σ)(j) ≤ (g∘σ)(i)
+      -- (g∘σ)(i) = (π⁻¹ i).val, so π⁻¹ is antitone
+      -- Antitone bijection on Fin n: π⁻¹ = revPerm
+      -- So (π⁻¹ i).val = n-1-i = rhoShift n i
+      have hpi_anti : Antitone (fun i : Fin n => (π⁻¹ i : Fin n)) := by
+        intro i j hij
+        -- (g∘σ) antitone and (g∘σ)(i) = n-1-(π⁻¹ i).val...
+        -- Wait, (g∘σ)(i) = (π⁻¹ i).val. Antitone means i≤j → (π⁻¹ j).val ≤ (π⁻¹ i).val
+        -- Which is equivalent to π⁻¹ j ≤ π⁻¹ i in Fin n ordering
+        have h1 : ∀ k : Fin n, (g ∘ σ) k = ((π⁻¹ k).val : ℤ) := by
+          intro k
+          simp [σ, g, rhoShift, Finsupp.equivFunOnFinite, Fin.revPerm]
+          omega
+        have := hanti hij
+        rw [h1 i, h1 j] at this
+        exact Fin.le_iff_val_le_val.mpr (Int.le_of_ofNat_le_ofNat this)
+      -- π⁻¹ antitone → π⁻¹ ∘ rev is strictly monotone (antitone ∘ strictAnti = strictMono)
+      have hcomp_mono : StrictMono ((⇑π⁻¹ : Fin n → Fin n) ∘ Fin.rev) := by
+        intro i j hij
+        have hrev := Fin.rev_strictAnti hij -- rev j < rev i
+        have hle := hpi_anti (le_of_lt hrev) -- π⁻¹(rev i) ≤ π⁻¹(rev j)... wait
+        -- Antitone: a ≤ b → f b ≤ f a. So rev j < rev i → π⁻¹(rev i) ≤ π⁻¹(rev j)
+        -- This means (π⁻¹ ∘ rev)(i) ≤ (π⁻¹ ∘ rev)(j). To get strict:
+        exact lt_of_le_of_ne hle (fun h => by
+          have := Fin.rev_injective ((π⁻¹).injective h)
+          exact absurd this (ne_of_lt hij))
+      -- StrictMono bijection Fin n → Fin n is the identity (via OrderIso)
+      have hcomp_surj : Function.Surjective ((⇑π⁻¹ : Fin n → Fin n) ∘ Fin.rev) :=
+        (π⁻¹.surjective).comp Fin.rev_surjective
+      have hid : ∀ k : Fin n, (π⁻¹ (Fin.rev k) : ℕ) = k.val := by
+        intro k
+        exact Fin.coe_orderIso_apply (hcomp_mono.orderIsoOfSurjective _ hcomp_surj) k
+      -- From π⁻¹(rev(k)) = k, substituting k = rev(i): π⁻¹(i) = rev(i)
+      have key : (π⁻¹ i : ℕ) = (Fin.revPerm i).val := by
+        have := hid (Fin.rev i)
+        simp [Fin.rev_rev] at this
+        simp [Fin.revPerm]
+        omega
+      simp [permExponent, rhoShift, Finsupp.equivFunOnFinite, Fin.revPerm] at key ⊢
+      omega
+    exact rev_of_permExponent_eq_rhoShift π hpe
 
 /-- The alternating Kostka identity: the alternating sum of Kostka numbers over
 Vandermonde permutations equals sign(rev) times the Kronecker delta.
