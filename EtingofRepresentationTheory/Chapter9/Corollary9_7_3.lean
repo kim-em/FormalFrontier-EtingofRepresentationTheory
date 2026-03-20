@@ -26,8 +26,23 @@ definitions from this project.
 
 ## Proof status
 
-All three parts require Wedderburn-Artin decomposition and Morita structure theory
-(idempotent extraction, corner ring construction) which are not yet available in Mathlib.
+All three parts are blocked on the **Morita structural theorem**: the result that
+`MoritaEquivalent A B` implies `B ≅ eAe` for some full idempotent `e ∈ A`.
+This project has the categorical Morita equivalence (Theorem 9.6.4: `C ≌ FGModuleCat
+(End P)ᵒᵖ` for progenerator P), but not the concrete structural consequence for
+algebras. The required infrastructure includes:
+
+1. **Corner ring theory**: For an idempotent `e : A`, the corner ring `eAe` is a
+   subalgebra of `A`, and `dim(eAe) ≤ dim(A)`. Not in Mathlib.
+2. **Primitive idempotent extraction**: From the Wedderburn-Artin decomposition
+   `A/Rad(A) ≅ ∏ End(Vᵢ)` (Theorem 3.5.4, proved), extract and lift primitive
+   idempotents to `A`. Requires idempotent lifting (not in Mathlib).
+3. **Morita structural theorem**: `MoritaEquivalent A B` implies `B ≅ eAe` for a
+   full idempotent `e`. This is the algebraic content of Morita's theorem beyond
+   the categorical equivalence.
+4. **Morita preserves simple modules**: An equivalence `ModuleCat A ≌ ModuleCat B`
+   sends simple modules to simple modules (up to iso). Standard but not formalized.
+
 Helper lemmas for `MoritaEquivalent` (reflexivity, symmetry, transitivity) and
 `IsBasicAlgebra` (field is basic) are proved below.
 -/
@@ -77,10 +92,17 @@ theorem Etingof.Corollary_9_7_3_i
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] :
     ∃ (B : Type u) (_ : Ring B) (_ : Algebra k B) (_ : Module.Finite k B),
       Etingof.IsBasicAlgebra k B ∧ Etingof.MoritaEquivalent A B := by
-  -- Proof requires: Wedderburn-Artin decomposition of A/rad(A) ≅ ∏ Matₙᵢ(k),
-  -- extraction of primitive idempotents e₁,...,eₘ, construction of B = eAe
-  -- where e = e₁ + ⋯ + eₘ, and showing B is basic and Morita equivalent to A
-  -- via Theorem 9.6.4 (progenerator Ae).
+  -- BLOCKED: Requires infrastructure not in Mathlib or this project:
+  -- (1) A/Rad(A) ≅ ∏ End(Vᵢ) — HAVE THIS (Theorem 3.5.4, `structure_mod_radical`)
+  -- (2) Extract primitive idempotents e₁,...,eₘ from each End(Vᵢ) block
+  --     — MISSING: idempotent lifting from A/Rad(A) to A
+  -- (3) Construct B = eAe where e = e₁ + ⋯ + eₘ
+  --     — MISSING: corner ring construction (eAe as subalgebra)
+  -- (4) Show B is basic: simple B-modules are 1-dimensional
+  --     — MISSING: simple module theory for corner rings
+  -- (5) Show A and B are Morita equivalent via progenerator Ae
+  --     — MISSING: Morita structural theorem (Theorem 9.6.4 gives categorical
+  --     equivalence C ≌ FGModuleCat, but not algebra-level A ↔ eAe)
   sorry
 
 /-- **Corollary 9.7.3(i), uniqueness**: The basic algebra B from part (i) is unique
@@ -94,10 +116,15 @@ theorem Etingof.Corollary_9_7_3_i_unique
     (hB₁ : Etingof.IsBasicAlgebra k B₁) (hB₂ : Etingof.IsBasicAlgebra k B₂)
     (h₁ : Etingof.MoritaEquivalent A B₁) (h₂ : Etingof.MoritaEquivalent A B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
-  -- Proof requires: Morita equivalence preserves the set of simple modules (up to iso).
-  -- For basic algebras, simple modules are 1-dimensional, so B₁ and B₂ have isomorphic
-  -- simple module categories. A basic algebra is determined up to isomorphism by its
-  -- module category (it equals End(⊕ simples)^op), giving B₁ ≅ B₂.
+  -- BLOCKED: Requires infrastructure not in Mathlib or this project:
+  -- (1) Morita equivalence preserves simple modules (up to iso)
+  --     — MISSING: need to show ModuleCat A ≌ ModuleCat B sends simples to simples
+  -- (2) For basic algebras, all simple modules are 1-dimensional (by definition)
+  --     — HAVE THIS (definition of IsBasicAlgebra)
+  -- (3) A basic algebra B is determined by its module category: B ≅ End(⊕ simples)ᵒᵖ
+  --     — MISSING: reconstruction of algebra from its module category
+  -- (4) Combine: B₁ ≌-ModuleCat A ≌-ModuleCat B₂ implies B₁ ≅ B₂ as algebras
+  --     — MISSING: depends on (1) and (3)
   sorry
 
 /-- **Corollary 9.7.3(ii)**: For any finite-dimensional algebra A over k, its basic
@@ -108,6 +135,14 @@ theorem Etingof.Corollary_9_7_3_ii
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
     (hB : Etingof.IsBasicAlgebra k B) (hMor : Etingof.MoritaEquivalent A B) :
     Module.finrank k B ≤ Module.finrank k A := by
-  -- Proof requires: Morita's theorem implies B ≅ eAe for some full idempotent e ∈ A.
-  -- As a corner ring, eAe embeds into A as a k-subspace, giving dim(eAe) ≤ dim(A).
+  -- BLOCKED: Requires infrastructure not in Mathlib or this project:
+  -- (1) Morita structural theorem: MoritaEquivalent A B implies B ≅ eAe
+  --     for some full idempotent e ∈ A
+  --     — MISSING: this is the concrete algebraic content of Morita's theorem
+  -- (2) Corner ring embedding: eAe ↪ A as a k-subspace, giving dim(eAe) ≤ dim(A)
+  --     — MISSING: corner ring theory (but would be straightforward once defined)
+  -- Note: If the Morita structural theorem were available, this proof would be:
+  --   obtain ⟨e, he_idem, ⟨φ⟩⟩ := morita_structural_theorem hMor
+  --   calc finrank k B = finrank k (cornerSubalgebra e) := finrank_congr φ
+  --     _ ≤ finrank k A := Submodule.finrank_le _
   sorry
