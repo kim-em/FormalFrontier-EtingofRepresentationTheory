@@ -1057,6 +1057,37 @@ theorem sum_shifted_sub_permExponent {n : ℕ} (la : Nat.Partition n)
   -- Combine
   omega
 
+/-- For `c ≠ 0` and `l.length ≤ n`, the number of `i : Fin n` with `l.getD i 0 = c`
+equals `List.count c l`. Out-of-bounds indices get default `0 ≠ c`. -/
+private lemma card_filter_getD_eq_count (l : List ℕ) (n : ℕ) (hn : l.length ≤ n)
+    (c : ℕ) (hc : c ≠ 0) :
+    ((Finset.univ : Finset (Fin n)).val.filter
+      (fun i : Fin n => c = l.getD (↑i) 0)).card = l.count c := by
+  -- Convert filter.card to Multiset.count via count_map
+  rw [← Multiset.count_map (f := fun i : Fin n => l.getD (↑i) 0)]
+  -- Prove count c (map getD univ.val) = l.count c by induction
+  induction l generalizing n with
+  | nil =>
+    simp only [List.getD_nil, List.count_nil, Multiset.map_const', Multiset.count_replicate]
+    exact if_neg (Ne.symm hc)
+  | cons a t ih =>
+    cases n with
+    | zero => simp at hn
+    | succ m =>
+      have htlen : t.length ≤ m := by simp at hn; omega
+      -- Decompose univ.val for Fin(m+1): 0 ::ₘ map succ (univ.val for Fin m)
+      have huniv : (Finset.univ : Finset (Fin (m + 1))).val =
+          (0 : Fin (m + 1)) ::ₘ (Finset.univ : Finset (Fin m)).val.map Fin.succ := by
+        rw [Fin.univ_succ, Finset.cons_val, Finset.map_val]
+        simp only [Function.Embedding.coeFn_mk]
+      rw [huniv, Multiset.map_cons, Multiset.map_map]
+      simp only [Function.comp, Fin.val_succ, List.getD_cons_succ,
+        Fin.val_zero, List.getD_cons_zero]
+      rw [Multiset.count_cons, ih m htlen]
+      by_cases h : c = a
+      · subst h; simp [List.count_cons_self]
+      · rw [if_neg h, List.count_cons_of_ne (Ne.symm h)]; omega
+
 /-- For a symmetric polynomial P, the coefficient at any vector v equals the
 coefficient at `(finsuppToPartition v hsum).toFinsupp`. This follows from the
 fact that symmetric polynomials have permutation-invariant coefficients, and
@@ -1113,11 +1144,22 @@ theorem coeff_symmetric_eq_coeff_partition {n : ℕ}
       rw [show Mw = Finset.univ.val.map (⇑w) from rfl, hw_def, Nat.Partition.toFinsupp]
       simp only [Finsupp.coe_equivFunOnFinite_symm, Multiset.count_map]
       -- Goal: (univ.val.filter (fun i => c' = sortedParts.getD i 0)).card = List.count c' sortedParts
-      -- Proof strategy: For c' ≠ 0, getD i 0 = c' iff i < sortedParts.length and
-      -- sortedParts[i] = c'. The sets {i : Fin n | getD i 0 = c'} and
-      -- {j : Fin length | sortedParts[j] = c'} are in bijection, and the latter
-      -- has cardinality List.count c' sortedParts.
-      sorry
+      have hlen : p.sortedParts.length ≤ n := by
+        calc p.sortedParts.length = p.parts.card := by
+              simp [Nat.Partition.sortedParts, Multiset.length_sort]
+            _ ≤ p.parts.sum := by
+              suffices h : ∀ (s : Multiset ℕ), (∀ x ∈ s, 0 < x) → s.card ≤ s.sum from
+                h p.parts (fun x hx => p.parts_pos hx)
+              intro s hs
+              induction s using Multiset.induction with
+              | empty => simp
+              | cons a t ih =>
+                rw [Multiset.card_cons, Multiset.sum_cons]
+                have := hs a (Multiset.mem_cons_self a t)
+                have := ih (fun x hx => hs x (Multiset.mem_cons_of_mem hx))
+                omega
+            _ = n := p.parts_sum
+      exact card_filter_getD_eq_count p.sortedParts n hlen c' hc'
     · -- c' = 0 (i.e., ¬(c' ≠ 0)): LHS = 0, RHS = List.count 0 sortedParts = 0
       push_neg at hc'
       subst hc'
