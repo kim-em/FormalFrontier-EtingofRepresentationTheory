@@ -490,7 +490,8 @@ private lemma casimir_on_irreducible_scalar
     simp only [LinearMap.add_apply, LinearMap.smul_apply, sq, Module.End.mul_apply]
     rw [hHm, map_smul, hHm, hEm, map_zero, smul_zero]
     simp only [c, smul_smul]
-    congr 1; push_cast; ring
+    simp only [add_zero, sq, two_nsmul, ← add_smul, smul_smul]
+    congr 1; ring
   -- Step 2: The eigenspace of C for eigenvalue c is a Lie submodule
   -- containing m ≠ 0, hence = ⊤ by irreducibility
   have hm_eigen : m ∈ (sl2_casimir (V := V)).eigenspace c := by
