@@ -1173,7 +1173,7 @@ private lemma subgraph_contradiction {n m : ℕ} {adj : Matrix (Fin n) (Fin n) �
     (hD : IsDynkinDiagram n adj)
     (adj_sub : Matrix (Fin m) (Fin m) ℤ)
     (φ : Fin m ↪ Fin n)
-    (hembed : ∀ i j, adj_sub i j = 1 → adj (φ i) (φ j) = 1)
+    (hembed : ∀ i j, adj_sub i j ≤ adj (φ i) (φ j))
     (v : Fin m → ℤ) (hv_nonneg : ∀ i, 0 ≤ v i) (hv_ne : v ≠ 0)
     (hv_null : dotProduct v ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) - adj_sub).mulVec v) ≤ 0) :
     False := by
@@ -1243,8 +1243,28 @@ private lemma subgraph_contradiction {n m : ℕ} {adj : Matrix (Fin n) (Fin n) �
     -- Step 2: Compare term-by-term with B_sub(v,v):
     --   Each difference term is (adj_sub(i,j) - adj(φ i, φ j)) · v(i) · v(j) ≤ 0
     --   because v(i)·v(j) ≥ 0 and adj(φ i, φ j) ≥ adj_sub(i,j)
-    --   (adj_sub = 1 → adj(φ) = 1 by hembed; adj_sub = 0 → adj(φ) ≥ 0)
-    sorry
+    --   because adj_sub i j ≤ adj (φ i) (φ j) by hembed
+    -- Rewrite LHS outer sum via sum_reindex
+    simp only [dotProduct]
+    rw [sum_reindex (fun a => ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec w) a)]
+    -- Rewrite mulVec at φ i using sum_reindex on inner sum
+    have inner : ∀ i : Fin m,
+        ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec w) (φ i) =
+        ∑ j : Fin m, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) (φ i) (φ j) * v j := by
+      intro i
+      change ∑ b, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) (φ i) b * w b = _
+      simp_rw [mul_comm ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) (φ i) _) (w _)]
+      rw [sum_reindex]
+      congr 1; ext j; ring
+    simp_rw [inner]
+    -- Now both sides are double sums over Fin m; compare term-by-term
+    apply Finset.sum_le_sum; intro i _
+    apply mul_le_mul_of_nonneg_left _ (hv_nonneg i)
+    apply Finset.sum_le_sum; intro j _
+    simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply,
+      EmbeddingLike.apply_eq_iff_eq]
+    apply mul_le_mul_of_nonneg_right _ (hv_nonneg j)
+    linarith [hembed i j]
   linarith [hpos w hw_ne]
 
 /-- In a Dynkin diagram, vertex degree is at most 3.
@@ -1252,7 +1272,81 @@ private lemma subgraph_contradiction {n m : ℕ} {adj : Matrix (Fin n) (Fin n) �
     the null vector (2,1,1,1,1) which gives B = 0 on the star. -/
 private lemma dynkin_degree_le_three {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (i : Fin n) : vertexDegree adj i ≤ 3 := by
-  sorry
+  by_contra hge; push_neg at hge
+  obtain ⟨hsymm, hdiag, h01, _, hpos⟩ := hD
+  -- Extract 4 neighbors
+  set N := Finset.univ.filter (fun j => adj i j = 1) with hN_def
+  have hcard : 4 ≤ N.card := hge
+  obtain ⟨S, hSsub, hScard⟩ := Finset.exists_subset_card_eq hcard
+  have hi_not_S : i ∉ S := by
+    intro hi; have := (Finset.mem_filter.mp (hSsub hi)).2; linarith [hdiag i]
+  -- Define x: 2 at center, 1 at 4 neighbors, 0 elsewhere
+  set x : Fin n → ℤ := fun j => if j = i then 2 else if j ∈ S then 1 else 0
+  have hx_ne : x ≠ 0 := by intro h; have := congr_fun h i; simp [x] at this
+  -- Each term x(a)*mulVec(a) ≤ 0, so B(x,x) ≤ 0
+  suffices hle : dotProduct x ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec x) ≤ 0 by
+    linarith [hpos x hx_ne]
+  -- Helper: adj(i,b)*x(b) is nonneg for all b
+  have adj_x_nonneg : ∀ a b, 0 ≤ adj a b * x b := fun a b =>
+    mul_nonneg (by rcases h01 a b with h | h <;> omega)
+      (by simp only [x]; split_ifs <;> omega)
+  -- Helper: for b ∈ S, adj(i,b)*x(b) = 1
+  have adj_x_S : ∀ b, b ∈ S → adj i b * x b = 1 := by
+    intro b hb
+    have h1 : adj i b = 1 := (Finset.mem_filter.mp (hSsub hb)).2
+    have h2 : x b = 1 := by
+      have : b ≠ i := fun h => hi_not_S (h ▸ hb)
+      simp [x, this, hb]
+    rw [h1, h2, mul_one]
+  -- Helper: Σ_b adj(i,b)*x(b) ≥ 4
+  have sum_i_ge : (4 : ℤ) ≤ ∑ b, adj i b * x b := by
+    have hS_sum : ∑ b ∈ S, adj i b * x b = 4 := by
+      rw [show (4 : ℤ) = ∑ _b ∈ S, (1 : ℤ) from by simp [hScard]]
+      exact Finset.sum_congr rfl (fun b hb => adj_x_S b hb)
+    calc (4 : ℤ) = ∑ b ∈ S, adj i b * x b := hS_sum.symm
+      _ ≤ ∑ b, adj i b * x b :=
+          Finset.sum_le_univ_sum_of_nonneg (fun b => adj_x_nonneg i b)
+  -- Helper: for a ∈ S, Σ_b adj(a,b)*x(b) ≥ 2 (from adj(a,i)*x(i) = 1*2)
+  have sum_a_ge : ∀ a, a ∈ S → (2 : ℤ) ≤ ∑ b, adj a b * x b := by
+    intro a ha
+    have ha_adj_i : adj a i = 1 := by
+      have := (Finset.mem_filter.mp (hSsub ha)).2; exact hsymm.apply i a ▸ this
+    have hxi : x i = 2 := by simp [x]
+    have : adj a i * x i = 2 := by rw [ha_adj_i, hxi]; ring
+    calc (2 : ℤ) = adj a i * x i := this.symm
+      _ = ∑ b ∈ ({i} : Finset (Fin n)), adj a b * x b := by simp
+      _ ≤ ∑ b, adj a b * x b :=
+          Finset.sum_le_univ_sum_of_nonneg (fun b => adj_x_nonneg a b)
+  -- Key: mulVec decomposes as 2*x(a) - Σ adj(a,b)*x(b)
+  have mulVec_eq : ∀ a, ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec x) a =
+      2 * x a - ∑ b, adj a b * x b := by
+    intro a; simp only [mulVec, dotProduct]
+    rw [show ∑ b, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) a b * x b =
+        ∑ b, (2 * (1 : Matrix _ _ ℤ) a b * x b - adj a b * x b) from
+      Finset.sum_congr rfl (fun b _ => by
+        simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul]; ring)]
+    rw [Finset.sum_sub_distrib]
+    congr 1
+    rw [show ∑ b, 2 * (1 : Matrix (Fin n) (Fin n) ℤ) a b * x b =
+        ∑ b, if a = b then 2 * x b else 0 from
+      Finset.sum_congr rfl (fun b _ => by
+        simp only [Matrix.one_apply]; split_ifs <;> simp <;> ring)]
+    simp [Finset.sum_ite_eq']
+  -- B(x,x) = Σ_a x(a) * ((2I-adj)x)(a), show each term ≤ 0
+  apply Finset.sum_nonpos; intro a _
+  rw [mulVec_eq]
+  by_cases hai : a = i
+  · -- a = i: x(i) = 2, Σ adj(i,b)*x(b) ≥ 4
+    have hxa : x a = 2 := by simp [x, hai]
+    rw [hxa]; linarith [hai ▸ sum_i_ge]
+  · by_cases haS : a ∈ S
+    · -- a ∈ S: x(a) = 1, Σ adj(a,b)*x(b) ≥ 2
+      have hxa : x a = 1 := by
+        simp only [x]; rw [if_neg hai, if_pos haS]
+      rw [hxa]; linarith [sum_a_ge a haS]
+    · -- a ∉ {i}∪S: x(a) = 0
+      have : x a = 0 := by simp [x, hai, haS]
+      rw [this]; simp
 
 /-- In a Dynkin diagram, any cycle of length ≥ 3 would give a null vector for the Cartan form.
     Therefore Dynkin diagrams have no cycles, hence are trees. -/
@@ -1285,12 +1379,59 @@ private lemma dynkin_edge_count {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n) : edgeCount adj = n - 1 := by
   sorry
 
-/-- For a path (connected graph where all vertices have degree ≤ 2), construct an
-    isomorphism to A_n by ordering vertices along the path. -/
+/-- For a 0-1 adjacency matrix, the sum of row entries equals the vertex degree. -/
+private lemma adj_sum_eq_degree {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1) (a : Fin n) :
+    ∑ b : Fin n, adj a b = ↑(vertexDegree adj a) := by
+  simp only [vertexDegree]
+  rw [show ∑ b : Fin n, adj a b =
+      ∑ b : Fin n, (if adj a b = 1 then (1 : ℤ) else 0) from
+    Finset.sum_congr rfl (fun b _ => by rcases h01 a b with h | h <;> simp [h])]
+  simp [Finset.sum_boole]
+
+/-- In a Dynkin diagram with all degrees ≤ 2, there exists a vertex of degree ≤ 1 (endpoint).
+    Proof: if all degrees = 2 then the all-ones vector has B(x,x) = 0, contradicting pos-def. -/
+private lemma dynkin_has_endpoint {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n) (hpath : ∀ i, vertexDegree adj i ≤ 2) :
+    ∃ v, vertexDegree adj v ≤ 1 := by
+  by_contra h; push_neg at h
+  obtain ⟨_, hdiag, h01, _, hpos⟩ := hD
+  have hdeg2 : ∀ i, vertexDegree adj i = 2 := fun i => le_antisymm (hpath i) (h i)
+  set x : Fin n → ℤ := fun _ => 1
+  have hx_ne : x ≠ 0 := by intro h; have := congr_fun h ⟨0, by omega⟩; simp [x] at this
+  -- B(x,x) = Σ_a (2 - degree(a)) = Σ_a 0 = 0, contradicting hpos > 0
+  -- mulVec decomposition: mulVec(a) = 2*x(a) - Σ adj(a,b)*x(b)
+  have mulVec_eq : ∀ a, ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec x) a =
+      2 * x a - ∑ b, adj a b * x b := by
+    intro a; simp only [mulVec, dotProduct]
+    rw [show ∑ b, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) a b * x b =
+        ∑ b, (2 * (1 : Matrix _ _ ℤ) a b * x b - adj a b * x b) from
+      Finset.sum_congr rfl (fun b _ => by
+        simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul]; ring)]
+    rw [Finset.sum_sub_distrib]
+    congr 1
+    rw [show ∑ b, 2 * (1 : Matrix (Fin n) (Fin n) ℤ) a b * x b =
+        ∑ b, if a = b then 2 * x b else 0 from
+      Finset.sum_congr rfl (fun b _ => by
+        simp only [Matrix.one_apply]; split_ifs <;> simp <;> ring)]
+    simp [Finset.sum_ite_eq']
+  have hB_le : dotProduct x ((2 • (1 : Matrix _ _ ℤ) - adj).mulVec x) ≤ 0 := by
+    apply Finset.sum_nonpos; intro a _
+    simp only [show ∀ b, x b = (1 : ℤ) from fun _ => rfl, mul_one, one_mul, mulVec_eq]
+    -- Goal: 2 - Σ adj(a,b) ≤ 0, i.e., 2 ≤ Σ adj(a,b)
+    linarith [show (2 : ℤ) ≤ ∑ b, adj a b from by
+      rw [adj_sum_eq_degree h01 a, hdeg2 a]; norm_cast]
+  linarith [hpos x hx_ne]
+
 private lemma path_iso_An {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hD : IsDynkinDiagram n adj) (hn : 1 ≤ n)
     (hpath : ∀ i, vertexDegree adj i ≤ 2)
     : ∃ σ : Fin n ≃ Fin n, ∀ i j, adj (σ i) (σ j) = DynkinType.adj (.A n hn) i j := by
+  -- There exists an endpoint (degree ≤ 1)
+  obtain ⟨v₀, hv₀⟩ := dynkin_has_endpoint hD hn hpath
+  -- Walk along the path from the endpoint to construct σ
+  -- This constructs a bijection σ : Fin n ≃ Fin n with σ(0) = v₀ and
+  -- adj(σ(k), σ(k+1)) = 1 for all k < n-1, matching A_n adjacency.
   sorry
 
 /-- For a tree with exactly one branch vertex of degree 3, the three arm lengths (p,q,r)
