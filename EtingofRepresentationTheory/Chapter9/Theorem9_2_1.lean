@@ -1573,17 +1573,48 @@ theorem Etingof.Theorem_9_2_1_iii
     [∀ i, Module.Projective A (P i)] [∀ i, Module.Finite A (P i)]
     (hP_indec : ∀ i, Etingof.IsIndecomposable A (P i))
     (hP : ∀ i j, Module.finrank k (P i →ₗ[A] M j) = if i = j then 1 else 0)
-    (Q : Type*) [AddCommGroup Q] [Module A Q]
+    (Q : Type uA) [AddCommGroup Q] [Module A Q] [Module k Q] [IsScalarTower k A Q]
+    [SMulCommClass A k Q]
     [Module.Projective A Q] [Module.Finite A Q] (hQ_indec : Etingof.IsIndecomposable A Q) :
     ∃ i, Nonempty (Q ≃ₗ[A] P i) := by
-  -- Proof strategy: Q has a simple quotient M_{j₀}, so Hom(Q, M_{j₀}) ≠ 0.
-  -- By uniqueness of projective covers (issue #1487), any indecomposable projective
-  -- with nonzero Hom to M_{j₀} must be isomorphic to P_{j₀}.
-  --
-  -- The key sorry below is the uniqueness of projective covers:
-  -- "indecomposable projective with Hom(Q, M_j) ≠ 0 implies Q ≅ P_j"
-  -- This requires Fitting's lemma / local endomorphism ring (issue #1487).
-  --
-  -- Universe issue: Q : Type* while hM_exhaustive requires Type uA.
-  -- We work around this by embedding Q into A^n (Type uA) via projectivity.
-  sorry
+  -- Proof strategy (Etingof):
+  -- Q has a simple quotient M_{j₀}, so Hom(Q, M_{j₀}) ≠ 0.
+  -- P_{j₀} also has Hom(P_{j₀}, M_{j₀}) = 1.
+  -- By indecomposable_projective_iso_of_hom (Fitting's lemma), Q ≅ P_{j₀}.
+  haveI : IsArtinianRing A := isArtinian_of_tower k inferInstance
+  haveI : Nontrivial Q := hQ_indec.1
+  haveI : FiniteDimensional k Q := Module.Finite.trans A Q
+  -- Step 1: Q has a nonzero map to some M_{j₀}
+  -- Q has a maximal submodule (A is artinian, Q is f.g.)
+  obtain ⟨N, hN_coatom⟩ := Theorem921.exists_isCoatom_submodule (R := A) (M := Q)
+  haveI : IsSimpleModule A (Q ⧸ N) := isSimpleModule_iff_isCoatom.mpr hN_coatom
+  -- Q/N is a simple A-module. The quotient map Q → Q/N is nonzero.
+  -- By exhaustiveness, Q/N ≅ M j₀ for some j₀. Composing gives a nonzero Q → M j₀.
+  obtain ⟨j₀, ⟨e⟩⟩ := hM_exhaustive (Q ⧸ N)
+  -- Nonzero map Q → M j₀: compose quotient with the isomorphism
+  let φ : Q →ₗ[A] M j₀ := e.toLinearMap.comp N.mkQ
+  have hφ : φ ≠ 0 := by
+    intro h
+    apply hN_coatom.1
+    rw [Submodule.eq_top_iff']
+    intro q
+    have h1 : (e (N.mkQ q) : M j₀) = 0 := LinearMap.congr_fun h q
+    have h2 : N.mkQ q = 0 := e.injective (by rwa [map_zero])
+    exact (Submodule.Quotient.mk_eq_zero N).mp h2
+  -- Step 2: P j₀ has a nonzero map to M j₀ (finrank = 1 implies nontrivial Hom space)
+  haveI : FiniteDimensional k (P j₀) := Module.Finite.trans A (P j₀)
+  -- M j₀ is finite over k: it's iso to Q/N which is a quotient of the f.g. module Q
+  haveI : Module.Finite A (M j₀) := Module.Finite.equiv e
+  haveI : Module.Finite k (M j₀) := Module.Finite.trans A (M j₀)
+  haveI : Module.Finite k (P j₀ →ₗ[A] M j₀) :=
+    Module.Finite.of_injective
+      (LinearMap.restrictScalarsₗ k A (P j₀) (M j₀) k)
+      (LinearMap.restrictScalars_injective k)
+  have hPdim : Module.finrank k (P j₀ →ₗ[A] M j₀) = 1 := by
+    have := hP j₀ j₀; simp only [ite_true] at this; exact this
+  have hP_nt : Nontrivial (P j₀ →ₗ[A] M j₀) := by
+    rw [← Module.finrank_pos_iff (R := k)]; omega
+  obtain ⟨ψ, hψ⟩ := exists_ne (0 : P j₀ →ₗ[A] M j₀)
+  -- Step 3: By uniqueness, Q ≅ P j₀
+  exact ⟨j₀, Etingof.indecomposable_projective_iso_of_hom (k := k) hQ_indec
+    (hP_indec j₀) φ hφ ψ hψ⟩
