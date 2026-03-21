@@ -5821,7 +5821,7 @@
     "end_line": 10,
     "status": "in_progress",
     "needs_statement": false,
-    "notes": "Assembly proof for part (i) complete. Statement fixes: removed bogus sum=1, added exhaustiveness, fixed universe. 2 sorry remain in helpers (Wedderburn-Artin construction, complement argument). Parts (ii), (iii) still sorry.",
+    "notes": "Parts (i) complete. Part (ii) assembly proof complete (COI \u2192 A \u2245 \u2295 dim(M\u1d62)P\u1d62 decomposition). Helper lemma exists_complete_orthogonal_idempotents_for_simples has 4 sorry stubs (surjectivity, dimension match, COI construction, rank property). Parts (ii), (iii) still has_sorry.",
     "attention_needed": true
   },
   {
