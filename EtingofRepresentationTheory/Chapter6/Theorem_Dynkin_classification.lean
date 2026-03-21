@@ -321,7 +321,178 @@ private lemma branch_has_leaf_neighbor {n : ℕ} {adj : Matrix (Fin n) (Fin n) �
     -- B(x,x) = Σᵢ xᵢ · (2xᵢ - Σⱼ aᵢⱼ·xⱼ)
     -- For each i with xᵢ > 0: 2xᵢ ≤ Σⱼ aᵢⱼ·xⱼ, so the term is ≤ 0.
     -- For i with xᵢ = 0: term is 0. Hence B(x,x) ≤ 0.
-    sorry
+    have hx_nonneg : ∀ i, 0 ≤ x i := by
+      intro i; simp only [x]; split_ifs <;> omega
+    have hadj_x_nn : ∀ i j, 0 ≤ adj i j * x j := by
+      intro i j; rcases h01 i j with h | h <;> simp [h, hx_nonneg j]
+    -- Adjacency symmetry: reverse edge facts
+    have ha_n1v : adj n₁ v = 1 := by rw [hsymm.apply v n₁]; exact hn₁_adj
+    have ha_n2v : adj n₂ v = 1 := by rw [hsymm.apply v n₂]; exact hn₂_adj
+    have ha_n3v : adj n₃ v = 1 := by rw [hsymm.apply v n₃]; exact hn₃_adj
+    have ha_a1n1 : adj a₁ n₁ = 1 := by rw [hsymm.apply n₁ a₁]; exact ha₁_adj
+    have ha_a2n2 : adj a₂ n₂ = 1 := by rw [hsymm.apply n₂ a₂]; exact ha₂_adj
+    have ha_a3n3 : adj a₃ n₃ = 1 := by rw [hsymm.apply n₃ a₃]; exact ha₃_adj
+    -- x values for specific vertices
+    have hxv : x v = 3 := by simp [x]
+    have hxn1 : x n₁ = 2 := by
+      show (if n₁ = v then 3 else if n₁ = n₁ ∨ n₁ = n₂ ∨ n₁ = n₃ then 2 else _) = 2
+      rw [if_neg hv_ne1, if_pos (Or.inl rfl)]
+    have hxn2 : x n₂ = 2 := by
+      show (if n₂ = v then 3 else if n₂ = n₁ ∨ n₂ = n₂ ∨ n₂ = n₃ then 2 else _) = 2
+      rw [if_neg hv_ne2, if_pos (Or.inr (Or.inl rfl))]
+    have hxn3 : x n₃ = 2 := by
+      show (if n₃ = v then 3 else if n₃ = n₁ ∨ n₃ = n₂ ∨ n₃ = n₃ then 2 else _) = 2
+      rw [if_neg hv_ne3, if_pos (Or.inr (Or.inr rfl))]
+    -- Key: for each i, 2*x(i) ≤ Σⱼ adj(i,j)*x(j)
+    suffices h_bound : ∀ i : Fin n, 2 * x i ≤ ∑ j : Fin n, adj i j * x j by
+      -- Derive B(x,x) ≤ 0 from h_bound
+      simp only [dotProduct, Matrix.mulVec, Matrix.sub_apply, Matrix.smul_apply,
+        Matrix.one_apply]
+      apply Finset.sum_nonpos
+      intro i _
+      apply mul_nonpos_of_nonneg_of_nonpos (hx_nonneg i)
+      -- 2 • and (2 : ℤ) * are definitionally equal, so use * form directly
+      show ∑ j : Fin n, ((2 : ℤ) * (if i = j then 1 else 0) - adj i j) * x j ≤ 0
+      have : ∑ j : Fin n, ((2 : ℤ) * (if i = j then (1 : ℤ) else 0) - adj i j) * x j =
+          2 * x i - ∑ j : Fin n, adj i j * x j := by
+        simp_rw [sub_mul]
+        rw [Finset.sum_sub_distrib]
+        congr 1
+        simp_rw [mul_ite, mul_one, mul_zero, ite_mul, zero_mul]
+        rw [Finset.sum_eq_single_of_mem i (Finset.mem_univ _)
+          (fun j _ hji => by rw [if_neg (Ne.symm hji)])]
+        simp
+      linarith [this, h_bound i]
+    -- Prove the bound for each vertex type
+    intro i
+    by_cases hxi : x i = 0
+    · simp [hxi]; exact Finset.sum_nonneg (fun j _ => hadj_x_nn i j)
+    · have hi_cases : i = v ∨ (i = n₁ ∨ i = n₂ ∨ i = n₃) ∨
+          (i = a₁ ∨ i = a₂ ∨ i = a₃) := by
+        simp only [x] at hxi; split_ifs at hxi <;> simp_all
+      -- Use Finset.sum_le_sum_of_subset_of_nonneg to extract subset sums
+      rcases hi_cases with hi | (hi | hi | hi) | (hi | hi | hi) <;> rw [hi]
+      · -- v: {n₁,n₂,n₃} contributes ≥ 6 = 2*3
+        have hS : ({n₁, n₂, n₃} : Finset _).sum (fun j => adj v j * x j) ≤
+            ∑ j : Fin n, adj v j * x j :=
+          Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+            (fun j _ _ => hadj_x_nn v j)
+        have hS_eq : ({n₁, n₂, n₃} : Finset _).sum (fun j => adj v j * x j) = 6 := by
+          have hm1 : n₁ ∉ ({n₂, n₃} : Finset _) := by
+            simp only [Finset.mem_insert, Finset.mem_singleton]; push_neg; exact ⟨hne12, hne13⟩
+          rw [Finset.sum_insert hm1, Finset.sum_pair hne23,
+              hn₁_adj, hn₂_adj, hn₃_adj, hxn1, hxn2, hxn3]; norm_num
+        rw [hxv]; linarith
+      · -- n₁: {v, a₁} contributes ≥ 4 = 2*2
+        have hS_le : ({v, a₁} : Finset _).sum (fun j => adj n₁ j * x j) ≤
+            ∑ j : Fin n, adj n₁ j * x j :=
+          Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+            (fun j _ _ => hadj_x_nn n₁ j)
+        have hS_ge : ({v, a₁} : Finset _).sum (fun j => adj n₁ j * x j) ≥ 4 := by
+          rw [Finset.sum_pair (Ne.symm ha₁_nv), ha_n1v, ha₁_adj, one_mul, one_mul, hxv]
+          have : x a₁ ≥ 1 := by
+            show (if a₁ = v then 3 else if a₁ = n₁ ∨ a₁ = n₂ ∨ a₁ = n₃ then 2
+              else if a₁ = a₁ ∨ a₁ = a₂ ∨ a₁ = a₃ then 1 else 0) ≥ 1
+            rw [if_neg ha₁_nv]
+            by_cases h : a₁ = n₁ ∨ a₁ = n₂ ∨ a₁ = n₃
+            · rw [if_pos h]; omega
+            · rw [if_neg h, if_pos (show a₁ = a₁ ∨ a₁ = a₂ ∨ a₁ = a₃ from Or.inl rfl)]
+          linarith
+        rw [hxn1]; linarith
+      · -- n₂: {v, a₂} contributes ≥ 4
+        have hS_le : ({v, a₂} : Finset _).sum (fun j => adj n₂ j * x j) ≤
+            ∑ j : Fin n, adj n₂ j * x j :=
+          Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+            (fun j _ _ => hadj_x_nn n₂ j)
+        have hS_ge : ({v, a₂} : Finset _).sum (fun j => adj n₂ j * x j) ≥ 4 := by
+          rw [Finset.sum_pair (Ne.symm ha₂_nv), ha_n2v, ha₂_adj, one_mul, one_mul, hxv]
+          have : x a₂ ≥ 1 := by
+            show (if a₂ = v then 3 else if a₂ = n₁ ∨ a₂ = n₂ ∨ a₂ = n₃ then 2
+              else if a₂ = a₁ ∨ a₂ = a₂ ∨ a₂ = a₃ then 1 else 0) ≥ 1
+            rw [if_neg ha₂_nv]
+            by_cases h : a₂ = n₁ ∨ a₂ = n₂ ∨ a₂ = n₃
+            · rw [if_pos h]; omega
+            · rw [if_neg h, if_pos (show a₂ = a₁ ∨ a₂ = a₂ ∨ a₂ = a₃ from Or.inr (Or.inl rfl))]
+          linarith
+        rw [hxn2]; linarith
+      · -- n₃: {v, a₃} contributes ≥ 4
+        have hS_le : ({v, a₃} : Finset _).sum (fun j => adj n₃ j * x j) ≤
+            ∑ j : Fin n, adj n₃ j * x j :=
+          Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+            (fun j _ _ => hadj_x_nn n₃ j)
+        have hS_ge : ({v, a₃} : Finset _).sum (fun j => adj n₃ j * x j) ≥ 4 := by
+          rw [Finset.sum_pair (Ne.symm ha₃_nv), ha_n3v, ha₃_adj, one_mul, one_mul, hxv]
+          have : x a₃ ≥ 1 := by
+            show (if a₃ = v then 3 else if a₃ = n₁ ∨ a₃ = n₂ ∨ a₃ = n₃ then 2
+              else if a₃ = a₁ ∨ a₃ = a₂ ∨ a₃ = a₃ then 1 else 0) ≥ 1
+            rw [if_neg ha₃_nv]
+            by_cases h : a₃ = n₁ ∨ a₃ = n₂ ∨ a₃ = n₃
+            · rw [if_pos h]; omega
+            · rw [if_neg h, if_pos (show a₃ = a₁ ∨ a₃ = a₂ ∨ a₃ = a₃ from Or.inr (Or.inr rfl))]
+          linarith
+        rw [hxn3]; linarith
+      · -- a₁: need 2 * x a₁ ≤ ∑ j, adj a₁ j * x j
+        by_cases ha₁_in_n : a₁ = n₁ ∨ a₁ = n₂ ∨ a₁ = n₃
+        · -- a₁ ∈ {n₁,n₂,n₃}: x a₁ = 2, use pair {n₁, v} for sum ≥ 5
+          have ha₁v : adj a₁ v = 1 := by
+            rcases ha₁_in_n with hi | hi | hi
+            · exact absurd hi ha₁_nn
+            · rw [hi, hsymm.apply v n₂]; exact hn₂_adj
+            · rw [hi, hsymm.apply v n₃]; exact hn₃_adj
+          have hS_pair : ({n₁, v} : Finset _).sum (fun j => adj a₁ j * x j) ≤
+              ∑ j : Fin n, adj a₁ j * x j :=
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+              (fun j _ _ => hadj_x_nn a₁ j)
+          rw [Finset.sum_pair hv_ne1, ha_a1n1, ha₁v, one_mul, one_mul, hxn1, hxv] at hS_pair
+          have hxa : x a₁ = 2 := by simp only [x]; rw [if_neg ha₁_nv, if_pos ha₁_in_n]
+          linarith
+        · -- a₁ ∉ {n₁,n₂,n₃}: x a₁ ≤ 1, one neighbor n₁ gives sum ≥ 2
+          have hS : adj a₁ n₁ * x n₁ ≤ ∑ j : Fin n, adj a₁ j * x j :=
+            Finset.single_le_sum (fun j _ => hadj_x_nn a₁ j) (Finset.mem_univ n₁)
+          rw [ha_a1n1, one_mul, hxn1] at hS
+          have hxa : x a₁ ≤ 1 := by
+            simp only [x]; rw [if_neg ha₁_nv, if_neg ha₁_in_n]; omega
+          linarith
+      · -- a₂: same structure as a₁
+        by_cases ha₂_in_n : a₂ = n₁ ∨ a₂ = n₂ ∨ a₂ = n₃
+        · have ha₂v : adj a₂ v = 1 := by
+            rcases ha₂_in_n with hi | hi | hi
+            · rw [hi, hsymm.apply v n₁]; exact hn₁_adj
+            · exact absurd hi ha₂_nn
+            · rw [hi, hsymm.apply v n₃]; exact hn₃_adj
+          have hS_pair : ({n₂, v} : Finset _).sum (fun j => adj a₂ j * x j) ≤
+              ∑ j : Fin n, adj a₂ j * x j :=
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+              (fun j _ _ => hadj_x_nn a₂ j)
+          rw [Finset.sum_pair hv_ne2, ha_a2n2, ha₂v, one_mul, one_mul, hxn2, hxv] at hS_pair
+          have hxa : x a₂ = 2 := by simp only [x]; rw [if_neg ha₂_nv, if_pos ha₂_in_n]
+          linarith
+        · have hS : adj a₂ n₂ * x n₂ ≤ ∑ j : Fin n, adj a₂ j * x j :=
+            Finset.single_le_sum (fun j _ => hadj_x_nn a₂ j) (Finset.mem_univ n₂)
+          rw [ha_a2n2, one_mul, hxn2] at hS
+          have hxa : x a₂ ≤ 1 := by
+            simp only [x]; rw [if_neg ha₂_nv, if_neg ha₂_in_n]; omega
+          linarith
+      · -- a₃: same structure as a₁
+        by_cases ha₃_in_n : a₃ = n₁ ∨ a₃ = n₂ ∨ a₃ = n₃
+        · have ha₃v : adj a₃ v = 1 := by
+            rcases ha₃_in_n with hi | hi | hi
+            · rw [hi, hsymm.apply v n₁]; exact hn₁_adj
+            · rw [hi, hsymm.apply v n₂]; exact hn₂_adj
+            · exact absurd hi ha₃_nn
+          have hS_pair : ({n₃, v} : Finset _).sum (fun j => adj a₃ j * x j) ≤
+              ∑ j : Fin n, adj a₃ j * x j :=
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+              (fun j _ _ => hadj_x_nn a₃ j)
+          rw [Finset.sum_pair hv_ne3, ha_a3n3, ha₃v, one_mul, one_mul, hxn3, hxv] at hS_pair
+          have hxa : x a₃ = 2 := by simp only [x]; rw [if_neg ha₃_nv, if_pos ha₃_in_n]
+          linarith
+        · have hS : adj a₃ n₃ * x n₃ ≤ ∑ j : Fin n, adj a₃ j * x j :=
+            Finset.single_le_sum (fun j _ => hadj_x_nn a₃ j) (Finset.mem_univ n₃)
+          rw [ha_a3n3, one_mul, hxn3] at hS
+          have hxa : x a₃ ≤ 1 := by
+            simp only [x]; rw [if_neg ha₃_nv, if_neg ha₃_in_n]; omega
+          linarith
   linarith [hpos x hx_ne]
 
 /-- In a Dynkin diagram on 4 vertices with a degree-3 vertex v, the graph is a star:
@@ -432,6 +603,40 @@ private lemma branch_classification_n4 {adj : Matrix (Fin 4) (Fin 4) ℤ}
   simp only [hσ_eq_v]
   simp only [DynkinType.adj, DynkinType.rank, Fin.ext_iff]
   split_ifs with h <;> simp_all <;> omega
+
+/-- Helper: given a path walk σ' on a reduced graph adj' (Fin k) with branch vertex v'
+    at position b, and a leaf u adjacent to the branch in the full graph adj (Fin (k+1)),
+    construct a graph isomorphism to a DynkinType whose adjacency has:
+    - path edges: consecutive indices i, i+1 for i < k-1 among the first k vertices
+    - branch edge: vertex b_std connected to vertex k
+    The isomorphism handles both direct (b = b_std) and reversed (b = k-1-b_std) cases. -/
+private lemma tree_branch_iso {k : ℕ} {adj : Matrix (Fin (k + 1)) (Fin (k + 1)) ℤ}
+    (hsymm : adj.IsSymm) (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (u : Fin (k + 1)) (v' : Fin k)
+    (adj' : Matrix (Fin k) (Fin k) ℤ)
+    (hadj'_def : adj' = fun i j => adj (u.succAbove i) (u.succAbove j))
+    (hu_adj : adj u (u.succAbove v') = 1)
+    (hu_unique : ∀ w, adj u w = 1 → w = u.succAbove v')
+    (σ' : Fin k ≃ Fin k)
+    (hσ'_fwd : ∀ (m : Fin k) (hm : m.val + 1 < k),
+      adj' (σ' m) (σ' ⟨m.val + 1, hm⟩) = 1)
+    (hσ'_only : ∀ i j, adj' (σ' i) (σ' j) = 1 →
+      (i.val + 1 = j.val ∨ j.val + 1 = i.val))
+    (b : ℕ) (hb_lt : b < k) (hσ'_b : σ' ⟨b, hb_lt⟩ = v')
+    (t_adj : Matrix (Fin (k + 1)) (Fin (k + 1)) ℤ)
+    (b_std : ℕ) (hb_std_lt : b_std < k)
+    (hb_match : b = b_std ∨ b = k - 1 - b_std)
+    (ht_path : ∀ (i j : Fin (k + 1)), i.val < k → j.val < k →
+      t_adj i j = if (i.val + 1 = j.val ∨ j.val + 1 = i.val) then 1 else 0)
+    (ht_branch : ∀ (i : Fin (k + 1)), i.val < k →
+      t_adj i ⟨k, by omega⟩ = if i.val = b_std then 1 else 0)
+    (ht_branch_symm : ∀ (i : Fin (k + 1)), i.val < k →
+      t_adj ⟨k, by omega⟩ i = if i.val = b_std then 1 else 0)
+    (ht_diag_k : t_adj ⟨k, by omega⟩ ⟨k, by omega⟩ = 0) :
+    ∃ σ : Fin (k + 1) ≃ Fin (k + 1),
+      ∀ i j, adj (σ i) (σ j) = t_adj i j := by
+  sorry
 
 /-- A tree with a degree-3 vertex (branch) and all degrees ≤ 3 has exactly one such vertex,
     three arms of lengths p ≤ q ≤ r with n = p + q + r + 1, and is uniquely determined
