@@ -596,13 +596,25 @@ private noncomputable def Etingof.equivAt_eq_sink
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
 
-/-- For a ≠ i, b ≠ i, composing two reversedArrow_ne_ne with the reversedAtVertex_twice
-transport gives back the original arrow. This is the arrow-level statement that
-double reversal at a non-incident vertex is the identity.
+/-- `reversedArrow_ne_ne ha hb` is a cast through `ReversedAtVertexHom_ne_ne`. -/
+private theorem Etingof.reversedArrow_ne_ne_is_cast
+    {Q : Type*} [inst_dec : DecidableEq Q] [inst : Quiver Q]
+    {i a b : Q} (ha : a ≠ i) (hb : b ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b) :
+    Etingof.reversedArrow_ne_ne ha hb e =
+    cast (Etingof.ReversedAtVertexHom_ne_ne ha hb) e := by
+  have h_ai : inst_dec a i = .isFalse ha := by
+    match inst_dec a i with | .isTrue h => exact absurd h ha | .isFalse _ => rfl
+  have h_bi : inst_dec b i = .isFalse hb := by
+    match inst_dec b i with | .isTrue h => exact absurd h hb | .isFalse _ => rfl
+  revert e
+  unfold Etingof.reversedArrow_ne_ne Etingof.ReversedAtVertexHom_ne_ne
+    Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_ai, h_bi]
+  intro e; rfl
 
-BLOCKED: `reversedAtVertex_twice` uses `Quiver.ext'` (which uses `funext`),
-making the `▸` transport irreducible. Proving this requires expressing
-each operation as a `cast` and using `cast_cast` + proof irrelevance. -/
+set_option maxHeartbeats 1600000 in
 private theorem Etingof.reversedArrow_ne_ne_twice
     {Q : Type*} [inst_dec : DecidableEq Q] [inst : Quiver Q]
     {i : Q} {a b : Q} (ha : a ≠ i) (hb : b ≠ i)
@@ -611,7 +623,23 @@ private theorem Etingof.reversedArrow_ne_ne_twice
       (@Etingof.reversedArrow_ne_ne Q inst_dec
         (@Etingof.reversedAtVertex Q _ inst i) i a b ha hb
         ((@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm ▸ e)) = e := by
-  sorry
+  -- Convert each reversedArrow_ne_ne to cast via is_cast, then compose via HEq
+  have h1 : ∀ (y : @Quiver.Hom Q (@Etingof.reversedAtVertex Q _ inst i) a b),
+      HEq (@Etingof.reversedArrow_ne_ne Q inst_dec inst i a b ha hb y) y := by
+    intro y; rw [Etingof.reversedArrow_ne_ne_is_cast]; exact cast_heq _ _
+  have h2 : ∀ (z : @Quiver.Hom Q
+      (@Etingof.reversedAtVertex Q _ (@Etingof.reversedAtVertex Q _ inst i) i) a b),
+      HEq (@Etingof.reversedArrow_ne_ne Q inst_dec
+        (@Etingof.reversedAtVertex Q _ inst i) i a b ha hb z) z := by
+    intro z
+    rw [@Etingof.reversedArrow_ne_ne_is_cast Q inst_dec
+      (@Etingof.reversedAtVertex Q _ inst i) i a b ha hb z]
+    exact cast_heq _ _
+  -- Use eqRec_heq_self with explicit motive using field projection (avoids instance synthesis)
+  have h3 : HEq ((@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm ▸ e) e :=
+    eqRec_heq_self (motive := fun q _ => q.Hom a b) e
+      (@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm
+  exact eq_of_heq ((h1 _).trans ((h2 _).trans h3))
 
 end Helpers
 
@@ -664,11 +692,12 @@ theorem Etingof.Proposition6_6_6_sink
       · by_cases hb : b = i
         · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
           sorry
-        · -- a ≠ i, b ≠ i: both equivs are equivAt_ne_sink (≃ id), maps unchanged
-          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged.
-          -- After reducing by_cases, need reflFunctorMinus_mapLinear_ne_ne +
-          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice.
-          -- BLOCKED on reversedArrow_ne_ne_twice (funext in reversedAtVertex_twice).
+        · -- a ≠ i, b ≠ i: both equivs reduce to equivAt_ne_sink (≃ id)
+          simp only [dif_neg ha, dif_neg hb]
+          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged
+          -- Requires composing reflFunctorMinus_mapLinear_ne_ne +
+          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice
+          -- through deeply nested Decidable.casesOn layers.
           sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
