@@ -1,3 +1,4 @@
+import Mathlib.Algebra.Lie.Quotient
 import Mathlib.Algebra.Lie.Semisimple.Defs
 import Mathlib.Algebra.Lie.Sl2
 import Mathlib.Analysis.Complex.Polynomial.Basic
@@ -632,14 +633,167 @@ private lemma sl2_acts_trivially_of_quotient_and_sub
     exact h2f.resolve_left (by exact_mod_cast (two_ne_zero : (2 : ℕ) ≠ 0))
   simp [hh, he, hf]
 
-/-- If V is a finite-dimensional sl(2,ℂ)-module where all irreducible subquotients are
-trivial (1-dimensional), then sl(2) acts as 0 on V. -/
+/-- The Casimir element restricts to zero on any Lie submodule when it is zero on V. -/
+private lemma casimir_zero_of_submodule
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (N : LieSubmodule ℂ sl2 V)
+    (hC : sl2_casimir (V := V) = 0) : sl2_casimir (V := ↥N) = 0 := by
+  ext v : 1
+  apply Subtype.val_injective
+  change (sl2_casimir (V := ↥N) v : V) = (0 : ↥N).val
+  simp only [ZeroMemClass.coe_zero]
+  unfold sl2_casimir
+  simp only [LinearMap.add_apply, LinearMap.smul_apply, sq, Module.End.mul_apply]
+  have := LinearMap.congr_fun hC v.val
+  simp only [sl2_casimir, LinearMap.add_apply, LinearMap.smul_apply, sq,
+    Module.End.mul_apply, LinearMap.zero_apply] at this
+  exact this
+
+/-- The Casimir element passes to zero on quotients when it is zero on V. -/
+private lemma casimir_zero_of_quotient
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (N : LieSubmodule ℂ sl2 V)
+    (hC : sl2_casimir (V := V) = 0) : sl2_casimir (V := V ⧸ N) = 0 := by
+  ext q
+  obtain ⟨v, rfl⟩ := LieSubmodule.Quotient.surjective_mk' N q
+  change sl2_casimir (LieSubmodule.Quotient.mk v) = 0
+  have : sl2_casimir (V := V ⧸ N) (LieSubmodule.Quotient.mk v) =
+      LieSubmodule.Quotient.mk (sl2_casimir (V := V) v) := by
+    simp only [sl2_casimir, LinearMap.add_apply, LinearMap.smul_apply, sq,
+      Module.End.mul_apply]
+    rfl
+  rw [this, hC, LinearMap.zero_apply]
+  simp
+
+/-- On a 1-dimensional space, sl(2) acts trivially.
+Every endomorphism is a scalar, so endomorphisms commute. Since sl(2) is perfect
+([sl2,sl2] = sl2), every element acts by the commutator of two scalars, which is 0. -/
+private lemma sl2_trivial_of_dim_one
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (hdim1 : Module.finrank ℂ V = 1) : ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0 := by
+  haveI : FiniteDimensional ℂ V := FiniteDimensional.of_finrank_eq_succ hdim1
+  have dim1_bracket_zero : ∀ (a b : sl2) (v : V), ⁅⁅a, b⁆, v⁆ = 0 := by
+    intro a b v
+    by_cases hw : v = 0
+    · simp [hw]
+    · have leib := leibniz_lie a b v
+      obtain ⟨cb, hcb⟩ := exists_smul_eq_of_finrank_eq_one hdim1 hw ⁅b, v⁆
+      obtain ⟨ca, hca⟩ := exists_smul_eq_of_finrank_eq_one hdim1 hw ⁅a, v⁆
+      have h1 : ⁅a, ⁅b, v⁆⁆ = cb • (ca • v) := by
+        rw [← hcb, lie_smul, ← hca]
+      have h2 : ⁅b, ⁅a, v⁆⁆ = ca • (cb • v) := by
+        rw [← hca, lie_smul, ← hcb]
+      rw [h1, h2, smul_comm ca cb] at leib
+      have : ⁅⁅a, b⁆, v⁆ + cb • (ca • v) = 0 + cb • (ca • v) := by
+        rw [zero_add]; exact leib.symm
+      exact (add_right_cancel this)
+  have hH : ∀ v : V, ⁅sl2_h, v⁆ = 0 := by
+    intro v; rw [← lie_e_f]; exact dim1_bracket_zero _ _ _
+  have hE : ∀ v : V, ⁅sl2_e, v⁆ = 0 := by
+    intro v; have h := dim1_bracket_zero sl2_h sl2_e v
+    rw [lie_h_e, nsmul_lie, ← Nat.cast_smul_eq_nsmul ℂ] at h
+    exact (smul_eq_zero.mp h).resolve_left (by norm_num : (2 : ℂ) ≠ 0)
+  have hF : ∀ v : V, ⁅sl2_f, v⁆ = 0 := by
+    intro v; have h := dim1_bracket_zero sl2_h sl2_f v
+    rw [lie_h_f, neg_lie, nsmul_lie, neg_eq_zero, ← Nat.cast_smul_eq_nsmul ℂ] at h
+    exact (smul_eq_zero.mp h).resolve_left (by norm_num : (2 : ℂ) ≠ 0)
+  intro x v
+  rw [sl2_decomp x, add_lie, add_lie, smul_lie, smul_lie, smul_lie, hH, hE, hF,
+    smul_zero, smul_zero, smul_zero, add_zero, add_zero]
+
+/-- Helper for strong induction: if C = 0 on a d-dimensional sl(2)-module, sl(2) acts trivially. -/
+private lemma sl2_trivial_of_casimir_zero :
+    ∀ (d : ℕ) {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+      [LieRingModule sl2 W] [LieModule ℂ sl2 W],
+      Module.finrank ℂ W = d → sl2_casimir (V := W) = 0 →
+      ∀ (x : sl2) (v : W), ⁅x, v⁆ = 0 := by
+  intro d
+  induction d using Nat.strongRecOn with
+  | _ d ih =>
+    intro W _ _ _ _ _ hdW hCW
+    -- Case: dim W = 0
+    by_cases hd0 : d = 0
+    · subst hd0
+      haveI : Subsingleton W := Module.finrank_zero_iff.mp hdW
+      intro x v; simp [Subsingleton.eq_zero v]
+    -- Case: W is irreducible
+    by_cases hirr : IsSimpleOrder (LieSubmodule ℂ sl2 W)
+    · haveI : Nontrivial W := by rw [← finrank_pos_iff (R := ℂ), hdW]; omega
+      haveI : LieModule.IsIrreducible ℂ sl2 W := hirr
+      open Sl2Irrep in
+      obtain ⟨m, μ, P⟩ := exists_primitiveVector hirr
+      obtain ⟨n, hn⟩ := P.exists_nat
+      rw [hn] at P
+      have hCscalar := casimir_on_irreducible_scalar hirr m n P
+      have h_zero : (n : ℂ) * ((n : ℂ) + 2) = 0 := by
+        have h1 : (↑n * (↑n + 2) : ℂ) • (1 : Module.End ℂ W) = 0 := by
+          rw [← hCscalar, hCW]
+        have h2 := LinearMap.congr_fun h1 m
+        simp only [LinearMap.smul_apply, LinearMap.zero_apply] at h2
+        rcases smul_eq_zero.mp h2 with h | h
+        · exact h
+        · exact absurd h P.ne_zero
+      have hn0 : n = 0 := by
+        rcases mul_eq_zero.mp h_zero with h | h
+        · exact_mod_cast h
+        · exfalso
+          have : (n : ℤ) + 2 = 0 := by exact_mod_cast h
+          omega
+      subst hn0
+      have hdim := primitiveVector_dim hirr m 0 P
+      exact sl2_trivial_of_dim_one (by omega)
+    · -- W is not irreducible: has a proper nonzero Lie submodule
+      haveI : Nontrivial W := by rw [← finrank_pos_iff (R := ℂ), hdW]; omega
+      haveI : Nontrivial (LieSubmodule ℂ sl2 W) := inferInstance
+      have : ¬∀ (a : LieSubmodule ℂ sl2 W), a = ⊥ ∨ a = ⊤ := by
+        intro hall; exact hirr { eq_bot_or_eq_top := hall }
+      push_neg at this
+      obtain ⟨N, hNbot, hNtop⟩ := this
+      -- dim N < dim W (N is a proper submodule)
+      have hN_lt : Module.finrank ℂ ↥N < d := by
+        rw [← hdW]
+        exact Submodule.finrank_lt (show N.toSubmodule ≠ ⊤ from by
+          intro htop; exact hNtop (SetLike.ext' (by
+            rw [show (N : Set W) = (N.toSubmodule : Set W) from rfl, htop]; rfl)))
+      -- dim W/N < dim W (N is nonzero so W/N has smaller dim)
+      have hQ_lt : Module.finrank ℂ (W ⧸ N) < d := by
+        rw [← hdW]
+        haveI : Nontrivial ↥N := (LieSubmodule.nontrivial_iff_ne_bot (N := N)).mpr hNbot
+        have hN_pos : 0 < Module.finrank ℂ ↥N := Module.finrank_pos
+        have hsum := Submodule.finrank_quotient_add_finrank N.toSubmodule
+        change Module.finrank ℂ (W ⧸ N.toSubmodule) < _
+        have : Module.finrank ℂ ↥N = Module.finrank ℂ ↥(N.toSubmodule) := rfl
+        omega
+      -- By induction: sl2 acts trivially on N and on W/N
+      have hN_triv : ∀ (x : sl2) (v : ↥N), ⁅x, v⁆ = 0 :=
+        ih _ hN_lt rfl (casimir_zero_of_submodule N hCW)
+      have hQ_triv : ∀ (x : sl2) (v : W ⧸ N), ⁅x, v⁆ = 0 :=
+        ih _ hQ_lt rfl (casimir_zero_of_quotient N hCW)
+      -- Convert to the form needed by sl2_acts_trivially_of_quotient_and_sub
+      have hN_mem : ∀ (x : sl2) (v : N), ⁅x, (v : W)⁆ = 0 := by
+        intro x v
+        have := congr_arg Subtype.val (hN_triv x v)
+        simp only [LieSubmodule.coe_bracket, ZeroMemClass.coe_zero] at this
+        exact this
+      have hQ_mem : ∀ (x : sl2) (v : W), (⁅x, v⁆ : W) ∈ N := by
+        intro x v
+        have hq := hQ_triv x (LieSubmodule.Quotient.mk (N := N) v)
+        rwa [show (⁅x, LieSubmodule.Quotient.mk (N := N) v⁆ : W ⧸ N) =
+          LieSubmodule.Quotient.mk ⁅x, v⁆ from rfl,
+          LieSubmodule.Quotient.mk_eq_zero'] at hq
+      exact sl2_acts_trivially_of_quotient_and_sub N hN_mem hQ_mem
+
+/-- If V is a finite-dimensional sl(2,ℂ)-module where the Casimir acts as zero,
+then sl(2) acts as 0 on V. -/
 private lemma sl2_trivial_action_of_trivial_subquotients
     {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     [LieRingModule sl2 V] [LieModule ℂ sl2 V]
     (h : ∀ (x : sl2) (v : V), sl2_casimir (V := V) v = 0) :
-    ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0 := by
-  sorry
+    ∀ (x : sl2) (v : V), ⁅x, v⁆ = 0 :=
+  sl2_trivial_of_casimir_zero _ rfl (by ext v; exact h sl2_h v)
 
 /-- When sl(2) acts trivially on V, every LieSubmodule is just a Submodule,
 and the lattice of LieSubmodules is complemented (since ℂ is a field). -/
