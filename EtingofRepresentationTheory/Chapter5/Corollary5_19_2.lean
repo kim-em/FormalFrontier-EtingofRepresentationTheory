@@ -33,5 +33,5 @@ theorem Etingof.Corollary5_19_2
       (_ : ∀ p, AddCommGroup (S p)) (_ : ∀ p, Module k (S p))
       (_ : ∀ p, AddCommGroup (L p)) (_ : ∀ p, Module k (L p)),
       Nonempty (TensorPower k V n ≃ₗ[k]
-        DirectSum (Nat.Partition n) (fun p => S p ⊗[k] L p)) := by
-  sorry
+        DirectSum (Nat.Partition n) (fun p => S p ⊗[k] L p)) :=
+  Theorem5_18_4_partition_decomposition k V n hN

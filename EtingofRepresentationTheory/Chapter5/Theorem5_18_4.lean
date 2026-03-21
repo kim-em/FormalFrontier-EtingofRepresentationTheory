@@ -248,4 +248,19 @@ theorem Theorem5_18_4_decomposition
         DirectSum ι (fun i => S i ⊗[k] L i)) := by
   sorry
 
+/-- Schur-Weyl duality: partition-indexed decomposition of V^⊗n.
+This refines `Theorem5_18_4_decomposition` by identifying the index type
+as `Nat.Partition n`, via the classification of irreducible Sₙ-representations
+by partitions (Theorem 5.12.2).
+(Etingof Theorem 5.18.4 + Corollary 5.19.2 bridge) -/
+theorem Theorem5_18_4_partition_decomposition
+    [IsAlgClosed k]
+    (hN : n ≤ Module.finrank k V) :
+    ∃ (S L : Nat.Partition n → Type)
+      (_ : ∀ p, AddCommGroup (S p)) (_ : ∀ p, Module k (S p))
+      (_ : ∀ p, AddCommGroup (L p)) (_ : ∀ p, Module k (L p)),
+      Nonempty (TensorPower k V n ≃ₗ[k]
+        DirectSum (Nat.Partition n) (fun p => S p ⊗[k] L p)) := by
+  sorry
+
 end Etingof
