@@ -1,4 +1,5 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
+import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
 import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.CategoryTheory.Simple
@@ -107,35 +108,31 @@ theorem moritaEquivalent_preserves_simple
 
 /-! ## Morita structural theorem -/
 
-/-- **Morita structural theorem**: If finite-dimensional `k`-algebras
-`A` and `B` are Morita equivalent, then there exists an idempotent
-`e ∈ A` such that `B ≅ eAe` as `k`-algebras.
+/-- **Morita structural theorem**: If `A` is a finite-dimensional
+`k`-algebra and `B` is a basic finite-dimensional `k`-algebra that is
+Morita equivalent to `A`, then there exists an idempotent `e ∈ A` such
+that `B ≅ eAe` as `k`-algebras.
+
+The `IsBasicAlgebra k B` hypothesis is essential: without it the
+statement is false (e.g. `k` and `Mₙ(k)` are Morita equivalent
+but `Mₙ(k)` cannot be `eke` for any `e ∈ k`).
 
 The proof strategy:
-1. From `ModuleCat A ≌ ModuleCat B`, the equivalence sends the free
-   module `A` to a finitely generated projective `B`-module `P`.
-2. `P` is a progenerator for `ModuleCat B`, so `B ≅ End_B(P)^op`.
-3. As a f.g. projective `A`-module, `P ≅ Ae` for some idempotent `e`.
-4. `End_A(Ae)^op ≅ eAe`, giving the result. -/
+1. Decompose `A ≅ P₁^{n₁} ⊕ ⋯ ⊕ Pₘ^{nₘ}` (Krull-Schmidt).
+2. Since `B` is basic, the progenerator is `Q = P₁ ⊕ ⋯ ⊕ Pₘ`.
+3. `Q` is a direct summand of `A` (each `nᵢ ≥ 1`), so `Q ≅ eA`.
+4. `B ≅ End_A(Q)ᵒᵖ ≅ eAe`. -/
 theorem MoritaStructural
     (k : Type u) [Field k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
+    (_hB : IsBasicAlgebra k B)
     (hMor : MoritaEquivalent A B) :
     ∃ (e : A) (he : IsIdempotentElem e),
       Nonempty
         (@AlgEquiv k (CornerRing (k := k) e) B _
           (CornerRing.instRing he).toSemiring _
           (CornerRing.instAlgebra he) _) := by
-  -- The full proof requires substantial infrastructure not yet
-  -- formalized:
-  -- (1) Equivalence F : ModuleCat A ≌ ModuleCat B sends the free
-  --     A-module to a progenerator P in ModuleCat B
-  -- (2) F.g. projective modules over fin-dim algebras correspond
-  --     to direct summands of A^n, i.e. to idempotents in Mₙ(A)
-  -- (3) End_A(Ae)^op ≅ eAe as k-algebras
-  -- (4) Assembly: B ≅ End_B(B)^op ≅ End_B(F(A))^op
-  --     ≅ End_A(A)^op via equivalence ≅ eAe
   sorry
 
 end Etingof

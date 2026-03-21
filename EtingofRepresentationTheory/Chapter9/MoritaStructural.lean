@@ -1,4 +1,5 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
+import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
 import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.CategoryTheory.Equivalence
@@ -110,16 +111,34 @@ theorem simple_of_equivalence {C : Type u} [Category.{v} C]
 
 variable {k : Type u} [Field k]
 
-/-- **Morita structural theorem**: If `A` and `B` are Morita equivalent algebras
-over a field `k`, then there exists an idempotent `e : A` such that `B` is
-isomorphic (as a `k`-algebra) to the corner ring `eAe`.
+/-- **Morita structural theorem**: If `A` is a finite-dimensional `k`-algebra
+and `B` is a basic finite-dimensional `k`-algebra that is Morita equivalent to `A`,
+then there exists an idempotent `e : A` such that `B` is isomorphic (as a
+`k`-algebra) to the corner ring `eAe`.
+
+The `IsBasicAlgebra k B` hypothesis is essential: without it the statement is
+false. For example, `k` and `Mₙ(k)` are Morita equivalent, but `Mₙ(k)` cannot
+be realized as `eke` for any `e ∈ k`. The basic algebra is always the smallest
+representative in a Morita equivalence class, so it embeds as a corner ring of
+any other representative.
 
 This is the concrete algebraic content of Morita's theorem beyond the categorical
 equivalence proved in Theorem 9.6.4.
-(Etingof, discussion after Definition 9.7.1) -/
+(Etingof, discussion after Definition 9.7.1)
+
+## Proof strategy (not yet formalized)
+
+1. Decompose `A` as a left `A`-module: `A ≅ P₁^{n₁} ⊕ ⋯ ⊕ Pₘ^{nₘ}` where
+   `Pᵢ` are the distinct indecomposable projectives (Krull-Schmidt).
+2. Since `B` is basic, the progenerator corresponding to the equivalence uses
+   exactly one copy of each `Pᵢ`: `Q = P₁ ⊕ ⋯ ⊕ Pₘ`.
+3. `Q` is a direct summand of `A` (since each `nᵢ ≥ 1`), so `Q ≅ eA` for
+   some idempotent `e`.
+4. `B ≅ End_A(Q)ᵒᵖ ≅ eAe`. -/
 theorem MoritaStructural
-    (A : Type u) [Ring A] [Algebra k A]
-    (B : Type u) [Ring B] [Algebra k B]
+    (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
+    (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
+    (_hB : IsBasicAlgebra k B)
     (h : MoritaEquivalent A B) :
     ∃ (e : A) (he : IsIdempotentElem e),
       Nonempty (@AlgEquiv k B (CornerRing (k := k) e) _ _
