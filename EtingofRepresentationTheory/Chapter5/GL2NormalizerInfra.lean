@@ -184,13 +184,144 @@ section Centralizer
 /-! ### Centralizer of non-scalar elements of K -/
 
 /-- For non-scalar ζ ∈ K = 𝔽_{q²}× ⊂ GL₂(𝔽_q), the centralizer C_{GL₂}(ζ) equals K.
-If g ∈ GL₂(𝔽_q) commutes with ζ, then g ∈ K. -/
+If g commutes with ζ = embed(α) where α ∉ 𝔽_q, the corresponding linear map φ satisfies
+φ(α·x) = α·φ(x). Since {1,α} spans 𝔽_{q²}, we get φ(x) = φ(1)·x, so g ∈ K. -/
 lemma Etingof.centralizer_nonscalar_elliptic (hn : n ≠ 0)
     (ζ : GL2 p n) (hζ_mem : ζ ∈ Etingof.GL2.ellipticSubgroup p n)
     (hζ_ns : ¬GL2.IsScalar (p := p) (n := n) ζ)
     (g : GL2 p n) (hcomm : g * ζ = ζ * g) :
     g ∈ Etingof.GL2.ellipticSubgroup p n := by
-  sorry
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  obtain ⟨α, rfl⟩ := hζ_mem
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  -- fieldExtEmbed α has val = leftMulMatrix b α
+  have hembed : ∀ u : (GaloisField p (2 * n))ˣ,
+      (Etingof.GL2.fieldExtEmbed p n u).val =
+      Algebra.leftMulMatrix b (u : GaloisField p (2 * n)) := by
+    intro u; change (Etingof.GL2.fieldExtEmbed p n u).val = _
+    simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; congr 1
+  -- Matrix commutation
+  have hcomm_mat : g.val * Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) =
+      Algebra.leftMulMatrix b (α : GaloisField p (2 * n)) * g.val := by
+    have := congr_arg (fun u : GL2 p n => u.val) hcomm
+    simp only [Units.val_mul] at this; rwa [hembed] at this
+  -- The linear map φ corresponding to g
+  set φ : GaloisField p (2 * n) →ₗ[GaloisField p n] GaloisField p (2 * n) :=
+    Matrix.toLinAlgEquiv b g.val with hφ_def
+  -- φ commutes with left multiplication by α: φ(α * x) = α * φ(x)
+  have hφα : ∀ x, φ ((↑α : GaloisField p (2 * n)) * x) =
+      (↑α : GaloisField p (2 * n)) * φ x := by
+    intro x
+    -- toLinAlgEquiv b (leftMulMatrix b a) = lmul a, so applied to y gives a * y
+    have hlm : ∀ y, Matrix.toLinAlgEquiv b (Algebra.leftMulMatrix b (↑α : GaloisField p (2 * n))) y =
+        (↑α : GaloisField p (2 * n)) * y := by
+      intro y
+      -- leftMulMatrix b x = toMatrix b b (lmul x) by definition
+      -- toLinAlgEquiv b = toLin b b (definitionally)
+      -- toLin b b (toMatrix b b f) = f by Matrix.toLin_toMatrix
+      show Matrix.toLin b b (LinearMap.toMatrix b b ((Algebra.lmul _ _) ↑α)) y = _
+      rw [Matrix.toLin_toMatrix]
+    -- From hcomm_mat, apply toLinAlgEquiv (an AlgEquiv, so preserves *) to both sides
+    have heq := congr_arg (Matrix.toLinAlgEquiv b) hcomm_mat
+    simp only [map_mul] at heq
+    -- heq : φ * Lα = Lα * φ, apply to x
+    have := congr_fun (congr_arg DFunLike.coe heq) x
+    change φ (Matrix.toLinAlgEquiv b (Algebra.leftMulMatrix b ↑α) x) =
+      Matrix.toLinAlgEquiv b (Algebra.leftMulMatrix b ↑α) (φ x) at this
+    rw [hlm, hlm] at this; exact this
+  -- α not in the base field (from non-scalar hypothesis)
+  have hα_not_base : (↑α : GaloisField p (2 * n)) ∉
+      Set.range (algebraMap (GaloisField p n) (GaloisField p (2 * n))) := by
+    intro ⟨c, hc⟩
+    apply hζ_ns; rw [GL2.isScalar_iff]
+    have hscalar : Algebra.leftMulMatrix b (↑α : GaloisField p (2 * n)) =
+        (algebraMap (GaloisField p n) (Matrix (Fin 2) (Fin 2) (GaloisField p n))) c := by
+      rw [← hc]; exact (Algebra.leftMulMatrix b).commutes c
+    rw [hembed α, hscalar, Matrix.algebraMap_eq_diagonal]
+    exact ⟨Matrix.diagonal_apply_ne _ (by decide : (0 : Fin 2) ≠ 1),
+           Matrix.diagonal_apply_ne _ (by decide : (1 : Fin 2) ≠ 0),
+           by simp [Matrix.diagonal_apply_eq]⟩
+  -- {1, α} linearly independent over F_q
+  have hli : LinearIndependent (GaloisField p n) ![1, (↑α : GaloisField p (2 * n))] := by
+    rw [Fintype.linearIndependent_iff]
+    intro f hf
+    simp only [Fin.sum_univ_two, Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.head_fin_const] at hf
+    intro i; fin_cases i
+    · -- f 0 = 0: if f 1 ≠ 0 then α ∈ range(algebraMap), contradiction
+      by_contra h0
+      have hf1 : f 1 ≠ 0 := by
+        intro hf1; rw [hf1, zero_smul, add_zero, smul_eq_zero] at hf
+        exact h0 (hf.resolve_right one_ne_zero)
+      apply hα_not_base
+      refine ⟨(f 1)⁻¹ * (-f 0), ?_⟩
+      have h1 := eq_neg_of_add_eq_zero_right hf
+      rw [Algebra.smul_def, Algebra.smul_def, mul_one] at h1
+      have hne : algebraMap (GaloisField p n) (GaloisField p (2 * n)) (f 1) ≠ 0 := by
+        intro he; exact hf1 ((algebraMap (GaloisField p n) (GaloisField p (2 * n))).injective
+          (he.trans (map_zero _).symm))
+      calc algebraMap _ _ ((f 1)⁻¹ * (-f 0))
+          = (algebraMap (GaloisField p n) (GaloisField p (2 * n)) (f 1))⁻¹ *
+            algebraMap _ _ (-f 0) := by rw [map_mul, map_inv₀]
+        _ = (algebraMap _ (GaloisField p (2 * n)) (f 1))⁻¹ *
+            -(algebraMap _ _ (f 0)) := by rw [map_neg]
+        _ = (algebraMap _ _ (f 1))⁻¹ *
+            (algebraMap _ _ (f 1) * ↑α) := by rw [h1]
+        _ = ↑α := by rw [← mul_assoc, inv_mul_cancel₀ hne, one_mul]
+    · -- f 1 = 0: same argument
+      by_contra hf1
+      apply hα_not_base
+      refine ⟨(f 1)⁻¹ * (-f 0), ?_⟩
+      have h1 := eq_neg_of_add_eq_zero_right hf
+      rw [Algebra.smul_def, Algebra.smul_def, mul_one] at h1
+      have hne : algebraMap (GaloisField p n) (GaloisField p (2 * n)) (f 1) ≠ 0 := by
+        intro he; exact hf1 ((algebraMap (GaloisField p n) (GaloisField p (2 * n))).injective
+          (he.trans (map_zero _).symm))
+      calc algebraMap _ _ ((f 1)⁻¹ * (-f 0))
+          = (algebraMap (GaloisField p n) (GaloisField p (2 * n)) (f 1))⁻¹ *
+            algebraMap _ _ (-f 0) := by rw [map_mul, map_inv₀]
+        _ = (algebraMap _ (GaloisField p (2 * n)) (f 1))⁻¹ *
+            -(algebraMap _ _ (f 0)) := by rw [map_neg]
+        _ = (algebraMap _ _ (f 1))⁻¹ *
+            (algebraMap _ _ (f 1) * ↑α) := by rw [h1]
+        _ = ↑α := by rw [← mul_assoc, inv_mul_cancel₀ hne, one_mul]
+  -- {1, α} spans since finrank = 2 and we have 2 independent vectors
+  have hspan : Submodule.span (GaloisField p n) (Set.range ![1, (↑α : GaloisField p (2 * n))]) = ⊤ :=
+    hli.span_eq_top_of_card_eq_finrank (by simp [Etingof.finrank_galoisField_ext p n hn])
+  -- φ(x) = φ(1) * x for all x
+  have hφ_eq : ∀ x, φ x = φ 1 * x := by
+    intro x
+    have hx_mem : x ∈ (⊤ : Submodule (GaloisField p n) (GaloisField p (2 * n))) := trivial
+    rw [← hspan] at hx_mem
+    rw [Submodule.mem_span_range_iff_exists_fun] at hx_mem
+    obtain ⟨c, hcx⟩ := hx_mem
+    simp only [Fin.sum_univ_two, Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.head_fin_const] at hcx
+    rw [← hcx, map_add, map_smul, map_smul]
+    have hφα1 : φ (↑α : GaloisField p (2 * n)) = (↑α : GaloisField p (2 * n)) * φ 1 := by
+      have := hφα 1; rwa [mul_one] at this
+    rw [hφα1]; simp only [Algebra.smul_def]; ring
+  -- g.val = leftMulMatrix b (φ 1)
+  have hg_eq : g.val = Algebra.leftMulMatrix b (φ 1) := by
+    have hg_mat : g.val = LinearMap.toMatrixAlgEquiv b φ := by
+      rw [hφ_def]; exact (LinearMap.toMatrixAlgEquiv_toLinAlgEquiv b g.val).symm
+    rw [hg_mat]; congr 1
+    exact LinearMap.ext fun x => by
+      show φ x = (Algebra.lmul (GaloisField p n) (GaloisField p (2 * n))) (φ 1) x
+      change φ x = φ 1 * x; exact hφ_eq x
+  -- φ 1 ≠ 0 (g is invertible)
+  have hφ1_ne : φ 1 ≠ 0 := by
+    intro h
+    have hg_zero : g.val = 0 := by rw [hg_eq, h, map_zero]
+    have h1 := congr_arg Units.val (mul_inv_cancel g)
+    simp only [Units.val_mul, Units.val_one, hg_zero, zero_mul] at h1
+    exact zero_ne_one h1
+  -- Conclude: g = fieldExtEmbed(Units.mk0 (φ 1) hφ1_ne)
+  exact ⟨Units.mk0 (φ 1) hφ1_ne, by
+    apply Units.ext; simp only [hembed, Units.val_mk0, hg_eq]⟩
 
 end Centralizer
 
