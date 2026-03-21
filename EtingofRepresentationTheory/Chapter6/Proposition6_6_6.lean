@@ -692,11 +692,12 @@ theorem Etingof.Proposition6_6_6_sink
       · by_cases hb : b = i
         · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
           sorry
-        · -- a ≠ i, b ≠ i: both equivs are equivAt_ne_sink (≃ id), maps unchanged
-          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged.
-          -- After reducing by_cases, need reflFunctorMinus_mapLinear_ne_ne +
-          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice.
-          -- BLOCKED on reversedArrow_ne_ne_twice (funext in reversedAtVertex_twice).
+        · -- a ≠ i, b ≠ i: both equivs reduce to equivAt_ne_sink (≃ id)
+          simp only [dif_neg ha, dif_neg hb]
+          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged
+          -- Requires composing reflFunctorMinus_mapLinear_ne_ne +
+          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice
+          -- through deeply nested Decidable.casesOn layers.
           sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
