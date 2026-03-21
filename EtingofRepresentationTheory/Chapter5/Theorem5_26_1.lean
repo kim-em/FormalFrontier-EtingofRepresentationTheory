@@ -31,6 +31,33 @@ def Etingof.inducedCharacter {G : Type} [Group G] [Fintype G]
   fun g => (Fintype.card ↥H : ℂ)⁻¹ *
     ∑ x : G, if h : x⁻¹ * g * x ∈ H then χ ⟨x⁻¹ * g * x, h⟩ else 0
 
+/-- Forward direction of Artin's theorem: if X covers G, every irreducible character
+is in the ℚ-span of induced characters from X.
+
+Proof outline (Etingof, Theorem 5.26.1):
+1. Let U be a virtual representation orthogonal to all Ind_H^G(V) for H ∈ X, V.
+2. By Frobenius reciprocity for characters:
+   ⟨χ_U, χ_{Ind_H^G V}⟩_G = (|G|/|H|) · ⟨χ_U|_H, χ_V⟩_H
+   So χ_U|_H is orthogonal to all irreducible characters of H.
+3. By character completeness (Theorem 4.2.1 applied to H), χ_U vanishes on H.
+4. Since X covers G, χ_U = 0 everywhere, so U = 0.
+5. This shows the ℂ-span of induced characters = all class functions.
+6. By Remark 5.26.2, the decomposition matrix has ℕ entries, so
+   rank over ℚ = rank over ℂ, giving ℚ-span ⊇ all irreducible characters.
+
+Missing infrastructure:
+- Frobenius reciprocity for characters (direct computation, not yet in Mathlib)
+- Integer rank preservation: a matrix with ℕ entries that spans ℂ^n also spans ℚ^n -/
+private lemma artin_forward {G : Type} [Group G] [Fintype G]
+    (X : Set (Subgroup G))
+    (hX : ∀ H ∈ X, ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈ X)
+    (hcov : ∀ g : G, ∃ H ∈ X, g ∈ H)
+    (V : FDRep ℂ G) [CategoryTheory.Simple V] :
+    V.character ∈ Submodule.span ℚ
+      {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
+        f = Etingof.inducedCharacter H W.character} := by
+  sorry
+
 /-- The trivial representation of G on ℂ: every group element acts as the identity. -/
 private def trivialRep (G : Type) [Group G] : Representation ℂ G ℂ := 1
 
@@ -111,10 +138,10 @@ theorem Etingof.Theorem5_26_1
           f = Etingof.inducedCharacter H W.character}) := by
   constructor
   · -- Forward direction: covering → span
-    -- This is the hard direction of Artin's theorem, requiring deep character theory
-    -- (Brauer's characterization of characters or algebraic norm arguments).
-    -- Not currently provable with available Mathlib infrastructure.
-    sorry
+    -- By Frobenius reciprocity + covering, the ℂ-span of induced characters
+    -- contains all class functions. By Remark 5.26.2, ℚ-span = ℂ-span for this set.
+    intro hcov V hV
+    exact artin_forward X hX hcov V
   · -- Backward direction: span → covering (by contrapositive)
     -- If some g₀ is not covered by X, all induced characters vanish at g₀
     -- (since X is conjugation-invariant), so the span vanishes at g₀.
