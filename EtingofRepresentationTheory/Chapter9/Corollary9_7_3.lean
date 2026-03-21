@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Chapter9.MoritaStructural
+import EtingofRepresentationTheory.Infrastructure.BasicAlgebraExistence
 import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.CategoryTheory.Equivalence
 import Mathlib.LinearAlgebra.Dimension.Finrank
@@ -36,8 +37,11 @@ both basic and Morita equivalent to A, then by MoritaStructural each embeds
 as a corner ring of the other, forcing equal dimensions, hence the corner
 rings are the full algebras.
 
-Part (i) existence remains sorry'd pending construction of the basic algebra
-from Wedderburn-Artin decomposition and idempotent lifting.
+Part (i) existence delegates to `exists_basic_morita_equivalent` from
+`Infrastructure.BasicAlgebraExistence`, which is sorry'd pending construction
+of the basic algebra from Wedderburn-Artin decomposition and idempotent lifting.
+The statement requires `IsAlgClosed k` since over non-algebraically-closed fields,
+simple modules need not be 1-dimensional.
 -/
 
 variable (k : Type u) [Field k]
@@ -128,19 +132,20 @@ private noncomputable def Etingof.cornerRingAlgEquivOfUnit
 
 /-! ## Main results -/
 
-/-- **Corollary 9.7.3(i)**: Any finite-dimensional algebra A over k is Morita equivalent
-to some basic algebra B. That is, there exists a basic k-algebra B such that the module
-categories of A and B are equivalent.
+/-- **Corollary 9.7.3(i)**: Any finite-dimensional algebra A over an algebraically
+closed field k is Morita equivalent to some basic algebra B. That is, there exists
+a basic k-algebra B such that the module categories of A and B are equivalent.
+
+Note: The algebraic closure hypothesis is necessary — over non-algebraically-closed
+fields, division algebras can have dimension > 1, so the "all simples 1-dimensional"
+definition of basic cannot always be achieved.
+
 (Etingof Corollary 9.7.3(i), algebra version) -/
 theorem Etingof.Corollary_9_7_3_i
-    (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] :
+    (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] [IsAlgClosed k] :
     ∃ (B : Type u) (_ : Ring B) (_ : Algebra k B) (_ : Module.Finite k B),
-      Etingof.IsBasicAlgebra k B ∧ Etingof.MoritaEquivalent A B := by
-  -- Requires: Wedderburn-Artin (Theorem 3.5.4, proved) + idempotent lifting
-  -- (Corollary 9.1.3, proved) + showing the resulting corner ring is basic and
-  -- Morita equivalent to A. The construction is: extract primitive idempotents
-  -- from A/Rad(A) ≅ ∏ End(Vᵢ), lift to A, sum to get e, then B = eAe.
-  sorry
+      Etingof.IsBasicAlgebra k B ∧ Etingof.MoritaEquivalent A B :=
+  Etingof.exists_basic_morita_equivalent k A
 
 /-- **Corollary 9.7.3(i), uniqueness**: The basic algebra B from part (i) is unique
 up to isomorphism. If B₁ and B₂ are both basic algebras that are Morita equivalent
