@@ -109,13 +109,65 @@ theorem diagonalActionImage_le_centralizer_symGroupImage :
   rw [Subalgebra.le_centralizer_iff]
   exact symGroupImage_le_centralizer_diagonalActionImage k V n
 
+/-- The monoid homomorphism from `Equiv.Perm (Fin n)` to `End_k(V⊗ⁿ)` given by
+the permutation action on tensor factors. -/
+noncomputable def symGroupMonoidHom :
+    Equiv.Perm (Fin n) →* Module.End k (TensorPower k V n) where
+  toFun σ := (symGroupAction k V n σ).toLinearMap
+  map_one' := by
+    simp only [symGroupAction]
+    apply LinearMap.ext; intro x
+    change (PiTensorProduct.reindex k (fun _ => V) (Equiv.refl _)) x = x
+    simp [PiTensorProduct.reindex_refl]
+  map_mul' σ τ := by
+    simp only [symGroupAction]
+    apply LinearMap.ext
+    intro x
+    change (PiTensorProduct.reindex k (fun _ => V) (σ * τ)) x =
+      (PiTensorProduct.reindex k (fun _ => V) σ)
+        ((PiTensorProduct.reindex k (fun _ => V) τ) x)
+    rw [show (σ * τ : Equiv.Perm (Fin n)) = τ.trans σ from rfl,
+      ← PiTensorProduct.reindex_reindex]
+
+/-- The algebra homomorphism from `k[Sₙ]` to `End_k(V⊗ⁿ)` lifting the permutation action. -/
+noncomputable def symGroupAlgHom :
+    MonoidAlgebra k (Equiv.Perm (Fin n)) →ₐ[k] Module.End k (TensorPower k V n) :=
+  MonoidAlgebra.lift k (Module.End k (TensorPower k V n)) (Equiv.Perm (Fin n))
+    (symGroupMonoidHom k V n)
+
+/-- The range of the algebra homomorphism from `k[Sₙ]` equals `symGroupImage`. -/
+theorem symGroupAlgHom_range :
+    (symGroupAlgHom k V n).range = symGroupImage k V n := by
+  unfold symGroupAlgHom symGroupImage
+  apply le_antisymm
+  · -- range ⊆ adjoin: every element in range is in adjoin
+    rintro x ⟨f, rfl⟩
+    induction f using Finsupp.induction_linear with
+    | zero => exact Subalgebra.zero_mem _
+    | add f g hf hg => rw [map_add]; exact Subalgebra.add_mem _ hf hg
+    | single a b =>
+      change (MonoidAlgebra.lift k _ _ (symGroupMonoidHom k V n)) (Finsupp.single a b) ∈ _
+      rw [MonoidAlgebra.lift_single]
+      exact Subalgebra.smul_mem _
+        (Algebra.subset_adjoin (Set.mem_range.mpr ⟨a, by simp [symGroupMonoidHom]⟩)) _
+  · -- adjoin ⊆ range: each generator is in range, and range is a subalgebra
+    apply Algebra.adjoin_le
+    rintro x ⟨σ, rfl⟩
+    exact ⟨MonoidAlgebra.single σ 1, by
+      simp [MonoidAlgebra.lift_single, symGroupMonoidHom]⟩
+
 /-- The image of k[Sₙ] in End(V⊗ⁿ) is a semisimple ring.
 This follows from Maschke's theorem: the group algebra k[G] is
 semisimple when char(k) does not divide |G| (in char 0, always). -/
 instance symGroupImage_isSemisimpleRing
     [CharZero k] :
     IsSemisimpleRing (symGroupImage k V n) := by
-  sorry
+  rw [← symGroupAlgHom_range]
+  haveI : NeZero (Nat.card (Equiv.Perm (Fin n)) : k) := by
+    rw [Nat.card_perm, Nat.card_fin]
+    exact ⟨Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)⟩
+  exact (symGroupAlgHom k V n).toRingHom.rangeRestrict.isSemisimpleRing_of_surjective
+    (symGroupAlgHom k V n).toRingHom.rangeRestrict_surjective
 
 /-- V⊗ⁿ is a faithful module over symGroupImage when n ≤ dim V.
 Distinct permutations produce distinct operators on V⊗ⁿ when
@@ -123,7 +175,12 @@ there are enough linearly independent vectors. -/
 theorem symGroupImage_faithfulSMul
     (hN : n ≤ Module.finrank k V) :
     FaithfulSMul (symGroupImage k V n) (TensorPower k V n) := by
-  sorry
+  constructor
+  intro a b hab
+  apply Subtype.ext
+  apply LinearMap.ext
+  intro x
+  exact hab x
 
 /-- The centralizer of the symmetric group image equals the diagonal
 action image. This is the key content of Schur-Weyl duality:
