@@ -31,23 +31,153 @@ def Etingof.inducedCharacter {G : Type} [Group G] [Fintype G]
   fun g => (Fintype.card ↥H : ℂ)⁻¹ *
     ∑ x : G, if h : x⁻¹ * g * x ∈ H then χ ⟨x⁻¹ * g * x, h⟩ else 0
 
+open Classical in
+/-- Frobenius reciprocity for character inner products: for a class function f on G
+and a function χ on a subgroup H,
+  ∑_{g:G} f(g) · (Ind_H^G χ)(g⁻¹) = (|G|/|H|) · ∑_{h:H} f(↑h) · χ(h⁻¹)
+This is a direct computation from the Frobenius character formula:
+1. Expand Ind_H^G(χ)(g⁻¹) using the Frobenius formula
+2. Swap the double sum over G × G to G × G
+3. For each x, substitute h = x⁻¹g⁻¹x (bijection G → G restricting to H)
+4. Use that f is a class function: f(xh⁻¹x⁻¹) = f(h⁻¹)
+5. Factor out |G| from the sum over x. -/
+private lemma frobenius_char_reciprocity {G : Type} [Group G] [Fintype G]
+    (H : Subgroup G) (f : G → ℂ) (χ : ↥H → ℂ)
+    (hf : ∀ g x : G, f (x * g * x⁻¹) = f g) :
+    ∑ g : G, f g * Etingof.inducedCharacter H χ g⁻¹ =
+    (Fintype.card G : ℂ) * (Fintype.card ↥H : ℂ)⁻¹ *
+      ∑ h : ↥H, f ↑h * χ (h⁻¹) := by
+  -- Key lemma: for each x, the inner sum over g reindexes to a sum over H.
+  -- The bijection φ : G ≃ G, φ(k) = x * k⁻¹ * x⁻¹ sends k to g with x⁻¹g⁻¹x = k.
+  suffices inner_sum_eq : ∀ x : G,
+      ∑ g : G, f g * (if h : x⁻¹ * g⁻¹ * x ∈ H then χ ⟨x⁻¹ * g⁻¹ * x, h⟩ else 0) =
+      ∑ h : ↥H, f ↑h * χ (h⁻¹) by
+    -- Once we have inner_sum_eq, the main result follows by simple algebra
+    simp_rw [Etingof.inducedCharacter]
+    -- Goal: ∑ g, f g * (|H|⁻¹ * ∑ x, ite ...) = |G| * |H|⁻¹ * ∑ h, ...
+    -- Transform the LHS step by step
+    have lhs_eq : (∑ g : G, f g *
+        ((↑(Fintype.card ↥H))⁻¹ * ∑ x : G,
+          if h : x⁻¹ * g⁻¹ * x ∈ H then χ ⟨x⁻¹ * g⁻¹ * x, h⟩ else 0)) =
+      (↑(Fintype.card ↥H))⁻¹ * ∑ x : G, ∑ g : G,
+        f g * (if h : x⁻¹ * g⁻¹ * x ∈ H then χ ⟨x⁻¹ * g⁻¹ * x, h⟩ else 0) := by
+      -- Factor |H|⁻¹ and swap sums
+      conv_lhs => arg 2; ext g
+                  rw [mul_left_comm]
+      rw [← Finset.mul_sum]
+      congr 1
+      simp_rw [Finset.mul_sum]
+      exact Finset.sum_comm
+    rw [lhs_eq]
+    -- Now: |H|⁻¹ * ∑ x, ∑ g, f g * ite ... = |G| * |H|⁻¹ * ∑ h, ...
+    simp_rw [inner_sum_eq, Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+    ring
+  -- Now prove inner_sum_eq for each x
+  intro x
+  -- Step 1: Reindex via the bijection φ(k) = x * k⁻¹ * x⁻¹
+  -- Under this substitution: x⁻¹ * (φ k)⁻¹ * x = k, and f(φ k) = f(k⁻¹) (class function)
+  let φ : G ≃ G :=
+    { toFun := fun k => x * k⁻¹ * x⁻¹
+      invFun := fun g => x⁻¹ * g⁻¹ * x
+      left_inv := fun k => by group
+      right_inv := fun g => by group }
+  rw [← Equiv.sum_comp φ]
+  -- Goal: ∑ k, f (φ k) * ite(x⁻¹(φ k)⁻¹x ∈ H)(χ(x⁻¹(φ k)⁻¹x))(0) = ∑ h, f ↑h * χ h⁻¹
+  -- Simplify: x⁻¹(φ k)⁻¹x = k
+  have hsimp : ∀ k : G, x⁻¹ * (x * k⁻¹ * x⁻¹)⁻¹ * x = k := fun k => by group
+  simp_rw [show ∀ k : G, φ k = x * k⁻¹ * x⁻¹ from fun _ => rfl, hsimp]
+  -- Simplify: f(x * k⁻¹ * x⁻¹) = f(k⁻¹) (class function)
+  simp_rw [show ∀ k : G, f (x * k⁻¹ * x⁻¹) = f k⁻¹ from fun k => hf k⁻¹ x]
+  -- Goal: ∑ k, f k⁻¹ * ite(k ∈ H)(χ ⟨k, _⟩)(0) = ∑ h, f ↑h * χ h⁻¹
+  -- Step 2: Push f inside the dite, then convert to subtype sum
+  conv_lhs => arg 2; ext k; rw [show f k⁻¹ * (if h : k ∈ H then χ ⟨k, h⟩ else 0) =
+    if h : k ∈ H then f k⁻¹ * χ ⟨k, h⟩ else 0 by split_ifs <;> simp]
+  -- Goal: ∑ k:G, dite(k∈H)(f k⁻¹ χ ⟨k,_⟩)(0) = ∑ h:↥H, f ↑h χ h⁻¹
+  -- This is a standard identity: the G-sum with dite restricts to ↥H,
+  -- then reindexing h → h⁻¹ in H converts f(↑h)⁻¹ * χ(h) to f(↑h) * χ(h⁻¹).
+  -- The mathematical content is trivial; the remaining complexity is
+  -- matching Lean Fintype instances between {x // x ∈ H} and ↥H.
+  sorry
+
+open Classical in
+/-- Character completeness on subgroups: if a class function f on G, when restricted to
+a subgroup H, is orthogonal to all irreducible characters of H, then f vanishes on H.
+
+This follows from Theorem 4.2.1 applied to H: the restriction f|_H is a class function
+on H (since f is a class function on G and H is a subgroup), and characters of irreducible
+representations of H span all class functions on H. The orthogonality condition forces
+all Fourier coefficients to be zero, so f|_H = 0.
+
+Requires `[IsAlgClosed ℂ]` and `[Invertible (Fintype.card ↥H : ℂ)]` (both automatic
+over ℂ since it is algebraically closed with characteristic 0). -/
+private lemma class_fun_vanishes_on_subgroup_of_orthogonal
+    {G : Type} [Group G] [Fintype G]
+    (H : Subgroup G)
+    (f : G → ℂ) (hf_class : ∀ g x : G, f (x * g * x⁻¹) = f g)
+    (horth : ∀ (W : FDRep ℂ ↥H), CategoryTheory.Simple W →
+      ∑ h : ↥H, f ↑h * W.character (h⁻¹) = 0) :
+    ∀ h : ↥H, f ↑h = 0 := by
+  sorry
+
+/-- Trivial covering argument: if f vanishes on every subgroup in X and X covers G,
+then f vanishes on all of G. -/
+private lemma covering_implies_vanishing {G : Type} [Group G]
+    (X : Set (Subgroup G))
+    (hcov : ∀ g : G, ∃ H ∈ X, g ∈ H)
+    (f : G → ℂ)
+    (hvan : ∀ H ∈ X, ∀ h : ↥H, f ↑h = 0) :
+    f = 0 := by
+  ext g
+  obtain ⟨H, hH, hg⟩ := hcov g
+  exact hvan H hH ⟨g, hg⟩
+
+/-- Integer rank preservation for Artin's theorem (Remark 5.26.2):
+When X covers G, every irreducible character of G lies in the ℚ-span
+of induced characters from X.
+
+This combines:
+(a) The orthogonal complement argument: by `frobenius_char_reciprocity` +
+    `class_fun_vanishes_on_subgroup_of_orthogonal` + `covering_implies_vanishing`,
+    any class function orthogonal to all induced characters from X vanishes identically.
+    This shows the ℂ-span of induced characters = space of all class functions.
+(b) The integer rank argument (Remark 5.26.2): each induced character decomposes
+    as Ind_H^G(W) = ∑_V n_V · χ_V with n_V ∈ ℕ (multiplicities of irreducibles
+    in the induced representation). The decomposition matrix M has ℕ entries
+    and full rank over ℂ (from step (a)), hence full rank over ℚ (Cramer's rule:
+    det ∈ ℤ, cofactors ∈ ℤ). So each χ_V is a ℚ-linear combination of the
+    induced characters. -/
+private lemma artin_Q_span_of_induced_chars {G : Type} [Group G] [Fintype G]
+    (X : Set (Subgroup G))
+    (hX : ∀ H ∈ X, ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈ X)
+    (hcov : ∀ g : G, ∃ H ∈ X, g ∈ H)
+    -- The orthogonal complement of induced characters is trivial:
+    (horth_trivial : ∀ (f : G → ℂ),
+      (∀ g x : G, f (x * g * x⁻¹) = f g) →
+      (∀ H ∈ X, ∀ (W : FDRep ℂ ↥H),
+        ∑ g : G, f g * Etingof.inducedCharacter H W.character g⁻¹ = 0) →
+      f = 0)
+    (V : FDRep ℂ G) [CategoryTheory.Simple V] :
+    V.character ∈ Submodule.span ℚ
+      {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
+        f = Etingof.inducedCharacter H W.character} := by
+  sorry
+
 /-- Forward direction of Artin's theorem: if X covers G, every irreducible character
 is in the ℚ-span of induced characters from X.
 
 Proof outline (Etingof, Theorem 5.26.1):
-1. Let U be a virtual representation orthogonal to all Ind_H^G(V) for H ∈ X, V.
-2. By Frobenius reciprocity for characters:
-   ⟨χ_U, χ_{Ind_H^G V}⟩_G = (|G|/|H|) · ⟨χ_U|_H, χ_V⟩_H
-   So χ_U|_H is orthogonal to all irreducible characters of H.
-3. By character completeness (Theorem 4.2.1 applied to H), χ_U vanishes on H.
-4. Since X covers G, χ_U = 0 everywhere, so U = 0.
-5. This shows the ℂ-span of induced characters = all class functions.
-6. By Remark 5.26.2, the decomposition matrix has ℕ entries, so
-   rank over ℚ = rank over ℂ, giving ℚ-span ⊇ all irreducible characters.
+1. By `frobenius_char_reciprocity`: if f is orthogonal to all Ind_H^G(W), then
+   f|_H is orthogonal to all irreducible characters of H (up to a nonzero scalar).
+2. By `class_fun_vanishes_on_subgroup_of_orthogonal`: f vanishes on H.
+3. By `covering_implies_vanishing`: since X covers G, f vanishes on all of G.
+4. Steps 1-3 show the orthogonal complement of induced characters is trivial.
+5. By `artin_Q_span_of_induced_chars` (Remark 5.26.2): the ℚ-span of induced
+   characters contains all irreducible characters.
 
-Missing infrastructure:
-- Frobenius reciprocity for characters (direct computation, not yet in Mathlib)
-- Integer rank preservation: a matrix with ℕ entries that spans ℂ^n also spans ℚ^n -/
+Sorry status: 3 sorry'd helpers (`frobenius_char_reciprocity` has 1 sorry in a
+subtype conversion step, `class_fun_vanishes_on_subgroup_of_orthogonal`,
+`artin_Q_span_of_induced_chars`). `covering_implies_vanishing` is fully proved.
+The `artin_forward` proof itself is sorry-free given the helpers. -/
 private lemma artin_forward {G : Type} [Group G] [Fintype G]
     (X : Set (Subgroup G))
     (hX : ∀ H ∈ X, ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈ X)
@@ -56,7 +186,34 @@ private lemma artin_forward {G : Type} [Group G] [Fintype G]
     V.character ∈ Submodule.span ℚ
       {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
         f = Etingof.inducedCharacter H W.character} := by
-  sorry
+  apply artin_Q_span_of_induced_chars X hX hcov
+  -- Prove the orthogonal complement of induced characters is trivial
+  intro f hf_class hf_orth
+  -- Step 1: For each H ∈ X, f|_H is orthogonal to all irreducible chars of H
+  -- (by frobenius_char_reciprocity, the inner product is proportional)
+  -- Step 2: By class_fun_vanishes_on_subgroup_of_orthogonal, f vanishes on each H
+  have hvan : ∀ H ∈ X, ∀ h : ↥H, f ↑h = 0 := by
+    intro H hHX
+    apply class_fun_vanishes_on_subgroup_of_orthogonal H f hf_class
+    intro W hW
+    -- Need: ∑ h : ↥H, f ↑h * W.character (h⁻¹) = 0
+    -- From frobenius_char_reciprocity:
+    --   ∑ g : G, f g * (Ind_H^G χ_W)(g⁻¹) = (|G|/|H|) · ∑ h : ↥H, f ↑h * χ_W(h⁻¹)
+    -- The LHS = 0 by hf_orth. Since |G|/|H| ≠ 0, the RHS sum = 0.
+    classical
+    have hfrob := frobenius_char_reciprocity H f W.character hf_class
+    have hzero := hf_orth H hHX W
+    rw [hzero] at hfrob
+    -- hfrob : 0 = (|G| : ℂ) * (|H| : ℂ)⁻¹ * ∑ h, f ↑h * W.character (h⁻¹)
+    have hG_ne : (Fintype.card G : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+    have hH_ne : (Fintype.card ↥H : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+    have hcoeff_ne : (Fintype.card G : ℂ) * (Fintype.card ↥H : ℂ)⁻¹ ≠ 0 :=
+      mul_ne_zero hG_ne (inv_ne_zero hH_ne)
+    -- hfrob : 0 = coeff * ∑ h, ...
+    -- Need: ∑ h, ... = 0
+    exact mul_left_cancel₀ hcoeff_ne (by rw [mul_zero]; exact hfrob.symm)
+  -- Step 3: By covering, f = 0 on all of G
+  exact covering_implies_vanishing X hcov f hvan
 
 /-- The trivial representation of G on ℂ: every group element acts as the identity. -/
 private def trivialRep (G : Type) [Group G] : Representation ℂ G ℂ := 1
