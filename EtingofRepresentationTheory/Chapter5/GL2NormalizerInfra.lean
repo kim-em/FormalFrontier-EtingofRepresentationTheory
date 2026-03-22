@@ -512,17 +512,212 @@ private lemma Etingof.GL2.frobeniusMatrix_not_in_elliptic (hn : n ≠ 0)
   have hgt : p ^ (2 * n) > p ^ n := by nlinarith
   exact absurd (Nat.le_of_dvd (by omega) hdvd) (by omega)
 
-/-- Every element of the normalizer N_{GL₂}(K) is in K or in the Frobenius coset σK.
-This uses the trace/det argument: if g normalizes K and maps a non-scalar k = embed(α)
-to embed(β), then tr(embed(β)) = tr(embed(α)) and det(embed(β)) = det(embed(α)),
-so β satisfies the same minimal polynomial as α, giving β ∈ {α, α^q}. -/
+/-- In F_{q²}/F_q, there exists a unit α whose embedding is non-scalar (i.e., α ∉ F_q). -/
+private lemma Etingof.GL2.exists_nonscalar_elliptic (hn : n ≠ 0) :
+    ∃ α : (GaloisField p (2 * n))ˣ,
+      ¬GL2.IsScalar (p := p) (n := n) (Etingof.GL2.fieldExtEmbed p n α) := by
+  -- Not all elements of K ≅ F_{q²}× can be scalar (= in F_q×) since |F_{q²}×| > |F_q×|.
+  -- Scalar embed(α) means α ∈ F_q, but F_q ⊊ F_{q²} since [F_{q²}:F_q] = 2.
+  sorry
+
+/-- An element α is a root of the charpoly of its left multiplication matrix
+(Cayley-Hamilton through the algebra embedding). -/
+private lemma Etingof.GL2.isRoot_charpoly_leftMulMatrix (hn : n ≠ 0)
+    (α : GaloisField p (2 * n)) :
+    letI := Etingof.algebraGaloisFieldExt p n
+    letI := Etingof.scalarTowerGaloisField p n
+    haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+    let b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+      (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+    Polynomial.aeval α (Algebra.leftMulMatrix b α).charpoly = 0 := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  apply Algebra.leftMulMatrix_injective b
+  rw [map_zero, ← Polynomial.aeval_algHom_apply (Algebra.leftMulMatrix b)]
+  exact Matrix.aeval_self_charpoly _
+
+/-- Frobenius preserves roots of base-field polynomials. -/
+private lemma Etingof.GL2.frobenius_root_of_basefield_poly (hn : n ≠ 0)
+    [Fintype (GaloisField p n)]
+    (α : GaloisField p (2 * n))
+    (P : Polynomial (GaloisField p n))
+    (hroot : Polynomial.aeval α P = 0) :
+    Polynomial.aeval (α ^ Fintype.card (GaloisField p n)) P = 0 := by
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  haveI : Algebra.IsAlgebraic (GaloisField p n) (GaloisField p (2 * n)) :=
+    Algebra.IsAlgebraic.of_finite _ _
+  let φ := FiniteField.frobeniusAlgEquivOfAlgebraic
+    (GaloisField p n) (GaloisField p (2 * n))
+  have hφ_eq : ∀ x : GaloisField p (2 * n),
+      φ x = x ^ Fintype.card (GaloisField p n) := by
+    intro x; exact congrFun (FiniteField.coe_frobeniusAlgEquivOfAlgebraic _ _) x
+  have key : Polynomial.aeval (φ.toAlgHom α) P = 0 := by
+    rw [Polynomial.aeval_algHom_apply, hroot, map_zero]
+  convert key using 2
+
+/-- A degree-2 polynomial has at most 2 roots: any root equals one of two known distinct roots. -/
+private lemma Etingof.GL2.root_dichotomy_of_deg_two
+    {R F : Type*} [CommRing R] [Field F] [Algebra R F]
+    (P : Polynomial R) (hdeg : P.natDegree = 2)
+    (a b c : F) (ha : Polynomial.aeval a P = 0) (hb : Polynomial.aeval b P = 0)
+    (hc : Polynomial.aeval c P = 0) (hab : a ≠ b) :
+    c = a ∨ c = b := by
+  -- A degree-2 polynomial over a field has at most 2 roots.
+  -- Map to F[X], apply Polynomial.card_roots_le_degree.
+  sorry
+
+set_option maxHeartbeats 1600000 in
+/-- Every element of the normalizer N_{GL₂}(K) is in K or in the Frobenius coset σK. -/
 private lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2)
     [Fintype (GaloisField p n)]
     (g : GL2 p n) (hg : Etingof.GL2.isInNormalizer p n g) :
     g ∈ Etingof.GL2.ellipticSubgroup p n ∨
     ∃ α : (GaloisField p (2 * n))ˣ,
       g = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α := by
-  sorry
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  haveI : Algebra.IsAlgebraic (GaloisField p n) (GaloisField p (2 * n)) :=
+    Algebra.IsAlgebraic.of_finite _ _
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  have hembed : ∀ (u : (GaloisField p (2 * n))ˣ),
+      (Etingof.GL2.fieldExtEmbed p n u).val =
+      Algebra.leftMulMatrix b (u : GaloisField p (2 * n)) := by
+    intro u; simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; congr 1
+  -- Step 1: Find a non-scalar element of K
+  obtain ⟨α₀, hα₀_ns⟩ := Etingof.GL2.exists_nonscalar_elliptic p n hn
+  -- Step 2: g conjugates embed(α₀) into K
+  have hconj := hg (Etingof.GL2.fieldExtEmbed p n α₀) ⟨α₀, rfl⟩
+  obtain ⟨β, hβ⟩ := hconj
+  -- Step 3: charpoly is preserved by conjugation
+  set P := (Algebra.leftMulMatrix b (α₀ : GaloisField p (2 * n))).charpoly
+  have hcharpoly_eq : (Algebra.leftMulMatrix b (β : GaloisField p (2 * n))).charpoly = P := by
+    have hval : Algebra.leftMulMatrix b (β : GaloisField p (2 * n)) =
+        g.inv * Algebra.leftMulMatrix b (α₀ : GaloisField p (2 * n)) * g.val := by
+      have h1 := hembed β; have h2 := hembed α₀
+      rw [← h1, ← h2, hβ]; simp [Units.val_mul]
+    rw [hval]
+    exact Matrix.charpoly_units_conj' g _
+  -- Step 4: α₀ and β are roots of P, and α₀^q is also a root
+  have hα₀_root : Polynomial.aeval (α₀ : GaloisField p (2 * n)) P = 0 :=
+    Etingof.GL2.isRoot_charpoly_leftMulMatrix p n hn ↑α₀
+  have hβ_root : Polynomial.aeval (β : GaloisField p (2 * n)) P = 0 := by
+    rw [show P = (Algebra.leftMulMatrix b (β : GaloisField p (2 * n))).charpoly from
+      hcharpoly_eq.symm]
+    exact Etingof.GL2.isRoot_charpoly_leftMulMatrix p n hn ↑β
+  set q := Fintype.card (GaloisField p n)
+  have hαq_root : Polynomial.aeval ((α₀ : GaloisField p (2 * n)) ^ q) P = 0 :=
+    Etingof.GL2.frobenius_root_of_basefield_poly p n hn ↑α₀ P hα₀_root
+  -- Step 5: P has degree 2
+  have hdeg : P.natDegree = 2 := by
+    change (Algebra.leftMulMatrix b (↑α₀ : GaloisField p (2 * n))).charpoly.natDegree = 2
+    rw [Matrix.charpoly_natDegree_eq_dim]; simp [Fintype.card_fin]
+  -- Step 6: α₀ ≠ α₀^q (non-scalar ↔ α₀ ∉ F_q)
+  have hne : (α₀ : GaloisField p (2 * n)) ≠ (α₀ : GaloisField p (2 * n)) ^ q := by
+    -- α₀^q = α₀ would mean α₀ ∈ F_q, making embed(α₀) scalar, contradicting hα₀_ns
+    sorry
+  -- Step 7: β ∈ {α₀, α₀^q} by root dichotomy
+  have hβ_dichotomy : (β : GaloisField p (2 * n)) = ↑α₀ ∨
+      (β : GaloisField p (2 * n)) = (↑α₀ : GaloisField p (2 * n)) ^ q :=
+    Etingof.GL2.root_dichotomy_of_deg_two (F := GaloisField p (2 * n))
+      P hdeg (↑α₀) ((↑α₀) ^ q) (↑β) hα₀_root hαq_root hβ_root hne
+  -- Step 8: Case split
+  rcases hβ_dichotomy with hβ_eq_α | hβ_eq_αq
+  · -- Case β = α₀: g commutes with embed(α₀), so g ∈ K by centralizer theorem
+    left
+    have hβα : β = α₀ := Units.val_injective hβ_eq_α
+    rw [hβα] at hβ
+    -- hβ : fieldExtEmbed α₀ = g⁻¹ * fieldExtEmbed α₀ * g
+    have hcomm : g * Etingof.GL2.fieldExtEmbed p n α₀ =
+        Etingof.GL2.fieldExtEmbed p n α₀ * g := by
+      -- hβ : fieldExtEmbed α₀ = g⁻¹ * fieldExtEmbed α₀ * g
+      calc g * Etingof.GL2.fieldExtEmbed p n α₀
+          = g * (g⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * g) :=
+            congr_arg (g * ·) hβ
+        _ = Etingof.GL2.fieldExtEmbed p n α₀ * g := by group
+    exact Etingof.centralizer_nonscalar_elliptic p n hn
+      (Etingof.GL2.fieldExtEmbed p n α₀) ⟨α₀, rfl⟩ hα₀_ns g hcomm
+  · -- Case β = α₀^q: gσ⁻¹ centralizes embed(α₀), so gσ⁻¹ ∈ K, giving g ∈ σK
+    right
+    -- embed(β) = g⁻¹ embed(α₀) g = embed(α₀^q) = σ⁻¹ embed(α₀) σ
+    -- So (gσ⁻¹)⁻¹ embed(α₀) (gσ⁻¹) = embed(α₀)
+    -- i.e., gσ⁻¹ commutes with embed(α₀)
+    -- By centralizer theorem, gσ⁻¹ ∈ K
+    set σ := Etingof.GL2.frobeniusMatrix p n
+    -- β as a unit equals the Frobenius-applied unit
+    set α₀q_unit : (GaloisField p (2 * n))ˣ :=
+      ⟨(↑α₀ : GaloisField p (2 * n)) ^ q,
+       (↑α₀⁻¹ : GaloisField p (2 * n)) ^ q,
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, mul_inv_cancel₀ α₀.ne_zero],
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, inv_mul_cancel₀ α₀.ne_zero]⟩
+    have hβ_eq_αq_unit : β = α₀q_unit := Units.val_injective hβ_eq_αq
+    -- embed(α₀^q) = σ⁻¹ embed(α₀) σ (by frobeniusMatrix_conj)
+    have hfrob_conj := Etingof.GL2.frobeniusMatrix_conj p n hn α₀
+    -- So g⁻¹ embed(α₀) g = σ⁻¹ embed(α₀) σ
+    have hconj_eq : g⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * g =
+        σ⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * σ := by
+      have hfrob := Etingof.GL2.frobeniusMatrix_conj p n hn α₀
+      -- hfrob : frobeniusMatrix⁻¹ * embed(α₀) * frobeniusMatrix = embed(⟨α₀^q, ...⟩)
+      calc g⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * g
+          = Etingof.GL2.fieldExtEmbed p n β := hβ.symm
+        _ = Etingof.GL2.fieldExtEmbed p n α₀q_unit :=
+            congr_arg _ hβ_eq_αq_unit
+        _ = (Etingof.GL2.frobeniusMatrix p n)⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ *
+            Etingof.GL2.frobeniusMatrix p n := by
+          convert hfrob.symm using 2; exact Units.ext rfl
+    -- Therefore σg⁻¹ commutes with embed(α₀), or equivalently gσ⁻¹ commutes with embed(α₀)
+    have hcomm : g * σ⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ =
+        Etingof.GL2.fieldExtEmbed p n α₀ * (g * σ⁻¹) := by
+      -- From hconj_eq: g⁻¹ embed(α₀) g = σ⁻¹ embed(α₀) σ
+      -- Multiply left by g, right by σ⁻¹:
+      -- embed(α₀) g σ⁻¹ = g σ⁻¹ embed(α₀)
+      have := congr_arg (g * · * σ⁻¹) hconj_eq
+      simp only [] at this
+      rw [show g * (g⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * g) * σ⁻¹ =
+          Etingof.GL2.fieldExtEmbed p n α₀ * (g * σ⁻¹) from by group,
+        show g * (σ⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ * σ) * σ⁻¹ =
+          g * σ⁻¹ * Etingof.GL2.fieldExtEmbed p n α₀ from by group] at this
+      exact this.symm
+    -- gσ⁻¹ ∈ K
+    have hgσ_inv_mem : g * σ⁻¹ ∈ Etingof.GL2.ellipticSubgroup p n :=
+      Etingof.centralizer_nonscalar_elliptic p n hn
+        (Etingof.GL2.fieldExtEmbed p n α₀) ⟨α₀, rfl⟩ hα₀_ns (g * σ⁻¹) hcomm
+    -- g * σ⁻¹ = embed(γ) for some γ
+    obtain ⟨γ, hγ⟩ := hgσ_inv_mem
+    -- g = embed(γ) * σ = σ * embed(γ^q) (using σ embed(γ^q) = embed(γ) σ)
+    have hg_eq : g = Etingof.GL2.fieldExtEmbed p n γ * σ := by
+      calc g = g * σ⁻¹ * σ := by group
+        _ = Etingof.GL2.fieldExtEmbed p n γ * σ := by rw [hγ]
+    -- embed(γ) * σ = σ * embed(γ^q)
+    -- From frobeniusMatrix_conj: σ⁻¹ embed(γ) σ = embed(γ^q)
+    -- So embed(γ) = σ embed(γ^q) σ⁻¹, and embed(γ) σ = σ embed(γ^q)
+    set γq_unit : (GaloisField p (2 * n))ˣ :=
+      ⟨(↑γ : GaloisField p (2 * n)) ^ q,
+       (↑γ⁻¹ : GaloisField p (2 * n)) ^ q,
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, mul_inv_cancel₀ γ.ne_zero],
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, inv_mul_cancel₀ γ.ne_zero]⟩
+    refine ⟨γq_unit, ?_⟩
+    rw [hg_eq]
+    -- embed(γ) * σ = σ * embed(γ^q)
+    have hfrob_γ := Etingof.GL2.frobeniusMatrix_conj p n hn γ
+    -- hfrob_γ : σ⁻¹ embed(γ) σ = embed(γ^q)
+    -- σ * embed(γ^q) = σ * σ⁻¹ * embed(γ) * σ = embed(γ) * σ ✓
+    change Etingof.GL2.fieldExtEmbed p n γ * Etingof.GL2.frobeniusMatrix p n =
+      Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n γq_unit
+    calc Etingof.GL2.fieldExtEmbed p n γ * Etingof.GL2.frobeniusMatrix p n
+        = Etingof.GL2.frobeniusMatrix p n *
+          ((Etingof.GL2.frobeniusMatrix p n)⁻¹ * Etingof.GL2.fieldExtEmbed p n γ *
+           Etingof.GL2.frobeniusMatrix p n) := by group
+      _ = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n γq_unit := by
+          congr 1; convert hfrob_γ using 2; exact Units.ext rfl
 
 /-- The cardinality of the normalizer: |N_{GL₂}(K)| = 2|K|. -/
 lemma Etingof.GL2.normalizer_card (hn : n ≠ 0) (hp2 : p ≠ 2)
