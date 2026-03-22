@@ -876,7 +876,10 @@ private lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2
       _ = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n γq_unit := by
           congr 1; convert hfrob_γ using 2; exact Units.ext rfl
 
-/-- The cardinality of the normalizer: |N_{GL₂}(K)| = 2|K|. -/
+/-- The cardinality of the normalizer: |N_{GL₂}(K)| = 2|K|.
+  Proof sketch: N(K) = K ∪ σK (by `normalizer_mem_dichotomy`), the union is disjoint
+  (since σ ∉ K by `frobeniusMatrix_not_in_elliptic`), and |σK| = |K| by left-multiplication
+  bijection. -/
 lemma Etingof.GL2.normalizer_card (hn : n ≠ 0) (hp2 : p ≠ 2)
     [Fintype (GL2 p n)] [Fintype (Etingof.GL2.ellipticSubgroup p n)]
     [DecidablePred (Etingof.GL2.isInNormalizer p n)] :
