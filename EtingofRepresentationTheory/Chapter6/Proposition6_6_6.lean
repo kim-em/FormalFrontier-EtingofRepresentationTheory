@@ -498,6 +498,8 @@ private theorem Etingof.exact_of_dim
   -- Combine: finrank(A) = finrank(B) - finrank(C) = finrank(Φ'.ker)
   omega
 
+
+
 set_option maxHeartbeats 800000 in
 -- reason: finrank arithmetic with FiniteDimensional instances for reflectionFunctorPlus objects
 /-- The reflectionFunctorPlus object at vertex i is finite-dimensional. -/
@@ -708,13 +710,128 @@ private noncomputable def Etingof.equivAt_eq_sink
         --   finrank(ker sinkMap) + finrank(V_i) = finrank(⊕V_j) [rank-nullity]
         --   finrank(⊕V_j) = finrank(⊕ρ'.obj a.fst) [equivAt_ne + reindex]
         have hψ_inj : Function.Injective ψ := by
-          sorry
+          intro w₁ w₂ heq
+          rw [← sub_eq_zero]; set w := w₁ - w₂
+          have hψ_zero : ψ w = 0 := by rw [map_sub, sub_eq_zero.mpr heq]
+          -- Each component: (ψ w) a = mapLinear a.snd w = 0
+          have hcomp : ∀ a : @Etingof.ArrowsOutOf Q instR i,
+              @Etingof.QuiverRepresentation.mapLinear k Q _ instR ρ' i a.fst a.snd w = 0 := by
+            intro a
+            -- (ψ w) a = 0
+            have h₀ : (ψ w) a = 0 := by
+              have := congr_arg (· a) hψ_zero
+              simp only [DirectSum.zero_apply] at this
+              exact this
+            -- (ψ w) a = mapLinear a.snd w (by expanding ψ as sum of lof)
+            suffices hψa : (ψ w) a =
+                @Etingof.QuiverRepresentation.mapLinear k Q _ instR ρ' i a.fst a.snd w by
+              rw [← hψa]; exact h₀
+            -- ψ is let-bound; ψ w evaluates to ∑ b, lof(b)(mapLinear b.snd w)
+            -- Applying at index a extracts mapLinear a.snd w
+            have hψ_rfl : ψ = ∑ b : @Etingof.ArrowsOutOf Q instR i,
+                (DirectSum.lof k (@Etingof.ArrowsOutOf Q instR i)
+                  (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) b).comp
+                  (@Etingof.QuiverRepresentation.mapLinear k Q _ instR ρ' i b.fst b.snd) := rfl
+            rw [hψ_rfl, LinearMap.sum_apply]
+            simp only [LinearMap.comp_apply]
+            rw [DFinsupp.finset_sum_apply,
+              Finset.sum_eq_single a
+                (fun b _ hb => DFinsupp.single_eq_of_ne (Ne.symm hb))
+                (fun h => absurd (Finset.mem_univ a) h)]
+            exact DFinsupp.single_eq_same
+          -- Via reflFunctorPlus_mapLinear_eq_ne, all components of subtype(equivAt_eq w) are 0
+          haveI : Fintype (@Etingof.ArrowsInto Q inst i) :=
+            Fintype.ofEquiv _ (@Etingof.arrowReindexEquiv Q _ inst i hi)
+          -- Show the underlying ⊕V_j element of equivAt_eq(w) is 0
+          set ew := (@Etingof.reflFunctorPlus_equivAt_eq k _ Q _ inst i hi ρ) w
+          have hval_zero : (ew : DirectSum (@Etingof.ArrowsInto Q inst i)
+              (fun a => @Etingof.QuiverRepresentation.obj k Q _ inst ρ a.fst)) = 0 := by
+            apply DFinsupp.ext; intro b
+            let a := (@Etingof.arrowReindexEquiv Q _ inst i hi).symm b
+            have hne := @Etingof.arrowsOutReversed_ne Q _ inst i hi a
+            have hapi := @Etingof.reflFunctorPlus_mapLinear_eq_ne k _ Q _ inst i hi ρ
+              a.fst hne a.snd w
+            rw [hcomp a, map_zero] at hapi
+            have hb_eq : (⟨a.fst, @Etingof.reversedArrow_eq_ne Q _ inst i a.fst hne a.snd⟩ :
+                @Etingof.ArrowsInto Q inst i) = b :=
+              Equiv.apply_symm_apply (@Etingof.arrowReindexEquiv Q _ inst i hi) b
+            -- hapi : 0 = component(reindex(a))(subtype(ew))
+            -- Goal: ↑ew b = 0
+            -- Use hb_eq to transport: reindex(a) = b
+            simp only [DirectSum.zero_apply]
+            -- hapi says component(reindex a)(subtype(ew)) = 0
+            -- but reindex a = b (by hb_eq), so component(b)(...) = 0
+            -- The subtype coercion goes through inst, so use @
+            -- hapi says: component(reindex a)(subtype(ew)) = 0
+            -- Goal: ↑ew b = 0
+            -- reindex a = b (by hb_eq)
+            -- ↑ew b is DFinsupp eval at b, which equals component b (↑ew)
+            -- Use hapi with index transport
+            -- hapi : 0 = component(⟨a.fst,...⟩)(subtype(equivAt_eq w))
+            -- Goal: ↑ew b = 0, where ↑ew b = component b (↑ew)
+            -- Use hb_eq to substitute b with ⟨a.fst,...⟩ via ▸
+            exact hb_eq ▸ hapi.symm
+          have heq_zero : ew = 0 := Subtype.val_injective hval_zero
+          exact (@Etingof.reflFunctorPlus_equivAt_eq k _ Q _ inst i hi ρ).injective
+            (by change ew = _; rw [heq_zero, map_zero])
+        -- Prove hdim using abstract theorem to avoid instR/inst type class pollution
+        -- We need: finrank(ρ'.obj i) + finrank(ρ.obj i) = finrank(⊕ ρ'.obj a.fst)
+        -- Strategy: compute both sides as ℕ values, then use linarith
+        haveI : Fintype (@Etingof.ArrowsInto Q inst i) :=
+          Fintype.ofEquiv _ (@Etingof.arrowReindexEquiv Q _ inst i hi)
+        -- Module.Free instances for ρ' objects
+        haveI : ∀ a : @Etingof.ArrowsOutOf Q instR i,
+            Module.Free k (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) :=
+          fun a => Module.Free.of_equiv
+            (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst
+              (@Etingof.arrowsOutReversed_ne Q _ inst i hi a)).symm
+        haveI : Module.Free k (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i) :=
+          Module.Free.of_equiv
+            (@Etingof.reflFunctorPlus_equivAt_eq k _ Q _ inst i hi ρ).symm
         have hdim : Module.finrank k
               (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i) +
             Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ inst ρ i) =
             Module.finrank k (DirectSum (@Etingof.ArrowsOutOf Q instR i)
               (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)) := by
-          sorry
+          -- Assign finranks to ℕ variables to isolate from instR synthesis
+          set d1 := Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i)
+          set d2 := Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ inst ρ i)
+          set d3 := Module.finrank k (DirectSum (@Etingof.ArrowsOutOf Q instR i)
+            (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst))
+          -- d3 = ∑ finrank(ρ'.obj a.fst) via finrank_directSum
+          have heq3a : d3 = ∑ a : @Etingof.ArrowsOutOf Q instR i,
+              Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) :=
+            Module.finrank_directSum (R := k) _
+          -- each component: finrank(ρ'.obj a.fst) = finrank(ρ.obj a.fst)
+          have heq3b : ∀ a : @Etingof.ArrowsOutOf Q instR i,
+              Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) =
+              Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ inst ρ a.fst) :=
+            fun a => LinearEquiv.finrank_eq
+              (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst
+                (@Etingof.arrowsOutReversed_ne Q _ inst i hi a))
+          -- d3 = ∑ finrank(ρ.obj a.fst) via equivAt_ne
+          have heq3 : d3 = ∑ a : @Etingof.ArrowsOutOf Q instR i,
+              Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ inst ρ a.fst) := by
+            rw [heq3a]; exact Finset.sum_congr rfl (fun a _ => heq3b a)
+          -- Re-register inst as the active Quiver Q instance to avoid instR pollution
+          letI : Quiver Q := inst
+          -- d1 = finrank(ker sinkMap) via equivAt_eq
+          have heq1 : d1 = Module.finrank k ↥(LinearMap.ker (ρ.sinkMap i)) :=
+            LinearEquiv.finrank_eq (@Etingof.reflFunctorPlus_equivAt_eq k _ Q _ inst i hi ρ)
+          -- Now rank-nullity and surjectivity can be stated cleanly
+          have h_rn := (ρ.sinkMap i).finrank_range_add_finrank_ker
+          have h_surj : Module.finrank k ↥(ρ.sinkMap i).range = d2 := by
+            rw [LinearMap.range_eq_top.mpr hsurj, finrank_top]
+          have h_ds := Module.finrank_directSum (R := k)
+            (fun a : @Etingof.ArrowsInto Q inst i => ρ.obj a.fst)
+          -- reindex sum: ∑ over ArrowsOutOf instR i = ∑ over ArrowsInto inst i
+          -- Since (arrowReindexEquiv hi a).fst = a.fst definitionally
+          have h_reindex : ∑ a : @Etingof.ArrowsOutOf Q instR i,
+              Module.finrank k (ρ.obj a.fst) =
+              ∑ b : @Etingof.ArrowsInto Q inst i, Module.finrank k (ρ.obj b.fst) :=
+            (@Etingof.arrowReindexEquiv Q _ inst i hi).bijective.sum_comp
+              (fun b => Module.finrank k (ρ.obj b.fst))
+          linarith [heq1, heq3, h_rn, h_surj, h_ds, h_reindex]
         exact (Etingof.exact_of_dim hfwd hΦsurj hψ_inj hdim).ge
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
@@ -738,6 +855,7 @@ private theorem Etingof.reversedArrow_ne_ne_is_cast
   intro e; rfl
 
 set_option maxHeartbeats 1600000 in
+-- reason: double-reversal cast simplification through Decidable.casesOn
 private theorem Etingof.reversedArrow_ne_ne_twice
     {Q : Type*} [inst_dec : DecidableEq Q] [inst : Quiver Q]
     {i : Q} {a b : Q} (ha : a ≠ i) (hb : b ≠ i)
