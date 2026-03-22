@@ -23,9 +23,11 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
 1. **Check Known Dead-Ends.** Scan the "Known Dead-Ends" section below. If your proof requires any of these patterns, sorry it immediately and move on:
    - ExteriorAlgebra ↔ PiTensorProduct bridging
    - `if`-branching `obj` fields in QuiverRepresentation-like structures
-   - `Decidable.casesOn` map compatibility in `reflectionFunctorPlus` proofs
-   - `reflFunctorPlus_mapLinear_ne_ne` / `reflFunctorMinus_mapLinear_ne_ne` API (missing; needed for reflection functor naturality in the ne/ne case, blocked by dependent type transport through nested Decidable.casesOn — see Prop6_6_6 and Prop6_6_7)
+   - `Decidable.casesOn` **composition** (double round-trip) in `reflectionFunctorPlus`/`Minus` proofs — the composition F⁻(F⁺(V)) creates types Lean can't reduce through. **Note:** Individual arrow-level helper lemmas (e.g., `reversedArrow_ne_ne_is_cast`, `reversedArrow_ne_ne_twice`) ARE provable using `eqRec_heq_self` and `Subsingleton.elim` patterns (see HEq section below). The dead-end is the full Sigma-level round-trip, not individual components.
+   - `reflFunctorPlus_mapLinear_ne_ne` / `reflFunctorMinus_mapLinear_ne_ne` API (missing; needed for reflection functor naturality in the ne/ne case)
    - Definition-level `sorry : Type` for `AlgIrrepGL` (requires concrete Schur module + determinant twist implementation; 9 sorries in Theorem5_23_2 depend on this)
+   - Nilpotent operator structure theorem (cyclic decomposition / Jordan chains) — not in Mathlib, blocks Problem6_9_1. Would require ~100-200 line development.
+   - Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1). Would require ~500 lines of new theory.
 
 2. **Search for existing definitions.** Before defining any concept, search the codebase:
    ```bash
@@ -547,30 +549,35 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 24+)
+## Endgame Priorities (Wave 27+)
 
-With 81 sorries remaining across 27 files (35.3% sorry-free), the remaining work is concentrated in hard items. Priority tiers for the endgame:
+With 75 sorries remaining across 28 files (96.1% items sorry-free, 89% files sorry-free), the remaining work is concentrated in hard items. See `progress/sorry-landscape.md` for the full tier analysis.
 
-**Tier 1 — Most Tractable (attempt first):**
-- Ch2 Theorem2_1_1 (Casimir eigenspace decomposition, 1 sorry) — infrastructure recently merged (#1512, #1522)
-- Ch5 FRTHelpers induction step (1 sorry) — straightforward completion
-- Ch6 Dn_count (root count, 1 sorry) — claimed, in progress
+**Tier 1 — Most Tractable (2 sorries):**
+- Ch2 Theorem2_1_1 (sl(2) complete reducibility, 1 sorry) — infrastructure from #1542, #1544
+- Ch5 Theorem5_15_1 (alternating Kostka identity, 1 sorry) — last sorry for entire Frobenius character formula. Issue #1580 describes the norm-squared approach.
 
-**Tier 2 — Medium Effort (infrastructure exists or nearly ready):**
-- Ch5 Lemma5_25_3 elliptic sum (2 sorries) — blocked on normalizer (#1517), but well-decomposed
-- Ch9 Corollary9_7_3 (3 sorries) — partially unblocked (#1509 merged), needs Morita structural (#1510 replan)
-- Ch5 Theorem5_15_1 (2 sorries) — hook length formula, hardest rearrangement sorries
+**Tier 2 — Hard but Tractable (16 sorries):**
+- Ch5 Lemma5_25_3 (1 sorry) — GL₂ normalizer cardinality remaining
+- Ch6 Theorem_Dynkin_classification (6 sorries) — arm extraction and exceptional type cases
+- Ch6 Proposition6_6_6 (4 sorries) — reflection functor round-trip, Decidable.casesOn partially mitigated
+- Ch6 Problem6_9_1 (1 sorry) — nilpotent structure theorem needed
+- Ch5 Proposition5_21_1 (2 sorries), Proposition5_22_2 (1 sorry) — Schur polynomial character formulas
 
-**Tier 3 — High Effort (needs new infrastructure):**
-- Ch6 Proposition6_6_6/6_6_7 (7 sorries) — blocked on Decidable.casesOn type transport (known dead-end)
-- Ch9 Theorem9_2_1 parts ii+iii (6 sorries) — needs block-module correspondence + Nakayama
-- Ch5 Theorem5_23_2 (9 sorries) — needs concrete AlgIrrepGL definition
+**Tier 3 — Infrastructure-Blocked (~40 sorries):**
+- SchurModule cluster (~20 sorries across 4 files) — concrete definition needed
+- Gabriel theorem cluster (~10 sorries) — blocked on Prop6_6_6
+- Ch9 finite-dimensional algebras (5 sorries) — Morita/Nakayama infrastructure
+- Theorem5_25_2 principal series (6 sorries) — sorry pushed to helpers, character computation needed
+- Theorem5_26_1 Artin's theorem (4 sorries) — forward direction helpers decomposed
 
-**Tier 4 — Major theorems, need full strategy:**
-- Ch5 Theorem5_25_2 principal series (5 sorries) — irreducibility/classification
-- Ch6 Dynkin classification (6 sorries) — combinatorial + algebraic case analysis
+**Tier 4 — Deep Blockers (~17 sorries):**
+- Mackey machine Theorem5_27_1 (5 sorries) — needs ~500 lines Clifford theory
+- GL₂ classification residual (6 sorries) — substantial character computation helpers
+- Gabriel classification residual (2 sorries in Ch2) — depends on Ch6 chain
+- Morita/Basic algebra infrastructure (3 sorries)
 
-**Key endgame insight:** Ch2 closure is within reach (3 sorries, 2 files). Closing Ch2 would bring 6/10 chapters to 100%. This is the highest-value target for chapter closure.
+**Key endgame insight:** The decomposition strategy (pushing sorry from theorems into helpers) is the dominant value-creation pattern. Many theorem files now have complete proof terms with sorry only in isolated helpers. Prioritize this pattern over heroic attempts at hard sorries.
 
 ## Type-Level If/Else Diamond Issue
 
@@ -797,6 +804,98 @@ define both conversion directions in the SAME file as the type definition, or us
 3. **Test with small examples** — if the strategy says "by counting" or "by cancellation", check on a 2×2 or 3×3 case
 
 **Evidence:** The alternating Kostka delta identity issue claimed "all non-rev terms vanish individually" — true only for λ=ν, not in general. The hook quotient identity was estimated at difficulty 2/3 but required 3 fundamentally different approaches before being decomposed into 4 sub-issues.
+
+## Statement Correctness: Common Missing Hypotheses
+
+Multiple sessions were wasted proving statements that turned out to be false due to missing hypotheses. Check for these **before** attempting the proof:
+
+| Missing Hypothesis | Symptom | Example |
+|-------------------|---------|---------|
+| `[IsAlgClosed k]` | Classification/uniqueness fails | Corollary9_7_3 needed algebraic closure for basic algebra existence |
+| `[IsBasicAlgebra A]` | Morita equivalence `B ≅ eAe` fails without basic assumption | MoritaStructural was false without this |
+| `[CharZero k]` | Averaging/Reynolds operator arguments fail | Theorem5_18_4 `symGroupImage_faithful` needed char 0 |
+| `Module.Finite k V` | Finite-dimensionality needed for rank-nullity | MoritaStructural needed explicit finiteness |
+| Orientation constraints | Sink/source confusion in quiver proofs | Prop6_6_6 sink vs source cases |
+
+**Pattern:** If a proof fails at a fundamental level (not a tactic issue but a mathematical impossibility) after 1 serious attempt, **suspect a statement bug**. Check the book's hypotheses carefully before trying more proof strategies.
+
+## Sorry-to-Helper Extraction Pattern (Endgame)
+
+The dominant value-creation pattern in the endgame. Instead of trying to prove a hard sorry directly, extract it into a well-documented helper lemma.
+
+**When to use:** Any sorry that has resisted 2+ attempts, or any theorem with 3+ sorries where the proof structure is unclear.
+
+**Pattern:**
+```lean
+-- BEFORE: monolithic sorry
+theorem main_result : conclusion := by sorry
+
+-- AFTER: structured proof with isolated helper sorries
+private lemma helper_1 : intermediate_fact_1 := sorry
+private lemma helper_2 : intermediate_fact_2 := sorry
+
+theorem main_result : conclusion := by
+  have h1 := helper_1
+  have h2 := helper_2
+  exact final_combination h1 h2
+```
+
+**Why this is high-value:**
+1. The main theorem file now has a complete proof term — only helpers are sorry'd
+2. Each helper sorry is independently claimable by a future agent
+3. The proof structure documents exactly what's needed, reducing onboarding time
+4. Partial progress is visible and committable
+
+**Evidence (waves 25-27):**
+- Theorem5_25_2: parts 1, 2, 3a proved; sorry isolated in 6 helpers (#1545, #1562)
+- Theorem5_26_1: forward direction decomposed into helper lemmas (#1568, #1569)
+- Theorem9_2_1: sorry decomposed into targeted sub-goals (#1567)
+- Corollary9_7_3: sorry pushed to infrastructure files (#1560)
+
+**Infrastructure absorption pattern:** When helper lemmas are reusable across theorems, extract them into dedicated infrastructure files (e.g., `Infrastructure/BasicAlgebraExistence.lean`, `Infrastructure/MoritaStructural.lean`). This cleanly separates mathematical infrastructure from theorem proofs.
+
+## MonoidAlgebra.lift Pattern for Group Algebra Homomorphisms
+
+When constructing algebra homomorphisms out of `MonoidAlgebra k G`, use `MonoidAlgebra.lift`:
+
+```lean
+-- MonoidAlgebra.lift : (G →* A) → (MonoidAlgebra k G →ₐ[k] A)
+-- Given a group hom f : G →* A, lift it to an algebra hom
+def myAlgHom : MonoidAlgebra k G →ₐ[k] A :=
+  MonoidAlgebra.lift k G A f
+```
+
+**Key insight:** Don't try to define algebra homs on `MonoidAlgebra` by working with `Finsupp` directly. `MonoidAlgebra.lift` is the universal property and handles all the algebraic structure automatically.
+
+**Companion pattern:** Use `Finsupp.induction_linear` (cases: zero, add, single) instead of `Finsupp.induction` when proving properties of `MonoidAlgebra` elements. The `induction_linear` variant is easier because it doesn't require tracking a `not_mem_support` hypothesis.
+
+## HEq and eqRec Patterns for Dependent Type Transport
+
+When working with dependent types where direct `rw` fails (common in reflection functor proofs):
+
+### Pattern: `eqRec_heq_self` with field projection motive
+
+When you need to show that transporting a value along a proof and then projecting a field gives the same result:
+
+```lean
+-- When goal involves: (Eq.rec x proof).field = x.field
+-- Use eqRec_heq_self to get HEq between the transported and original value
+have : HEq (Eq.rec x proof) x := eqRec_heq_self proof x
+-- Then use field projection congruence
+exact heq_of_field_projection this
+```
+
+### Pattern: `Subsingleton.elim` for Decidable proof irrelevance
+
+When two `Decidable` instances block definitional equality:
+
+```lean
+-- When inst₁ inst₂ : Decidable P appear in the goal and prevent reduction
+have : inst₁ = inst₂ := Subsingleton.elim _ _
+subst this  -- Now only one instance, and dif_pos/dif_neg can reduce
+```
+
+This was critical for the `reversedArrow_ne_ne_twice` proof in Prop6_6_6 (#1561).
 
 If the issue's strategy doesn't work after verification, **update the issue comment** with your findings before trying alternative approaches. This saves the next agent from repeating your investigation.
 

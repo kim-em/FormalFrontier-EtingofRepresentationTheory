@@ -14,11 +14,16 @@ The priority order in the worker skill still applies — check for PR-fix issues
 
 ## Executing Implementation Work
 
-Follow the plan's deliverables. For new implementations, follow the development
-cycle described in the project's CLAUDE.md.
+Follow the plan's deliverables. For proof work items, follow the pre-flight
+checklist in the `lean-formalization` skill before starting.
 
 After each coherent chunk of changes, build, test, and commit following the
 project's conventions. Each commit must compile and pass tests.
+
+**Endgame strategy:** If stuck after 2 serious attempts on a sorry, extract it
+into a well-documented helper lemma and commit the structured proof. This is
+high-value work — see "Sorry-to-Helper Extraction Pattern" in the
+lean-formalization skill.
 
 ## Reflect
 
