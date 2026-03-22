@@ -902,9 +902,100 @@ private lemma exists_complement_of_irreducible_quotient (d : ℕ) :
   · -- C - c_irr is injective on N: Casimir eigenspace complement
     exact casimir_eigenspace_complement N c_irr hInj hImg
   · -- C - c_irr is NOT injective on N.
-    -- This means ker(C - c_irr) ∩ N ≠ 0, i.e., N has an eigenvector for C with eigenvalue c_irr.
-    -- The hard case: requires weight-space arguments or alternative splitting strategy.
-    sorry
+    -- Sub-case: is C = c_irr on ALL of N AND c_irr = 0?
+    by_cases hc_zero : c_irr = 0 ∧ ∀ v ∈ N.toSubmodule, sl2_casimir v = c_irr • v
+    · -- c_irr = 0 and C = 0 on all of N: trivial action argument
+      have hc := hc_zero.1
+      have hAllN := hc_zero.2
+      simp only [hc, zero_smul, sub_zero] at hImg hAllN hQ_casimir ⊢
+      -- sl₂ acts trivially on N
+      have hN_triv : ∀ (x : sl2) (v : ↥N), ⁅x, (v : V)⁆ = 0 := by
+        have hCN : ∀ w : ↥N, sl2_casimir (V := ↥N) w = 0 := by
+          intro w; apply Subtype.val_injective
+          simp only [ZeroMemClass.coe_zero, sl2_casimir, LinearMap.add_apply,
+            LinearMap.smul_apply, sq, Module.End.mul_apply,
+            LieModule.toEnd_apply_apply]
+          exact hAllN w.val w.property
+        have := sl2_trivial_action_of_trivial_subquotients (fun _ v => hCN v)
+        intro x w
+        have h1 := this x w
+        rw [← LieSubmodule.coe_bracket]; simp [h1]
+      -- sl₂ maps V into N (quotient is trivial since C = 0 on V/N)
+      have hQ_triv : ∀ (x : sl2) (v : V), (⁅x, v⁆ : V) ∈ N := by
+        -- C = 0 on V/N (since c_irr = 0), so sl₂ acts trivially on V/N
+        have hCQ : ∀ w : V ⧸ N, sl2_casimir (V := V ⧸ N) w = 0 := by
+          intro w; have := hQ_casimir w; simp [hc] at this; exact this
+        have hQ_act := sl2_trivial_action_of_trivial_subquotients (fun _ v => hCQ v)
+        intro x v
+        have h1 := hQ_act x (LieSubmodule.Quotient.mk' N v)
+        rw [← (LieSubmodule.Quotient.mk' N).map_lie] at h1
+        rwa [LieSubmodule.Quotient.mk_eq_zero] at h1
+      -- By perfectness, sl₂ acts trivially on V
+      have htriv := sl2_acts_trivially_of_quotient_and_sub N hN_triv hQ_triv
+      exact (complementedLattice_of_trivial_action htriv).exists_isCompl N
+    · -- Either c_irr ≠ 0, or C ≠ c_irr on some part of N.
+      -- These cases require weight-space arguments or eigenspace decomposition of N.
+      sorry
+
+/-- Helper: If W ∩ N = ⊥ in V with W an atom (irreducible), then N has a complement in V,
+given that all strictly smaller-dimensional modules are completely reducible. -/
+private lemma complement_case_disjoint.{u} (d : ℕ)
+    (ih : ∀ d' < d, ∀ (W : Type u) [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+      [LieRingModule sl2 W] [LieModule ℂ sl2 W],
+      finrank ℂ W ≤ d' → ComplementedLattice (LieSubmodule ℂ sl2 W))
+    {V : Type u} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
+    (hd : finrank ℂ V ≤ d)
+    (N W : LieSubmodule ℂ sl2 V) (hN_ne_bot : N ≠ ⊥) (hW_atom : IsAtom W) (hWN : W ⊓ N = ⊥) :
+    ∃ S : LieSubmodule ℂ sl2 V, IsCompl N S := by
+  -- V/W has smaller dimension
+  have hW_ne_bot := hW_atom.1
+  have hW_pos : 0 < finrank ℂ (W : Submodule ℂ V) := by
+    have : Nontrivial W := (LieSubmodule.nontrivial_iff_ne_bot ℂ sl2 (M := V)).mpr hW_ne_bot
+    exact Module.finrank_pos (R := ℂ)
+  have hVW_lt : finrank ℂ (V ⧸ W) < finrank ℂ V := by
+    have h1 := Submodule.finrank_quotient_add_finrank W.toSubmodule
+    have h2 : finrank ℂ (V ⧸ W) = finrank ℂ (V ⧸ W.toSubmodule) := rfl
+    omega
+  -- By induction, V/W is completely reducible
+  have hVW_compl : ComplementedLattice (LieSubmodule ℂ sl2 (V ⧸ W)) :=
+    ih (finrank ℂ (V ⧸ W)) (by omega) (V ⧸ W) (le_refl _)
+  set π := LieSubmodule.Quotient.mk' W
+  -- Image of N in V/W and its complement
+  obtain ⟨S_bar, hS_bar⟩ := hVW_compl.exists_isCompl (LieSubmodule.map π N)
+  -- Pull back S_bar to V
+  refine ⟨LieSubmodule.comap π S_bar, ?_⟩
+  rw [← LieSubmodule.isCompl_toSubmodule]
+  constructor
+  · -- Disjoint: N ∩ comap π S_bar = ⊥
+    rw [disjoint_iff_inf_le]
+    intro v ⟨hvN, hvS⟩
+    have hvS' : π v ∈ S_bar := hvS
+    have hvNbar : π v ∈ LieSubmodule.map π N :=
+      LieSubmodule.mem_map_of_mem (N := N) hvN
+    have hπv0 : π v = 0 := by
+      have : (π v : V ⧸ W) ∈ (LieSubmodule.map π N ⊓ S_bar : LieSubmodule ℂ sl2 (V ⧸ W)) :=
+        ⟨hvNbar, hvS'⟩
+      rw [hS_bar.inf_eq_bot, LieSubmodule.mem_bot] at this
+      exact this
+    have hv_W : (v : V) ∈ (W : LieSubmodule ℂ sl2 V) := by
+      rwa [LieSubmodule.Quotient.mk_eq_zero] at hπv0
+    have : (v : V) ∈ (W ⊓ N : LieSubmodule ℂ sl2 V) := ⟨hv_W, hvN⟩
+    rw [hWN, LieSubmodule.mem_bot] at this
+    exact Submodule.mem_bot ℂ |>.mpr this
+  · -- Codisjoint: N ⊔ comap π S_bar = ⊤
+    rw [codisjoint_iff, eq_top_iff]
+    intro v _
+    have hv_top : π v ∈ (⊤ : LieSubmodule ℂ sl2 (V ⧸ W)) := LieSubmodule.mem_top _
+    rw [← hS_bar.sup_eq_top, LieSubmodule.mem_sup] at hv_top
+    obtain ⟨a, ha, b, hb, hab⟩ := hv_top
+    rw [LieSubmodule.mem_map] at ha
+    obtain ⟨n, hn, rfl⟩ := ha
+    have hvn : v - n ∈ (LieSubmodule.comap π S_bar : LieSubmodule ℂ sl2 V) := by
+      show π (v - n) ∈ S_bar
+      rw [map_sub, ← hab, add_sub_cancel_left]
+      exact hb
+    exact Submodule.mem_sup.mpr ⟨n, hn, v - n, hvn, by abel⟩
 
 /-- Helper: If W ⊆ N ⊆ V with W an atom (irreducible), then N has a complement in V,
 given that all strictly smaller-dimensional modules are completely reducible. -/
@@ -963,10 +1054,90 @@ private lemma complement_case_sub.{u} (d : ℕ)
     exact ⟨n, hn, v - n, hvn, rfl⟩
   -- Case split: N = W or W < N
   by_cases hNW : N = W
-  · -- N is an atom (irreducible submodule).
-    -- This requires finding complement of an atom, which needs
-    -- exists_complement_of_irreducible_quotient or a direct argument.
-    sorry
+  · -- N is an atom (irreducible submodule). Reduce to finding a disjoint atom.
+    rw [hNW]
+    by_cases hirr : LieModule.IsIrreducible ℂ sl2 (V ⧸ W)
+    · -- V/W irreducible: use the splitting lemma directly
+      exact exists_complement_of_irreducible_quotient d hd W (hNW ▸ hN_ne_top) hirr ih
+    · -- V/W not irreducible: find an atom W' disjoint from W
+      haveI : Nontrivial (V ⧸ W) := by
+        rw [← not_subsingleton_iff_nontrivial]; intro hs
+        exact (hNW ▸ hN_ne_top) (by
+          rw [eq_top_iff]; intro v _
+          have := Subsingleton.elim (LieSubmodule.Quotient.mk' W v) 0
+          rwa [LieSubmodule.Quotient.mk_eq_zero] at this)
+      -- V/W has a proper nonzero submodule (not irreducible)
+      have hnotirr : ¬∀ S : LieSubmodule ℂ sl2 (V ⧸ W), S = ⊥ ∨ S = ⊤ := by
+        intro hall; exact hirr (LieModule.IsIrreducible.mk (fun S hS => (hall S).resolve_left hS))
+      push_neg at hnotirr
+      obtain ⟨S_bar, hS_ne_bot, hS_ne_top⟩ := hnotirr
+      -- Pull back S_bar to get E with W ⊊ E ⊊ V
+      set E := LieSubmodule.comap π S_bar
+      have hW_le_E : W ≤ E := fun w hw => by
+        show π w ∈ S_bar
+        rw [(LieSubmodule.Quotient.mk_eq_zero (N := W)).mpr hw]; exact S_bar.zero_mem
+      have hE_ne_top : (E : LieSubmodule ℂ sl2 V) ≠ ⊤ := by
+        intro h; apply hS_ne_top; rw [eq_top_iff]; intro v _
+        obtain ⟨v₀, rfl⟩ := LieSubmodule.Quotient.surjective_mk' W v
+        exact (h ▸ LieSubmodule.mem_top v₀ : v₀ ∈ E)
+      have hW_ne_E : W ≠ E := by
+        intro h; apply hS_ne_bot; rw [eq_bot_iff]; intro v hv
+        obtain ⟨v₀, rfl⟩ := LieSubmodule.Quotient.surjective_mk' W v
+        have : v₀ ∈ E := hv
+        rw [← h] at this
+        rw [LieSubmodule.mem_bot]
+        exact (LieSubmodule.Quotient.mk_eq_zero (N := W)).mpr this
+      have hW_lt_E : W < E := lt_of_le_of_ne hW_le_E hW_ne_E
+      -- dim E < dim V
+      have hE_lt : finrank ℂ (E : Submodule ℂ V) < finrank ℂ V := by
+        have h1 : E.toSubmodule ≠ ⊤ := by
+          intro h; apply hE_ne_top
+          rw [eq_top_iff]; intro v _
+          show v ∈ E.toSubmodule; rw [h]; trivial
+        have h2 := Submodule.finrank_lt_finrank_of_lt (lt_top_iff_ne_top.mpr h1)
+        rwa [finrank_top] at h2
+      -- E is completely reducible by ih
+      have hE_compl : ComplementedLattice (LieSubmodule ℂ sl2 E) :=
+        ih (finrank ℂ (E : Submodule ℂ V)) (by omega) E le_rfl
+      -- W inside E
+      set W_E := LieSubmodule.comap (E : LieSubmodule ℂ sl2 V).incl W
+      -- W_E ≠ ⊤ (since W ⊊ E)
+      have hW_E_ne_top : W_E ≠ ⊤ := by
+        intro h; exact absurd (le_antisymm (fun v hv => by
+          have : (⟨v, hv⟩ : E) ∈ W_E := h ▸ LieSubmodule.mem_top _
+          exact this) hW_le_E) (ne_of_lt hW_lt_E).symm
+      -- Get complement of W_E in E
+      obtain ⟨C_E, hC_E⟩ := hE_compl.exists_isCompl W_E
+      have hC_E_ne_bot : C_E ≠ ⊥ := by
+        intro h; exact hW_E_ne_top (by rw [← hC_E.sup_eq_top, h, sup_bot_eq])
+      -- Map C_E to V
+      set C_V := LieSubmodule.map (E : LieSubmodule ℂ sl2 V).incl C_E
+      -- C_V ⊓ W = ⊥
+      have hC_V_disj : C_V ⊓ W = ⊥ := by
+        rw [eq_bot_iff]; intro v ⟨hvC, hvW⟩
+        have hvC' : v ∈ (C_V : LieSubmodule ℂ sl2 V) := hvC
+        rw [LieSubmodule.mem_map] at hvC'
+        obtain ⟨c, hc, rfl⟩ := hvC'
+        have hcW : c ∈ W_E := hvW
+        have : c ∈ (W_E ⊓ C_E : LieSubmodule ℂ sl2 E) := ⟨hcW, hc⟩
+        rw [hC_E.inf_eq_bot, LieSubmodule.mem_bot] at this
+        simp [this]
+      -- C_V ≠ ⊥
+      have hC_V_ne_bot : C_V ≠ ⊥ := by
+        intro h; apply hC_E_ne_bot; rw [eq_bot_iff]; intro c hc
+        have : (E : LieSubmodule ℂ sl2 V).incl c ∈ C_V :=
+          LieSubmodule.mem_map_of_mem hc
+        rw [h, LieSubmodule.mem_bot] at this
+        rw [LieSubmodule.mem_bot]
+        exact Subtype.val_injective this
+      -- Get atom W' ≤ C_V
+      obtain ⟨W', hW'_atom, hW'_le⟩ :=
+        (eq_bot_or_exists_atom_le C_V).resolve_left hC_V_ne_bot
+      -- W' ⊓ W = ⊥ (since W' ≤ C_V and C_V ⊓ W = ⊥)
+      have hW'_disj : W' ⊓ W = ⊥ :=
+        eq_bot_iff.mpr (le_trans (inf_le_inf_right W hW'_le) (le_of_eq hC_V_disj))
+      -- Apply complement_case_disjoint with the new atom
+      exact complement_case_disjoint d ih hd W W' hW_ne_bot hW'_atom hW'_disj
   · -- W < N strictly. T has smaller dimension than V.
     have hW_lt_N : W < N := lt_of_le_of_ne hWN (Ne.symm hNW)
     have hfW_lt_N : finrank ℂ (W : Submodule ℂ V) < finrank ℂ (N : Submodule ℂ V) :=
@@ -1029,72 +1200,6 @@ private lemma complement_case_sub.{u} (d : ℕ)
         exact this.symm
       rw [ht_eq, show n + ((w : V) + (u : V)) = (n + (w : V)) + (u : V) by abel]
       exact Submodule.add_mem_sup (N.add_mem hn hw_N) (LieSubmodule.mem_map_of_mem hu)
-
-/-- Helper: If W ∩ N = ⊥ in V with W an atom (irreducible), then N has a complement in V,
-given that all strictly smaller-dimensional modules are completely reducible. -/
-private lemma complement_case_disjoint.{u} (d : ℕ)
-    (ih : ∀ d' < d, ∀ (W : Type u) [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
-      [LieRingModule sl2 W] [LieModule ℂ sl2 W],
-      finrank ℂ W ≤ d' → ComplementedLattice (LieSubmodule ℂ sl2 W))
-    {V : Type u} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
-    [LieRingModule sl2 V] [LieModule ℂ sl2 V]
-    (hd : finrank ℂ V ≤ d)
-    (N W : LieSubmodule ℂ sl2 V) (hN_ne_bot : N ≠ ⊥) (hW_atom : IsAtom W) (hWN : W ⊓ N = ⊥) :
-    ∃ S : LieSubmodule ℂ sl2 V, IsCompl N S := by
-  -- V/W has smaller dimension
-  have hW_ne_bot := hW_atom.1
-  have hW_pos : 0 < finrank ℂ (W : Submodule ℂ V) := by
-    have : Nontrivial W := (LieSubmodule.nontrivial_iff_ne_bot ℂ sl2 (M := V)).mpr hW_ne_bot
-    exact Module.finrank_pos (R := ℂ)
-  have hVW_lt : finrank ℂ (V ⧸ W) < finrank ℂ V := by
-    have h1 := Submodule.finrank_quotient_add_finrank W.toSubmodule
-    have h2 : finrank ℂ (V ⧸ W) = finrank ℂ (V ⧸ W.toSubmodule) := rfl
-    omega
-  -- By induction, V/W is completely reducible
-  have hVW_compl : ComplementedLattice (LieSubmodule ℂ sl2 (V ⧸ W)) :=
-    ih (finrank ℂ (V ⧸ W)) (by omega) (V ⧸ W) (le_refl _)
-  set π := LieSubmodule.Quotient.mk' W
-  -- Image of N in V/W and its complement
-  obtain ⟨S_bar, hS_bar⟩ := hVW_compl.exists_isCompl (LieSubmodule.map π N)
-  -- Pull back S_bar to V
-  refine ⟨LieSubmodule.comap π S_bar, ?_⟩
-  rw [← LieSubmodule.isCompl_toSubmodule]
-  constructor
-  · -- Disjoint: N ∩ comap π S_bar = ⊥
-    rw [disjoint_iff_inf_le]
-    intro v ⟨hvN, hvS⟩
-    -- hvS means π(v) ∈ S_bar (through comap + toSubmodule coercions)
-    have hvS' : π v ∈ S_bar := hvS
-    have hvNbar : π v ∈ LieSubmodule.map π N :=
-      LieSubmodule.mem_map_of_mem (N := N) hvN
-    have hπv0 : π v = 0 := by
-      have : (π v : V ⧸ W) ∈ (LieSubmodule.map π N ⊓ S_bar : LieSubmodule ℂ sl2 (V ⧸ W)) :=
-        ⟨hvNbar, hvS'⟩
-      rw [hS_bar.inf_eq_bot, LieSubmodule.mem_bot] at this
-      exact this
-    -- π(v) = 0 means v ∈ W
-    have hv_W : (v : V) ∈ (W : LieSubmodule ℂ sl2 V) := by
-      rwa [LieSubmodule.Quotient.mk_eq_zero] at hπv0
-    -- v ∈ W ∩ N = ⊥
-    have : (v : V) ∈ (W ⊓ N : LieSubmodule ℂ sl2 V) := ⟨hv_W, hvN⟩
-    rw [hWN, LieSubmodule.mem_bot] at this
-    exact Submodule.mem_bot ℂ |>.mpr this
-  · -- Codisjoint: N ⊔ comap π S_bar = ⊤
-    rw [codisjoint_iff, eq_top_iff]
-    intro v _
-    -- π(v) ∈ map π N ⊔ S_bar = ⊤
-    have hv_top : π v ∈ (⊤ : LieSubmodule ℂ sl2 (V ⧸ W)) := LieSubmodule.mem_top _
-    rw [← hS_bar.sup_eq_top, LieSubmodule.mem_sup] at hv_top
-    obtain ⟨a, ha, b, hb, hab⟩ := hv_top
-    -- a ∈ map π N, so ∃ n ∈ N with π(n) = a
-    rw [LieSubmodule.mem_map] at ha
-    obtain ⟨n, hn, rfl⟩ := ha
-    -- v - n ∈ comap π S_bar since π(v - n) = π(v) - π(n) = a + b - a = b ∈ S_bar
-    have hvn : v - n ∈ (LieSubmodule.comap π S_bar : LieSubmodule ℂ sl2 V) := by
-      show π (v - n) ∈ S_bar
-      rw [map_sub, ← hab, add_sub_cancel_left]
-      exact hb
-    exact Submodule.mem_sup.mpr ⟨n, hn, v - n, hvn, by abel⟩
 
 private lemma complementedLattice_sl2_aux (d : ℕ) :
     ∀ (V : Type*) [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
