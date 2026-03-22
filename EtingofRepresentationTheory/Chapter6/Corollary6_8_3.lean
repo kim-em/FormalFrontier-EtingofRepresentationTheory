@@ -1,3 +1,4 @@
+import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
 import EtingofRepresentationTheory.Chapter6.Definition6_4_1
 import EtingofRepresentationTheory.Chapter6.Definition6_5_1
@@ -38,6 +39,22 @@ with representation-level reflection functors. The key missing infrastructure:
 -/
 
 open scoped Matrix
+
+section OrientationHelpers
+
+/-- A Dynkin quiver (orientation of a Dynkin diagram) has no self-loops at any vertex.
+This follows because `IsDynkinDiagram` requires `adj i i = 0` and `IsOrientationOf`
+requires no arrows when `adj i j ≠ 1`. -/
+private lemma Etingof.noSelfLoop_of_dynkin_orientation
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hDynkin : Etingof.IsDynkinDiagram n adj)
+    {Q : Quiver (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
+    (p : Fin n) :
+    IsEmpty (@Quiver.Hom (Fin n) Q p p) :=
+  hOrient.1 p p (by rw [hDynkin.2.1 p]; omega)
+
+end OrientationHelpers
 
 section SimpleAtIso
 
@@ -152,40 +169,42 @@ private lemma Etingof.indecomposable_simpleRoot_iso
 /-- Iterated reflection functors reduce an indecomposable representation to a simple
 representation, following the reflection sequence from Theorem 6.8.1.
 
-Given an indecomposable representation ρ with dimension vector d, and the sequence
-of vertices from Theorem 6.8.1 that reduces d to a simple root αₚ via iterated
-simple reflections, applying the corresponding sequence of reflection functors to ρ
-produces a representation isomorphic to the simple representation at vertex p,
-and ρ can be recovered (up to isomorphism) by applying the inverse functors.
+Given two indecomposable representations ρ₁, ρ₂ with the same dimension vector d,
+and a sequence of vertices that reduces d to a simple root αₚ via iterated simple
+reflections, we conclude ρ₁ ≅ ρ₂. The proof works by applying the corresponding
+reflection functors to both representations, using Proposition 6.6.6 to recover.
 
-More precisely: if F_{i₁}⁺ ∘ ⋯ ∘ F_{iₖ}⁺ reduces ρ to a simple representation,
-then ρ ≅ F_{iₖ}⁻ ∘ ⋯ ∘ F_{i₁}⁻ applied to that simple representation.
+## Proof structure
 
-## Blockers
+**Base case** (`vertices = []`): d is already a simple root αₚ. Both representations
+are simple at p, so isomorphic by `simpleAt_iso`. ✓ Proved below.
 
-This lemma requires infrastructure not yet formalized:
+**Inductive step** (`vertices = i :: rest`): Apply reflection functor F⁺ᵢ to both
+representations. By Prop 6.6.7 they remain indecomposable, by Prop 6.6.8 their
+dimension vectors transform by sᵢ, and by induction they're isomorphic on
+`reversedAtVertex Q i`. Then Prop 6.6.6 recovers the isomorphism on Q.
 
-1. **Quiver-adjacency connection**: The signature has no hypothesis connecting
-   the quiver Q to the adjacency matrix adj. Without this, we cannot derive
-   that vertices in the reflection sequence are sinks/sources in the appropriate
-   reversed quivers, nor that there are no self-loops (needed for the base case).
+## Remaining blockers
 
-2. **Type-changing iteration**: Each reflection functor application changes the
-   quiver from Q to `reversedAtVertex Q i`. Iterating this produces a chain of
-   different quiver types, making induction on `vertices` extremely challenging
-   in Lean's type system.
+1. **Type-changing iteration**: Each reflection functor changes the quiver from Q
+   to `reversedAtVertex Q i`, producing a chain of different Lean types. The
+   induction hypothesis must apply to the reversed quiver, requiring a
+   universally-quantified statement over all orientations of the same graph.
+
+2. **Vertex-sink alignment**: The vertices from Theorem 6.8.1 (via `exists_good_vertex`)
+   are chosen to reduce the integer dimension vector, but may not be sinks in the
+   current quiver Q. The book's proof uses the Coxeter element ordering, which
+   guarantees each vertex is a sink at the appropriate step. Aligning these two
+   approaches requires Coxeter element infrastructure.
 
 3. **`Proposition6_6_7_source` (sorry'd)**: Preserving indecomposability through
-   source reflection functors is not yet proven.
-
-4. **Dimension vector tracking**: Proposition 6.6.8 connects finrank to simple
-   reflections, but composing this through an iterated chain requires careful
-   bookkeeping across type-changing quivers. -/
+   source reflection functors is not yet proven (1 sorry in Proposition6_6_7.lean). -/
 private lemma Etingof.reflectionFunctors_reduce_and_recover
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
     (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
     [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)]
@@ -195,8 +214,24 @@ private lemma Etingof.reflectionFunctors_reduce_and_recover
     (vertices : List (Fin n)) (p : Fin n)
     (hreflect : Etingof.iteratedSimpleReflection n (Etingof.cartanMatrix n adj) vertices
         (fun v => (Module.finrank k (ρ₁.obj v) : ℤ)) = Etingof.simpleRoot n p) :
-    Nonempty (@Etingof.QuiverRepresentation.Iso k _ (Fin n) Q ρ₁ ρ₂) :=
-  sorry
+    Nonempty (@Etingof.QuiverRepresentation.Iso k _ (Fin n) Q ρ₁ ρ₂) := by
+  -- Base case: when vertices = [], d is already a simple root
+  -- The inductive case requires type-changing iteration infrastructure (see blockers above)
+  cases vertices with
+  | nil =>
+    -- vertices = [], so iteratedSimpleReflection ... [] d = d = simpleRoot n p
+    simp only [Etingof.iteratedSimpleReflection, List.foldl_nil] at hreflect
+    have hNoSelfLoop := Etingof.noSelfLoop_of_dynkin_orientation hDynkin hOrient p
+    have hd₁ : ∀ v, (Module.finrank k (ρ₁.obj v) : ℤ) = Etingof.simpleRoot n p v :=
+      fun v => congr_fun hreflect v
+    have hd₂ : ∀ v, (Module.finrank k (ρ₂.obj v) : ℤ) = Etingof.simpleRoot n p v :=
+      fun v => by rw [← hdim v]; exact hd₁ v
+    exact Etingof.indecomposable_simpleRoot_iso hDynkin ρ₁ ρ₂ p hNoSelfLoop hd₁ hd₂
+  | cons i rest =>
+    -- Inductive case: apply reflection functor at vertex i, then recurse
+    -- BLOCKED: requires type-changing iteration + vertex-sink alignment
+    -- (see docstring for detailed blockers)
+    sorry
 
 end ReflectionFunctorChain
 
@@ -231,7 +266,17 @@ This gives ½ B(d, d) = 1 - dim Ext¹(V, V) ≤ 1, so B(d, d) ≤ 2.
 
 3. **Schur's lemma variant**: While Schur's lemma for simple modules is standard,
    the result that End(V) ≅ k for indecomposable finite-dimensional V over an
-   algebraically closed field requires the Fitting lemma / Krull-Schmidt theory. -/
+   algebraically closed field requires the Fitting lemma / Krull-Schmidt theory.
+
+## Alternative approach (bypasses Ext entirely)
+
+The book's proof of Corollary 6.8.2 proves B(d,d) = 2 (not just ≤ 2) by a
+representation-level reduction: apply reflection functors along the Coxeter element
+until reaching a simple representation, then use `iteratedSimpleReflection_preserves_bilinearForm`
+to conclude B(d,d) = B(αₚ,αₚ) = 2. This approach requires the same Coxeter element
+infrastructure as `reflectionFunctors_reduce_and_recover` (type-changing iteration,
+vertex-sink alignment) but avoids Ext groups completely. If that infrastructure is
+built, this lemma becomes a direct corollary and can be eliminated. -/
 private lemma Etingof.indecomposable_titsForm_le_two
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (_hDynkin : Etingof.IsDynkinDiagram n adj)
@@ -258,6 +303,7 @@ theorem Etingof.Corollary6_8_3
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
     (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
     [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)]
@@ -290,5 +336,5 @@ theorem Etingof.Corollary6_8_3
   -- Step 5: By Theorem 6.8.1, there exists a sequence of reflections reducing d to a simple root
   obtain ⟨vertices, p, hreflect⟩ := Etingof.Theorem6_8_1 hDynkin d hd_pos hd_nonzero hd_root
   -- Step 6: Use the reflection functor chain to show ρ₁ ≅ ρ₂
-  exact Etingof.reflectionFunctors_reduce_and_recover hDynkin ρ₁ ρ₂ h₁ h₂ hdim
+  exact Etingof.reflectionFunctors_reduce_and_recover hDynkin hOrient ρ₁ ρ₂ h₁ h₂ hdim
     vertices p hreflect
