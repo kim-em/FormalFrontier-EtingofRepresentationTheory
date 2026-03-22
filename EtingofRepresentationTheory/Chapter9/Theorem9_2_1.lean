@@ -1529,8 +1529,11 @@ lemma Etingof.Theorem921.completeOrthogonalIdempotents_matrix_single
     · exact absurd (hxj.2.trans hxk.1.symm) hjk
     all_goals simp_all
   · -- Completeness: ∑ E_{jj} = I
-    -- ∑ Matrix.single j j 1 = diagonal (fun _ => 1) = 1
-    sorry
+    have : ∑ j : Fin n, Matrix.single j j (1 : R) = Matrix.diagonal (fun _ => 1) := by
+      funext r s
+      simp only [Matrix.sum_apply, Matrix.single_apply, Matrix.diagonal_apply, ite_and]
+      simp [Finset.sum_ite_eq']
+    rw [this, Matrix.diagonal_one]
 
 /-- Diagonal matrix units in a product of matrix rings form complete orthogonal idempotents
 indexed by the sigma type `Σ l, Fin (d l)`. The idempotent at `(l, j)` is
@@ -1542,7 +1545,45 @@ lemma Etingof.Theorem921.completeOrthogonalIdempotents_pi_matrix
       (fun (p : Σ l : Fin n, Fin (d l)) =>
         (Pi.single p.1 (Matrix.single p.2 p.2 (1 : R)) :
           ∀ l, Matrix (Fin (d l)) (Fin (d l)) R)) := by
-  sorry
+  refine CompleteOrthogonalIdempotents.iff_ortho_complete.mpr ⟨fun ⟨l₁, j₁⟩ ⟨l₂, j₂⟩ hpq => ?_, ?_⟩
+  · -- Orthogonality
+    funext k
+    simp only [Pi.mul_apply, Pi.zero_apply]
+    by_cases h₁ : l₁ = k <;> by_cases h₂ : l₂ = k
+    · subst h₁; subst h₂
+      simp only [Pi.single_eq_same]
+      have h2 : j₁ ≠ j₂ := fun h => hpq (Sigma.ext rfl (heq_of_eq h))
+      ext r s
+      simp only [Matrix.mul_apply, Matrix.single_apply, Matrix.zero_apply]
+      apply Finset.sum_eq_zero; intro x _
+      by_cases hxp : j₁ = r ∧ j₁ = x <;> by_cases hxq : j₂ = x ∧ j₂ = s
+      · exact absurd (hxp.2.trans hxq.1.symm) h2
+      all_goals simp_all
+    · simp [Pi.single_apply, h₁, h₂]
+    · simp [Pi.single_apply, h₁, h₂]
+    · simp [Pi.single_apply, h₁, h₂]
+  · -- Completeness: ∑ p, Pi.single p.1 (E_{p.2,p.2}) = 1
+    -- Split ∑_{(l,j)} into ∑_l ∑_j
+    rw [show (∑ x : Σ l : Fin n, Fin (d l),
+        (Pi.single x.1 (Matrix.single x.2 x.2 (1 : R)) :
+          ∀ l, Matrix (Fin (d l)) (Fin (d l)) R)) =
+        ∑ l : Fin n, ∑ j : Fin (d l), Pi.single l (Matrix.single j j 1) from
+      Fintype.sum_sigma _]
+    -- ∑_l (∑_j Pi.single l (E_jj)) = 1
+    -- Inner sum: ∑_j Pi.single l (E_jj) = Pi.single l (∑_j E_jj) = Pi.single l 1
+    have key : ∀ l : Fin n, ∑ j : Fin (d l),
+        (Pi.single l (Matrix.single j j (1 : R)) :
+          ∀ l, Matrix (Fin (d l)) (Fin (d l)) R) =
+        Pi.single l 1 := by
+      intro l
+      rw [← completeOrthogonalIdempotents_matrix_single.complete]
+      induction Finset.univ (α := Fin (d l)) using Finset.cons_induction with
+      | empty => simp
+      | cons j s hj ih =>
+        simp only [Finset.sum_cons]
+        rw [Pi.single_add, ih]
+    simp_rw [key]
+    exact Finset.univ_sum_single 1
 
 /-- **Full system of complete orthogonal idempotents for Theorem 9.2.1(ii).**
 
