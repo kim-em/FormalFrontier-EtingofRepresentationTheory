@@ -79,6 +79,49 @@ noncomputable def spechtModuleCharacter (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) : ℂ :=
   LinearMap.trace ℂ _ (spechtModuleAction n la σ)
 
+/-! ## FDRep bridge: wrapping Specht modules as finite-dimensional representations
+
+This section constructs an `FDRep ℂ (Equiv.Perm (Fin n))` from the Specht module,
+enabling use of Mathlib's character orthonormality (`FDRep.char_orthonormal`). -/
+
+/-- The Specht module action as a group representation: the map σ ↦ spechtModuleAction σ
+is a monoid homomorphism from S_n to End(V_λ). -/
+noncomputable def spechtModuleRep (n : ℕ) (la : Nat.Partition n) :
+    Representation ℂ (Equiv.Perm (Fin n)) (SpechtModule n la) where
+  toFun := spechtModuleAction n la
+  map_one' := LinearMap.ext fun ⟨m, hm⟩ => Subtype.ext (show
+      (MonoidAlgebra.of ℂ _ (1 : Equiv.Perm (Fin n)) * m : SymGroupAlgebra n) = m by
+    rw [map_one, one_mul])
+  map_mul' := fun σ τ => LinearMap.ext fun ⟨m, hm⟩ => Subtype.ext (show
+      (MonoidAlgebra.of ℂ _ (σ * τ) * m : SymGroupAlgebra n) =
+        MonoidAlgebra.of ℂ _ σ * (MonoidAlgebra.of ℂ _ τ * m) by
+    rw [map_mul, mul_assoc])
+
+/-- The Specht module wrapped as an `FDRep`: a finite-dimensional representation of S_n
+over ℂ, suitable for applying Mathlib's character orthonormality theorem. -/
+noncomputable def spechtModuleFDRep (n : ℕ) (la : Nat.Partition n) :
+    FDRep ℂ (Equiv.Perm (Fin n)) :=
+  FDRep.of (spechtModuleRep n la)
+
+/-- The character of the FDRep equals the unbundled character (definitional equality). -/
+theorem spechtModuleFDRep_character (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) :
+    (spechtModuleFDRep n la).character σ = spechtModuleCharacter n la σ := rfl
+
+/-- The Specht module FDRep is simple (irreducible).
+
+The proof requires bridging `IsSimpleModule (SymGroupAlgebra n) (SpechtModule n la)` (from
+`Theorem5_12_2_irreducible`) to `Simple (FDRep.of (spechtModuleRep n la))`. The bridge goes
+through showing `IsSimpleModule (MonoidAlgebra ℂ G) (spechtModuleRep n la).asModule` (the
+`asModule` and `Submodule.module` SMul instances agree extensionally: both act by left
+multiplication in the group algebra), then using `Rep.equivalenceModuleMonoidAlgebra` and
+the full-faithful forgetful functor `FDRep → Rep` to lift to categorical `Simple`.
+
+See `IrreducibleEnumeration.lean` for the same pattern used with `columnRep`. -/
+noncomputable instance spechtModuleFDRep_simple (n : ℕ) (la : Nat.Partition n) :
+    CategoryTheory.Simple (spechtModuleFDRep n la) := by
+  sorry
+
 /-! ## Intermediate lemmas for the Frobenius character formula -/
 
 noncomputable section
