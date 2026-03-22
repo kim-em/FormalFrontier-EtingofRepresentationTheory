@@ -675,20 +675,56 @@ private lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2
     -- α₀^q = α₀ would mean α₀ ∈ F_q, making embed(α₀) scalar, contradicting hα₀_ns
     intro heq
     apply hα₀_ns
-    -- heq means Frobenius fixes α₀, so α₀ ∈ F_q
-    -- Use frobeniusAlgEquivOfAlgebraic: φ(α₀) = α₀^q = α₀
-    -- So α₀ is in the fixed field = range(algebraMap F_q F_{q²})
-    have hφ_fix : (FiniteField.frobeniusAlgEquivOfAlgebraic
-        (GaloisField p n) (GaloisField p (2 * n))) (↑α₀) = ↑α₀ := by
-      rw [show (FiniteField.frobeniusAlgEquivOfAlgebraic
-        (GaloisField p n) (GaloisField p (2 * n))) (↑α₀) = (↑α₀) ^ q from
+    -- heq means Frobenius fixes α₀
+    let φ := FiniteField.frobeniusAlgEquivOfAlgebraic
+        (GaloisField p n) (GaloisField p (2 * n))
+    have hφ_fix : φ (↑α₀) = ↑α₀ := by
+      rw [show (φ : GaloisField p (2 * n) → GaloisField p (2 * n)) (↑α₀) = (↑α₀) ^ q from
         congrFun (FiniteField.coe_frobeniusAlgEquivOfAlgebraic _ _) _]
       exact heq.symm
-    -- α₀ is in the fixed subfield = range of algebraMap
-    have ⟨c, hc⟩ := (FiniteField.frobeniusAlgEquivOfAlgebraic
-        (GaloisField p n) (GaloisField p (2 * n))).toAlgHom.mem_range_of_fixedBy_frobenius
-        (↑α₀) hφ_fix
-    sorry
+    -- φ ≠ 1 (extension is non-trivial, degree 2)
+    have hφ_ne_one : φ ≠ 1 := by
+      intro h
+      -- Frobenius powers biject Fin(finrank) → Gal; φ = 1 makes the map constant,
+      -- contradicting injectivity when finrank = 2
+      have hbij := FiniteField.bijective_frobeniusAlgEquivOfAlgebraic_pow
+        (GaloisField p n) (GaloisField p (2 * n))
+      rw [Etingof.finrank_galoisField_ext p n hn] at hbij
+      exact absurd (hbij.1 (show φ ^ (0 : Fin 2).1 = φ ^ (1 : Fin 2).1 by simp [h]))
+        (by decide)
+    -- |Gal| = 2 and φ ≠ 1 means every f ∈ Gal is either 1 or φ
+    have hcard_gal : Nat.card (GaloisField p (2 * n) ≃ₐ[GaloisField p n]
+        GaloisField p (2 * n)) = 2 :=
+      (IsGalois.card_aut_eq_finrank (GaloisField p n) (GaloisField p (2 * n))).trans
+        (Etingof.finrank_galoisField_ext p n hn)
+    have hall_fix : ∀ f : (GaloisField p (2 * n) ≃ₐ[GaloisField p n] GaloisField p (2 * n)),
+        f (↑α₀ : GaloisField p (2 * n)) = ↑α₀ := by
+      intro f
+      -- In a type of card 2, with a distinguished element 1, the only other element is φ
+      obtain ⟨y, hy_ne, hy_unique⟩ :=
+        (Nat.card_eq_two_iff' (1 : GaloisField p (2 * n) ≃ₐ[GaloisField p n]
+          GaloisField p (2 * n))).mp hcard_gal
+      by_cases hf : f = 1
+      · rw [hf]; simp
+      · -- f ≠ 1, so f = y; φ ≠ 1, so φ = y; hence f = φ
+        have hfy : f = y := hy_unique f hf
+        have hφy : φ = y := hy_unique φ hφ_ne_one
+        rw [hfy, ← hφy]; exact hφ_fix
+    -- α₀ ∈ range(algebraMap) by Galois theory
+    have h_in_range : (↑α₀ : GaloisField p (2 * n)) ∈
+        Set.range (algebraMap (GaloisField p n) (GaloisField p (2 * n))) :=
+      (IsGalois.mem_range_algebraMap_iff_fixed
+        (F := GaloisField p n) (E := GaloisField p (2 * n)) (↑α₀)).mpr hall_fix
+    -- α₀ ∈ F_q implies embed(α₀) is scalar
+    obtain ⟨c, hc⟩ := h_in_range
+    rw [GL2.isScalar_iff]
+    have hscalar : Algebra.leftMulMatrix b (↑α₀ : GaloisField p (2 * n)) =
+        (algebraMap (GaloisField p n) (Matrix (Fin 2) (Fin 2) (GaloisField p n))) c := by
+      rw [← hc]; exact (Algebra.leftMulMatrix b).commutes c
+    rw [hembed α₀, hscalar, Matrix.algebraMap_eq_diagonal]
+    exact ⟨Matrix.diagonal_apply_ne _ (by decide : (0 : Fin 2) ≠ 1),
+           Matrix.diagonal_apply_ne _ (by decide : (1 : Fin 2) ≠ 0),
+           by simp [Matrix.diagonal_apply_eq]⟩
   -- Step 7: β ∈ {α₀, α₀^q} by root dichotomy
   have hβ_dichotomy : (β : GaloisField p (2 * n)) = ↑α₀ ∨
       (β : GaloisField p (2 * n)) = (↑α₀ : GaloisField p (2 * n)) ^ q :=
