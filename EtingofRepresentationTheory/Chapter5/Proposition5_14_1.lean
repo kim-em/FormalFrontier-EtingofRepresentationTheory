@@ -172,6 +172,51 @@ theorem Proposition5_14_1_vanishing
     exact (smul_eq_zero.mp h_annihilate).resolve_left h_card_ne_zero
   exact Subtype.ext hv₀_val_zero
 
+/-- Generalized vanishing: Hom_{S_n}(U_λ, V_μ) = 0 when μ does not dominate λ.
+This is strictly more general than `Proposition5_14_1_vanishing` which requires
+λ to strictly dominate μ; here we only need ¬(μ dominates λ), which also covers
+the case where λ and μ are incomparable in the dominance order. -/
+theorem Proposition5_14_1_vanishing_general
+    (n : ℕ) (la mu : Nat.Partition n)
+    (h_not_dom : ¬ Nat.Partition.Dominates mu la) :
+    ∀ f : PermutationModule n la →ₗ[SymGroupAlgebra n] ↥(SpechtModule n mu), f = 0 := by
+  classical
+  intro f
+  set e : PermutationModule n la := Finsupp.single (QuotientGroup.mk 1) 1 with he_def
+  set v₀ := f e with hv₀_def
+  suffices hv₀_zero : v₀ = 0 by
+    apply LinearMap.ext; intro x
+    have hx : x ∈ Submodule.span (SymGroupAlgebra n) {e} :=
+      permMod_cyclic n la ▸ Submodule.mem_top
+    obtain ⟨a, rfl⟩ := Submodule.mem_span_singleton.mp hx
+    change f (a • e) = 0
+    rw [f.map_smul]
+    have : f e = (0 : ↥(SpechtModule n mu)) := by rw [← hv₀_def]; exact hv₀_zero
+    rw [this, smul_zero]
+  have h_inv : ∀ p ∈ RowSubgroup n la,
+      (MonoidAlgebra.of ℂ _ p : SymGroupAlgebra n) • v₀ = v₀ := by
+    intro p hp
+    have h_fix : (MonoidAlgebra.of ℂ _ p : SymGroupAlgebra n) • e = e := by
+      rw [of_smul_single, rowSubgroup_fixes_identity n la p hp]
+    change (MonoidAlgebra.of ℂ _ p) • (f e) = f e
+    rw [← f.map_smul, h_fix]
+  have h_inv_val : ∀ p ∈ RowSubgroup n la,
+      MonoidAlgebra.of ℂ (G' n) p * (v₀ : SymGroupAlgebra n) = (v₀ : SymGroupAlgebra n) :=
+    fun p hp => congrArg Subtype.val (h_inv p hp)
+  have h_row_sym : RowSymmetrizer n la * (v₀ : SymGroupAlgebra n) =
+      (Fintype.card (RowSubgroup n la) : ℂ) • (v₀ : SymGroupAlgebra n) := by
+    simp only [RowSymmetrizer, Finset.sum_mul]
+    rw [Finset.sum_congr rfl (fun p _ => h_inv_val p.val p.prop)]
+    rw [Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
+  have h_annihilate : RowSymmetrizer n la * (v₀ : SymGroupAlgebra n) = 0 :=
+    rowSymmetrizer_annihilates_specht n la mu h_not_dom (v₀ : SymGroupAlgebra n) v₀.prop
+  have h_card_ne_zero : (Fintype.card (RowSubgroup n la) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Fintype.card_pos.ne'
+  have hv₀_val_zero : (v₀ : SymGroupAlgebra n) = 0 := by
+    rw [h_row_sym] at h_annihilate
+    exact (smul_eq_zero.mp h_annihilate).resolve_left h_card_ne_zero
+  exact Subtype.ext hv₀_val_zero
+
 noncomputable section
 set_option linter.style.openClassical false in
 open scoped Classical

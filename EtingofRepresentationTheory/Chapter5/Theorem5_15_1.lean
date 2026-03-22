@@ -224,6 +224,19 @@ theorem spechtMultiplicity_vanishing (n : ℕ) (mu nu : Nat.Partition n)
     ⟨fun f g => by rw [hall f, hall g]⟩
   exact Module.finrank_zero_of_subsingleton
 
+/-- Multiplicity is zero when ν does not dominate μ. This is more general than
+`spechtMultiplicity_vanishing` (which requires StrictDominates): it also covers
+the case where μ and ν are incomparable in the dominance order. -/
+theorem spechtMultiplicity_vanishing_general (n : ℕ) (mu nu : Nat.Partition n)
+    (h : ¬ Nat.Partition.Dominates nu mu) :
+    spechtMultiplicity n mu nu = 0 := by
+  simp only [spechtMultiplicity]
+  have hall : ∀ f : PermutationModule n mu →ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu), f = 0 :=
+    Proposition5_14_1_vanishing_general n mu nu h
+  have : Subsingleton (PermutationModule n mu →ₗ[SymGroupAlgebra n] ↥(SpechtModule n nu)) :=
+    ⟨fun f g => by rw [hall f, hall g]⟩
+  exact Module.finrank_zero_of_subsingleton
+
 /-- Multiplicity of V_λ in U_λ is 1 (Prop 5.14.1 diagonal). -/
 theorem spechtMultiplicity_diagonal (n : ℕ) (la : Nat.Partition n) :
     spechtMultiplicity n la la = 1 :=
@@ -2028,6 +2041,38 @@ private theorem sorted_shifted_strict_dominates {n : ℕ}
       omega
     exact rev_of_permExponent_eq_rhoShift π hpe
 
+/-- The hard case of the alternating Kostka identity: when ν strictly dominates λ
+(i.e., ν > λ in the dominance order), the alternating sum ∑_π sign(π) · K(sort(λ+ρ-e_π), ν)
+vanishes by genuine cancellation (not term-by-term vanishing).
+
+Book proof strategy (Etingof, Theorem 5.15.1):
+1. Define θ_λ = sign(rev) · coeff(x^{λ+ρ}, Δ·P). Then θ_λ = ∑_ν L_{νλ} χ_ν
+   where L_{νλ} = ∑_π sign(π) K(sort(λ+ρ-e_π), ν).
+2. L_{λλ} = 1 (proved in the la = nu case above).
+3. L_{νλ} = 0 for ν not dominating λ (proved in the easy sub-case).
+4. ⟨θ_λ, θ_λ⟩ = 1 (Vandermonde orthogonality: the monomials x^{σ(λ+ρ)} for
+   different partitions λ give non-overlapping orbits under S_n).
+5. By character orthonormality: ⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ} ≥ L²_{λλ} = 1.
+6. Steps 4+5 force L_{νλ} = 0 for all ν ≠ λ.
+
+This requires: character inner product infrastructure, connection between θ_λ
+inner products and polynomial coefficient orthogonality, and the fact that
+{λ+ρ | λ ∈ Par(n)} gives disjoint S_n-orbits of monomials. -/
+private theorem alternating_kostka_eq_zero_of_strict_dom {n : ℕ}
+    (la nu : Nat.Partition n)
+    (hne : la ≠ nu)
+    (hdom : Nat.Partition.Dominates nu la) :
+    (∑ π : Equiv.Perm (Fin n),
+      (Equiv.Perm.sign π : ℤ) •
+        (if h : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+         then ((spechtMultiplicity n
+           (finsuppToPartition
+             (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+             (sum_shifted_sub_permExponent la π h))
+           nu : ℕ) : ℂ)
+         else (0 : ℂ))) = 0 := by
+  sorry
+
 /-- The alternating Kostka identity: the alternating sum of Kostka numbers over
 Vandermonde permutations equals sign(rev) times the Kronecker delta.
 
@@ -2102,17 +2147,50 @@ theorem alternating_kostka_eq_delta {n : ℕ} (la nu : Nat.Partition n) :
     rw [finsuppToPartition_toFinsupp]
     congr 1
     simp [spechtMultiplicity_diagonal]
-  · -- Case la ≠ nu: requires the full orthogonality/norm argument from the book
-    -- (Σ_π sign(π) m(sort(la+ρ-e_π), nu) = 0 requires genuine cancellation,
-    -- not just term-by-term vanishing)
+  · -- Case la ≠ nu
     simp only [if_neg hla_nu, smul_zero]
-    -- Goal: ∑ π, sign(π) • (spechtMultiplicity ... nu) = 0
-    -- This is the hardest part of the Frobenius character formula.
-    -- Book proof: θ_λ = ∑_{μ≥λ} L_{μλ} χ_μ with L_{λλ}=1. Then ||θ_λ||² = ∑_μ L²_{μλ} ≥ 1.
-    -- But ||θ_λ||² ≤ 1 (from Vandermonde determinant/alternating character identity).
-    -- So L_{μλ} = 0 for μ ≠ λ, i.e., θ_λ = χ_λ.
-    -- Requires: character norm computation infrastructure.
-    sorry
+    by_cases hdom : Nat.Partition.Dominates nu la
+    · -- Hard sub-case: nu strictly dominates la (genuine cancellation needed).
+      -- Book proof: θ_λ = ∑_{μ≥λ} L_{μλ} χ_μ with L_{λλ}=1.
+      -- Then ||θ_λ||² = ∑_μ L²_{μλ} ≥ 1, but ||θ_λ||² ≤ 1 by Vandermonde orthogonality.
+      -- So L_{μλ} = 0 for μ ≠ λ. Requires character inner product infrastructure.
+      exact alternating_kostka_eq_zero_of_strict_dom la nu hla_nu hdom
+    · -- Easy sub-case: nu doesn't dominate la, so each term vanishes individually.
+      -- Key insight: sort(la+ρ-e_π) ≥ la for all π (rearrangement inequality).
+      -- If nu ≱ la and sort(la+ρ-e_π) ≥ la, then nu ≱ sort(la+ρ-e_π) by transitivity.
+      -- So spechtMultiplicity(sort(la+ρ-e_π), nu) = 0 by vanishing.
+      apply Finset.sum_eq_zero
+      intro π _
+      by_cases hle : permExponent n π ≤ Nat.Partition.toFinsupp la + rhoShift n
+      · simp only [dif_pos hle]
+        have h_not_dom_sort : ¬ Nat.Partition.Dominates nu
+            (finsuppToPartition
+              (Nat.Partition.toFinsupp la + rhoShift n - permExponent n π)
+              (sum_shifted_sub_permExponent la π hle)) := by
+          intro habs
+          apply hdom
+          by_cases hπ : π = rev
+          · -- sort(la+ρ-ρ) = la, so Dominates nu sort = Dominates nu la
+            subst hπ
+            have hsub : Nat.Partition.toFinsupp la + rhoShift n - permExponent n rev =
+                Nat.Partition.toFinsupp la := by
+              rw [permExponent_revPerm]; exact toFinsupp_add_rhoShift_sub_rhoShift la
+            suffices ∀ (v : Fin n →₀ ℕ) (_ : v = Nat.Partition.toFinsupp la)
+                (hsum : ∑ i, v i = n),
+                Nat.Partition.Dominates nu (finsuppToPartition v hsum) →
+                Nat.Partition.Dominates nu la by
+              exact this _ hsub _ habs
+            intro v hv hsum hd
+            subst hv
+            rwa [finsuppToPartition_toFinsupp] at hd
+          · -- sort(la+ρ-e_π) strictly dominates la, so Dominates sort la
+            have hsdom := sorted_shifted_strict_dominates la π hπ hle
+            -- Transitivity: Dominates nu sort ∧ Dominates sort la → Dominates nu la
+            intro k
+            exact le_trans (hsdom.1 k) (habs k)
+        rw [spechtMultiplicity_vanishing_general n _ nu h_not_dom_sort]
+        simp
+      · simp [dif_neg hle]
 
 /-! ### Frobenius formula: alternating sum identity
 
