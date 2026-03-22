@@ -614,29 +614,40 @@ private lemma decomp_of_AB_BA_zero (ρ : Q₂Rep ℂ)
   · exact hpV_ne h1
   · exact hqW_ne h2
 
-/-- For indecomposable Q₂-reps with AB nilpotent and both dims > 0, both kernels cannot be
-simultaneously nontrivial. This, combined with `ker_sum_ge_one`, gives the sum = 1.
+/-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
+then the rep is decomposable.
 
-The proof reduces to the AB = BA = 0 case via the quotient by (range(BA), range(AB)),
-on which the induced maps satisfy ÃB̃ = B̃Ã = 0. The cross-pairing decomposition
-then contradicts indecomposability. -/
+The proof requires the structure theorem for nilpotent operators (cyclic/Jordan
+chain decomposition). The strategy (following Problem 6.9.1(c) of Etingof):
+1. The operator X(v,w) = (Bw, Av) on V × W is nilpotent with
+   dim(ker X) = dim(ker A) + dim(ker B) ≥ 2.
+2. X has off-diagonal structure: it maps pure V-elements to pure W-elements
+   and vice versa. Therefore chain generators can be chosen pure (in V or W).
+3. Each pure chain gives a sub-representation (the V and W components alternate).
+4. With ≥ 2 chains (since dim(ker X) ≥ 2), the chain decomposition gives a
+   nontrivial Q₂-decomposition, contradicting indecomposability.
+
+Steps 2-3 require the structure theorem for k[X]/(X^N)-modules (equivalently,
+the cyclic decomposition for nilpotent endomorphisms), which is not yet
+available in Mathlib in a directly usable form. -/
+private lemma decomp_of_ker_sum_ge_two (ρ : Q₂Rep ℂ)
+    (hAB : IsNilpotent (ρ.A.comp ρ.B))
+    (_hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (_hW_pos : 0 < Module.finrank ℂ ρ.W)
+    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker ρ.A) +
+              Module.finrank ℂ (LinearMap.ker ρ.B)) :
+    ¬ρ.Indecomposable := by
+  sorry
+
+/-- For indecomposable Q₂-reps with AB nilpotent and both dims > 0,
+dim(ker A) + dim(ker B) ≤ 1. Combined with `ker_sum_ge_one`, gives sum = 1. -/
 private lemma ker_sum_le_one (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
     (hAB : IsNilpotent (ρ.A.comp ρ.B))
     (hV_pos : 0 < Module.finrank ℂ ρ.V)
     (hW_pos : 0 < Module.finrank ℂ ρ.W) :
     Module.finrank ℂ (LinearMap.ker ρ.A) + Module.finrank ℂ (LinearMap.ker ρ.B) ≤ 1 := by
-  -- The full proof requires the structure theorem for nilpotent operators
-  -- (Jordan chain decomposition / cyclic module decomposition for k[X]/(X^N)),
-  -- which is not in Mathlib. The strategy:
-  -- 1. dim(ker(AB)) = dim(ker A) + dim(ker B) (since ker A ⊆ range B)
-  -- 2. If dim(ker(AB)) ≥ 2, the operator X(v,w) = (Bw,Av) on V × W has
-  --    dim(ker X) ≥ 2, so X has ≥ 2 Jordan blocks
-  -- 3. The Jordan chains of X are compatible with V ⊕ W (alternating components)
-  -- 4. Each chain gives a sub-representation; ≥ 2 chains give a decomposition
-  -- 5. This contradicts indecomposability of ρ
-  -- Steps 3-4 need the structure theorem. The AB = BA = 0 special case is handled
-  -- by `decomp_of_AB_BA_zero` above.
-  sorry
+  by_contra h
+  exact absurd hρ (decomp_of_ker_sum_ge_two ρ hAB hV_pos hW_pos (by omega))
 
 private lemma ker_sum_eq_one (ρ : Q₂Rep ℂ) (hρ : ρ.Indecomposable)
     (hAB : IsNilpotent (ρ.A.comp ρ.B))
