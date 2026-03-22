@@ -516,9 +516,65 @@ private lemma Etingof.GL2.frobeniusMatrix_not_in_elliptic (hn : n ≠ 0)
 private lemma Etingof.GL2.exists_nonscalar_elliptic (hn : n ≠ 0) :
     ∃ α : (GaloisField p (2 * n))ˣ,
       ¬GL2.IsScalar (p := p) (n := n) (Etingof.GL2.fieldExtEmbed p n α) := by
-  -- Not all elements of K ≅ F_{q²}× can be scalar (= in F_q×) since |F_{q²}×| > |F_q×|.
-  -- Scalar embed(α) means α ∈ F_q, but F_q ⊊ F_{q²} since [F_{q²}:F_q] = 2.
-  sorry
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  -- If all units had scalar embedding, then all of F_{q²} would be in range(algebraMap),
+  -- making finrank = 1, contradicting finrank = 2
+  by_contra h
+  push_neg at h -- h : ∀ α, GL2.IsScalar (embed α)
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  have hembed : ∀ (u : (GaloisField p (2 * n))ˣ),
+      (Etingof.GL2.fieldExtEmbed p n u).val =
+      Algebra.leftMulMatrix b (u : GaloisField p (2 * n)) := by
+    intro u; simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; congr 1
+  -- Every nonzero x ∈ F_{q²} is in range(algebraMap)
+  have h_all_in_range : ∀ x : GaloisField p (2 * n),
+      x ∈ Set.range (algebraMap (GaloisField p n) (GaloisField p (2 * n))) := by
+    intro x
+    by_cases hx : x = 0
+    · exact ⟨0, by rw [hx, map_zero]⟩
+    · -- x ≠ 0, so x is a unit
+      let α : (GaloisField p (2 * n))ˣ := Units.mk0 x hx
+      have hscalar := h α
+      rw [GL2.isScalar_iff] at hscalar
+      -- IsScalar means leftMulMatrix is a scalar matrix
+      -- So leftMulMatrix b x = diagonal (fun _ => c) for some c
+      have hmat := hembed α
+      -- The off-diagonal of leftMulMatrix b x is 0 and diagonals are equal
+      -- This means x acts as scalar multiplication, so x = algebraMap c
+      have h01 : (Algebra.leftMulMatrix b x) 0 1 = 0 := by
+        have := hscalar.1; rwa [hembed] at this
+      have h10 : (Algebra.leftMulMatrix b x) 1 0 = 0 := by
+        have := hscalar.2.1; rwa [hembed] at this
+      have h_diag : (Algebra.leftMulMatrix b x) 0 0 =
+          (Algebra.leftMulMatrix b x) 1 1 := by
+        have := hscalar.2.2; rwa [hembed] at this
+      -- leftMulMatrix b x = diagonal (fun _ => c) where c = entry (0,0)
+      set c := (Algebra.leftMulMatrix b x) 0 0
+      have hmat_eq : Algebra.leftMulMatrix b x =
+          (algebraMap (GaloisField p n)
+            (Matrix (Fin 2) (Fin 2) (GaloisField p n))) c := by
+        rw [Matrix.algebraMap_eq_diagonal]
+        ext i j; fin_cases i <;> fin_cases j <;>
+          simp [c, h01, h10, h_diag, Matrix.diagonal_apply_eq, Matrix.diagonal_apply_ne]
+      -- leftMulMatrix is injective
+      have := Algebra.leftMulMatrix_injective b
+        (show Algebra.leftMulMatrix b x =
+          Algebra.leftMulMatrix b (algebraMap (GaloisField p n) _ c) by
+          rw [hmat_eq, (Algebra.leftMulMatrix b).commutes c])
+      exact ⟨c, this.symm⟩
+  -- algebraMap is surjective → finrank = 1
+  have hsurj : Function.Surjective
+      (algebraMap (GaloisField p n) (GaloisField p (2 * n))) :=
+    fun x => h_all_in_range x
+  have : Module.finrank (GaloisField p n) (GaloisField p (2 * n)) ≤ 1 :=
+    finrank_le_one (1 : GaloisField p (2 * n)) (fun w => by
+      obtain ⟨c, hc⟩ := hsurj w
+      exact ⟨c, by rw [Algebra.smul_def, mul_one, hc]⟩)
+  have := Etingof.finrank_galoisField_ext p n hn
+  omega
 
 /-- An element α is a root of the charpoly of its left multiplication matrix
 (Cayley-Hamilton through the algebra embedding). -/
