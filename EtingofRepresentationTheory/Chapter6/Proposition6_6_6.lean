@@ -469,6 +469,86 @@ private theorem Etingof.Φ_comp_source_eq_zero
   -- Step 3: sinkMap y = 0 (kernel property)
   exact (Etingof.reflFunctorPlus_equivAt_eq hi ρ w).property
 
+set_option maxHeartbeats 400000 in
+-- reason: finrank arithmetic with rank-nullity for both ψ and Φ
+/-- If ψ.range ≤ ker Φ, Φ is surjective, ψ is injective, and
+finrank(source ψ) + finrank(target Φ) = finrank(source Φ), then ψ.range = ker Φ.
+This is the "first isomorphism theorem" applied to an exact sequence. -/
+private theorem Etingof.exact_of_dim
+    {k : Type*} [Field k]
+    {A B C : Type*}
+    [AddCommGroup A] [Module k A] [FiniteDimensional k A]
+    [AddCommGroup B] [Module k B] [FiniteDimensional k B]
+    [AddCommGroup C] [Module k C] [FiniteDimensional k C]
+    {ψ' : A →ₗ[k] B} {Φ' : B →ₗ[k] C}
+    (hfwd : ψ'.range ≤ Φ'.ker)
+    (hΦ_surj : Function.Surjective Φ')
+    (hψ_inj : Function.Injective ψ')
+    (hdim : Module.finrank k A + Module.finrank k C = Module.finrank k B) :
+    ψ'.range = Φ'.ker := by
+  apply Submodule.eq_of_le_of_finrank_eq hfwd
+  -- finrank(ψ'.range) = finrank(A) since ψ' is injective
+  have hr : Module.finrank k ↥ψ'.range = Module.finrank k A :=
+    LinearMap.finrank_range_of_inj hψ_inj
+  -- finrank(Φ'.ker) + finrank(C) = finrank(B)
+  have hk : Module.finrank k ↥Φ'.ker + Module.finrank k C = Module.finrank k B := by
+    have h1 := LinearMap.finrank_range_add_finrank_ker Φ'
+    rw [LinearMap.range_eq_top.mpr hΦ_surj, finrank_top] at h1
+    omega
+  -- Combine: finrank(A) = finrank(B) - finrank(C) = finrank(Φ'.ker)
+  omega
+
+set_option maxHeartbeats 800000 in
+-- reason: finrank arithmetic with FiniteDimensional instances for reflectionFunctorPlus objects
+/-- The reflectionFunctorPlus object at vertex i is finite-dimensional. -/
+private theorem Etingof.reflFunctorPlus_finiteDim_i
+    {k : Type*} [Field k] {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    [Fintype (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)] :
+    @Module.Finite k
+      (@Etingof.QuiverRepresentation.obj k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) i)
+      (inferInstanceAs (Semiring k))
+      (@Etingof.QuiverRepresentation.instAddCommMonoid k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) i)
+      (@Etingof.QuiverRepresentation.instModule k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) i) := by
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  haveI : Fintype (@Etingof.ArrowsInto Q inst i) :=
+    Fintype.ofEquiv _ (@Etingof.arrowReindexEquiv Q _ inst i hi)
+  exact Module.Finite.equiv
+    (@Etingof.reflFunctorPlus_equivAt_eq k _ Q _ inst i hi ρ).symm
+
+set_option maxHeartbeats 800000 in
+-- reason: finrank computation for reflectionFunctorPlus at non-sink vertices
+/-- Each F⁺(V).obj a.fst is finite-dimensional for arrows out of i in Q̄ᵢ. -/
+private theorem Etingof.reflFunctorPlus_finiteDim_ne
+    {k : Type*} [Field k] {Q : Type*} [DecidableEq Q] [inst : Quiver Q]
+    {i : Q} (hi : Etingof.IsSink Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    [Fintype (@Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i)]
+    (a : @Etingof.ArrowsOutOf Q (Etingof.reversedAtVertex Q i) i) :
+    @Module.Finite k
+      (@Etingof.QuiverRepresentation.obj k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) a.fst)
+      (inferInstanceAs (Semiring k))
+      (@Etingof.QuiverRepresentation.instAddCommMonoid k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) a.fst)
+      (@Etingof.QuiverRepresentation.instModule k Q _
+        (@Etingof.reversedAtVertex Q _ inst i)
+        (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) a.fst) :=
+  Module.Finite.equiv
+    (@Etingof.reflFunctorPlus_equivAt_ne k _ Q _ inst i hi ρ a.fst
+      (@Etingof.arrowsOutReversed_ne Q _ inst i hi a)).symm
+
 set_option maxHeartbeats 800000 in
 -- reason: unfolding reflectionFunctorMinus + first isomorphism theorem + DirectSum reindexing
 /-- At vertex i, F⁻(F⁺(V)).obj i ≃ₗ[k] ρ.obj i when the sink map is surjective.
@@ -579,20 +659,63 @@ private noncomputable def Etingof.equivAt_eq_sink
         -- Goal: ∑ x, Φ_component x (ρ'.mapLinear x.snd w) = 0
         exact @Etingof.Φ_comp_source_eq_zero k _ Q _ inst i hi ρ _ w
       · -- Reverse: ker(Φ) ≤ range(ψ)
-        -- Use finrank argument: range ψ ≤ ker Φ + equal finrank ⟹ equality
-        -- First extract the forward direction we just proved
         have hfwd : ψ.range ≤ LinearMap.ker Φ := by
           rw [LinearMap.range_le_ker_iff]; ext w
           simp only [LinearMap.comp_apply, LinearMap.zero_apply]
           simp only [ψ, LinearMap.sum_apply, LinearMap.comp_apply]
           simp only [Φ, map_sum, DirectSum.toModule_lof]
           exact @Etingof.Φ_comp_source_eq_zero k _ Q _ inst i hi ρ _ w
-        -- ker Φ ≤ range ψ: explicit preimage construction
-        -- For x ∈ ker Φ, transport to ⊕V_j via equivAt_ne + reindex,
-        -- landing in ker(sinkMap), then pull back via equivAt_eq⁻¹.
-        -- The reverse direction ψ(w) = x follows from reflFunctorPlus_mapLinear_eq_ne
-        -- applied component-wise.
-        sorry
+        -- FiniteDimensional instances from external helpers (avoid instR pollution)
+        letI acg_rho'_i : AddCommGroup
+            (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i) :=
+          @Etingof.addCommGroupOfField k _ _
+            (ρ'.instAddCommMonoid i) (ρ'.instModule i)
+        haveI fd_i :
+            @Module.Finite k
+              (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i)
+              (inferInstanceAs (Semiring k))
+              (@Etingof.QuiverRepresentation.instAddCommMonoid k Q _
+                instR ρ' i)
+              (@Etingof.QuiverRepresentation.instModule k Q _
+                instR ρ' i) :=
+          @Etingof.reflFunctorPlus_finiteDim_i k _ Q _ inst i hi ρ _ _ _
+        haveI fd_ne : ∀ a : @Etingof.ArrowsOutOf Q instR i,
+            @Module.Finite k
+              (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)
+              (inferInstanceAs (Semiring k))
+              (@Etingof.QuiverRepresentation.instAddCommMonoid k Q _
+                instR ρ' a.fst)
+              (@Etingof.QuiverRepresentation.instModule k Q _
+                instR ρ' a.fst) :=
+          fun a => @Etingof.reflFunctorPlus_finiteDim_ne k _ Q _ inst i hi ρ _ _ _ a
+        haveI : FiniteDimensional k (DirectSum (@Etingof.ArrowsOutOf Q instR i)
+            (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)) :=
+          @Module.Finite.instDirectSum k (@Etingof.ArrowsOutOf Q instR i) _
+            inferInstance
+            (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)
+            (fun a => (acg_comp a).toAddCommMonoid)
+            (fun a => ρ'.instModule a.fst)
+            (fun a => fd_ne a)
+        -- Now prove ker Φ ≤ ψ.range via dimension count
+        -- BLOCKER: instR type class pollution makes finrank/injectivity proofs
+        -- extremely difficult. Each use of Module.finrank or Function.Injective
+        -- triggers synthesis conflicts between inst and instR.
+        -- Mathematical argument for hψ_inj: ψ factors as
+        --   equivAt_eq → subtype → reindex ∘ ⊕equivAt_ne⁻¹
+        -- which is injective (equiv ∘ injection ∘ equiv).
+        -- Mathematical argument for hdim:
+        --   finrank(ρ'.obj i) = finrank(ker sinkMap) [equivAt_eq]
+        --   finrank(ker sinkMap) + finrank(V_i) = finrank(⊕V_j) [rank-nullity]
+        --   finrank(⊕V_j) = finrank(⊕ρ'.obj a.fst) [equivAt_ne + reindex]
+        have hψ_inj : Function.Injective ψ := by
+          sorry
+        have hdim : Module.finrank k
+              (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i) +
+            Module.finrank k (@Etingof.QuiverRepresentation.obj k Q _ inst ρ i) =
+            Module.finrank k (DirectSum (@Etingof.ArrowsOutOf Q instR i)
+              (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)) := by
+          sorry
+        exact (Etingof.exact_of_dim hfwd hΦsurj hψ_inj hdim).ge
     -- Compose quotEquivOfEq with quotKerEquivOfSurjective
     exact (Submodule.quotEquivOfEq _ _ hker).trans (LinearMap.quotKerEquivOfSurjective Φ hΦsurj)
 
@@ -694,10 +817,16 @@ theorem Etingof.Proposition6_6_6_sink
           sorry
         · -- a ≠ i, b ≠ i: both equivs reduce to equivAt_ne_sink (≃ id)
           simp only [dif_neg ha, dif_neg hb]
-          -- Both equivs are equivAt_ne_sink (≃ id), maps unchanged
-          -- Requires composing reflFunctorMinus_mapLinear_ne_ne +
-          -- reflFunctorPlus_mapLinear_ne_ne + reversedArrow_ne_ne_twice
-          -- through deeply nested Decidable.casesOn layers.
+          have h_da : ‹DecidableEq Q› a i = .isFalse ha := by
+            cases ‹DecidableEq Q› a i with | isTrue h => exact absurd h ha | isFalse _ => rfl
+          have h_db : ‹DecidableEq Q› b i = .isFalse hb := by
+            cases ‹DecidableEq Q› b i with | isTrue h => exact absurd h hb | isFalse _ => rfl
+          -- BLOCKER: Decidable.casesOn opacity prevents reducing through
+          -- F⁻(F⁺(V)).mapLinear for a≠i, b≠i. The equivAt_ne_sink equivs
+          -- reduce to identity, but the map also needs reduction through
+          -- reflFunctorMinus_mapLinear_ne_ne + reflFunctorPlus_mapLinear_ne_ne
+          -- + reversedArrow_ne_ne_twice. The Decidable.rec terms in the
+          -- goal types resist rw/simp/dsimp, causing "motive is not type correct".
           sorry)
 
 /-- If ψ is injective at a source, then applying F⁺ᵢ after F⁻ᵢ recovers V
