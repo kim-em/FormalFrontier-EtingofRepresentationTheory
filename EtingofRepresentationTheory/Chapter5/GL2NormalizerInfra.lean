@@ -223,7 +223,7 @@ lemma Etingof.centralizer_nonscalar_elliptic (hn : n ≠ 0)
       -- toLinAlgEquiv b = toLin b b (definitionally)
       -- toLin b b (toMatrix b b f) = f by Matrix.toLin_toMatrix
       show Matrix.toLin b b (LinearMap.toMatrix b b ((Algebra.lmul _ _) ↑α)) y = _
-      rw [Matrix.toLin_toMatrix]
+      rw [Matrix.toLin_toMatrix]; rfl
     -- From hcomm_mat, apply toLinAlgEquiv (an AlgEquiv, so preserves *) to both sides
     have heq := congr_arg (Matrix.toLinAlgEquiv b) hcomm_mat
     simp only [map_mul] at heq
@@ -308,10 +308,10 @@ lemma Etingof.centralizer_nonscalar_elliptic (hn : n ≠ 0)
   have hg_eq : g.val = Algebra.leftMulMatrix b (φ 1) := by
     have hg_mat : g.val = LinearMap.toMatrixAlgEquiv b φ := by
       rw [hφ_def]; exact (LinearMap.toMatrixAlgEquiv_toLinAlgEquiv b g.val).symm
-    rw [hg_mat]; congr 1
-    exact LinearMap.ext fun x => by
-      show φ x = (Algebra.lmul (GaloisField p n) (GaloisField p (2 * n))) (φ 1) x
-      change φ x = φ 1 * x; exact hφ_eq x
+    ext i j
+    rw [hg_mat, LinearMap.toMatrixAlgEquiv_apply,
+        Algebra.leftMulMatrix_apply, LinearMap.toMatrix_apply]
+    congr 2; exact hφ_eq (b j)
   -- φ 1 ≠ 0 (g is invertible)
   have hφ1_ne : φ 1 ≠ 0 := by
     intro h
@@ -434,6 +434,95 @@ lemma Etingof.GL2.conj_mem_implies_normalizer (hn : n ≠ 0)
   -- By centralizer_nonscalar_elliptic, z⁻¹k'z ∈ K
   exact Etingof.centralizer_nonscalar_elliptic p n hn
     (z⁻¹ * k * z) hz hns (z⁻¹ * k' * z) hcomm
+
+/-- The Frobenius matrix is not in K = 𝔽_{q²}×. If it were, then conjugation
+by σ would be trivial on K, meaning α^q = α for all α ∈ 𝔽_{q²}×, which
+contradicts [𝔽_{q²} : 𝔽_q] = 2. -/
+private lemma Etingof.GL2.frobeniusMatrix_not_in_elliptic (hn : n ≠ 0)
+    [Fintype (GaloisField p n)] :
+    Etingof.GL2.frobeniusMatrix p n ∉ Etingof.GL2.ellipticSubgroup p n := by
+  intro ⟨α, hα⟩
+  -- If σ = embed(α), then for any β: σ⁻¹ embed(β) σ = embed(β^q)
+  -- But also σ⁻¹ embed(β) σ = α⁻¹ β α (in K, which is commutative) = β
+  -- So embed(β^q) = embed(β) for all β
+  letI := Etingof.algebraGaloisFieldExt p n
+  letI := Etingof.scalarTowerGaloisField p n
+  haveI := Etingof.finiteDimensionalGaloisFieldExt p n
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  haveI : Algebra.IsAlgebraic (GaloisField p n) (GaloisField p (2 * n)) :=
+    Algebra.IsAlgebraic.of_finite _ _
+  -- fieldExtEmbed is injective
+  set b := Module.finBasisOfFinrankEq (R := GaloisField p n)
+    (M := GaloisField p (2 * n)) (Etingof.finrank_galoisField_ext p n hn)
+  have hembed : ∀ (w : (GaloisField p (2 * n))ˣ),
+      (Etingof.GL2.fieldExtEmbed p n w).val =
+      Algebra.leftMulMatrix b (w : GaloisField p (2 * n)) := by
+    intro w; simp only [Etingof.GL2.fieldExtEmbed, dif_neg hn]; congr 1
+  have hembed_inj : Function.Injective (Etingof.GL2.fieldExtEmbed p n) := by
+    intro u v huv
+    have hval : (Etingof.GL2.fieldExtEmbed p n u).val =
+        (Etingof.GL2.fieldExtEmbed p n v).val := congr_arg Units.val huv
+    rw [hembed u, hembed v] at hval
+    exact Units.ext (Algebra.leftMulMatrix_injective b hval)
+  -- For any β: σ⁻¹ embed(β) σ = embed(β^q) (by frobeniusMatrix_conj)
+  -- But σ = embed(α), so σ⁻¹ embed(β) σ = embed(β) by commutativity of K
+  -- Hence β^q = β
+  have htriv : ∀ β : (GaloisField p (2 * n))ˣ,
+      (β : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n) = β := by
+    intro β
+    have hconj := Etingof.GL2.frobeniusMatrix_conj p n hn β
+    rw [← hα] at hconj
+    have hcomm : (Etingof.GL2.fieldExtEmbed p n α)⁻¹ *
+      Etingof.GL2.fieldExtEmbed p n β *
+      Etingof.GL2.fieldExtEmbed p n α = Etingof.GL2.fieldExtEmbed p n β := by
+      rw [← map_inv, ← map_mul, ← map_mul, inv_mul_cancel_comm]
+    rw [hcomm] at hconj
+    have := hembed_inj hconj
+    simp only [Units.ext_iff] at this
+    exact this.symm
+  -- Convert to units: β^q = β as units
+  have h_unit_eq : ∀ β : (GaloisField p (2 * n))ˣ,
+      β ^ Fintype.card (GaloisField p n) = β := by
+    intro β
+    exact Units.val_injective (by rw [Units.val_pow_eq_pow_val]; exact htriv β)
+  -- Every unit satisfies β^{q-1} = 1
+  have h_pow_one : ∀ β : (GaloisField p (2 * n))ˣ,
+      β ^ (Fintype.card (GaloisField p n) - 1) = 1 := by
+    intro β
+    have heq := h_unit_eq β
+    rw [show Fintype.card (GaloisField p n) =
+        Fintype.card (GaloisField p n) - 1 + 1 from
+      (Nat.succ_pred_eq_of_pos Fintype.card_pos).symm, pow_succ] at heq
+    exact mul_right_cancel (by rw [one_mul]; exact heq)
+  -- By forall_pow_eq_one_iff: q²-1 ∣ q-1
+  have hdvd : Fintype.card (GaloisField p (2 * n)) - 1 ∣
+      Fintype.card (GaloisField p n) - 1 :=
+    (FiniteField.forall_pow_eq_one_iff
+      (K := GaloisField p (2 * n)) (Fintype.card (GaloisField p n) - 1)).mp h_pow_one
+  -- p^{2n} - 1 > p^n - 1, contradicting divisibility
+  have hq := @GaloisField.card p _ n hn
+  have hq2 := @GaloisField.card p _ (2 * n) (by omega : 2 * n ≠ 0)
+  simp only [Fintype.card_eq_nat_card] at hdvd
+  rw [hq, hq2] at hdvd
+  have hpn_ge : p ^ n ≥ 2 := by
+    calc p ^ n ≥ 2 ^ n := Nat.pow_le_pow_left (Nat.Prime.two_le hp.out) n
+      _ ≥ 2 ^ 1 := Nat.pow_le_pow_right (by omega) (by omega)
+      _ = 2 := by norm_num
+  have h2n : p ^ (2 * n) = p ^ n * p ^ n := by rw [two_mul, pow_add]
+  have hgt : p ^ (2 * n) > p ^ n := by nlinarith
+  exact absurd (Nat.le_of_dvd (by omega) hdvd) (by omega)
+
+/-- Every element of the normalizer N_{GL₂}(K) is in K or in the Frobenius coset σK.
+This uses the trace/det argument: if g normalizes K and maps a non-scalar k = embed(α)
+to embed(β), then tr(embed(β)) = tr(embed(α)) and det(embed(β)) = det(embed(α)),
+so β satisfies the same minimal polynomial as α, giving β ∈ {α, α^q}. -/
+private lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2)
+    [Fintype (GaloisField p n)]
+    (g : GL2 p n) (hg : Etingof.GL2.isInNormalizer p n g) :
+    g ∈ Etingof.GL2.ellipticSubgroup p n ∨
+    ∃ α : (GaloisField p (2 * n))ˣ,
+      g = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α := by
+  sorry
 
 /-- The cardinality of the normalizer: |N_{GL₂}(K)| = 2|K|. -/
 lemma Etingof.GL2.normalizer_card (hn : n ≠ 0) (hp2 : p ≠ 2)
