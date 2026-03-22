@@ -22,18 +22,12 @@ pdfseparate source/original.pdf pdf/raw-pages/%d.pdf
 The Lean project was created at the repo root by `ff init` using `lake init <ProjectName> math`, where `<ProjectName>` is the repository name with the `FormalFrontier-` prefix stripped (e.g., `FormalFrontier-Rudin` → `Rudin`). Start downloading Mathlib now so it is ready by the time formalization begins.
 
 ```bash
-lake build
+lake exe cache get &&  lake build
 ```
-
-This takes ~30 minutes the first time (Mathlib download and build). Start it in the background and proceed with the remaining Phase 1 stages. Having the Lean project available early allows agents to test Lean snippets while transcribing and analyzing structure.
-
-**Output:** `.lake/` with compiled Mathlib artifacts.
-
-**Verify:** `lake build` exits successfully.
 
 ### Stage 1.3: Frontmatter Detection
 
-This is a **lightweight pass**. Start by examining the first ~20 pages and the last ~10 pages of `pdf/raw-pages/` — that is usually sufficient. If a book has an unusually long preface, TOC, or index, look at a few more pages until the boundary is clear. You do not need to read the entire book.
+Start by examining the first ~20 pages and the last ~10 pages of `pdf/raw-pages/` — that is usually sufficient. If a book has an unusually long preface, TOC, or index, look at a few more pages until the boundary is clear. You do not need to read the entire book.
 
 Determine:
 - Where "page 1" of the book actually starts (after title page, copyright, table of contents, preface, etc.)
@@ -46,7 +40,7 @@ Copy pages into `pdf/pages/` with the appropriate names. (`pdf/raw-pages/` is th
 
 **All pages are included** — frontmatter, main content, and backmatter all get entries in `pdf/pages/`. Nothing is discarded.
 
-After copying, write `pdf/pages/mapping.json` recording the raw-page → logical-page correspondence. This is the authoritative record of the frontmatter boundary decision; subsequent stages that need to map between raw and logical page numbers must read this file rather than reverse-engineering it from filenames.
+After copying, write `pdf/pages/mapping.json` recording the raw-page → logical-page correspondence. 
 
 Format:
 ```json
@@ -129,6 +123,7 @@ Identify every piece of content in the book and assign it to a blob. The goal is
 
 **Formally numbered items:**
 - Theorems, lemmas, propositions, corollaries
+- Proofs of theorems, lemmas, and propositions
 - Definitions
 - Examples, exercises
 - Remarks, notes
@@ -226,7 +221,7 @@ Categorize each:
 
 ### Stage 2.3: Research — Mathlib Coverage
 
-For each external dependency and each item, search Mathlib for relevant material.
+For each external dependency and each item, search Mathlib for relevant material. For large books, orchestrate this via issues (one per chapter) so that multiple agents can research in parallel.
 
 - Is this definition already in Mathlib? Under what name?
 - Is this theorem already proved? At what generality?
@@ -269,35 +264,7 @@ These files are read by formalization agents when they work on the corresponding
 
 ## Phase 3: Formalization
 
-### Stage 3.1: Lean Scaffolding
-
-The Lean project was created at the repo root by `ff init` in Stage 1.2 and Mathlib was built then. Create `.lean` files for each formalizable item (theorems, definitions, lemmas — not discussion blobs).
-
-Set up the import chain:
-- Root file: `{Title}.lean` importing all chapter files
-- Chapter files: `{Title}/Chapter1.lean` importing all items in the chapter
-- Item files: `{Title}/Chapter1/Theorem1_1.lean` with a sorry'd statement
-
-Each item file should contain:
-- A sorry'd `theorem` or `def` statement based on the blob's content
-- A doc-string with the natural language statement from the book
-- Appropriate Mathlib imports
-
-Example:
-```lean
-/-- **Bolzano-Weierstrass Theorem.** Every bounded sequence in ℝ has a convergent subsequence. -/
-theorem bolzano_weierstrass {s : ℕ → ℝ} (hb : Bornology.IsBounded (Set.range s)) :
-    ∃ φ : ℕ → ℕ, StrictMono φ ∧ ∃ L, Filter.Tendsto (s ∘ φ) Filter.atTop (nhds L) := by
-  sorry
-```
-
-**Output:** `{Title}/Chapter1/Theorem1_1.lean`, etc.
-
-**Verify:** `lake build` succeeds (everything compiles with sorries).
-
-### Stage 3.2: Formalization Work Loop
-
-Orchestrate agents to formalize items, respecting the dependency DAG.
+Phases 1 and 2 are analytical work that a single agent (or small number of agents) can complete. Phase 3 is where the bulk of the project happens: every formalizable item needs a Lean file with correct definitions and eventually a complete proof. For a book-length project, each Phase 3 stage requires orchestration across many agents working in parallel via GitHub issues and PRs — the same pattern used in Stage 1.4 for page transcription.
 
 #### PR lifecycle
 
@@ -321,25 +288,144 @@ gh pr list --state open \
 | xargs -I{} gh pr merge {} --squash --delete-branch
 ```
 
+### Stage 3.1: Lean Scaffolding
+
+The Lean project was created at the repo root by `ff init` in Stage 1.2 and Mathlib was built then. Create `.lean` files for each formalizable item (theorems, definitions, lemmas — not discussion blobs).
+
+#### Setup
+
+The orchestrating agent creates the file structure and then creates issues for worker agents:
+
+1. Create the skeleton: root file `{Title}.lean` importing all chapter files, chapter files `{Title}/Chapter1.lean` importing all items in the chapter. Commit this to `main`.
+2. Create `gh label create scaffolding --color 1d76db` (ignore error if exists).
+3. Create one issue per chapter (or per item for chapters with complex definitions):
+   - Title: `Scaffold Chapter N` or `Scaffold <ItemID>`
+   - Body: items from `items.json` to scaffold, with links to blob files and `research/mathlib-coverage.json`
+   - Label: `scaffolding`
+
+#### Agent workflow
+
+Each agent assigned to a scaffolding issue:
+1. Reads the blob files for items in its scope
+2. Reads `research/mathlib-coverage.json` for Mathlib API references
+3. Creates `.lean` files following the conventions below
+4. Submits a PR with auto-merge enabled (see PR lifecycle above)
+
+#### Import chain
+
+Each item gets its own file:
+- Root file: `{Title}.lean` importing all chapter files
+- Chapter files: `{Title}/Chapter1.lean` importing all items in the chapter
+- Item files: `{Title}/Chapter1/Theorem1_1.lean`
+
+#### Definitions vs. theorems: the critical distinction
+
+**Definitions (`def`, `noncomputable def`, `instance`, `abbrev`) must have real bodies — never `sorry`.** A sorry'd definition spoils all subsequent scaffolding. 
+
+**Only theorem/lemma proofs may use `sorry`.** Propositional subterms within a definition (e.g., a proof obligation in a `where` clause or `Subgroup.mk`) may also use `sorry`, since the *data* part of the definition is still constructed. 
+
+Bad (definition-level sorry — the object does not exist):
+```lean
+noncomputable def myMetricSpace (X : Type*) : MetricSpace X := sorry
+```
+
+Good (definition with proof obligation sorry'd — the object exists):
+```lean
+def evenIntegers : AddSubgroup ℤ where
+  carrier := {n | 2 ∣ n}
+  add_mem' := sorry  -- data is constructed, only proofs deferred
+  zero_mem' := sorry
+  neg_mem' := sorry
+```
+
+Good (theorem-level sorry — the statement is meaningful, proof deferred):
+```lean
+/-- **Bolzano-Weierstrass.** Every bounded sequence in ℝ has a convergent subsequence. -/
+theorem bolzano_weierstrass {s : ℕ → ℝ} (hb : Bornology.IsBounded (Set.range s)) :
+    ∃ φ : ℕ → ℕ, StrictMono φ ∧ ∃ L, Filter.Tendsto (s ∘ φ) Filter.atTop (nhds L) := by
+  sorry
+```
+
+Writing definitions is the hardest part of scaffolding. If a definition requires significant research into the API of Mathlib or another library, or careful mathematical design, that work must happen here — not be deferred with a `sorry`. 
+
+Each item file should contain:
+- A doc-string with the natural language statement from the book
+- Appropriate imports from earlier items or library dependencies
+- For definitions: a full construction (proof obligations within the definition may use `sorry`). Auxiliary definitions may be needed, which should happen during scaffolding. 
+- For theorems/lemmas: a sorry'd proof with the precise Lean statement
+
+**Output:** `{Title}/Chapter1/Theorem1_1.lean`, etc.
+
+**Verify:** `lake build` succeeds (everything compiles with sorries).
+
+### Stage 3.2: Scaffolding Review
+
+Before beginning proof work (Stage 3.3), verify that the scaffolding is sound. This gate helps prevent mis-formalizations and definition-level sorries.
+
+#### Setup
+
+Create one issue per chapter for scaffolding review (`gh label create scaffolding-review --color d4c5f9`). Each review agent checks one chapter's items against the checklist below, updates `progress/items.json` with status transitions, and submits a PR with any fixes.
+
+#### Automated check: no definition-level sorries
+
+Scan all `.lean` files for sorry'd definitions — cases where the return value itself (not a proof obligation within a `where` clause) is `sorry`. The key patterns to catch:
+
+```bash
+# Coarse pre-filter — catches common cases but is NOT authoritative
+grep -rn ':= sorry\|:= by sorry' {Title}/ --include='*.lean' | grep -v 'theorem \|lemma '
+```
+
+This grep is a coarse pre-filter only. It misses multiline definitions and some `instance`/`abbrev` layouts. Every match must be manually reviewed, and the reviewer must also inspect all `def`, `noncomputable def`, `instance`, and `abbrev` declarations — not just grep matches.
+
+For each match: if the `sorry` is the *value* of a `def`/`abbrev`/`instance` (the object itself doesn't exist), it must be fixed. If it's a proof obligation inside a `where` block or structure constructor, that's acceptable. Instances follow the same rule as definitions: an `instance Foo where data_field := sorry` is bad (the data doesn't exist), but `instance Foo where proof_field := sorry` is acceptable (the data is constructed, only the proof is deferred).
+
+#### Manual review checklist
+
+A review agent should verify:
+1. **No definition-level sorries** — all `def`, `instance`, and `abbrev` declarations have real data bodies (proof obligations within `where` clauses may use sorry)
+2. **Theorem statements reference correct Mathlib types** — spot-check 10-20% of theorem statements against the blob text and Mathlib API
+3. **Import chain is correct** — `lake build` succeeds
+
+#### Status transitions
+
+After Stage 3.2 review:
+- Items that pass → status `definition_verified` (for both definitions and theorems)
+- Items that fail → status `needs_definition`, with a GitHub issue created
+
+#### Output
+
+- A scaffolding review report in `progress/summaries/scaffolding-review.md`
+- GitHub issues for any definition-level sorries found (these must be fixed before proof work begins)
+- Updated `progress/items.json` with status transitions
+
+### Stage 3.3: Formalization Work Loop
+
+Orchestrate agents to formalize items, respecting the dependency DAG.
+
+#### Formalization guidance
+
+- **Read the book's proof first (mandatory).** Before attempting any proof, read the blob file (`blobs/<Chapter>/<Item>.md`) for the theorem you're proving. Remember that the proof itself is likely to be in separate blob from the statement. The book contains the proof strategy — follow it. Do not invent your own proof approach from mathematical knowledge. The book's approach is chosen to build on earlier results in the book, which are the results available to you.
+- **Follow the book's dependency chain.** If the book says "the result follows from Lemma X.Y.Z", find that lemma in the project and use it in your proof — even if it still has a `sorry`. A sorry'd dependency is not a blocker. Never conclude that a proof is "blocked on missing Mathlib infrastructure" when the book's proof uses an earlier result from the same book.
+- **"Not in Mathlib" is not a blocker.** This project exists to formalize what isn't in Mathlib. If the book's proof requires a result that isn't in Mathlib, check whether it's an earlier item in the book (it usually is). If it genuinely requires external mathematics not covered by the book or Mathlib, prove it here — that's just more work, not a blocker. Only after exhausting the book's own proof path and checking the informal literature should you consider filing an infrastructure issue.
+- **Push sorries earlier:** Work top-down. If the proof of a theorem is currently `sorry`, you can replace this with the intended structure of the proof, even if some subsidiary steps are still `sorry` for now. Don't waste time on proving helper lemmas until you know they're needed, because you've used them in high level proofs later.
+- **Spec-driven development:** Use sorry placeholders with comments explaining what's needed, not `True` or other cheats.
+- **Pre-formalization:** For complex items, first translate the natural language blob into a pedantic, detailed version with careful references to every fact used, before attempting formalization.
+
 #### Agent workflow
 
 Each agent is assigned a task (an item or small group of related items). The agent either:
 1. **Submits a PR** that fully or partially resolves the task (with auto-merge enabled)
-2. **Escalates by posting an issue** documenting the blockers
+2. **Escalates by posting multiple issues** documenting a proposed decomposition into more manageable tasks. These may include doing further research, either within the book (for more proof details, or prerequisites earlier in the book), or in Mathlib, or other informal or formal sources.
 
 #### Task selection
 
-Agents query `progress/items.json` and the dependency DAG to find ready work:
-1. Find items that still contain `sorry` but whose dependency items are all sorry-free.
-2. These are the items ready for formalization — pick one and work on it.
+Once Stage 3.2 is complete, all statements and definitions are verified. Agents should prioritize the hardest, most impactful items, not items with the easiest dependency graphs.
+
+Task selection criteria (in priority order):
+1. Items that unblock the most downstream work (high fan-out in the dependency DAG)
+2. Items assessed as mathematically hardest (from health check or summarize reports)
 
 Status updates are tracked in `progress/items.json`. Non-formal nodes (discussion, external dependencies) are also tracked there.
-
-#### Dependency tracking
-
-- Use `- [ ] depends on #X` comments in issues
-- Use a `blocked` label for items waiting on dependencies
-- Agents should not work on items whose dependencies aren't yet formalized (unless they are willing to sorry the dependencies and work top-down)
 
 #### Escalation policy: the `blocked` label
 
@@ -359,6 +445,11 @@ Before applying `blocked`:
    The book's proof almost certainly uses results from earlier in the book. Check there
    first.
 
+#### Dependency tracking
+
+- Use `- [ ] depends on #X` comments in issues
+- Use a `blocked` label only for items blocked on a *definition-level* sorry in a dependency — never for proof-level sorries
+
 #### Triage
 
 Specialized triage agents should periodically review open issues for:
@@ -367,16 +458,37 @@ Specialized triage agents should periodically review open issues for:
 - Dependency ordering mistakes
 - Opportunities for useful tactics or metaprograms
 
-#### Formalization guidance
+#### Periodic status check (every 50 merged PRs)
 
-- **Read the book's proof first (mandatory).** Before attempting any proof, read the blob file (`blobs/<Chapter>/<Item>.md`) for the theorem you're proving. The book contains the proof strategy — follow it. Do not invent your own proof approach from mathematical knowledge. The book's approach is chosen to build on earlier results in the book, which are the results available to you.
-- **Follow the book's dependency chain.** If the book says "the result follows from Lemma X.Y.Z", find that lemma in the project and use it in your proof — even if it still has a `sorry`. A sorry'd dependency is not a blocker. Never conclude that a proof is "blocked on missing Mathlib infrastructure" when the book's proof uses an earlier result from the same book.
-- **"Not in Mathlib" is not a blocker.** This project exists to formalize what isn't in Mathlib. If the book's proof requires a result that isn't in Mathlib, check whether it's an earlier item in the book (it usually is). If it genuinely requires external mathematics not covered by the book or Mathlib, prove it here — that's just more work, not a blocker. Only after exhausting the book's own proof path and checking the informal literature should you consider filing an infrastructure issue.
-- **Push sorries earlier:** Work top-down. State the theorem, sorry the proof, then work on filling in the sorry. Don't waste time on helper lemmas until you know they're needed.
-- **Spec-driven development:** Use sorry placeholders with comments explaining what's needed, not `True` or other cheats.
-- **Pre-formalization:** For complex items, first translate the natural language blob into a pedantic, detailed version with careful references to every fact used, before attempting formalization.
+After every 50 merged PRs, a review agent must perform a status check. This prevents the work loop from drifting — agents have tendency to pick the easy work and defer the hardest parts. Status checks that identify remaining work without producing GitHub issues are wasted — the issues are the primary deliverable, not the report.
 
-### Stage 3.3: Dependency Trimming (post-formalization)
+The status check must:
+
+1. **Scan for definition-level sorries (regression check).** Re-run the Stage 3.2 automated check. New definition-level sorries can be introduced during proof work when agents create helper definitions with sorry bodies. Any found must become issues — these are the highest priority, since they make downstream theorem statements vacuous.
+
+2. **Identify the hardest remaining items.** This is a mathematical assessment, not just a sorry count. For each chapter with remaining work, identify the items that are hardest to complete, considering:
+   - Mathematical depth and complexity (e.g., developing significant theory vs a routine calculation)
+   - Dependency chains (items that unblock many others)
+   - Whether the book's proof strategy requires infrastructure not in Mathlib
+   For each, create or update a GitHub issue with a difficulty assessment, a decomposition into sub-tasks, and concrete next steps.
+
+3. **Identify neglected items.** List all items with remaining sorries that have had zero PRs and zero issues across recent waves. For each, determine why and create an issue if none exists.
+
+4. **Check work distribution.** Count PRs per chapter over recent waves. If any chapter with remaining sorries has received disproportionately little attention, flag it and create targeted issues for its hardest items.
+
+5. **Update `progress/items.json`** to reflect the current state, especially items whose status has changed but weren't updated.
+
+6. **Create actionable issues.** Every finding from steps 1-4 that doesn't already have a GitHub issue must result in a new issue. Before creating an issue, search open issues for the item ID to avoid duplicates.
+
+**Counting PRs:** Count merged PRs since the last status-check issue was closed. Use `gh pr list --state merged` with a date filter based on the close date of the last `status-check` labeled issue.
+
+**Output:**
+- `progress/summaries/status-check-wave-N.md` with the analysis
+- GitHub issues for every actionable finding (labeled `status-check`)
+
+**The status check is mandatory, not optional.** A planner must schedule it. If no status check has been performed after 50 PRs, the next planner must schedule one before creating new proof work items.
+
+### Stage 3.4: Dependency Trimming (post-formalization)
 
 Once items have sorry-free proofs, analyze actual dependencies by reviewing the proof terms and imports.
 
@@ -389,92 +501,63 @@ This is when we learn the true dependency structure of the book, which may diffe
 
 **Output:** Updated `dependencies/internal.json` reflecting actual dependencies.
 
-### Stage 3.5: Upstreaming Analysis
+### Stage 3.5: Proof Polishing
 
-Identify formalized results that may be worth contributing to Mathlib or related libraries.
-The output is a non-binding `UPSTREAMING.md` report — no actual upstreaming happens here.
+Polish sorry-free proofs to Mathlib quality standards. This is a cleanup pass — the proofs work, but may be verbose, use suboptimal tactics, or not follow Mathlib conventions.
 
-#### Criteria
+#### Setup
 
-Include only results with **proofs genuinely new to Mathlib**. Exclude:
-- Items whose proof is a one-line call to an existing Mathlib declaration (pure wrappers)
-- Items that combine two or three Mathlib facts with trivial glue
-- Items where the proof quality, generality, or formulation is not at Mathlib level
+Create `gh label create proof-polish --color c5def5` (ignore error if exists). Create one issue per chapter (or per item for complex proofs):
+- Title: `Polish proofs in Chapter N` or `Polish <ItemID>`
+- Label: `proof-polish`
+
+#### Agent workflow
+
+Each agent assigned to a proof-polish issue:
+
+1. Reviews each sorry-free proof in its scope
+2. Applies cleanup:
+   - Combine redundant steps (`rw [a]; rw [b]` → `rw [a, b]`)
+   - Replace verbose tactic sequences with more powerful single tactics where appropriate
+   - Remove unnecessary intermediate steps (test by deleting and checking if the proof still works)
+   - Ensure `simp` calls use minimal lemma sets where practical
+   - Follow Mathlib naming conventions and style
+3. Verifies the polished proof still compiles
+4. Submits a PR with auto-merge enabled
+
+#### Status transitions
+
+After polishing: items move from `dependency_trimmed` → `proof_polished` in `progress/items.json`.
+
+**Output:** Polished `.lean` files. Updated `progress/items.json`.
+
+**Verify:** All previously sorry-free items have status `proof_polished`. `lake build` succeeds.
+
+### Stage 3.6: Upstreaming Analysis
+
+Identify formalized results that may be worth contributing to Mathlib. The output is a non-binding `UPSTREAMING.md` report — no actual upstreaming happens here.
 
 #### Phase 1: Lightweight triage
 
-Scan all sorry-free, proof-polished items. For each, make an initial judgment:
-
-- **Reject immediately** if the proof in the Lean file is a one-liner delegating to a named
-  Mathlib theorem — it's already in Mathlib.
-- **Keep as candidate** if the proof is substantive and the result feels absent from Mathlib's
-  API.
-
-Record the initial candidate list with a brief justification for each entry.
+Scan all proof-polished items. Reject immediately if the proof is a one-liner delegating to a named Mathlib theorem, or trivial glue between two or three existing Mathlib facts. Keep as candidate if the proof is substantive and the result appears absent from Mathlib's API.
 
 #### Phase 2: Deep Mathlib research
 
-For each candidate, search the **local Mathlib source** (`.lake/packages/mathlib/`) for
-closely related results — do not rely on web searches or AI knowledge of Mathlib, which
-may be out of date. Open one GitHub issue per candidate to track the research and verdict.
+For each candidate, search the **local Mathlib source** (`.lake/packages/mathlib/`) for closely related results — do not rely on web searches or AI knowledge of Mathlib, which may be out of date. Check for equivalent results under different names, close relatives that make the candidate a straightforward corollary, and proof approaches that reconstruct something Mathlib already proves elsewhere. Open one GitHub issue per candidate to track the research.
 
-For each candidate, determine:
-1. Is the result already in Mathlib, possibly under a different name or with different type
-   class assumptions? (Check related files carefully — not just exact name matches.)
-2. Is there a close relative in Mathlib such that the candidate is just a straightforward
-   corollary or type-class variant?
-3. Is the proof approach genuinely new, or does it reconstruct something Mathlib already
-   proves elsewhere?
+Assign one of three verdicts:
 
-Based on the research, assign one of three verdicts:
-
-- **Reject — insufficient interest:** The result is too narrow, the proof quality doesn't
-  meet Mathlib standards, or it's not a good fit.
-- **Reject — already in Mathlib:** Found an equivalent result. Create a GitHub issue to
-  refactor the proof to use the Mathlib declaration directly, and update the item's
-  `progress/items.json` status to `mathlib_covered`.
-- **Include in UPSTREAMING.md:** Genuinely new to Mathlib, correct, and at appropriate
-  generality and quality.
-
-#### Phase 3: Write UPSTREAMING.md
-
-Write `UPSTREAMING.md` at the repository root with the following structure:
-
-```markdown
-# Upstreaming Candidates
-
-These are suggestions only — no actual upstreaming has occurred.
-
-## Included
-
-### <Item ID> — `theorem_name`
-
-**File:** `path/to/Item.lean`
-
-**Statement:** (the Lean statement)
-
-**Why it's new:** What was searched, what was found, why this is absent.
-
-**Suggested home:** Which Mathlib file/module it belongs in.
-
-## Excluded
-
-### <Item ID> — reason
-
-One-line reason (already in Mathlib as `FooBar.baz`, too narrow, etc.).
-```
+- **Reject — already in Mathlib:** Create a GitHub issue to refactor the proof to use the Mathlib declaration directly, and set `upstreaming_status` to `mathlib_covered`.
+- **Reject — insufficient interest:** Too narrow, not at Mathlib quality/generality, or not a good fit.
+- **Include in UPSTREAMING.md:** Genuinely new to Mathlib, correct, and at appropriate generality.
 
 #### Output
 
-- `UPSTREAMING.md` at the repository root
-- GitHub issues for any items whose proofs should be refactored to use Mathlib directly
-- `progress/items.json` updated with `"upstreaming_status"` field:
-  - `"candidate"` — included in UPSTREAMING.md
-  - `"mathlib_covered"` — already in Mathlib, refactor issue opened
-  - `"rejected"` — not a candidate
+Write `UPSTREAMING.md` at the repository root. For each included candidate: the item ID, Lean declaration name, file path, Lean statement, why it's new (what was searched, what was found), and suggested Mathlib module. For excluded items: one-line reason each.
 
-**Verify:** `UPSTREAMING.md` exists. Every proof-polished item has an `upstreaming_status`
-in `progress/items.json`.
+Update `progress/items.json` with `"upstreaming_status"`: `"candidate"`, `"mathlib_covered"`, or `"rejected"`.
+
+**Verify:** `UPSTREAMING.md` exists. Every proof-polished item has an `upstreaming_status` in `progress/items.json`.
 
 ---
 
@@ -530,7 +613,11 @@ Commits made during a turn should mention the corresponding progress file in the
 ### Item-level progress: `progress/items.json`
 
 Item statuses flow through:
-`identified` → `extracted` → `statement_formalized` → `proof_formalized` → `sorry_free` → `dependency_trimmed`
+`identified` → `extracted` → `scaffolded` → `definition_verified` → `proof_formalized` → `sorry_free` → `dependency_trimmed` → `proof_polished`
+
+Special statuses (set during review):
+- `needs_definition` — the item has a definition-level sorry that must be resolved before downstream theorems are meaningful
+- `attention_needed` — requires specialized agent attention (e.g., wrong statement, repeated failures)
 
 ```json
 {

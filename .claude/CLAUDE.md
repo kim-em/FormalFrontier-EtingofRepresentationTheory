@@ -18,11 +18,14 @@ Push sorries earlier. State the theorem first, sorry the proof, then fill in. Do
 ### Spec-Driven Development
 Use `sorry` placeholders with comments explaining what's needed. Never use `True` as a placeholder for propositions — it hides the actual requirements and will need a full refactor to fix.
 
+### Definitions Must Be Constructed
+**Never sorry the body of a `def`, `noncomputable def`, `instance`, or `abbrev`.** A sorry'd definition means the mathematical object does not exist — any theorem referencing it is vacuous. Proof obligations *within* a definition (e.g., `where` clauses) may use sorry, but the data itself must be real. See Stage 3.1 in PLAN.md for details and examples.
+
 ### Discussion Blobs Are First-Class
 During structure analysis (Stage 1.5), unstructured text between numbered items must be identified and tracked just like theorems and definitions. These discussion paragraphs carry context that proofs depend on. Every byte of the book must belong to exactly one blob.
 
 ### Conservative Dependencies
-Store only **direct** dependencies. The conservative default is a linear chain: each item depends only on its immediate predecessor. Never store transitive closure — that creates an O(N²) file with no useful information. We trim to actual direct dependencies later (Stage 3.3) once proofs exist.
+Store only **direct** dependencies. The conservative default is a linear chain: each item depends only on its immediate predecessor. Never store transitive closure — that creates an O(N²) file with no useful information. We trim to actual direct dependencies later (Stage 3.4) once proofs exist.
 
 ## When Stuck
 
@@ -36,10 +39,12 @@ If the book's proof says "by Lemma X.Y.Z" or "the result follows from [earlier r
 
 **Never say "not in Mathlib" without first checking the book.** The book's proofs build on earlier results in the book. Those results are what you should be using — not searching Mathlib for advanced infrastructure like Schur functors or Schur-Weyl duality when the book uses an elementary lemma from the previous page.
 
-- **3 failed proof attempts**: document in a GitHub issue and move on
-- **3 failed attempts on a non-proof sub-task** (definitions, statement formalization): skip it, document in a GitHub issue, move on
-- **Dependency blocked:** Post an issue with `- [ ] depends on #X` and add the `blocked` label
+### Escalation ladder
+
+- **3 failed attempts on any sub-task** (proof, definition construction, statement formalization): document in a GitHub issue and move on
+- **Dependency blocked:** Post an issue with `- [ ] depends on #X` and add the `blocked` label — but only for *definition-level* blockers, never for proof-level sorries
 - **Definition seems wrong:** Post an issue describing the problem — don't silently work around bad definitions
+- **Definition-level sorry found:** This is highest priority. The mathematical object must be constructed — see "Definitions Must Be Constructed" above. Create an issue and fix it before proving downstream theorems.
 - **Missing Mathlib API:** First check whether the missing result is an earlier item in the book. If it is, that's a dependency, not a missing Mathlib API. If genuinely missing from Mathlib, **prove it here** — that's the highest-priority work, not a reason to defer. This project exists to formalize what isn't in Mathlib.
 - **Ordering mistake in the plan:** Report it — request a replan rather than hacking around it
 
@@ -111,32 +116,3 @@ At the start of every turn, read the most recent file in `progress/` (sorted alp
 lake exe cache get
 ```
 This downloads pre-built Mathlib oleans and avoids a full rebuild (1800+ jobs). Skipping this wastes significant time and compute.
-
-
-# Pod Agent Session
-
-You are running as an autonomous agent launched by `pod`. This is a
-non-interactive session via `claude -p` — there is no human to answer
-questions. Never ask for confirmation or approval. Just do the work.
-
-Each agent runs in its own git worktree on its own branch, coordinating
-via GitHub issues, labels, and PRs. The `coordination` script is already
-on your PATH — just run it directly (e.g. `coordination orient`,
-`coordination claim 42`). Do NOT search for it or try to locate it.
-
-Session UUID is available as `$POD_SESSION_ID`.
-
-## Agent Types
-
-- **Planners** (`/plan`): create work items as GitHub issues, then exit
-- **Workers** (`/feature`, `/review`, `/summarize`, `/meditate`): claim
-  and execute issues using the `agent-worker-flow` skill
-
-See your `/command` file and the `agent-worker-flow` skill for the full
-workflow.
-
-## Off-limits Files
-
-Agents must not modify the project's top-level CLAUDE.md (`.claude/CLAUDE.md`)
-or roadmap file (`PLAN.md`). PRs touching these files are rejected by
-`coordination create-pr`. Update skills and commands instead.
