@@ -95,7 +95,7 @@ Your work item MUST NOT overlap with any existing issue's deliverables.
 ## Step 6: Write new issues
 
 Work types: **`feature`**, **`review`**, **`summarize`**, **`meditate`**.
-Target roughly 2:1 feature:review during implementation; 1:1 during cleanup.
+Target roughly 1:1 feature:review in the proof endgame (96%+ sorry-free).
 
 **Summarize trigger**: when 10+ PRs merged since last summarize issue closed.
 **Meditate trigger**: when 15+ PRs merged since last meditate issue closed.
@@ -105,6 +105,7 @@ Each issue body MUST be **self-contained**:
 
 **Sizing**: max 3 deliverables, ~2 files, ~200 lines. Over 300 lines → split.
 When in doubt, split. Each issue must have a single logical concern.
+In the endgame, single-sorry tasks are common and appropriate — don't force multi-file scope.
 
 **Queue health**: keep <3 unclaimed → create unblocked work.
 No transitive blocking. Keep work types mixed.

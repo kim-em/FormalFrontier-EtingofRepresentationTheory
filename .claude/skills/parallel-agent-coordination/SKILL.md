@@ -286,13 +286,14 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 24:** 206/583 sorry-free (35.3%), 81 sorry occurrences across 27 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (~40 sorries across 14 files). Ch6 has ~23 sorries across 8 files (Dynkin/reflection functor work progressing). Ch9 has ~12 sorries across 3 files. Ch2 has ~3 sorries across 2 files. Planners should create mostly proof issues. Statement formalization is complete.
+**As of Wave 27:** 560/583 items sorry-free (96.1%), 75 sorry occurrences across 28 files. 237/265 Lean files (89%) are sorry-free. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (~41 sorries across 12 files). Ch6 has ~23 sorries across 8 files. Ch9 has ~5 sorries across 4 files. Ch2 has ~3 sorries across 2 files. Infrastructure files hold ~3 sorries. Statement formalization is complete.
 
-**Endgame characteristics (Wave 24+):** Remaining sorries are concentrated in difficulty 3-4 items. The "easy wins" are exhausted. Key blockers are:
-- **Decidable.casesOn type transport** (Ch6 reflection functors, ~7 sorries)
-- **Definition-level sorries** requiring concrete implementations (Theorem5_23_2 AlgIrrepGL, ~9 sorries)
-- **Infrastructure dependencies** (normalizer theory for Lemma5_25_3, Morita structural for Corollary9_7_3)
-- **Major standalone theorems** (Theorem9_2_1 parts ii+iii, Theorem5_25_2 principal series)
+**Endgame characteristics (Wave 27+):** Remaining sorries fall into 4 tiers (see `progress/sorry-landscape.md`):
+- **Tier 1 (2 sorries):** Achievable with existing infrastructure (Theorem2_1_1, Theorem5_15_1)
+- **Tier 2 (16 sorries):** Hard but tractable (Dynkin classification, Prop6_6_6 partial, GL₂ normalizer)
+- **Tier 3 (~40 sorries):** Blocked on infrastructure (SchurModule ~20, Gabriel chain ~10, Ch9 chain 5)
+- **Tier 4 (~17 sorries):** Deep blockers (Mackey machine, GL₂ residual, Clifford theory)
+- **Primary value-creation pattern:** Sorry-to-helper extraction. Multiple theorem files now have complete proof terms with sorry only in isolated helpers. This is the dominant successful strategy.
 
 ### Stalling Detection and Response
 
