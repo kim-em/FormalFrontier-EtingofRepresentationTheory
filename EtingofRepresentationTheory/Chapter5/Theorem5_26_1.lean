@@ -162,21 +162,36 @@ private lemma covering_implies_vanishing {G : Type} [Group G]
   obtain ⟨H, hH, hg⟩ := hcov g
   exact hvan H hH ⟨g, hg⟩
 
-/-- Integer rank preservation for Artin's theorem (Remark 5.26.2):
-When X covers G, every irreducible character of G lies in the ℚ-span
-of induced characters from X.
+/-- Any class function f on G that is orthogonal to all induced characters from X
+(in the sense of ∑ f(g) · IndChar(g⁻¹) = 0) must also satisfy
+∑ f(g) · s(g⁻¹) = 0 for all s in the ℚ-span of induced characters.
+This is because the pairing is ℂ-linear in s. -/
+private lemma inner_zero_of_span_mem {G : Type} [Group G] [Fintype G]
+    (X : Set (Subgroup G))
+    (f : G → ℂ) (hf_class : ∀ g x : G, f (x * g * x⁻¹) = f g)
+    (hf_orth : ∀ H ∈ X, ∀ (W : FDRep ℂ ↥H),
+      ∑ g : G, f g * Etingof.inducedCharacter H W.character g⁻¹ = 0)
+    (s : G → ℂ)
+    (hs : s ∈ Submodule.span ℚ
+      {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
+        f = Etingof.inducedCharacter H W.character}) :
+    ∑ g : G, f g * s g⁻¹ = 0 := by
+  induction hs using Submodule.span_induction with
+  | mem x hx =>
+    obtain ⟨H, hH, W, rfl⟩ := hx
+    exact hf_orth H hH W
+  | zero => simp
+  | add x y _ _ hx hy =>
+    simp only [Pi.add_apply]
+    simp only [mul_add, Finset.sum_add_distrib]
+    rw [hx, hy, add_zero]
+  | smul r x _ hx =>
+    show ∑ g : G, f g * (r • x) g⁻¹ = 0
+    have key : ∀ g : G, f g * (r • x) g⁻¹ = (r : ℂ) * (f g * x g⁻¹) := by
+      intro g; show f g * r • x g⁻¹ = _; rw [show r • x g⁻¹ = (r : ℂ) * x g⁻¹ from
+        Algebra.smul_def r (x g⁻¹)]; ring
+    simp_rw [key, ← Finset.mul_sum, hx, mul_zero]
 
-This combines:
-(a) The orthogonal complement argument: by `frobenius_char_reciprocity` +
-    `class_fun_vanishes_on_subgroup_of_orthogonal` + `covering_implies_vanishing`,
-    any class function orthogonal to all induced characters from X vanishes identically.
-    This shows the ℂ-span of induced characters = space of all class functions.
-(b) The integer rank argument (Remark 5.26.2): each induced character decomposes
-    as Ind_H^G(W) = ∑_V n_V · χ_V with n_V ∈ ℕ (multiplicities of irreducibles
-    in the induced representation). The decomposition matrix M has ℕ entries
-    and full rank over ℂ (from step (a)), hence full rank over ℚ (Cramer's rule:
-    det ∈ ℤ, cofactors ∈ ℤ). So each χ_V is a ℚ-linear combination of the
-    induced characters. -/
 private lemma artin_Q_span_of_induced_chars {G : Type} [Group G] [Fintype G]
     (X : Set (Subgroup G))
     (hX : ∀ H ∈ X, ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈ X)
