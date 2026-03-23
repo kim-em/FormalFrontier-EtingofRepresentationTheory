@@ -804,10 +804,92 @@ private lemma nilpotent_nontrivial_decomp {V : Type*} [AddCommGroup V] [Module �
               rw [hv_eq]
               exact Submodule.smul_mem _ c (Submodule.subset_span rfl)
             omega
-        -- Split the direct sum: summand 0 vs the rest
+        -- Split the direct sum: one nontrivial summand vs the rest
         -- Define ℂ[X]-submodules of AEval' T via the isomorphism e
-        let N : Fin d → Type := fun i => ℂ[X] ⧸ Ideal.span {(X : ℂ[X]) ^ k i}
-        let j₀ : Fin d := ⟨0, by omega⟩
+        let N : Fin d → Type := fun i => ℂ[X] ⧸ ℂ[X] ∙ (X : ℂ[X]) ^ k i
+        -- Helper: N j is subsingleton when k j = 0
+        have N_subsingleton : ∀ j, k j = 0 → Subsingleton (N j) := by
+          intro j hj
+          exact Submodule.Quotient.subsingleton_iff.mpr
+            (by rw [hj, pow_zero]; exact Ideal.span_singleton_one)
+        -- At least two summands are nontrivial (k > 0), otherwise dim(ker T) ≤ 1
+        obtain ⟨j₀, j₁, hkj₀, hkj₁, hne⟩ :
+            ∃ j₀ j₁ : Fin d, 0 < k j₀ ∧ 0 < k j₁ ∧ j₀ ≠ j₁ := by
+          by_contra hall
+          push_neg at hall
+          -- hall : ∀ a b, 0 < k a → 0 < k b → a = b
+          -- At most one index has k > 0. Show finrank(ker T) ≤ 1.
+          exfalso
+          have hker_le : Module.finrank ℂ (LinearMap.ker T) ≤ 1 := by
+            by_cases hk_all : ∀ j : Fin d, k j = 0
+            · -- All summands trivial → V ≅ 0
+              haveI : Subsingleton V := by
+                constructor; intro a b
+                have ha : e (Module.AEval'.of (R := ℂ) T a) = 0 :=
+                  DFinsupp.ext (fun j => (N_subsingleton j (hk_all j)).elim _ _)
+                have hb : e (Module.AEval'.of (R := ℂ) T b) = 0 :=
+                  DFinsupp.ext (fun j => (N_subsingleton j (hk_all j)).elim _ _)
+                exact (Module.AEval'.of (R := ℂ) T).injective (e.injective (ha.trans hb.symm))
+              have := Submodule.finrank_le (LinearMap.ker T)
+              have := Module.finrank_zero_of_subsingleton (M := V) (R := ℂ)
+              omega
+            · -- Exactly one nontrivial summand
+              push_neg at hk_all
+              obtain ⟨j₀, hkj₀⟩ := hk_all
+              have hkj₀_pos : 0 < k j₀ := Nat.pos_of_ne_zero hkj₀
+              have hothers : ∀ j, j ≠ j₀ → k j = 0 := by
+                intro j hj; by_contra hkj
+                exact hj (hall j j₀ (Nat.pos_of_ne_zero hkj) hkj₀_pos)
+              -- Every kernel element maps to span of one generator
+              set gen := (Submodule.Quotient.mk (p := ℂ[X] ∙ (X : ℂ[X]) ^ k j₀)
+                ((X : ℂ[X]) ^ (k j₀ - 1)) : N j₀)
+              set w : V := (Module.AEval'.of (R := ℂ) T).symm
+                (e.symm (DirectSum.of N j₀ gen)) with hw_def
+              suffices h_le : LinearMap.ker T ≤ Submodule.span ℂ ({w} : Set V) by
+                exact (Submodule.finrank_mono h_le).trans
+                  ((finrank_span_le_card ({w} : Set V)).trans (by simp))
+              intro v hv
+              rw [LinearMap.mem_ker] at hv
+              have hXv : (X : ℂ[X]) • e (Module.AEval'.of (R := ℂ) T v) = 0 := by
+                have h := e.map_smul (X : ℂ[X]) (Module.AEval'.of (R := ℂ) T v)
+                rw [Module.AEval'.X_smul_of, hv, map_zero, map_zero] at h
+                exact h.symm
+              set c₀ := DirectSum.component ℂ[X] _ _ j₀ (e (Module.AEval'.of (R := ℂ) T v))
+              have hc₀_tors : (X : ℂ[X]) • c₀ = 0 := by
+                have h := (DirectSum.component ℂ[X] _ _ j₀).map_smul
+                  (X : ℂ[X]) (e (Module.AEval'.of (R := ℂ) T v))
+                rw [hXv, map_zero] at h; exact h.symm
+              have hc₀_span := quotient_X_torsion_mem_span (k j₀) c₀ hc₀_tors
+              rw [Submodule.mem_span_singleton] at hc₀_span
+              obtain ⟨c, hc⟩ := hc₀_span
+              have hds_eq : e (Module.AEval'.of (R := ℂ) T v) = DirectSum.of _ j₀ c₀ := by
+                apply DFinsupp.ext; intro j
+                by_cases hj : j = j₀
+                · subst hj; rw [DirectSum.of_eq_same]; rfl
+                · haveI := N_subsingleton j (hothers j hj)
+                  exact Subsingleton.elim _ _
+              have hv_eq : v = c • w := by
+                apply (Module.AEval'.of (R := ℂ) T).injective
+                apply e.injective
+                have lhs : e (Module.AEval'.of (R := ℂ) T v) =
+                    DirectSum.of _ j₀ (c • gen) := by
+                  rw [hds_eq]; congr 1; exact hc.symm
+                have rhs : e (Module.AEval'.of (R := ℂ) T (c • w)) =
+                    DirectSum.of _ j₀ (c • gen) := by
+                  rw [map_smul, hw_def, LinearEquiv.apply_symm_apply]
+                  conv_lhs =>
+                    rw [← IsScalarTower.algebraMap_smul ℂ[X] c
+                      (e.symm (DirectSum.of _ j₀ gen))]
+                  rw [e.map_smul, LinearEquiv.apply_symm_apply]
+                  conv_rhs =>
+                    rw [← IsScalarTower.algebraMap_smul ℂ[X] c gen]
+                  exact ((DirectSum.lof ℂ[X] (Fin d)
+                    (fun i => ℂ[X] ⧸ ℂ[X] ∙ X ^ k i) j₀).map_smul _ gen).symm
+                exact lhs.trans rhs.symm
+              rw [hv_eq]
+              exact Submodule.smul_mem _ c (Submodule.subset_span rfl)
+          linarith
+        -- Use j₀ for the direct sum splitting
         -- P₁, P₂ are complementary in the direct sum
         let DS := DirectSum (Fin d) N
         let P₁ : Submodule ℂ[X] DS :=
@@ -840,10 +922,32 @@ private lemma nilpotent_nontrivial_decomp {V : Type*} [AddCommGroup V] [Module �
         let S₂ := oe P₂
         -- Use these as ℂ-submodules of V (AEval' T = V as a type)
         refine ⟨S₁.restrictScalars ℂ, S₂.restrictScalars ℂ, ?_, ?_, ?_, ?_, ?_⟩
-        · -- S₁ ≠ ⊥
-          sorry
-        · -- S₂ ≠ ⊥
-          sorry
+        · -- S₁ ≠ ⊥: N j₀ is nontrivial (k j₀ > 0), so P₁ = range(lof j₀) ≠ ⊥
+          intro h
+          rw [Submodule.restrictScalars_eq_bot_iff] at h
+          have hP₁ : P₁ = ⊥ := by rwa [← oe.map_bot, oe.eq_iff_eq] at h
+          rw [LinearMap.range_eq_bot] at hP₁
+          have h1 := DFunLike.congr_fun hP₁ (1 : N j₀)
+          simp only [LinearMap.zero_apply] at h1
+          have hlof := DirectSum.lof_apply ℂ[X] j₀ (1 : N j₀)
+          rw [h1, DFinsupp.zero_apply] at hlof
+          haveI : Nontrivial (N j₀) := Submodule.Quotient.nontrivial_iff.mpr
+            (Ideal.span_singleton_ne_top
+              ((isUnit_pow_iff (by omega : k j₀ ≠ 0)).not.mpr Polynomial.not_isUnit_X))
+          exact one_ne_zero hlof.symm
+        · -- S₂ ≠ ⊥: lof j₁ 1 ∈ P₂ (j₁ ≠ j₀) and is nonzero (N j₁ nontrivial)
+          intro h
+          rw [Submodule.restrictScalars_eq_bot_iff] at h
+          have hP₂ : P₂ = ⊥ := by rwa [← oe.map_bot, oe.eq_iff_eq] at h
+          have hmem : DirectSum.lof ℂ[X] (Fin d) N j₁ (1 : N j₁) ∈ P₂ := by
+            rw [LinearMap.mem_ker, DirectSum.component.of, dif_neg hne.symm]
+          have hzero := (Submodule.eq_bot_iff _).mp hP₂ _ hmem
+          have hlof := DirectSum.lof_apply ℂ[X] j₁ (1 : N j₁)
+          rw [hzero, DFinsupp.zero_apply] at hlof
+          haveI : Nontrivial (N j₁) := Submodule.Quotient.nontrivial_iff.mpr
+            (Ideal.span_singleton_ne_top
+              ((isUnit_pow_iff (by omega : k j₁ ≠ 0)).not.mpr Polynomial.not_isUnit_X))
+          exact one_ne_zero hlof.symm
         · -- IsCompl S₁ S₂ as ℂ-submodules
           constructor
           · rw [Submodule.disjoint_def]
