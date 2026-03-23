@@ -261,8 +261,129 @@ private lemma artin_Q_span_of_induced_chars {G : Type} [Group G] [Fintype G]
   -- Therefore its character is an ℕ-linear combination of irreducible characters.
   have hS_in_ℤspan : ∀ s ∈ S, s ∈ Submodule.span ℤ
       (Set.range (fun i : Fin D.n => (D.columnFDRep i).character)) := by
-    sorry -- Requires: Etingof.inducedCharacter = character of Ind_H^G(W),
-          -- plus semisimple decomposition of induced representation
+    intro s hs
+    obtain ⟨H, hHX, W, rfl⟩ := hs
+    -- Setup: |H| is invertible in ℂ
+    haveI : Invertible (Fintype.card ↥H : ℂ) :=
+      invertibleOfNonzero (Nat.cast_ne_zero.mpr Fintype.card_ne_zero)
+    haveI : NeZero (Nat.card ↥H : ℂ) :=
+      ⟨by rw [Nat.card_eq_fintype_card]; exact Invertible.ne_zero _⟩
+    -- Restrict each G-irreducible to H
+    let resH : Fin D.n → FDRep ℂ ↥H := fun i =>
+      FDRep.of ((D.columnFDRep i).ρ.comp H.subtype)
+    -- Multiplicities: m_i = dim Hom_H(W, Res_H(V_i))
+    let m : Fin D.n → ℕ := fun i => Module.finrank ℂ (W ⟶ resH i)
+    -- Step 1: Show IndChar = ∑ m_i • χ_i as functions G → ℂ
+    suffices hsuff : Etingof.inducedCharacter H W.character =
+        ∑ i : Fin D.n, (m i : ℤ) • (D.columnFDRep i).character by
+      rw [hsuff]
+      apply Submodule.sum_mem
+      intro i _
+      exact Submodule.smul_mem _ _ (Submodule.subset_span ⟨i, rfl⟩)
+    -- Step 2: Prove equality by showing difference is zero
+    -- via classFunction_eq_zero_of_orthogonal_simples
+    have hdiff : Etingof.inducedCharacter H W.character -
+        ∑ i : Fin D.n, (m i : ℤ) • (D.columnFDRep i).character = 0 := by
+      apply Etingof.classFunction_eq_zero_of_orthogonal_simples
+      · -- The difference is a class function
+        intro g x
+        simp only [Pi.sub_apply, Finset.sum_apply, Pi.smul_apply]
+        congr 1
+        · -- IndChar is a class function (reindex y ↦ x⁻¹y in the sum)
+          show Etingof.inducedCharacter H W.character (x * g * x⁻¹) =
+               Etingof.inducedCharacter H W.character g
+          simp only [Etingof.inducedCharacter]
+          congr 1
+          let φ : G ≃ G :=
+            { toFun := fun y => x * y
+              invFun := fun z => x⁻¹ * z
+              left_inv := fun y => by group
+              right_inv := fun z => by group }
+          rw [← Equiv.sum_comp φ]
+          apply Finset.sum_congr rfl
+          intro y _
+          -- (xy)⁻¹(xgx⁻¹)(xy) = y⁻¹gy, so the dite terms match
+          have dite_eq : ∀ (a b : G) (hab : a = b),
+              (if h : a ∈ H then W.character ⟨a, h⟩ else 0) =
+              (if h : b ∈ H then W.character ⟨b, h⟩ else 0) := by
+            rintro a b rfl; rfl
+          exact dite_eq _ _ (by change (x * y)⁻¹ * (x * g * x⁻¹) * (x * y) = y⁻¹ * g * y; group)
+        · -- ∑ m_i • χ_i is a class function
+          congr 1; ext i; congr 1
+          exact FDRep.char_conj (D.columnFDRep i) g x
+      · -- Orthogonal to all simple characters
+        intro V' hV'
+        obtain ⟨j, ⟨iso_j⟩⟩ := D.columnFDRep_surjective V' hV'
+        rw [FDRep.char_iso iso_j]
+        -- Need: ∑_g (IndChar(g) - ∑_i m_i χ_i(g)) * χ_j(g⁻¹) = 0
+        simp only [Pi.sub_apply, Finset.sum_apply, Pi.smul_apply, sub_mul,
+          Finset.sum_sub_distrib]
+        rw [sub_eq_zero]
+        -- Character orthonormality on G
+        haveI (i : Fin D.n) : CategoryTheory.Simple (D.columnFDRep i) :=
+          D.columnFDRep_simple i
+        have horth_G : ∀ i : Fin D.n,
+            ∑ g : G, (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ =
+            if i = j then (Fintype.card G : ℂ) else 0 := by
+          intro i
+          have h := FDRep.char_orthonormal (D.columnFDRep i) (D.columnFDRep j)
+          rw [smul_eq_mul] at h
+          have hinv : ∀ (x y : ℂ), ⅟(Fintype.card G : ℂ) * x = y →
+              x = (Fintype.card G : ℂ) * y := fun x y h => by
+            rw [← h, ← mul_assoc, mul_invOf_self, one_mul]
+          by_cases hij : i = j
+          · subst hij
+            rw [if_pos rfl]
+            exact (hinv _ _ (by rw [if_pos ⟨CategoryTheory.Iso.refl _⟩] at h; exact h)).trans
+              (mul_one _)
+          · rw [if_neg hij]
+            exact (hinv _ _ (by rw [if_neg (fun ⟨iso⟩ => hij
+              (D.columnFDRep_injective i j ⟨iso⟩))] at h; exact h)).trans (mul_zero _)
+        -- Both sides equal ↑(m j) * |G|
+        -- LHS: via g ↦ g⁻¹ substitution + Frobenius reciprocity + scalar product
+        -- RHS: via character orthonormality
+        trans (↑(m j) * (Fintype.card G : ℂ))
+        · -- LHS = m_j * |G|
+          -- Reindex: ∑_g IndChar(g) * χ_j(g⁻¹) = ∑_g χ_j(g) * IndChar(g⁻¹)
+          have lhs_sub : ∑ g : G,
+              Etingof.inducedCharacter H W.character g *
+                (D.columnFDRep j).character g⁻¹ =
+              ∑ g : G, (D.columnFDRep j).character g *
+                Etingof.inducedCharacter H W.character g⁻¹ := by
+            rw [← Equiv.sum_comp (Equiv.inv G)]
+            congr 1; ext g; simp [mul_comm]
+          have hfrob := frobenius_char_reciprocity H (D.columnFDRep j).character W.character
+            (fun g x => FDRep.char_conj (D.columnFDRep j) g x)
+          rw [lhs_sub, hfrob]
+          -- Rewrite χ_j(↑h) with (resH j).char(h)
+          have hlhs_rw : ∑ h : ↥H, (D.columnFDRep j).character (↑h : G) * W.character h⁻¹ =
+              ∑ h : ↥H, (resH j).character h * W.character h⁻¹ :=
+            Finset.sum_congr rfl (fun h _ => rfl)
+          rw [hlhs_rw]
+          -- scalar_product_char_eq_finrank_equivariant on H
+          have hmult : ⅟(Fintype.card ↥H : ℂ) •
+              ∑ h : ↥H, (resH j).character h * W.character h⁻¹ = ↑(m j) := by
+            have := FDRep.scalar_product_char_eq_finrank_equivariant W (resH j)
+            rw [smul_eq_mul] at this ⊢
+            convert this using 1
+          -- Extract: ∑_h = |H| * m_j
+          have hsum_H : ∑ h : ↥H, (resH j).character h * W.character h⁻¹ =
+              (Fintype.card ↥H : ℂ) * ↑(m j) := by
+            rw [smul_eq_mul] at hmult
+            calc _ = (Fintype.card ↥H : ℂ) * (⅟(Fintype.card ↥H : ℂ) *
+                ∑ h : ↥H, (resH j).character h * W.character h⁻¹) := by
+                  rw [← mul_assoc, mul_invOf_self, one_mul]
+              _ = _ := by rw [hmult]
+          rw [hsum_H]
+          have hH_ne : (Fintype.card ↥H : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+          field_simp
+        · -- RHS = m_j * |G| (via char orthonormality)
+          symm
+          simp only [Finset.sum_apply, zsmul_eq_mul, Finset.sum_mul]
+          rw [Finset.sum_comm]
+          simp_rw [mul_assoc, ← Finset.mul_sum, horth_G, mul_ite, mul_zero]
+          simp [Finset.sum_ite_eq', Finset.mem_univ]
+    exact sub_eq_zero.mp hdiff
   -- Irreducible characters are ℂ-linearly independent (from char_orthonormal + non-isomorphism)
   have h_li_C : LinearIndependent ℂ (fun i : Fin D.n => (D.columnFDRep i).character) := by
     rw [Fintype.linearIndependent_iff]
