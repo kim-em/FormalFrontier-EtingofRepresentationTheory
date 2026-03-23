@@ -577,12 +577,12 @@ private noncomputable def Etingof.equivAt_eq_sink
   -- Reduce F⁻ at vertex i (isTrue branch)
   unfold Etingof.reflectionFunctorMinus
   simp only
-  match hd1 : (‹DecidableEq Q› i i) with
-  | .isFalse hii => exact absurd rfl hii
-  | .isTrue _ =>
+  -- Use `cases` for proper dependent elimination (no Eq.mpr)
+  cases (‹DecidableEq Q› i i) with
+  | isFalse hii => exact absurd rfl hii
+  | isTrue _ =>
     -- Goal: (⊕_{a : ArrowsOutOf Q̄ᵢ i} F⁺(V)_a.fst) ⧸ range(ψ') ≃ₗ[k] V_i
     -- Strategy: Φ = sinkMap after reindexing, then first isomorphism theorem
-    rw [hd1]; dsimp only []
     classical
     -- Goal: (⊕_{a : ArrowsOutOf_{Q̄ᵢ} i} F⁺(V).obj a.fst) ⧸ range(ψ') ≃ₗ[k] ρ.obj i
     -- Strategy: construct forward and inverse maps directly
@@ -944,18 +944,23 @@ theorem Etingof.Proposition6_6_6_sink
         subst ha; exact ((hi b).false e).elim
       · by_cases hb : b = i
         · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
-          subst hb
+          -- Subst in reverse direction to keep `i` (not `b`) in scope
+          rw [eq_comm] at hb; subst hb
           simp only [dite_true, dif_neg ha, LinearEquiv.trans_apply]
-          -- Goal: equivAt_eq_sink(ρ_dr.mapLinear(h.symm ▸ e)(x)) =
-          --   ρ.mapLinear(e)(reflFunctorPlus_equivAt_ne(a)(reflFunctorMinus_equivAt_ne(a)(x)))
-          -- The F⁻ mapLinear at (a≠i, b=i) sends via mkQ ∘ lof into the cokernel,
-          -- and equivAt_eq_sink maps the cokernel to ρ.obj i via
-          -- (quotEquivOfEq).trans(quotKerEquivOfSurjective Φ).
-          -- Proving this requires:
-          -- 1. A reflFunctorMinus_mapLinear_ne_eq API lemma
-          -- 2. Showing equivAt_eq_sink(mkQ(lof(w))) = Φ(lof(w)) via quotient API
-          -- 3. Showing Φ_component matches ρ.mapLinear via arrow reindexing
-          sorry
+          -- Cases BEFORE unfold to resolve Decidable instances properly
+          -- Only unfold equivAt_ne and F⁻/F⁺ (not equivAt_eq_sink)
+          revert e x
+          cases ‹DecidableEq Q› a i with
+          | isTrue h => intro e x; exact absurd h ha
+          | isFalse _ =>
+            cases ‹DecidableEq Q› i i with
+            | isFalse h => intro e x; exact absurd rfl h
+            | isTrue _ =>
+              intro e x
+              -- Both sides mathematically equal ρ.mapLinear(x)(e)
+              -- Strategy: show RHS = ρ.mapLinear x e (equivAt_ne composed is id),
+              -- then show LHS = ρ.mapLinear x e (equivAt_eq_sink composed with F⁻ map)
+              sorry
         · -- a ≠ i, b ≠ i: use API lemmas compositionally
           simp only [dif_neg ha, dif_neg hb, LinearEquiv.trans_apply]
           -- After trans_apply, goal has explicit composition of the two equivs
