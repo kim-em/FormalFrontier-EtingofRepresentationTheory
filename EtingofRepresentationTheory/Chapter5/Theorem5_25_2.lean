@@ -1,4 +1,5 @@
 import Mathlib
+import EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration
 
 /-!
 # Theorem 5.25.2: Principal Series Representations of GL₂(𝔽_q)
@@ -244,42 +245,45 @@ private lemma sum_monoidHom_units_eq_zero
   · exact absurd (Units.val_injective ((sub_eq_zero.mp h).trans Units.val_one.symm)) hb
   · exact h
 
+/-- A full faithful functor preserving monomorphisms reflects Simple objects. -/
+private lemma simple_of_full_faithful_preservesMono' {C D : Type*} [Category C] [Category D]
+    [Limits.HasZeroMorphisms C] [Limits.HasZeroMorphisms D]
+    (F : C ⥤ D) [F.Full] [F.Faithful] [F.PreservesMonomorphisms] (X : C)
+    [Simple (F.obj X)] : Simple X where
+  mono_isIso_iff_nonzero {Y} f := by
+    intro
+    constructor
+    · intro hiso
+      haveI : IsIso (F.map f) := Functor.map_isIso F f
+      exact fun h => (Simple.mono_isIso_iff_nonzero (F.map f)).mp inferInstance
+        (by rw [h]; simp)
+    · intro hne
+      haveI : Mono (F.map f) := inferInstance
+      haveI : IsIso (F.map f) := (Simple.mono_isIso_iff_nonzero (F.map f)).mpr
+        (fun h => hne (F.map_injective (by rwa [F.map_zero])))
+      exact isIso_of_fully_faithful F f
+
+/-- Bridge: IsSimpleModule → Simple FDRep. -/
+private lemma simple_of_isSimpleModule_FDRep
+    {G : Type} [Group G] [Fintype G]
+    [NeZero (Nat.card G : ℂ)]
+    {V : Type} [AddCommGroup V] [Module ℂ V] [Module.Finite ℂ V]
+    (ρ : Representation ℂ G V)
+    [IsSimpleModule (MonoidAlgebra ℂ G) ρ.asModule] :
+    Simple (FDRep.of ρ) := by
+  let E := Rep.equivalenceModuleMonoidAlgebra (k := ℂ) (G := G)
+  haveI : Simple (E.functor.obj ((forget₂ (FDRep ℂ G) (Rep ℂ G)).obj (FDRep.of ρ))) := by
+    change Simple (ModuleCat.of (MonoidAlgebra ℂ G) ρ.asModule)
+    exact simple_of_isSimpleModule
+  haveI : Simple ((forget₂ (FDRep ℂ G) (Rep ℂ G)).obj (FDRep.of ρ)) :=
+    simple_of_full_faithful_preservesMono' E.functor _
+  exact simple_of_full_faithful_preservesMono' (forget₂ (FDRep ℂ G) (Rep ℂ G)) _
+
 section Theorem5_25_2
 
 variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ) (hn : 0 < n)
 
-/-- Helper: inner product ⟨χ_{V(χ₁,χ₂)}, χ_{V(χ₁,χ₂)}⟩ = 1 when χ₁ ≠ χ₂.
-Uses the Frobenius trace formula evaluated on each conjugacy class of GL₂(𝔽_q)
-and the vanishing of ∑_{z ∈ 𝔽_q×} (χ₁/χ₂)(z) for χ₁ ≠ χ₂.
-
-Proof strategy (from Etingof Theorem 5.25.2):
-1. Apply `FDRep.simple_iff_char_is_norm_one`: reduces to
-   ∑_g χ_V(g) · χ_V(g⁻¹) = |G|
-2. The induced character formula gives χ_V on each conjugacy class type:
-   - Scalar xI: (q+1)χ₁(x)χ₂(x)
-   - Parabolic: χ₁(x)χ₂(x)
-   - Split semisimple diag(x,y): χ₁(x)χ₂(y) + χ₁(y)χ₂(x)
-   - Elliptic: 0
-3. Use `GL2.sum_split` to decompose and `sum_monoidHom_units_eq_zero`
-   for ∑ (χ₁/χ₂)(z) = 0.
-4. Arithmetic: (q-1)(q+1)² + (q-1)(q²-1) + q(q+1)(q-1)(q-3) = q(q+1)(q-1)² = |G|.
--/
-private lemma Etingof.GL2.principalSeries_simple_of_ne
-    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2) :
-    Simple (Etingof.GL2.principalSeries p n chi1 chi2) := by
-  -- The proof reduces to showing ∑_g χ(g)·χ(g⁻¹) = |G| via simple_iff_char_is_norm_one.
-  -- This requires:
-  -- (a) The induced character formula (trace of right translation on covariant functions)
-  -- (b) Conjugacy class decomposition via GL2.sum_split
-  -- (c) Character orthogonality: ∑ (χ₁/χ₂)(z) = 0 (proved in sum_monoidHom_units_eq_zero)
-  sorry
-
-/-- **Theorem 5.25.2 (1)**: If χ₁ ≠ χ₂, the principal series representation
-V(χ₁, χ₂) is irreducible. (Etingof Theorem 5.25.2) -/
-theorem Etingof.Theorem5_25_2_part1
-    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2) :
-    Simple (Etingof.GL2.principalSeries p n chi1 chi2) :=
-  Etingof.GL2.principalSeries_simple_of_ne p n chi1 chi2 hne
+-- principalSeries_simple_of_ne is proved below, after coset rep infrastructure
 
 /-- Coset representatives for B\GL₂(𝔽_q), indexed by Option (GaloisField p n) ≅ P¹(𝔽_q).
     none ↦ I, some t ↦ [[0,-1],[1,t]] with det = 1. -/
@@ -345,6 +349,327 @@ private lemma Etingof.GL2.principalSeries_eval_injective
   rw [show (f : GL2 p n → ℂ) g = (f.val g) from rfl, hcov,
       hf (Etingof.GL2.cosetIndex p n g), mul_zero]
   simp
+
+-- ============================================================
+-- Helper group elements and action formulas for the irreducibility proof
+-- ============================================================
+
+/-- Translation element [[1,s],[0,1]] in GL₂(𝔽_q). -/
+private noncomputable def Etingof.GL2.translationElt
+    (s : GaloisField p n) : GL2 p n :=
+  Matrix.GeneralLinearGroup.mkOfDetNeZero
+    !![1, s; 0, 1] (by simp [Matrix.det_fin_two])
+
+/-- Diagonal element [[c,0],[0,1]] in GL₂(𝔽_q). -/
+private noncomputable def Etingof.GL2.diagElt
+    (c : (GaloisField p n)ˣ) : GL2 p n :=
+  Matrix.GeneralLinearGroup.mkOfDetNeZero
+    !![(c : GaloisField p n), 0; 0, 1]
+    (by simp [Matrix.det_fin_two, Units.ne_zero])
+
+/-- rep(some t) * [[1,s],[0,1]] = rep(some(t+s)). -/
+private lemma Etingof.GL2.cosetRep_mul_translation_some
+    (t s : GaloisField p n) :
+    Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.translationElt p n s =
+    Etingof.GL2.cosetRep p n (some (t + s)) := by
+  apply Matrix.GeneralLinearGroup.ext; intro i j
+  simp only [Matrix.GeneralLinearGroup.coe_mul,
+    Etingof.GL2.cosetRep, Etingof.GL2.translationElt,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+  fin_cases i <;> fin_cases j <;> simp <;> ring
+
+/-- (ρ(τ_s) f)(rep(some t)) = f(rep(some(t + s))). -/
+private lemma Etingof.GL2.action_translation_some
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (s t : GaloisField p n) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.translationElt p n s) f).val
+      (Etingof.GL2.cosetRep p n (some t)) =
+    f.val (Etingof.GL2.cosetRep p n (some (t + s))) := by
+  change f.val (Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.translationElt p n s) = _
+  rw [Etingof.GL2.cosetRep_mul_translation_some]
+
+/-- (ρ(τ_s) f)(rep(none)) = f(rep(none)). -/
+private lemma Etingof.GL2.action_translation_none
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (s : GaloisField p n) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.translationElt p n s) f).val
+      (Etingof.GL2.cosetRep p n none) =
+    f.val (Etingof.GL2.cosetRep p n none) := by
+  change f.val (Etingof.GL2.cosetRep p n none * Etingof.GL2.translationElt p n s) = _
+  simp only [Etingof.GL2.cosetRep, one_mul]
+  -- τ_s ∈ B with b₀₀ = 1, b₁₁ = 1
+  have hb_mem : (Etingof.GL2.translationElt p n s).val 1 0 = 0 := by
+    simp [Etingof.GL2.translationElt, Matrix.GeneralLinearGroup.mkOfDetNeZero,
+      Matrix.GeneralLinearGroup.mk', Matrix.unitOfDetInvertible]
+  have hcov := f.prop ⟨Etingof.GL2.translationElt p n s, hb_mem⟩ 1
+  simp only [Subgroup.coe_mk, mul_one] at hcov
+  rw [hcov]
+  simp [Etingof.GL2.borelCharValue, Etingof.GL2.translationElt,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible]
+
+/-- (ρ(δ_c) f)(rep(some t)) = (χ₂ c : ℂ) * f(rep(some(t * ↑c⁻¹))). -/
+private lemma Etingof.GL2.action_diagonal_some
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (c : (GaloisField p n)ˣ) (t : GaloisField p n) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.diagElt p n c) f).val
+      (Etingof.GL2.cosetRep p n (some t)) =
+    (chi2 c : ℂ) * f.val (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹))) := by
+  change f.val (Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.diagElt p n c) = _
+  -- Factor: rep(some t) * diag(c,1) = diag(1,c) * rep(some(t*c⁻¹))
+  set bmat : Matrix (Fin 2) (Fin 2) (GaloisField p n) :=
+    !![1, 0; 0, (c : GaloisField p n)]
+  have hbdet : bmat.det ≠ 0 := by
+    simp [bmat, Matrix.det_fin_two, Units.ne_zero]
+  set b := Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet
+  have hb_mem : b.val 1 0 = 0 := by
+    simp [b, bmat, Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible]
+  have hprod : Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.diagElt p n c =
+      b * Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹)) := by
+    apply Matrix.GeneralLinearGroup.ext; intro i j
+    simp only [Matrix.GeneralLinearGroup.coe_mul,
+      Etingof.GL2.cosetRep, Etingof.GL2.diagElt, b, bmat,
+      Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+    have hc_ne : (c : GaloisField p n) ≠ 0 := Units.ne_zero c
+    fin_cases i <;> fin_cases j <;> simp
+    · -- (1,1) entry: t = ↑c * (t * (↑c)⁻¹)
+      field_simp
+  rw [hprod]
+  have hcov := f.prop ⟨b, hb_mem⟩ (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹)))
+  rw [hcov]
+  congr 1
+  simp [Etingof.GL2.borelCharValue, b, bmat,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible]
+
+/-- (ρ(δ_c) f)(rep(none)) = (χ₁ c : ℂ) * f(rep(none)). -/
+private lemma Etingof.GL2.action_diagonal_none
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (c : (GaloisField p n)ˣ) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.diagElt p n c) f).val
+      (Etingof.GL2.cosetRep p n none) =
+    (chi1 c : ℂ) * f.val (Etingof.GL2.cosetRep p n none) := by
+  change f.val (Etingof.GL2.cosetRep p n none * Etingof.GL2.diagElt p n c) = _
+  simp only [Etingof.GL2.cosetRep, one_mul]
+  have hb_mem : (Etingof.GL2.diagElt p n c).val 1 0 = 0 := by
+    simp [Etingof.GL2.diagElt, Matrix.GeneralLinearGroup.mkOfDetNeZero,
+      Matrix.GeneralLinearGroup.mk', Matrix.unitOfDetInvertible]
+  have hcov := f.prop ⟨Etingof.GL2.diagElt p n c, hb_mem⟩ 1
+  simp only [Subgroup.coe_mk, mul_one] at hcov
+  rw [hcov]
+  congr 1
+  simp [Etingof.GL2.borelCharValue, Etingof.GL2.diagElt,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible]
+
+/-- (ρ(w) f)(rep(none)) = f(rep(some 0)) where w = rep(some 0). -/
+private lemma Etingof.GL2.action_weyl_none
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2)) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.cosetRep p n (some 0)) f).val
+      (Etingof.GL2.cosetRep p n none) =
+    f.val (Etingof.GL2.cosetRep p n (some 0)) := by
+  change f.val (Etingof.GL2.cosetRep p n none * Etingof.GL2.cosetRep p n (some 0)) = _
+  simp [Etingof.GL2.cosetRep]
+
+-- ============================================================
+-- Main irreducibility proof
+-- ============================================================
+
+/-- The principal series module is nonzero: there exists a nonzero covariant function. -/
+private lemma Etingof.GL2.principalSeries_nontrivial
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Nontrivial (Subrepresentation (Etingof.GL2.principalSeriesRep p n chi1 chi2)) := by
+  -- The underlying module is nonzero (there exist nonzero covariant functions).
+  -- By principalSeries_eval_surjective, the evaluation map at coset reps is surjective,
+  -- so the module has dimension ≥ 1.
+  sorry
+
+/-- Key construction: from any nonzero f ∈ S, produce g ∈ S
+    with g(rep(none)) ≠ 0 and g(rep(some t)) = 0 for all t.
+    Step 1: if f(rep(none)) = 0, apply Weyl·τ to get f' with f'(rep(none)) ≠ 0.
+    Step 2: average over translations, then use diagonal scaling with
+    χ₁ ≠ χ₂ to kill the "some" part. -/
+private lemma Etingof.GL2.principalSeries_construct_delta_none
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2)
+    (S : Subrepresentation (Etingof.GL2.principalSeriesRep p n chi1 chi2))
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (hfS : f ∈ S.toSubmodule) (hfne : f ≠ 0) :
+    ∃ g : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2),
+      g ∈ S.toSubmodule ∧
+      g.val (Etingof.GL2.cosetRep p n none) ≠ 0 ∧
+      ∀ t : GaloisField p n, g.val (Etingof.GL2.cosetRep p n (some t)) = 0 := by
+  -- Step 1: Get f' ∈ S with f'(rep(none)) ≠ 0
+  -- If f(rep(none)) ≠ 0, use f directly; otherwise apply ρ(w)·ρ(τ_t) for some t
+  have hf'exists : ∃ f' ∈ S.toSubmodule,
+      f'.val (Etingof.GL2.cosetRep p n none) ≠ 0 := by
+    by_cases hfnone : f.val (Etingof.GL2.cosetRep p n none) ≠ 0
+    · exact ⟨f, hfS, hfnone⟩
+    · push_neg at hfnone
+      -- f ≠ 0 but f(rep(none)) = 0, so some f(rep(some t₀)) ≠ 0
+      have hsome : ∃ t₀, f.val (Etingof.GL2.cosetRep p n (some t₀)) ≠ 0 := by
+        by_contra hall; push_neg at hall
+        exact hfne (Etingof.GL2.principalSeries_eval_injective p n chi1 chi2 f
+          (fun i => match i with | none => hfnone | some t => hall t))
+      obtain ⟨t₀, ht₀⟩ := hsome
+      -- ρ(w)(ρ(τ_{t₀})(f)) has nonzero value at rep(none)
+      set f' := (Etingof.GL2.principalSeriesRep p n chi1 chi2) (Etingof.GL2.cosetRep p n (some 0))
+        ((Etingof.GL2.principalSeriesRep p n chi1 chi2) (Etingof.GL2.translationElt p n t₀) f)
+      refine ⟨f', ?_, ?_⟩
+      · -- f' ∈ S: S is G-stable
+        exact S.apply_mem_toSubmodule _ (S.apply_mem_toSubmodule _ hfS)
+      · -- f'(rep(none)) ≠ 0
+        -- f'(rep(none)) = ρ(w)(ρ(τ_{t₀})f)(rep(none)) = ρ(τ_{t₀})f(rep(some 0))
+        --   = f(rep(some(0 + t₀))) = f(rep(some t₀)) ≠ 0
+        change f'.val (Etingof.GL2.cosetRep p n none) ≠ 0
+        rw [show f'.val = (Etingof.GL2.principalSeriesRep p n chi1 chi2
+          (Etingof.GL2.cosetRep p n (some 0))
+          (Etingof.GL2.principalSeriesRep p n chi1 chi2
+            (Etingof.GL2.translationElt p n t₀) f)).val from rfl]
+        rw [Etingof.GL2.action_weyl_none p n chi1 chi2
+          (Etingof.GL2.principalSeriesRep p n chi1 chi2 (Etingof.GL2.translationElt p n t₀) f)]
+        rw [Etingof.GL2.action_translation_some p n chi1 chi2 f t₀ 0, zero_add]
+        exact ht₀
+  obtain ⟨f', hf'S, hf'none⟩ := hf'exists
+  -- Step 2: Average over translations to make "some" values constant
+  -- Use abbreviation for readability
+  let ρ := Etingof.GL2.principalSeriesRep p n chi1 chi2
+  set avg := ∑ s : GaloisField p n, ρ (Etingof.GL2.translationElt p n s) f' with avg_def
+  have havgS : avg ∈ S.toSubmodule :=
+    S.toSubmodule.sum_mem (fun s _ => S.apply_mem_toSubmodule _ hf'S)
+  -- Key: avg.val evaluated pointwise
+  have hval : ∀ x, avg.val x =
+      ∑ s : GaloisField p n, (ρ (Etingof.GL2.translationElt p n s) f').val x := by
+    intro x
+    have : (Submodule.subtype _ avg) x =
+        ∑ s, (Submodule.subtype _ (ρ (Etingof.GL2.translationElt p n s) f')) x := by
+      rw [show Submodule.subtype _ avg = Submodule.subtype _
+        (∑ s, ρ (Etingof.GL2.translationElt p n s) f') from rfl, map_sum]
+      simp [Finset.sum_apply]
+    exact this
+  -- avg(rep(none)) = q · f'(rep(none))
+  have havg_none : avg.val (Etingof.GL2.cosetRep p n none) =
+      (Fintype.card (GaloisField p n) : ℂ) * f'.val (Etingof.GL2.cosetRep p n none) := by
+    rw [hval]
+    conv_lhs => arg 2; ext s
+                rw [Etingof.GL2.action_translation_none p n chi1 chi2 f' s]
+    rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+  -- avg(rep(some t)) = ∑_u f'(rep(some u)) (independent of t)
+  have havg_some_const : ∀ t : GaloisField p n,
+      avg.val (Etingof.GL2.cosetRep p n (some t)) =
+      ∑ u : GaloisField p n, f'.val (Etingof.GL2.cosetRep p n (some u)) := by
+    intro t; rw [hval]
+    conv_lhs => arg 2; ext s
+                rw [Etingof.GL2.action_translation_some p n chi1 chi2 f' s t]
+    exact Fintype.sum_equiv (Equiv.addLeft t) _ _ (fun s => rfl)
+  -- Step 3: ρ(δ_c)(avg) - χ₂(c) · avg kills the "some" part
+  have ⟨c, hc⟩ : ∃ c : (GaloisField p n)ˣ, chi1 c ≠ chi2 c := by
+    by_contra h; push_neg at h; exact hne (MonoidHom.ext h)
+  set g := ρ (Etingof.GL2.diagElt p n c) avg - (chi2 c : ℂ) • avg
+  refine ⟨g, ?_, ?_, ?_⟩
+  · -- g ∈ S
+    exact S.toSubmodule.sub_mem (S.apply_mem_toSubmodule _ havgS)
+      (S.toSubmodule.smul_mem _ havgS)
+  · -- g(rep(none)) ≠ 0: g(rep(none)) = (χ₁(c) - χ₂(c)) · q · f'(rep(none))
+    intro heq
+    -- Compute g(rep(none))
+    have hgval : g.val (Etingof.GL2.cosetRep p n none) =
+        ((chi1 c : ℂ) - (chi2 c : ℂ)) * ((Fintype.card (GaloisField p n) : ℂ) *
+          f'.val (Etingof.GL2.cosetRep p n none)) := by
+      show (ρ (Etingof.GL2.diagElt p n c) avg - (chi2 c : ℂ) • avg).val
+        (Etingof.GL2.cosetRep p n none) = _
+      simp only [Submodule.coe_sub, Submodule.coe_smul, Pi.sub_apply, Pi.smul_apply,
+        smul_eq_mul]
+      rw [Etingof.GL2.action_diagonal_none p n chi1 chi2 avg c, havg_none]
+      ring
+    rw [hgval] at heq
+    -- (χ₁(c) - χ₂(c)) · q · f'(none) = 0, but all three factors are nonzero
+    rcases mul_eq_zero.mp heq with hsub | hprod
+    · exact hc (Units.val_injective (sub_eq_zero.mp hsub))
+    · rcases mul_eq_zero.mp hprod with hq | hf
+      · exact (Nat.cast_ne_zero.mpr Fintype.card_ne_zero) hq
+      · exact hf'none hf
+  · -- g(rep(some t)) = 0: diagonal and averaging cancel
+    intro t
+    show (ρ (Etingof.GL2.diagElt p n c) avg - (chi2 c : ℂ) • avg).val
+      (Etingof.GL2.cosetRep p n (some t)) = 0
+    simp only [Submodule.coe_sub, Submodule.coe_smul, Pi.sub_apply, Pi.smul_apply,
+      smul_eq_mul]
+    rw [Etingof.GL2.action_diagonal_some p n chi1 chi2 avg c t,
+      havg_some_const (t * ↑c⁻¹), havg_some_const t]
+    ring
+
+/-- From a delta function at rep(none), the Weyl element produces a delta at rep(some 0),
+    and translations produce deltas at any rep(some s). Together these span V,
+    so S = ⊤. -/
+private lemma Etingof.GL2.principalSeries_delta_spans_top
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (S : Subrepresentation (Etingof.GL2.principalSeriesRep p n chi1 chi2))
+    (g : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (hgS : g ∈ S.toSubmodule)
+    (hgnone : g.val (Etingof.GL2.cosetRep p n none) ≠ 0)
+    (hgsome : ∀ t, g.val (Etingof.GL2.cosetRep p n (some t)) = 0) :
+    S = ⊤ := by
+  sorry
+
+/-- V(χ₁, χ₂) is irreducible when χ₁ ≠ χ₂.
+
+Direct proof: any nonzero G-stable subspace S contains a function
+supported only at rep(∞) (using translations, diagonal scaling,
+and character orthogonality ∑(χ₁/χ₂)(c) = 0). Then the Weyl element
+and translations generate all basis functions. -/
+private lemma Etingof.GL2.principalSeries_simple_of_ne
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2) :
+    Simple (Etingof.GL2.principalSeries p n chi1 chi2) := by
+  haveI : NeZero (Nat.card (GL2 p n) : ℂ) := ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
+  set ρ := Etingof.GL2.principalSeriesRep p n chi1 chi2
+  -- Bridge: IsSimpleModule → Simple FDRep
+  suffices IsSimpleModule (MonoidAlgebra ℂ (GL2 p n)) ρ.asModule by
+    haveI := this; exact simple_of_isSimpleModule_FDRep ρ
+  rw [← Representation.irreducible_iff_isSimpleModule_asModule]
+  -- Now need: IsSimpleOrder (Subrepresentation ρ)
+  -- The representation space is nonzero and every nonzero G-stable subspace is the whole space.
+  -- Proof strategy:
+  -- 1. Take nonzero f ∈ S. If f(rep(none)) = 0, apply Weyl·τ to get f' with f'(rep(none)) ≠ 0.
+  -- 2. Average ∑_s ρ(τ_s)(f') makes the "some" values constant. Then
+  --    ρ(δ_c)(avg) - χ₂(c)·avg kills the "some" part, leaving a delta at rep(none).
+  -- 3. Apply w to get delta at rep(some 0), then τ_s for deltas at all rep(some s).
+  -- 4. These span V by principalSeries_eval_injective, so S = ⊤.
+  haveI : Nontrivial (Subrepresentation ρ) :=
+    Etingof.GL2.principalSeries_nontrivial p n chi1 chi2
+  exact IsSimpleOrder.mk fun S => by
+    by_cases hS : S = ⊥
+    · exact Or.inl hS
+    · right
+      -- S ≠ ⊥ → ∃ nonzero f ∈ S
+      have hSne : S.toSubmodule ≠ ⊥ := by
+        intro heq; apply hS
+        exact Subrepresentation.toSubmodule_injective heq
+      rw [ne_eq, Submodule.eq_bot_iff] at hSne; push_neg at hSne
+      obtain ⟨f, hfS, hfne⟩ := hSne
+      -- Construct delta at none, deltas at all some, show they span
+      obtain ⟨g, hgS, hgnone, hgsome⟩ :=
+        Etingof.GL2.principalSeries_construct_delta_none p n chi1 chi2 hne S f hfS hfne
+      exact Etingof.GL2.principalSeries_delta_spans_top p n chi1 chi2 S g hgS hgnone hgsome
+
+/-- **Theorem 5.25.2 (1)**: If χ₁ ≠ χ₂, the principal series representation
+V(χ₁, χ₂) is irreducible. (Etingof Theorem 5.25.2) -/
+theorem Etingof.Theorem5_25_2_part1
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2) :
+    Simple (Etingof.GL2.principalSeries p n chi1 chi2) :=
+  Etingof.GL2.principalSeries_simple_of_ne p n chi1 chi2 hne
 
 /-- For any values on coset representatives, there exists a covariant function realizing them. -/
 private lemma Etingof.GL2.principalSeries_eval_surjective
