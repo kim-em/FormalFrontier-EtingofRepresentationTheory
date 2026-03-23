@@ -530,22 +530,126 @@ private noncomputable def Etingof.GL2.detCharEmbedding
     simp only [smul_eq_mul, mul_one, one_mul, map_mul, Units.val_mul]; ring
 
 /-- ℂ_μ is a simple (1-dimensional) representation. -/
+private def Etingof.GL2.detCharRep
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Representation ℂ (GL2 p n) ℂ where
+  toFun g := ((mu (Matrix.GeneralLinearGroup.det g) : ℂˣ) : ℂ) • LinearMap.id
+  map_one' := by ext; simp
+  map_mul' a b := by
+    apply LinearMap.ext; intro x
+    change ((mu (Matrix.GeneralLinearGroup.det (a * b)) : ℂˣ) : ℂ) * x =
+      ((mu (Matrix.GeneralLinearGroup.det a) : ℂˣ) : ℂ) *
+      (((mu (Matrix.GeneralLinearGroup.det b) : ℂˣ) : ℂ) * x)
+    rw [map_mul, map_mul, Units.val_mul, mul_assoc]
+
+private lemma Etingof.GL2.detChar_eq_of
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.detChar p n mu = FDRep.of (Etingof.GL2.detCharRep p n mu) := rfl
+
+private lemma simple_of_full_faithful_preservesMono' {C D : Type*} [Category C] [Category D]
+    [Limits.HasZeroMorphisms C] [Limits.HasZeroMorphisms D]
+    (F : C ⥤ D) [F.Full] [F.Faithful] [F.PreservesMonomorphisms] (X : C)
+    [Simple (F.obj X)] : Simple X where
+  mono_isIso_iff_nonzero {Y} f := by
+    intro
+    constructor
+    · intro hiso
+      haveI : IsIso (F.map f) := Functor.map_isIso F f
+      exact fun h => (Simple.mono_isIso_iff_nonzero (F.map f)).mp inferInstance
+        (by rw [h]; simp)
+    · intro hne
+      haveI : Mono (F.map f) := inferInstance
+      haveI : IsIso (F.map f) := (Simple.mono_isIso_iff_nonzero (F.map f)).mpr
+        (fun h => hne (F.map_injective (by rwa [F.map_zero])))
+      exact isIso_of_fully_faithful F f
+
 private lemma Etingof.GL2.detChar_simple
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Simple (Etingof.GL2.detChar p n mu) := by
-  sorry
+  haveI : NeZero (Nat.card (GL2 p n) : ℂ) :=
+    ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
+  rw [Etingof.GL2.detChar_eq_of]
+  let ρ := Etingof.GL2.detCharRep p n mu
+  haveI : IsSimpleModule (MonoidAlgebra ℂ (GL2 p n)) ρ.asModule := by
+    rw [isSimpleModule_iff]
+    exact is_simple_module_of_finrank_eq_one (Module.finrank_self ℂ)
+  haveI : Simple (ModuleCat.of (MonoidAlgebra ℂ (GL2 p n)) ρ.asModule) :=
+    simple_of_isSimpleModule
+  let E := Rep.equivalenceModuleMonoidAlgebra (k := ℂ) (G := GL2 p n)
+  haveI : Simple
+      (E.functor.obj ((forget₂ (FDRep ℂ (GL2 p n)) (Rep ℂ (GL2 p n))).obj
+        (FDRep.of ρ))) := by
+    change Simple (ModuleCat.of (MonoidAlgebra ℂ (GL2 p n)) ρ.asModule)
+    infer_instance
+  haveI : Simple ((forget₂ (FDRep ℂ (GL2 p n)) (Rep ℂ (GL2 p n))).obj (FDRep.of ρ)) :=
+    simple_of_full_faithful_preservesMono' E.functor _
+  exact simple_of_full_faithful_preservesMono' (forget₂ (FDRep ℂ (GL2 p n)) (Rep ℂ (GL2 p n))) _
+
+/-- The linear map underlying the embedding sends c to ⟨g ↦ c·μ(det g), _⟩. -/
+private def Etingof.GL2.detCharEmbedding_linearMap
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    ℂ →ₗ[ℂ] ↥(Etingof.GL2.principalSeriesSubmodule p n mu mu) where
+  toFun c := ⟨fun g => c * (mu (Matrix.GeneralLinearGroup.det g) : ℂ),
+    fun b g => by
+      have := Etingof.GL2.detFun_mem_principalSeries p n mu b g
+      simp only [Etingof.GL2.borelCharValue] at this ⊢; rw [this]; ring⟩
+  map_add' a b := Subtype.ext (funext fun _ => by simp [add_mul])
+  map_smul' r c := Subtype.ext (funext fun _ => by simp [mul_assoc])
+
+/-- aug ∘ emb(c) = c · |G| (at the linear map level). -/
+private lemma Etingof.GL2.aug_comp_emb_eq
+    (mu : (GaloisField p n)ˣ →* ℂˣ) (c : ℂ) :
+    Etingof.GL2.augOnPrincipalSeries p n mu
+      (Etingof.GL2.detCharEmbedding_linearMap p n mu c) =
+    c * (Fintype.card (GL2 p n) : ℂ) := by
+  simp only [Etingof.GL2.augOnPrincipalSeries, LinearMap.comp_apply,
+    Etingof.GL2.augmentation, Etingof.GL2.detCharEmbedding_linearMap,
+    LinearMap.coe_mk, AddHom.coe_mk, Submodule.coe_subtype]
+  simp_rw [show ∀ g : GL2 p n,
+      c * ↑(mu (Matrix.GeneralLinearGroup.det g)) *
+      ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = c from fun g => by
+    rw [mul_assoc, Units.val_inv_eq_inv_val, mul_inv_cancel₀ (Units.ne_zero _), mul_one]]
+  simp [Finset.sum_const, Finset.card_univ, mul_comm]
 
 /-- The embedding ℂ_μ ↪ V(μ,μ) is nonzero. -/
 private lemma Etingof.GL2.detCharEmbedding_ne_zero
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Etingof.GL2.detCharEmbedding p n mu ≠ 0 := by
-  sorry
+  -- It suffices to show the underlying linear map is nonzero
+  -- emb(1) = (g ↦ μ(det g)) which evaluated at g=1 gives μ(1) = 1 ≠ 0
+  intro h
+  -- Extract: if emb = 0 in FDRep, the linear map sends 1 to 0
+  have h1 : (Etingof.GL2.detCharEmbedding_linearMap p n mu 1).val (1 : GL2 p n) = 0 := by
+    -- The detCharEmbedding is built from detCharEmbedding_linearMap
+    -- If emb = 0, then emb.hom.hom = 0, so detCharEmbedding_linearMap = 0
+    have hlin : Etingof.GL2.detCharEmbedding_linearMap p n mu = 0 := by
+      have hh : (Etingof.GL2.detCharEmbedding p n mu).hom = 0 := by
+        rw [h]; exact Action.zero_hom
+      ext x
+      -- Goal: ↑(detCharEmbedding_linearMap ... 1) x = 0
+      -- This equals μ(det x) = 0, derivable from hh
+      -- detCharEmbedding.hom = FGModuleCat.ofHom {toFun := detCharEmbedding_linearMap ...}
+      -- So hh tells us FGModuleCat.ofHom(detCharEmbedding_linearMap) = 0
+      -- Extract: (FGModuleCat.ofHom f).hom.hom = f as a function
+      have key : ∀ (c : ℂ) (g : GL2 p n),
+          (Etingof.GL2.detCharEmbedding_linearMap p n mu c).val g =
+          (ConcreteCategory.hom
+            (Etingof.GL2.detCharEmbedding p n mu).hom.hom c :
+            ↥(Etingof.GL2.principalSeriesSubmodule p n mu mu)).val g := by
+        intro c g; rfl
+      rw [key 1 x, hh]
+      -- Goal: ↑((ConcreteCategory.hom (InducedCategory.Hom.hom 0)) 1) x = 0
+      rfl
+    simp [hlin]
+  -- But emb(1) at g=1 is 1·μ(det 1) = μ(1) = 1
+  simp [Etingof.GL2.detCharEmbedding_linearMap] at h1
 
 /-- The embedding ℂ_μ ↪ V(μ,μ) is mono (injective). -/
 private lemma Etingof.GL2.detCharEmbedding_mono
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Mono (Etingof.GL2.detCharEmbedding p n mu) := by
-  sorry
+  haveI := Etingof.GL2.detChar_simple p n mu
+  exact mono_of_nonzero_from_simple (Etingof.GL2.detCharEmbedding_ne_zero p n mu)
 
 /-- V(μ,μ) decomposes as ℂ_μ ⊕ W_μ in FDRep. -/
 private lemma Etingof.GL2.principalSeries_decomp
