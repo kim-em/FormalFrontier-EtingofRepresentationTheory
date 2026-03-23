@@ -162,21 +162,48 @@ private lemma covering_implies_vanishing {G : Type} [Group G]
   obtain ⟨H, hH, hg⟩ := hcov g
   exact hvan H hH ⟨g, hg⟩
 
+/-- Any class function f on G that is orthogonal to all induced characters from X
+(in the sense of ∑ f(g) · IndChar(g⁻¹) = 0) must also satisfy
+∑ f(g) · s(g⁻¹) = 0 for all s in the ℚ-span of induced characters.
+This is because the pairing is ℂ-linear in s. -/
+private lemma inner_zero_of_span_mem {G : Type} [Group G] [Fintype G]
+    (X : Set (Subgroup G))
+    (f : G → ℂ) (hf_class : ∀ g x : G, f (x * g * x⁻¹) = f g)
+    (hf_orth : ∀ H ∈ X, ∀ (W : FDRep ℂ ↥H),
+      ∑ g : G, f g * Etingof.inducedCharacter H W.character g⁻¹ = 0)
+    (s : G → ℂ)
+    (hs : s ∈ Submodule.span ℚ
+      {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
+        f = Etingof.inducedCharacter H W.character}) :
+    ∑ g : G, f g * s g⁻¹ = 0 := by
+  induction hs using Submodule.span_induction with
+  | mem x hx =>
+    obtain ⟨H, hH, W, rfl⟩ := hx
+    exact hf_orth H hH W
+  | zero => simp
+  | add x y _ _ hx hy =>
+    simp only [Pi.add_apply]
+    simp only [mul_add, Finset.sum_add_distrib]
+    rw [hx, hy, add_zero]
+  | smul r x _ hx =>
+    show ∑ g : G, f g * (r • x) g⁻¹ = 0
+    have key : ∀ g : G, f g * (r • x) g⁻¹ = (r : ℂ) * (f g * x g⁻¹) := by
+      intro g; show f g * r • x g⁻¹ = _; rw [show r • x g⁻¹ = (r : ℂ) * x g⁻¹ from
+        Algebra.smul_def r (x g⁻¹)]; ring
+    simp_rw [key, ← Finset.mul_sum, hx, mul_zero]
+
 /-- Integer rank preservation for Artin's theorem (Remark 5.26.2):
 When X covers G, every irreducible character of G lies in the ℚ-span
 of induced characters from X.
 
-This combines:
-(a) The orthogonal complement argument: by `frobenius_char_reciprocity` +
-    `class_fun_vanishes_on_subgroup_of_orthogonal` + `covering_implies_vanishing`,
-    any class function orthogonal to all induced characters from X vanishes identically.
-    This shows the ℂ-span of induced characters = space of all class functions.
-(b) The integer rank argument (Remark 5.26.2): each induced character decomposes
-    as Ind_H^G(W) = ∑_V n_V · χ_V with n_V ∈ ℕ (multiplicities of irreducibles
-    in the induced representation). The decomposition matrix M has ℕ entries
-    and full rank over ℂ (from step (a)), hence full rank over ℚ (Cramer's rule:
-    det ∈ ℤ, cofactors ∈ ℤ). So each χ_V is a ℚ-linear combination of the
-    induced characters. -/
+Proof strategy: by contradiction using `horth_trivial`.
+If V.character ∉ span_ℚ(S), we construct a nonzero class function
+in the orthogonal complement of S (via the ℚ-dual of the irreducible
+character space), contradicting `horth_trivial`. The key insight is
+that induced characters have ℕ-coefficients when decomposed into
+irreducible characters, so the inner product of a ℚ-coefficient class
+function with an induced character equals a rational multiple of the
+ℚ-functional applied to that induced character. -/
 private lemma artin_Q_span_of_induced_chars {G : Type} [Group G] [Fintype G]
     (X : Set (Subgroup G))
     (hX : ∀ H ∈ X, ∀ g : G, H.map (MulAut.conj g).toMonoidHom ∈ X)
@@ -191,7 +218,149 @@ private lemma artin_Q_span_of_induced_chars {G : Type} [Group G] [Fintype G]
     V.character ∈ Submodule.span ℚ
       {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
         f = Etingof.inducedCharacter H W.character} := by
-  sorry
+  -- Abbreviation for the spanning set
+  set S := {f : G → ℂ | ∃ H ∈ X, ∃ (W : FDRep ℂ ↥H),
+    f = Etingof.inducedCharacter H W.character} with hS_def
+  -- Step 1: By contradiction
+  by_contra hV_not_mem
+  -- Step 2: Any class function orthogonal to all induced characters is zero (by horth_trivial)
+  -- In particular, V.character ∉ span_ℚ(S) should lead to a contradiction.
+  -- The argument: if V.character ∉ span_ℚ(S), construct a nonzero class function f
+  -- with ⟨f, s⟩ = 0 for all s ∈ S, contradicting horth_trivial.
+  -- This uses the integer decomposition structure of induced characters.
+  --
+  -- The core mathematical argument (Remark 5.26.2):
+  -- 1. Each induced character ∈ ℕ-span of irreducible characters (semisimple decomposition)
+  -- 2. So span_ℚ(S) ⊆ span_ℚ{irreducible characters}
+  -- 3. The irreducible characters are ℂ-linearly independent (char_orthonormal)
+  -- 4. Hence also ℚ-linearly independent (restrict_scalars)
+  -- 5. span_ℂ(S) = span_ℂ{irred chars} (from horth_trivial)
+  -- 6. Since induced chars have ℤ-coords in the irred char basis,
+  --    dim_ℚ(span_ℚ(S)) ≥ dim_ℂ(span_ℂ(S)) = n = dim_ℚ(span_ℚ{irred chars})
+  -- 7. So span_ℚ(S) = span_ℚ{irred chars} ∋ V.character
+  --
+  -- The formal proof requires helper infrastructure. We proceed by constructing
+  -- a nonzero class function in the orthogonal complement of S.
+  --
+  -- Set up infrastructure
+  classical
+  haveI : Invertible (Fintype.card G : ℂ) :=
+    invertibleOfNonzero (Nat.cast_ne_zero.mpr Fintype.card_ne_zero)
+  haveI : NeZero (Nat.card G : ℂ) :=
+    ⟨by rw [Nat.card_eq_fintype_card]; exact Invertible.ne_zero _⟩
+  -- Enumerate irreducible representations via Wedderburn-Artin
+  let D := IrrepDecomp.mk' (k := ℂ) (G := G)
+  -- V is isomorphic to some column representation
+  obtain ⟨j₀, ⟨hj₀⟩⟩ := D.columnFDRep_surjective V ‹_›
+  -- V.character = (D.columnFDRep j₀).character (isomorphic representations have same character)
+  have hV_char : V.character = (D.columnFDRep j₀).character :=
+    FDRep.char_iso hj₀
+  -- Key helper: each induced character lies in the ℤ-span of irreducible characters.
+  -- This follows from semisimplicity (Maschke's theorem): every representation
+  -- decomposes as a direct sum of irreducibles with ℕ-multiplicities.
+  -- Therefore its character is an ℕ-linear combination of irreducible characters.
+  have hS_in_ℤspan : ∀ s ∈ S, s ∈ Submodule.span ℤ
+      (Set.range (fun i : Fin D.n => (D.columnFDRep i).character)) := by
+    sorry -- Requires: Etingof.inducedCharacter = character of Ind_H^G(W),
+          -- plus semisimple decomposition of induced representation
+  -- Irreducible characters are ℂ-linearly independent (from char_orthonormal + non-isomorphism)
+  have h_li_C : LinearIndependent ℂ (fun i : Fin D.n => (D.columnFDRep i).character) := by
+    rw [Fintype.linearIndependent_iff]
+    intro c hc j
+    -- From hc: ∑ i, c i • (D.columnFDRep i).character = 0
+    -- We extract c j by taking the inner product with χ_j
+    -- ⅟|G| • ∑ g, (∑ i, c i • χ_i)(g) • χ_j(g⁻¹) = c j
+    -- Each columnFDRep i is simple
+    haveI (i : Fin D.n) : CategoryTheory.Simple (D.columnFDRep i) := D.columnFDRep_simple i
+    -- Iso iff equal index
+    have h_iso_iff : ∀ i k : Fin D.n,
+        Nonempty ((D.columnFDRep i) ≅ (D.columnFDRep k)) ↔ i = k := by
+      intro i k
+      constructor
+      · exact D.columnFDRep_injective i k
+      · rintro rfl; exact ⟨CategoryTheory.Iso.refl _⟩
+    -- Apply inner product with χ_j: extract c_j from the linear combination
+    -- Use char_orthonormal: ⅟|G| • ∑_g χ_i(g) * χ_j(g⁻¹) = δ_{ij}
+    have h_orth : ∀ i : Fin D.n,
+        ⅟(Fintype.card G : ℂ) • ∑ g : G,
+          (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ =
+        if i = j then 1 else 0 := by
+      intro i
+      rw [FDRep.char_orthonormal]
+      simp [h_iso_iff]
+    -- From hc: ∑ c_i • χ_i = 0, evaluate at each g
+    have lhs_zero : ∀ g, (∑ i : Fin D.n, c i * (D.columnFDRep i).character g) = 0 := by
+      intro g
+      have := congr_fun hc g
+      simp only [Pi.zero_apply, Finset.sum_apply, Pi.smul_apply, smul_eq_mul] at this
+      exact this
+    -- Compute: 0 = ⅟|G| • ∑_g 0 * χ_j(g⁻¹) = ⅟|G| • ∑_g (∑_i c_i χ_i(g)) * χ_j(g⁻¹)
+    --        = ∑_i c_i * (⅟|G| • ∑_g χ_i(g) * χ_j(g⁻¹)) = ∑_i c_i * δ_{ij} = c_j
+    -- Step A: ⅟|G| • ∑_g (∑_i c_i χ_i(g)) * χ_j(g⁻¹) = 0
+    have stepA : ⅟(Fintype.card G : ℂ) • ∑ g : G,
+        (∑ i : Fin D.n, c i * (D.columnFDRep i).character g) *
+        (D.columnFDRep j).character g⁻¹ = 0 := by
+      simp_rw [lhs_zero, zero_mul, Finset.sum_const_zero, smul_zero]
+    -- Step B: Rearrange LHS to ∑_i c_i * (⅟|G| • ∑_g χ_i(g) * χ_j(g⁻¹))
+    have stepB : ⅟(Fintype.card G : ℂ) • ∑ g : G,
+        (∑ i : Fin D.n, c i * (D.columnFDRep i).character g) *
+        (D.columnFDRep j).character g⁻¹ =
+        ∑ i : Fin D.n, c i * (⅟(Fintype.card G : ℂ) • ∑ g : G,
+          (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹) := by
+      calc ⅟(Fintype.card G : ℂ) • ∑ g : G,
+              (∑ i, c i * (D.columnFDRep i).character g) * (D.columnFDRep j).character g⁻¹
+          _ = ⅟(Fintype.card G : ℂ) • ∑ g : G, ∑ i,
+              c i * (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ := by
+            congr 1; apply Finset.sum_congr rfl; intro g _; rw [Finset.sum_mul]
+          _ = ⅟(Fintype.card G : ℂ) • ∑ i, ∑ g : G,
+              c i * (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ := by
+            congr 1; rw [Finset.sum_comm]
+          _ = ⅟(Fintype.card G : ℂ) • ∑ i,
+              c i * ∑ g : G, (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹ := by
+            congr 1; apply Finset.sum_congr rfl; intro i _
+            conv_lhs => arg 2; ext g; rw [mul_assoc]
+            rw [← Finset.mul_sum]
+          _ = ∑ i, c i * (⅟(Fintype.card G : ℂ) •
+              ∑ g : G, (D.columnFDRep i).character g * (D.columnFDRep j).character g⁻¹) := by
+            rw [Finset.smul_sum]
+            apply Finset.sum_congr rfl; intro i _
+            rw [Algebra.mul_smul_comm]
+    -- Step C: Use h_orth to simplify
+    simp_rw [stepB, h_orth] at stepA
+    simp only [mul_ite, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, ↓reduceIte] at stepA
+    exact stepA
+  -- Therefore also ℚ-linearly independent
+  have h_li_Q : LinearIndependent ℚ (fun i : Fin D.n => (D.columnFDRep i).character) :=
+    h_li_C.restrict_scalars (smul_left_injective ℚ one_ne_zero)
+  -- span_ℚ(S) ⊆ span_ℚ{irred chars}
+  have hS_sub_Q : Submodule.span ℚ S ≤ Submodule.span ℚ
+      (Set.range (fun i : Fin D.n => (D.columnFDRep i).character)) := by
+    apply Submodule.span_le.mpr
+    intro s hs
+    exact Submodule.span_mono (by intro x ⟨i, hi⟩; exact ⟨i, hi⟩)
+      (Submodule.span_le_restrictScalars (R := ℤ) (S := ℚ) _ (hS_in_ℤspan s hs))
+  -- V.character ∈ span_ℚ{irred chars} (it IS one of the irred chars)
+  have hV_in_Q : V.character ∈ Submodule.span ℚ
+      (Set.range (fun i : Fin D.n => (D.columnFDRep i).character)) := by
+    rw [hV_char]
+    exact Submodule.subset_span ⟨j₀, rfl⟩
+  -- From horth_trivial: span_ℂ(S) = span_ℂ{irred chars}
+  -- (any class function orthogonal to S is zero, so S ℂ-spans all class functions)
+  --
+  -- Key dimension argument: span_ℚ(S) has ℚ-dim = n = ℚ-dim of span_ℚ{irred chars}
+  -- because any ℚ-basis of span_ℚ(S) is also ℂ-linearly independent
+  -- (elements have ℤ-coordinates in the irred char basis, and ℤ ⊂ ℚ ⊂ ℂ
+  -- preserves linear independence when the ambient vectors are ℂ-linearly independent).
+  --
+  -- Therefore span_ℚ(S) = span_ℚ{irred chars}, and V.character ∈ span_ℚ(S).
+  -- This contradicts hV_not_mem.
+  --
+  -- The dimension/rank argument:
+  have h_rank : Submodule.span ℚ S = Submodule.span ℚ
+      (Set.range (fun i : Fin D.n => (D.columnFDRep i).character)) := by
+    sorry -- Requires: dim_ℚ(span_ℚ(S)) ≥ n, which follows from
+          -- span_ℂ(S) = span_ℂ{irred chars} + "ℚ-rank ≥ ℂ-rank"
+  exact absurd (h_rank ▸ hV_in_Q) hV_not_mem
 
 /-- Forward direction of Artin's theorem: if X covers G, every irreducible character
 is in the ℚ-span of induced characters from X.
