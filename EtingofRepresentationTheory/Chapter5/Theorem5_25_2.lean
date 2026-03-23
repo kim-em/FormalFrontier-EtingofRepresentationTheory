@@ -718,7 +718,26 @@ private lemma Etingof.GL2.principalSeries_nontrivial
   -- The underlying module is nonzero (there exist nonzero covariant functions).
   -- By principalSeries_eval_surjective, the evaluation map at coset reps is surjective,
   -- so the module has dimension ≥ 1.
-  sorry
+  -- Need: the module is nontrivial (has a nonzero element)
+  -- Produce a nonzero element using mkCovariantFun
+  set f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) :=
+    ⟨Etingof.GL2.mkCovariantFun p n chi1 chi2 (fun _ => 1),
+     Etingof.GL2.mkCovariantFun_mem p n chi1 chi2 (fun _ => 1)⟩
+  have hfne : f ≠ 0 := by
+    intro h
+    have heval := Etingof.GL2.mkCovariantFun_eval p n chi1 chi2 (fun _ => 1) none
+    simp only [f] at h
+    have : (0 : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2)).val
+        (Etingof.GL2.cosetRep p n none) = 1 := by rw [← h]; exact heval
+    simp at this
+  -- ⊥ ≠ ⊤ because ⊤ contains f ≠ 0 but ⊥ doesn't
+  exact nontrivial_of_ne ⊥ ⊤ (by
+    intro heq
+    apply hfne
+    have hmem : f ∈ (⊥ : Subrepresentation
+      (Etingof.GL2.principalSeriesRep p n chi1 chi2)).toSubmodule := by
+      rw [heq]; exact Submodule.mem_top
+    simpa using hmem)
 
 /-- Key construction: from any nonzero f ∈ S, produce g ∈ S
     with g(rep(none)) ≠ 0 and g(rep(some t)) = 0 for all t.
