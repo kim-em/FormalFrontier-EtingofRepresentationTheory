@@ -65,6 +65,7 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_14_3
 import EtingofRepresentationTheory.Chapter5.Theorem5_15_1
 import EtingofRepresentationTheory.Chapter5.Lemma5_15_3
 import EtingofRepresentationTheory.Chapter5.Corollary5_15_4
+import EtingofRepresentationTheory.Chapter5.PowerSumCauchyIdentity
 
 -- Section 5.17: Hook Length Formula
 import EtingofRepresentationTheory.Chapter5.SYTFintype
