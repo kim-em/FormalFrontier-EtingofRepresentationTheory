@@ -648,7 +648,8 @@ private lemma Etingof.GL2.detCharEmbedding_ne_zero
 private lemma Etingof.GL2.detCharEmbedding_mono
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Mono (Etingof.GL2.detCharEmbedding p n mu) := by
-  sorry
+  haveI := Etingof.GL2.detChar_simple p n mu
+  exact mono_of_nonzero_from_simple (Etingof.GL2.detCharEmbedding_ne_zero p n mu)
 
 /-- V(μ,μ) decomposes as ℂ_μ ⊕ W_μ in FDRep. -/
 private lemma Etingof.GL2.principalSeries_decomp
