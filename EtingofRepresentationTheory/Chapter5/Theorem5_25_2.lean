@@ -285,6 +285,8 @@ variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ) (hn : 0 < n)
 
 -- principalSeries_simple_of_ne is proved below, after coset rep infrastructure
 
+end Theorem5_25_2
+
 /-- Coset representatives for B\GL₂(𝔽_q), indexed by Option (GaloisField p n) ≅ P¹(𝔽_q).
     none ↦ I, some t ↦ [[0,-1],[1,t]] with det = 1. -/
 private noncomputable def Etingof.GL2.cosetRep
@@ -300,6 +302,42 @@ private noncomputable def Etingof.GL2.cosetIndex
     (g : GL2 p n) : Option (GaloisField p n) :=
   if h : (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 then none
   else some ((g.val : Matrix _ _ _) 1 1 / (g.val : Matrix _ _ _) 1 0)
+
+/-- The Borel component of g in the coset decomposition g = b · rep(idx(g)). -/
+private noncomputable def Etingof.GL2.cosetBorel
+    (g : GL2 p n) : ↥(Etingof.GL2.BorelSubgroup p n) :=
+  if h : (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 then
+    ⟨g, h⟩
+  else
+    let gm := (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+    let bmat : Matrix (Fin 2) (Fin 2) (GaloisField p n) :=
+      !![gm.det / gm 1 0, gm 0 0; (0 : _), gm 1 0]
+    have hdet : gm.det ≠ 0 := IsUnit.ne_zero ((Units.isUnit g).map Matrix.detMonoidHom)
+    have hbdet : bmat.det ≠ 0 := by
+      have h10 : gm 1 0 ≠ 0 := h
+      have : bmat.det = gm.det := by
+        simp [Matrix.det_fin_two, bmat]; field_simp
+      rw [this]; exact hdet
+    ⟨Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet, by
+      change ((Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet).val :
+        Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0
+      simp [Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+            Matrix.unitOfDetInvertible, bmat]⟩
+
+/-- The coset decomposition: g = cosetBorel(g) · rep(idx(g)). -/
+private lemma Etingof.GL2.cosetBorel_mul_cosetRep
+    (g : GL2 p n) :
+    g = (Etingof.GL2.cosetBorel p n g).val * Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g) := by
+  unfold Etingof.GL2.cosetBorel Etingof.GL2.cosetIndex Etingof.GL2.cosetRep
+  split_ifs with h10
+  · simp
+  · apply Matrix.GeneralLinearGroup.ext; intro i j
+    set gm := (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n))
+    simp only [Matrix.GeneralLinearGroup.coe_mul,
+      Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+    fin_cases i <;> fin_cases j <;>
+      simp [Matrix.det_fin_two] <;> field_simp <;> ring
 
 /-- Every g ∈ GL₂ satisfies g = b * rep(idx(g)) for some b ∈ B. -/
 private lemma Etingof.GL2.mem_coset_of_cosetIndex
@@ -332,6 +370,191 @@ private lemma Etingof.GL2.mem_coset_of_cosetIndex
       fin_cases i <;> fin_cases j <;>
         simp [bmat, Matrix.det_fin_two, Matrix.unitOfDetInvertible] <;>
         (try ring) <;> (field_simp; ring)
+
+/-- cosetIndex is invariant under left-multiplication by Borel elements. -/
+private lemma Etingof.GL2.cosetIndex_borel_mul
+    (b : ↥(Etingof.GL2.BorelSubgroup p n)) (g : GL2 p n) :
+    Etingof.GL2.cosetIndex p n (b.val * g) = Etingof.GL2.cosetIndex p n g := by
+  simp only [Etingof.GL2.cosetIndex]
+  have hb10 : (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := b.prop
+  -- (b * g)₁₀ = b₁₀ * g₀₀ + b₁₁ * g₁₀ = 0 * g₀₀ + b₁₁ * g₁₀ = b₁₁ * g₁₀
+  have hbg10 : ((b.val * g).val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 =
+    (b.val.val : Matrix _ _ _) 1 1 * (g.val : Matrix _ _ _) 1 0 := by
+    simp [Units.val_mul, Matrix.mul_apply, Fin.sum_univ_two, hb10]
+  have hb11 : (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 1 ≠ 0 :=
+    Etingof.GL2.borel_diag11_ne_zero p n b
+  -- If g₁₀ = 0, then (bg)₁₀ = 0
+  -- If g₁₀ ≠ 0, then (bg)₁₀ ≠ 0 and we need (bg)₁₁/(bg)₁₀ = g₁₁/g₁₀
+  by_cases hg10 : (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0
+  · have : ((b.val * g).val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := by
+      rw [hbg10]; simp [hg10]
+    simp [hg10, this]
+  · have hbg10_ne : ¬ ((b.val * g).val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := by
+      rw [hbg10]; exact mul_ne_zero hb11 hg10
+    have hbg11 : ((b.val * g).val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 1 =
+      (b.val.val : Matrix _ _ _) 1 1 * (g.val : Matrix _ _ _) 1 1 := by
+      simp [Units.val_mul, Matrix.mul_apply, Fin.sum_univ_two, hb10]
+    simp only [hg10, hbg10_ne, ↓reduceDIte, dite_false]
+    congr 1
+    rw [show ((b.val * g).val : Matrix _ _ _) 1 1 =
+        (b.val.val : Matrix _ _ _) 1 1 * (g.val : Matrix _ _ _) 1 1 from hbg11,
+      show ((b.val * g).val : Matrix _ _ _) 1 0 =
+        (b.val.val : Matrix _ _ _) 1 1 * (g.val : Matrix _ _ _) 1 0 from hbg10]
+    rw [mul_div_mul_left _ _ hb11]
+
+/-- borelCharValue is multiplicative on the Borel subgroup. -/
+private lemma Etingof.GL2.borelCharValue_mul
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (b1 b2 : ↥(Etingof.GL2.BorelSubgroup p n)) :
+    Etingof.GL2.borelCharValue p n chi1 chi2
+      ⟨b1.val * b2.val, (Etingof.GL2.BorelSubgroup p n).mul_mem b1.prop b2.prop⟩ =
+    Etingof.GL2.borelCharValue p n chi1 chi2 b1 *
+    Etingof.GL2.borelCharValue p n chi1 chi2 b2 := by
+  unfold Etingof.GL2.borelCharValue
+  have hb1_10 := b1.prop
+  have hb2_10 := b2.prop
+  -- (b1 * b2)₀₀ = b1₀₀ * b2₀₀ + b1₀₁ * b2₁₀ = b1₀₀ * b2₀₀ + b1₀₁ * 0 = b1₀₀ * b2₀₀
+  -- (b1 * b2)₁₁ = b1₁₀ * b2₀₁ + b1₁₁ * b2₁₁ = 0 * b2₀₁ + b1₁₁ * b2₁₁ = b1₁₁ * b2₁₁
+  have hb2_10' : (b2.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := b2.prop
+  have hb1_10' : (b1.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := b1.prop
+  have h00 : Units.mk0 _ (Etingof.GL2.borel_diag00_ne_zero p n
+      ⟨b1.val * b2.val, (Etingof.GL2.BorelSubgroup p n).mul_mem b1.prop b2.prop⟩) =
+    Units.mk0 _ (Etingof.GL2.borel_diag00_ne_zero p n b1) *
+    Units.mk0 _ (Etingof.GL2.borel_diag00_ne_zero p n b2) := by
+    ext
+    show ((b1.val * b2.val).val : Matrix _ _ _) 0 0 =
+      (b1.val.val : Matrix _ _ _) 0 0 * (b2.val.val : Matrix _ _ _) 0 0
+    change ((b1.val.val * b2.val.val) 0 0 : _) = _
+    simp [Matrix.mul_apply, Fin.sum_univ_two, hb2_10']
+  have h11 : Units.mk0 _ (Etingof.GL2.borel_diag11_ne_zero p n
+      ⟨b1.val * b2.val, (Etingof.GL2.BorelSubgroup p n).mul_mem b1.prop b2.prop⟩) =
+    Units.mk0 _ (Etingof.GL2.borel_diag11_ne_zero p n b1) *
+    Units.mk0 _ (Etingof.GL2.borel_diag11_ne_zero p n b2) := by
+    ext
+    show ((b1.val * b2.val).val : Matrix _ _ _) 1 1 =
+      (b1.val.val : Matrix _ _ _) 1 1 * (b2.val.val : Matrix _ _ _) 1 1
+    change ((b1.val.val * b2.val.val) 1 1 : _) = _
+    simp [Matrix.mul_apply, Fin.sum_univ_two, hb1_10']
+  -- Use h00, h11 to show multiplicativity
+  simp only [Etingof.GL2.borelCharValue]
+  rw [show Units.mk0 ((b1.val * b2.val).val 0 0 : _) _ = _ from h00,
+      show Units.mk0 ((b1.val * b2.val).val 1 1 : _) _ = _ from h11,
+      map_mul, map_mul, Units.val_mul, Units.val_mul]
+  ring
+
+/-- cosetBorel(b * g) = b * cosetBorel(g) for b ∈ B. -/
+private lemma Etingof.GL2.cosetBorel_borel_mul
+    (b : ↥(Etingof.GL2.BorelSubgroup p n)) (g : GL2 p n) :
+    Etingof.GL2.cosetBorel p n (b.val * g) =
+      ⟨b.val * (Etingof.GL2.cosetBorel p n g).val,
+       (Etingof.GL2.BorelSubgroup p n).mul_mem b.prop (Etingof.GL2.cosetBorel p n g).prop⟩ := by
+  -- Both sides decompose b*g = _ * rep(idx(b*g))
+  -- LHS: cosetBorel(b*g) * rep(idx(b*g)) = b*g    [by cosetBorel_mul_cosetRep]
+  -- RHS: b * cosetBorel(g) * rep(idx(g)) = b*g     [by cosetBorel_mul_cosetRep for g]
+  -- Since idx(b*g) = idx(g), and rep is injective on right, the Borel parts are equal.
+  apply Subtype.ext
+  have h1 := Etingof.GL2.cosetBorel_mul_cosetRep p n (b.val * g)
+  have h2 := Etingof.GL2.cosetBorel_mul_cosetRep p n g
+  have hidx := Etingof.GL2.cosetIndex_borel_mul p n b g
+  -- From h1: b*g = cosetBorel(b*g) * rep(idx(b*g))
+  -- From h2: g = cosetBorel(g) * rep(idx(g))
+  -- So b*g = b * cosetBorel(g) * rep(idx(g))
+  -- And b*g = cosetBorel(b*g) * rep(idx(b*g)) = cosetBorel(b*g) * rep(idx(g))
+  -- Therefore cosetBorel(b*g) * rep(idx(g)) = b * cosetBorel(g) * rep(idx(g))
+  -- Cancel rep(idx(g)) on the right
+  have key : (Etingof.GL2.cosetBorel p n (b.val * g)).val *
+      Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n (b.val * g)) =
+    (b.val * (Etingof.GL2.cosetBorel p n g).val) *
+      Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n (b.val * g)) := by
+    rw [← h1, mul_assoc, hidx, ← h2]
+  exact mul_right_cancel key
+
+/-- Construct a covariant function from values at coset reps. -/
+private noncomputable def Etingof.GL2.mkCovariantFun
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (c : Option (GaloisField p n) → ℂ) :
+    GL2 p n → ℂ :=
+  fun g => Etingof.GL2.borelCharValue p n chi1 chi2
+    (Etingof.GL2.cosetBorel p n g) * c (Etingof.GL2.cosetIndex p n g)
+
+/-- The covariant function constructed from c is in the principal series submodule. -/
+private lemma Etingof.GL2.mkCovariantFun_mem
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (c : Option (GaloisField p n) → ℂ) :
+    Etingof.GL2.mkCovariantFun p n chi1 chi2 c ∈
+      Etingof.GL2.principalSeriesSubmodule p n chi1 chi2 := by
+  intro b g
+  simp only [Etingof.GL2.mkCovariantFun]
+  rw [Etingof.GL2.cosetIndex_borel_mul, Etingof.GL2.cosetBorel_borel_mul]
+  rw [Etingof.GL2.borelCharValue_mul]
+  ring
+
+/-- cosetIndex(rep(i)) = i. -/
+private lemma Etingof.GL2.cosetIndex_cosetRep
+    (i : Option (GaloisField p n)) :
+    Etingof.GL2.cosetIndex p n (Etingof.GL2.cosetRep p n i) = i := by
+  cases i with
+  | none =>
+    simp [Etingof.GL2.cosetIndex, Etingof.GL2.cosetRep]
+  | some t =>
+    simp only [Etingof.GL2.cosetIndex, Etingof.GL2.cosetRep,
+      Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible]
+    -- rep(some t) has (1,0)-entry = 1 ≠ 0
+    have h10 : (Matrix.GeneralLinearGroup.mkOfDetNeZero
+        (n := Fin 2) (K := GaloisField p n) !![0, -1; 1, t]
+        (by simp [Matrix.det_fin_two])).val 1 0 ≠ 0 := by
+      simp [Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+            Matrix.unitOfDetInvertible]
+    simp [Etingof.GL2.cosetIndex, h10,
+          Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+          Matrix.unitOfDetInvertible]
+
+/-- borelCharValue at 1 is 1. -/
+private lemma Etingof.GL2.borelCharValue_one
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.borelCharValue p n chi1 chi2
+      ⟨1, by simp [Etingof.GL2.BorelSubgroup]⟩ = 1 := by
+  unfold Etingof.GL2.borelCharValue
+  simp
+
+/-- cosetBorel(rep(i)) = 1 for all i. -/
+private lemma Etingof.GL2.cosetBorel_cosetRep
+    (i : Option (GaloisField p n)) :
+    Etingof.GL2.cosetBorel p n (Etingof.GL2.cosetRep p n i) =
+      ⟨1, by simp [Etingof.GL2.BorelSubgroup]⟩ := by
+  cases i with
+  | none =>
+    simp [Etingof.GL2.cosetBorel, Etingof.GL2.cosetRep, Etingof.GL2.BorelSubgroup]
+  | some t =>
+    simp only [Etingof.GL2.cosetBorel, Etingof.GL2.cosetRep]
+    -- rep(some t) has (1,0)-entry = 1 ≠ 0
+    have h10 : ¬ ((Matrix.GeneralLinearGroup.mkOfDetNeZero
+        (n := Fin 2) (K := GaloisField p n) !![0, -1; 1, t]
+        (by simp [Matrix.det_fin_two])).val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := by
+      simp [Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+            Matrix.unitOfDetInvertible]
+    rw [dif_neg h10]
+    -- Now need to show the constructed Borel element = 1
+    -- bmat = !![det/1, 0; 0, 1] = !![1, 0; 0, 1] = I
+    apply Subtype.ext
+    apply Matrix.GeneralLinearGroup.ext
+    intro i j
+    simp [Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+          Matrix.unitOfDetInvertible, Matrix.det_fin_two]
+    fin_cases i <;> fin_cases j <;> simp [Matrix.det_fin_two]
+
+/-- The covariant function evaluates to c at coset reps. -/
+private lemma Etingof.GL2.mkCovariantFun_eval
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (c : Option (GaloisField p n) → ℂ)
+    (i : Option (GaloisField p n)) :
+    Etingof.GL2.mkCovariantFun p n chi1 chi2 c
+      (Etingof.GL2.cosetRep p n i) = c i := by
+  simp [Etingof.GL2.mkCovariantFun,
+    Etingof.GL2.cosetIndex_cosetRep,
+    Etingof.GL2.cosetBorel_cosetRep,
+    Etingof.GL2.borelCharValue_one]
 
 /-- Evaluation at coset representatives is injective: if f(rep(i)) = 0 for all i, then f = 0. -/
 private lemma Etingof.GL2.principalSeries_eval_injective
@@ -676,8 +899,10 @@ private lemma Etingof.GL2.principalSeries_eval_surjective
     (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
     (c : Option (GaloisField p n) → ℂ) :
     ∃ f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2),
-      ∀ i, (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i) = c i := by
-  sorry
+      ∀ i, (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i) = c i :=
+  ⟨⟨Etingof.GL2.mkCovariantFun p n chi1 chi2 c,
+    Etingof.GL2.mkCovariantFun_mem p n chi1 chi2 c⟩,
+   Etingof.GL2.mkCovariantFun_eval p n chi1 chi2 c⟩
 
 /-- Evaluation at coset reps restricted to complementW is injective into GaloisField → ℂ.
     Key: if f(rep(some t)) = 0 for all t AND aug(f) = 0, then f(rep(none)) = 0 too. -/
@@ -687,7 +912,90 @@ private lemma Etingof.GL2.complementW_eval_injective
     (hf : ∀ t : GaloisField p n,
       (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n (some t)) = 0) :
     f = 0 := by
-  sorry
+  -- f is in principalSeriesSubmodule ⊓ ker(augmentation)
+  have hcov := f.prop.1  -- covariance
+  have hker := f.prop.2  -- ker(augmentation)
+  -- It suffices to show f(rep(i)) = 0 for all i (including none)
+  suffices h : ∀ i : Option (GaloisField p n),
+      (f.val : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i) = 0 by
+    -- Use principalSeries_eval_injective on f viewed as element of principalSeriesSubmodule
+    have hinj := Etingof.GL2.principalSeries_eval_injective p n mu mu
+      ⟨f.val, hcov⟩ h
+    exact Subtype.ext (show f.val = 0 from congr_arg Subtype.val hinj)
+  intro i
+  cases i with
+  | some t => exact hf t
+  | none =>
+    -- Need: f(1) = 0, using aug(f) = 0
+    -- For each g, f(g) = χ(b_g)·f(rep(idx(g))), where g = b_g · rep(idx(g))
+    -- If idx(g) = some t, then f(rep(some t)) = 0, so f(g) = 0, so the aug summand = 0.
+    -- If idx(g) = none (g ∈ B), then f(g) = χ(g)·f(1) and the summand is
+    --   χ(g)·f(1)·μ(det g)⁻¹ = f(1) (since χ₁=χ₂=μ means χ(b)·μ(det b)⁻¹ = 1).
+    -- So aug(f) = |B|·f(1) = 0, giving f(1) = 0.
+    -- Step 1: Show f(g) = 0 for all g ∉ B
+    have hf_zero_outside_B : ∀ g : GL2 p n,
+        (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 ≠ 0 →
+        f.val g = 0 := by
+      intro g hg10
+      obtain ⟨b, hbg⟩ := Etingof.GL2.mem_coset_of_cosetIndex p n g
+      have hcov_g := hcov b (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g))
+      rw [← hbg] at hcov_g
+      rw [hcov_g]
+      have : Etingof.GL2.cosetIndex p n g = some ((g.val : Matrix _ _ _) 1 1 / (g.val : Matrix _ _ _) 1 0) := by
+        simp [Etingof.GL2.cosetIndex, hg10]
+      rw [this]
+      rw [hf _, mul_zero]
+    -- Step 2: Show f(g) · μ(det g)⁻¹ = f(1) for g ∈ B
+    have hf_B_term : ∀ g : GL2 p n,
+        (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 →
+        f.val g * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = f.val 1 := by
+      intro g hg10
+      -- g ∈ B, so g = b · rep(none) = b · 1 = b
+      have hcov_g := hcov ⟨g, hg10⟩ 1
+      simp only [Units.val_one, mul_one] at hcov_g ⊢
+      -- f(g) = borelCharValue(g) · f(1)
+      rw [hcov_g]
+      -- borelCharValue = μ(g₀₀) · μ(g₁₁), det(g) = g₀₀ · g₁₁ (since g₁₀ = 0)
+      unfold Etingof.GL2.borelCharValue
+      have hdet_g : Matrix.GeneralLinearGroup.det g =
+        Units.mk0 _ (Etingof.GL2.borel_diag00_ne_zero p n ⟨g, hg10⟩) *
+        Units.mk0 _ (Etingof.GL2.borel_diag11_ne_zero p n ⟨g, hg10⟩) := by
+        ext; simp [Matrix.GeneralLinearGroup.det, Matrix.det_fin_two, hg10]
+      rw [hdet_g, map_mul, mul_inv_rev, Units.val_mul]
+      -- Goal: μ(g₀₀) * μ(g₁₁) * f(1) * μ(g₁₁)⁻¹ * μ(g₀₀)⁻¹ = f(1)
+      simp only [Units.val_inv_eq_inv_val]
+      have h1 : ((mu (Units.mk0 _ (Etingof.GL2.borel_diag11_ne_zero p n ⟨g, hg10⟩)) : ℂˣ) : ℂ) ≠ 0 :=
+        Units.ne_zero _
+      have h0 : ((mu (Units.mk0 _ (Etingof.GL2.borel_diag00_ne_zero p n ⟨g, hg10⟩)) : ℂˣ) : ℂ) ≠ 0 :=
+        Units.ne_zero _
+      field_simp
+    -- Step 3: Compute aug(f) = |B| · f(1)
+    have hker_val : ∑ g : GL2 p n,
+        f.val g * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = 0 := by
+      have := hker
+      simp only [LinearMap.mem_ker, Etingof.GL2.augmentation,
+        LinearMap.coe_mk, AddHom.coe_mk] at this
+      exact this
+    -- Split sum into B and non-B parts
+    have hterm : ∀ g : GL2 p n,
+        f.val g * ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ =
+        if (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0
+        then f.val 1
+        else 0 := by
+      intro g
+      split_ifs with h10
+      · exact hf_B_term g h10
+      · rw [hf_zero_outside_B g h10, zero_mul]
+    simp_rw [hterm] at hker_val
+    rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const,
+        nsmul_eq_mul] at hker_val
+    -- |B| ≠ 0
+    have hB_ne : ((Finset.univ.filter
+        (fun g : GL2 p n =>
+          (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0)).card : ℂ) ≠ 0 := by
+      rw [Nat.cast_ne_zero]
+      exact Finset.card_ne_zero.mpr ⟨1, Finset.mem_filter.mpr ⟨Finset.mem_univ _, by simp⟩⟩
+    exact (mul_eq_zero.mp hker_val).resolve_left hB_ne
 
 /-- Evaluation at "some" coset reps from complementW is surjective onto GaloisField → ℂ. -/
 private lemma Etingof.GL2.complementW_eval_surjective
@@ -695,7 +1003,92 @@ private lemma Etingof.GL2.complementW_eval_surjective
     (c : GaloisField p n → ℂ) :
     ∃ f : ↥(Etingof.GL2.complementWSubmodule p n mu),
       ∀ t, (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n (some t)) = c t := by
-  sorry
+  -- Construct covariant function with v(some t) = c(t), v(none) = -∑ c(t)
+  let v : Option (GaloisField p n) → ℂ := fun i =>
+    match i with
+    | some t => c t
+    | none => -∑ t, c t
+  have hf_mem := Etingof.GL2.mkCovariantFun_mem p n mu mu v
+  have hf_eval := Etingof.GL2.mkCovariantFun_eval p n mu mu v
+  -- Need to show f ∈ complementWSubmodule = principalSeriesSubmodule ⊓ ker(augmentation)
+  -- f ∈ principalSeriesSubmodule is hf_mem
+  -- f ∈ ker(augmentation) needs: aug(f) = 0
+  -- This follows because aug(f) = |B| · ∑_i v(i) = |B| · ((-∑ c(t)) + ∑ c(t)) = 0
+  -- For now, sorry the augmentation computation and provide the witness
+  have hf_aug : Etingof.GL2.mkCovariantFun p n mu mu v ∈
+      LinearMap.ker (Etingof.GL2.augmentation p n mu) := by
+    simp only [LinearMap.mem_ker, Etingof.GL2.augmentation, LinearMap.coe_mk, AddHom.coe_mk]
+    -- Each term: mkCovariantFun(g) * mu(det g)⁻¹ = v(cosetIndex g)
+    -- because borelCharValue(cosetBorel g) cancels with mu(det(cosetBorel g))
+    -- and det(rep(i)) = 1 for all i
+    -- Each term: mkCovariantFun(g) * mu(det g)⁻¹ = v(cosetIndex g)
+    -- because borelCharValue(cosetBorel g) cancels with mu(det(cosetBorel g))
+    -- and det(rep(i)) = 1 for all i
+    -- Key helper: det(rep(i)) = 1 for all coset reps
+    have hdet_rep : ∀ i : Option (GaloisField p n),
+        Matrix.GeneralLinearGroup.det (Etingof.GL2.cosetRep p n i) = 1 := by
+      intro i
+      cases i with
+      | none =>
+        ext
+        simp [Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.det]
+      | some t =>
+        ext
+        simp [Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.det,
+          Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+          Matrix.unitOfDetInvertible, Matrix.det_fin_two]
+    -- Key helper: borelCharValue(b) * mu(det b)⁻¹ = 1 when chi1=chi2=mu
+    have hborel_cancel : ∀ b : ↥(Etingof.GL2.BorelSubgroup p n),
+        Etingof.GL2.borelCharValue p n mu mu b *
+        ((mu (Matrix.GeneralLinearGroup.det b.val))⁻¹ : ℂˣ) = 1 := by
+      intro b
+      have hb10 : (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := b.prop
+      have hdet_b : Matrix.GeneralLinearGroup.det b.val =
+        Units.mk0 ((b.val.val : Matrix _ _ _) 0 0)
+          (Etingof.GL2.borel_diag00_ne_zero p n b) *
+        Units.mk0 ((b.val.val : Matrix _ _ _) 1 1)
+          (Etingof.GL2.borel_diag11_ne_zero p n b) := by
+        ext; simp [Matrix.GeneralLinearGroup.det, Matrix.det_fin_two, hb10]
+      rw [hdet_b, map_mul]
+      -- Goal: borelCharValue b * ↑(mu a * mu b)⁻¹ = 1
+      -- ↑(mu a * mu b)⁻¹ = (↑(mu a * mu b))⁻¹ = (↑(mu a) * ↑(mu b))⁻¹
+      rw [Units.val_inv_eq_inv_val, Units.val_mul]
+      simp only [Etingof.GL2.borelCharValue]
+      rw [mul_inv_cancel₀ (mul_ne_zero (Units.ne_zero _) (Units.ne_zero _))]
+    -- Rewrite each term using coset decomposition
+    have hterm : ∀ g : GL2 p n,
+        Etingof.GL2.mkCovariantFun p n mu mu v g *
+        ((mu (Matrix.GeneralLinearGroup.det g))⁻¹ : ℂˣ) =
+        v (Etingof.GL2.cosetIndex p n g) := by
+      intro g
+      simp only [Etingof.GL2.mkCovariantFun]
+      -- g = cosetBorel(g) * rep(cosetIndex(g))
+      have hdecomp := Etingof.GL2.cosetBorel_mul_cosetRep p n g
+      -- det(g) = det(cosetBorel g) * det(rep(cosetIndex g)) = det(cosetBorel g) * 1
+      have hdet_g : Matrix.GeneralLinearGroup.det g =
+          Matrix.GeneralLinearGroup.det (Etingof.GL2.cosetBorel p n g).val *
+          Matrix.GeneralLinearGroup.det
+            (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g)) := by
+        conv_lhs => rw [hdecomp]
+        exact map_mul _ _ _
+      rw [hdet_g, hdet_rep, mul_one]
+      rw [show Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n g) *
+            v (Etingof.GL2.cosetIndex p n g) *
+            ((mu (Matrix.GeneralLinearGroup.det
+              (Etingof.GL2.cosetBorel p n g).val))⁻¹ : ℂˣ) =
+          (Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n g) *
+            ((mu (Matrix.GeneralLinearGroup.det
+              (Etingof.GL2.cosetBorel p n g).val))⁻¹ : ℂˣ)) *
+          v (Etingof.GL2.cosetIndex p n g) from by ring]
+      rw [hborel_cancel, one_mul]
+    simp_rw [hterm]
+    -- ∑_g v(cosetIndex g) = 0 because v factors through cosetIndex
+    -- and ∑_i v(i) = 0 (by construction: v(none) = -∑ c t, v(some t) = c t)
+    -- Each fiber has the same size |B|, so ∑_g v(cosetIndex g) = |B| * ∑_i v(i) = |B| * 0 = 0
+    -- TODO: needs Equiv between GL₂ and B × Option(GaloisField p n) for reindexing
+    sorry
+  exact ⟨⟨Etingof.GL2.mkCovariantFun p n mu mu v, ⟨hf_mem, hf_aug⟩⟩,
+    fun t => hf_eval (some t)⟩
 
 /-- dim V(χ₁,χ₂) = [G:B] = p^n + 1. -/
 private lemma Etingof.GL2.principalSeriesSubmodule_finrank
@@ -1011,16 +1404,48 @@ private lemma Etingof.GL2.complementW_simple
     Simple (Etingof.GL2.complementW p n mu) := by
   sorry
 
+/-- The evaluation map from complementW to (GaloisField → ℂ). -/
+private noncomputable def Etingof.GL2.complementW_evalMap
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    ↥(Etingof.GL2.complementWSubmodule p n mu) →ₗ[ℂ] (GaloisField p n → ℂ) where
+  toFun f t := (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n (some t))
+  map_add' f g := by ext; simp
+  map_smul' c f := by ext; simp [smul_eq_mul]
+
 /-- Helper: dim W_μ = q = p^n. Since dim V(μ,μ) = [G:B] = q+1 and
 dim ℂ_μ = 1, we get dim W_μ = q. -/
 private lemma Etingof.GL2.complementW_finrank
+    (hn : 0 < n)
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Module.finrank ℂ (Etingof.GL2.complementW p n mu).V = p ^ n := by
-  sorry
+  -- Show dim(complementWSubmodule) = p^n via linear bijection with (GaloisField p n → ℂ)
+  -- The evaluation map eval : complementWSubmodule → (GaloisField p n → ℂ) is a bijection
+  have hinj : Function.Injective (Etingof.GL2.complementW_evalMap p n mu) := by
+    intro f g heq
+    have : f - g = 0 := by
+      apply Etingof.GL2.complementW_eval_injective
+      intro t
+      have := congr_fun heq t
+      simp [Etingof.GL2.complementW_evalMap] at this
+      simp [this]
+    exact sub_eq_zero.mp this
+  have hsurj : Function.Surjective (Etingof.GL2.complementW_evalMap p n mu) := by
+    intro c
+    obtain ⟨f, hf⟩ := Etingof.GL2.complementW_eval_surjective p n mu c
+    exact ⟨f, funext hf⟩
+  -- Use the linear equivalence to compute dimension
+  have hequiv : ↥(Etingof.GL2.complementWSubmodule p n mu) ≃ₗ[ℂ] (GaloisField p n → ℂ) :=
+    LinearEquiv.ofBijective (Etingof.GL2.complementW_evalMap p n mu) ⟨hinj, hsurj⟩
+  -- complementW.V = complementWSubmodule (by definition)
+  change Module.finrank ℂ ↥(Etingof.GL2.complementWSubmodule p n mu) = p ^ n
+  rw [hequiv.finrank_eq, Module.finrank_pi_fintype, Module.finrank_self]
+  simp only [Finset.sum_const, smul_eq_mul, mul_one]
+  rw [Finset.card_univ, Fintype.card_eq_nat_card, GaloisField.card p n (Nat.pos_iff_ne_zero.mp hn)]
 
 /-- **Theorem 5.25.2 (2)**: If χ₁ = χ₂ = μ, then V(μ, μ) ≅ ℂ_μ ⊕ W_μ where
 W_μ is an irreducible q-dimensional representation. (Etingof Theorem 5.25.2) -/
 theorem Etingof.Theorem5_25_2_part2
+    (hn : 0 < n)
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     (Nonempty (Etingof.GL2.principalSeries p n mu mu ≅
       Etingof.GL2.detChar p n mu ⊞ Etingof.GL2.complementW p n mu)) ∧
@@ -1028,7 +1453,7 @@ theorem Etingof.Theorem5_25_2_part2
     Module.finrank ℂ (Etingof.GL2.complementW p n mu).V = p ^ n :=
   ⟨Etingof.GL2.principalSeries_decomp p n mu,
    Etingof.GL2.complementW_simple p n mu,
-   Etingof.GL2.complementW_finrank p n mu⟩
+   Etingof.GL2.complementW_finrank p n hn mu⟩
 
 /-- Helper: the character of W_μ on diagonal matrices determines μ.
 If W_μ ≅ W_ν as representations, then their characters agree on all elements,
@@ -1060,7 +1485,5 @@ theorem Etingof.Theorem5_25_2_part3b
       Etingof.GL2.principalSeries p n chi1' chi2') ↔
     ({chi1, chi2} : Set ((GaloisField p n)ˣ →* ℂˣ)) = {chi1', chi2'} := by
   sorry
-
-end Theorem5_25_2
 
 end
