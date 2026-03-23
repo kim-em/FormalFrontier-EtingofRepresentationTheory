@@ -771,6 +771,7 @@ private lemma tree_branch_iso {k : ℕ} {adj : Matrix (Fin (k + 1)) (Fin (k + 1)
     have hj_eq : j = ⟨k, by omega⟩ := Fin.ext hj_val
     rw [dif_neg hi, dif_neg hj, hi_eq, hj_eq, ht_diag_k, hdiag]
 
+set_option maxHeartbeats 400000 in
 /-- A tree with a degree-3 vertex (branch) and all degrees ≤ 3 has exactly one such vertex,
     three arms of lengths p ≤ q ≤ r with n = p + q + r + 1, and is uniquely determined
     (up to graph isomorphism) by its arm lengths. Given the arm-length constraint from

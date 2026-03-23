@@ -2235,11 +2235,6 @@ private theorem alternatingKostka_diag {n : ℕ} (la : Nat.Partition n) :
   rw [finsuppToPartition_toFinsupp, spechtMultiplicity_diagonal]
   simp
 
-/-- P_σ depends only on cycle type, so P_{σ⁻¹} = P_σ. -/
-private theorem cycleTypePsumProduct_inv (n : ℕ) (σ : Equiv.Perm (Fin n)) :
-    cycleTypePsumProduct n σ⁻¹ = cycleTypePsumProduct n σ := by
-  unfold cycleTypePsumProduct
-  rw [Equiv.Perm.cycleType_inv, Equiv.Perm.support_inv]
 
 /-- **Vandermonde coefficient orthogonality**: ∑_σ θ_λ(σ)² = n!,
 where θ_λ(σ) = [x^{λ+ρ}](Δ(x) · P_σ(x)).
