@@ -549,32 +549,38 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 27+)
+## Endgame Priorities (Wave 29+)
 
-With 75 sorries remaining across 28 files (96.1% items sorry-free, 89% files sorry-free), the remaining work is concentrated in hard items. See `progress/sorry-landscape.md` for the full tier analysis.
+With ~58 sorries remaining across ~26 files (96.4% items sorry-free), the remaining work is concentrated in hard items. See `progress/sorry-landscape.md` for the full tier analysis.
 
-**Tier 1 — Most Tractable (2 sorries):**
-- Ch2 Theorem2_1_1 (sl(2) complete reducibility, 1 sorry) — infrastructure from #1542, #1544
-- Ch5 Theorem5_15_1 (alternating Kostka identity, 1 sorry) — last sorry for entire Frobenius character formula. Issue #1580 describes the norm-squared approach.
+**Recently completed (Wave 28-29):**
+- Theorem2_1_1 (sl(2) complete reducibility) — sorry-free
+- GL2NormalizerInfra — sorry-free (normalizer_card proved)
+- FDRep bridge — spechtModuleFDRep_simple proved
+- CoxeterInfrastructure — admissibleOrdering_exists fully proved
+- Proposition6_6_6 — reduced from 5→2 sorries
+- Problem6_9_1 — 4/5 nilpotent decomp cases proved
 
-**Tier 2 — Hard but Tractable (16 sorries):**
-- Ch5 Lemma5_25_3 (1 sorry) — GL₂ normalizer cardinality remaining
+**Tier 1 — Most Tractable:**
+- Ch5 Theorem5_15_1 (alternating Kostka identity, 1 sorry) — needs Vandermonde orthogonality (infrastructure merged in #1618)
+- Ch6 Problem6_9_1 Case 2b-ii (PID bridge) — infrastructure built, needs kernel dimension on ℂ[X]/(X^n)
+- Ch6 Proposition6_6_6 (2 sorries) — ne_eq and eq_ne naturality cases, Decidable.casesOn partially mitigated
+
+**Tier 2 — Hard but Tractable:**
 - Ch6 Theorem_Dynkin_classification (6 sorries) — arm extraction and exceptional type cases
-- Ch6 Proposition6_6_6 (4 sorries) — reflection functor round-trip, Decidable.casesOn partially mitigated
-- Ch6 Problem6_9_1 (1 sorry) — nilpotent structure theorem needed
 - Ch5 Proposition5_21_1 (2 sorries), Proposition5_22_2 (1 sorry) — Schur polynomial character formulas
+- Ch6 Corollary6_8_2/6_8_3 — unblocked by admissibleOrdering_exists, needs type-changing reflection iteration
 
-**Tier 3 — Infrastructure-Blocked (~40 sorries):**
-- SchurModule cluster (~20 sorries across 4 files) — concrete definition needed
-- Gabriel theorem cluster (~10 sorries) — blocked on Prop6_6_6
+**Tier 3 — Infrastructure-Blocked (~35 sorries):**
+- SchurModule cluster (~20 sorries across 4 files) — concrete definition needed (mega-blocker, ~33% of remaining)
+- Gabriel theorem cluster (~8 sorries) — partially unblocked by Prop6_6_6 progress
 - Ch9 finite-dimensional algebras (5 sorries) — Morita/Nakayama infrastructure
-- Theorem5_25_2 principal series (6 sorries) — sorry pushed to helpers, character computation needed
-- Theorem5_26_1 Artin's theorem (4 sorries) — forward direction helpers decomposed
+- Theorem5_25_2 principal series (6 sorries) — sorry pushed to helpers
+- Theorem5_26_1 Artin's theorem (4 sorries) — forward direction decomposed
 
-**Tier 4 — Deep Blockers (~17 sorries):**
+**Tier 4 — Deep Blockers:**
 - Mackey machine Theorem5_27_1 (5 sorries) — needs ~500 lines Clifford theory
-- GL₂ classification residual (6 sorries) — substantial character computation helpers
-- Gabriel classification residual (2 sorries in Ch2) — depends on Ch6 chain
+- GL₂ classification residual — substantial character computation helpers
 - Morita/Basic algebra infrastructure (3 sorries)
 
 **Key endgame insight:** The decomposition strategy (pushing sorry from theorems into helpers) is the dominant value-creation pattern. Many theorem files now have complete proof terms with sorry only in isolated helpers. Prioritize this pattern over heroic attempts at hard sorries.
@@ -899,6 +905,107 @@ This was critical for the `reversedArrow_ne_ne_twice` proof in Prop6_6_6 (#1561)
 
 If the issue's strategy doesn't work after verification, **update the issue comment** with your findings before trying alternative approaches. This saves the next agent from repeating your investigation.
 
+## Module Instance Agreement Pattern
+
+When two `Module R M` instances exist on the same type (e.g., one from `Representation.asModule` and one from `Submodule.module`), direct `rfl` or `congr` fails because the instances are constructed differently.
+
+**Pattern: Prove pointwise agreement via algebra induction**
+
+```lean
+-- Two Module (MonoidAlgebra ℂ G) M instances that act identically
+-- inst₁ comes from Representation.asModule, inst₂ from Submodule.module
+-- They agree on all elements but are not definitionally equal
+
+-- Step 1: Prove the SMul actions agree on generators
+have smul_agree : ∀ (g : G) (m : M), @SMul.smul _ _ inst₁.toSMul (single g 1) m
+    = @SMul.smul _ _ inst₂.toSMul (single g 1) m := by
+  intro g m; simp [...]
+
+-- Step 2: Lift to all MonoidAlgebra elements via induction
+have : inst₁ = inst₂ := by
+  ext a m
+  induction a using MonoidAlgebra.induction_on with
+  | single g r => simp [smul_agree g m, ...]
+  | zero => simp
+  | add x y hx hy => simp [add_smul, hx, hy]
+```
+
+**When to use:** Module instance diamonds from `FDRep`/`Representation.asModule` vs. submodule inheritance. This was critical for the FDRep bridge (#1601) — `spechtModuleFDRep_simple` required proving `IsSimpleModule` transfers across instance-incompatible equivalences.
+
+**Companion:** Use `Finsupp.induction_linear` instead of `MonoidAlgebra.induction_on` when working with Finsupp directly (cases: zero, add, single — no `not_mem_support` hypothesis needed).
+
+## PID Structure Theorem Bridge Pattern
+
+When using Mathlib's `Module.torsion_by_prime_power_decomposition` to decompose a module over a PID (e.g., ℂ[X]-modules for nilpotent operators), the output is a `DirectSum` of quotient modules `ℂ[X] ⧸ Ideal.span {X^nᵢ}`. Bridging this to concrete vector subspaces requires careful infrastructure.
+
+**Pattern:**
+
+```lean
+-- Step 1: Get the PID decomposition
+-- The polynomial ring ℂ[X] is a PID (EuclideanDomain → PrincipalIdealRing)
+-- T : V →ₗ[ℂ] V nilpotent gives a ℂ[X]-module structure on V via X ↦ T
+
+-- Step 2: Map quotient modules to kernel spaces
+-- Key fact: ℂ[X] ⧸ Ideal.span {X^n} ≅ ker(T^n) / ker(T^(n-1)) as ℂ-vector spaces
+-- This requires:
+private lemma quotient_poly_dim (n : ℕ) :
+    Module.finrank ℂ (Polynomial ℂ ⧸ Ideal.span {X ^ n}) = n := sorry
+
+-- Step 3: Track dimensions through the decomposition
+-- dim(ker T^k on ℂ[X]/(X^n)) = min(k, n)
+-- This determines the Jordan block structure
+```
+
+**Key difficulties:**
+- The `Module.torsion_by_prime_power_decomposition` API produces existential types (primes, exponents) that need careful handling with `Exists.choose`
+- ℂ[X]-module structure on V must be constructed explicitly from the linear map T
+- Dimension tracking through quotients requires `Module.finrank` lemmas for polynomial quotient rings
+
+**Evidence:** Problem6_9_1 Case 2b (#1617) — proved 4/5 nilpotent decomp cases using this bridge. The remaining case (2b-ii) is blocked on the kernel dimension computation.
+
+## Type Class Shadowing for Instance Pollution
+
+When a typeclass instance leaks through from an outer scope and interferes with proof goals, use `letI` to shadow it with the correct instance.
+
+**Pattern:**
+```lean
+-- Problem: `inst✝ : Quiver Q` in context is wrong/opaque, preventing reduction
+-- Solution: Shadow it with the concrete instance you want
+letI : Quiver Q := concreteQuiverInstance
+-- Now tactics see the concrete instance, not the opaque one
+```
+
+**When to use:** Proposition6_6_6 hdim proof (#1598) needed this to shadow a `Quiver` instance that was preventing `simp` from reducing. Also useful when `inferInstance` finds the wrong instance in the presence of multiple candidates.
+
+**Caution:** Only shadow when you're sure the shadowed instance agrees with the one you're replacing — otherwise proofs may become inconsistent.
+
+## Inductive Construction on Finite Sets (Finset.strongInduction)
+
+For existence proofs that build a structure incrementally on a finite set (e.g., constructing orderings, colorings, assignments), use `Finset.strongInduction` or equivalent well-founded recursion on `Finset.card`.
+
+**Pattern:**
+```lean
+-- Construct an admissible ordering of vertices by repeatedly finding local sinks
+-- At each step, remove a local sink from the remaining set and recurse
+
+theorem exists_ordering : ∃ (l : List V), l.Nodup ∧ l.toFinset = Finset.univ ∧ P l := by
+  -- Use strong induction on |remaining vertices|
+  suffices ∀ (S : Finset V), ∃ (l : List V), l.Nodup ∧ l.toFinset = S ∧ P' S l from
+    this Finset.univ
+  intro S
+  induction S using Finset.strongInduction with
+  | ind S ih =>
+    -- Find an element to remove (e.g., a local sink)
+    obtain ⟨v, hv, hprop⟩ := exists_special_element S hS
+    -- Recurse on S \ {v}
+    obtain ⟨l, hl⟩ := ih (S.erase v) (Finset.erase_ssubset hv)
+    exact ⟨v :: l, ...⟩
+```
+
+**Evidence:** admissibleOrdering_exists (#1613) — constructed admissible orderings for Dynkin quivers by iteratively removing local sinks, proved via `Finset.strongInduction`. Helper lemmas for sink existence were proved separately using a counting argument on forward/backward edge pairs.
+
+**Key helper pattern:** When the "special element" existence requires a counting/pigeonhole argument, prove it as a separate lemma first. The inductive construction is cleaner when the "find next element" step is a black box.
+
 ## Known Dead-Ends (Don't Waste Context Windows)
 
 These are proof approaches that multiple agents have attempted and failed. Don't retry them without new Mathlib infrastructure.
@@ -1084,30 +1191,23 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 24)
-The project has ~193/583 items sorry-free (~33%), with 84 remaining sorries across 29 files. This is solidly in a **depth phase** — planners should create 80%+ proof issues. Statement formalization is complete; the remaining backlog is entirely proof-heavy.
+### Current Status (as of Wave 29)
+The project has ~562/583 items sorry-free (~96.4%), with ~58 remaining sorries across ~26 files. This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch5 remains the bottleneck (45 sorries — 54% of all remaining). Ch6 has 27 sorries with Dynkin classification and reflection functor work progressing. Ch9 has 9 sorries. Ch2 has 3 sorries.
+**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 reduced to 1 sorry (Theorem2_1_1 completed). Ch5 remains the bottleneck (~30 sorries). Ch6 has ~15 sorries with Coxeter infrastructure and reflection functor work progressing. Ch9 has ~8 sorries.
 
-**Sorry tiered breakdown (wave 24 audit — see `progress/sorry-landscape.md` for details):**
-- **Tier 1 — Achievable:** 8 sorries (10%) — standard math, Mathlib APIs exist (Example6_4_9_Dn, Problem6_9_1)
-- **Tier 2 — Hard but tractable:** 14 sorries (17%) — non-trivial but clear mathematical path (Theorem5_15_1, Lemma5_25_3, PolytabloidBasis, FRTHelpers, Dynkin classification)
-- **Tier 3 — Blocked on infrastructure:** ~50 sorries (60%) — missing Mathlib or project infrastructure
-- **Unclassified / mixed:** ~12 sorries (14%)
+**Major blocker clusters:**
+1. **SchurModule** (~20 sorries, ~33% of total): Mega-blocker. `SchurModule k N lam` is sorry'd, blocking AlgIrrepGL, Peter-Weyl for GL(V), Frobenius formula, Schur-Weyl duality
+2. **Gabriel's theorem / Decidable.casesOn** (~8 sorries): Partially mitigated — Prop6_6_6 down to 2 sorries, admissible ordering proved. Type-changing reflection iteration still needs work.
+3. **Mackey machine / Clifford theory** (~5 sorries): Theorem 5.27.1 semidirect product orbit method — deep blocker, no Mathlib infrastructure
+4. **Morita/Krull-Schmidt** (~8 sorries): Ch9 infrastructure
 
-**Major blocker clusters (Tier 3):**
-1. **SchurModule** (~23 sorries, 27% of total): Mega-blocker. `SchurModule k N lam` is sorry'd, blocking AlgIrrepGL, Peter-Weyl for GL(V), Frobenius formula, Schur-Weyl duality
-2. **Gabriel's theorem / Decidable.casesOn** (~10 sorries): Reflection functor round-trip blocked by match-vs-cast opacity. **Highest-leverage fix: refactor `reversedArrow_eq_ne` in Definition6_6_3.lean to use `cast` internally**
-3. **Krull-Schmidt theorem** (9 sorries): Theorem9_2_1 parts ii+iii. Self-contained ~400-line project, no dependency on other blockers
-4. **Mackey machine / Clifford theory** (~5 sorries): Theorem 5.27.1 semidirect product orbit method
-5. **Complete reducibility extensions** (~3 sorries): Burnside, Schur extensions
+**Best ROI targets (Wave 29+):**
+1. Problem6_9_1 Case 2b-ii (PID bridge — infrastructure built, one key lemma away)
+2. Theorem5_15_1 (Vandermonde orthogonality infrastructure merged)
+3. Corollary6_8_2/6_8_3 (unblocked by admissibleOrdering_exists)
+4. Proposition6_6_6 remaining 2 sorries (if Decidable.casesOn workaround found)
 
-**Best ROI targets:**
-1. Example6_4_9_Dn (7 arithmetic sorries — single session, purely mechanical)
-2. Definition6_6_3 refactor (unblocks ~10 Gabriel's theorem sorries)
-3. Problem6_9_1 ker_sum_le_one (1 sorry, infrastructure already built)
-4. Krull-Schmidt theorem (unblocks 9 Ch9 sorries, self-contained)
+**Velocity trend:** Continuing to decline as remaining items are the hardest. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (SchurModule, Mackey machine) or deep combinatorial identities. Single-sorry items have been the highest-ROI targets — most Wave 28-29 completions were single-sorry items.
 
-**Velocity trend:** Continuing to decline as remaining items are harder. The steepening difficulty curve means many remaining sorries require Mathlib infrastructure that doesn't exist (SchurModule, Mackey machine, quiver representations) or deep combinatorial identities (hook length formula, alternating Kostka). Tier 1 arithmetic sorries represent the highest-ROI targets.
-
-**Key velocity insight from waves 9-24:** Statement formalization runs ~5x faster than proof completion. A single breadth session can formalize 10+ statements, but a proof session typically completes 1-3 proofs. Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
+**Key velocity insight:** Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
