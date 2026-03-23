@@ -1064,7 +1064,353 @@ private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
       split_ifs <;> omega
     have hrecip : (q + 1) * (r + 1) + 2 * (r + 1) + 2 * (q + 1) >
                   2 * (q + 1) * (r + 1) := by
-      sorry -- Derived from positive definiteness of the Cartan form
+      -- Derived from positive definiteness of the Cartan form.
+      -- Construct tent vector, show B > 0 implies the inequality.
+      -- Equivalent form: 2(b+1)+2(k-b) > (b+1)(k-b)
+      suffices h : 2 * (b + 1) + 2 * (k - b) > (b + 1) * (k - b) by
+        have hprod : (q + 1) * (r + 1) = (b + 1) * (k - b) := by
+          simp only [q, r, min_def, max_def]
+          split_ifs with hle
+          · congr 1; omega
+          · rw [Nat.mul_comm]; congr 1; omega
+        have hsum : 2 * (r + 1) + 2 * (q + 1) = 2 * (b + 1) + 2 * (k - b) := by
+          simp only [q, r, min_def, max_def]; split_ifs <;> omega
+        linarith
+      -- Define tent vector y on the path (Fin k)
+      set f : ℕ → ℤ := fun m =>
+        if m ≤ b then 2 * (↑(k - b) : ℤ) * (↑m + 1)
+        else 2 * (↑(b + 1) : ℤ) * (↑k - ↑m) with hf_def
+      set y : Fin k → ℤ := fun i => f (σ'.symm i).val with hy_def
+      set xu : ℤ := (↑(b + 1) : ℤ) * ↑(k - b) with hxu_def
+      -- Extend to full graph
+      set x : Fin (k + 1) → ℤ := fun w =>
+        if h : w = u then xu
+        else y ((Fin.exists_succAbove_eq h).choose) with hx_def
+      have hx_u : x u = xu := by simp [hx_def]
+      have hx_sa : ∀ i, x (u.succAbove i) = y i := by
+        intro i; simp only [hx_def, Fin.succAbove_ne u i, dite_false]
+        congr 1; exact Fin.succAbove_right_injective
+          (Fin.exists_succAbove_eq (Fin.succAbove_ne u i)).choose_spec
+      -- y at path position m is f(m)
+      have hy_at : ∀ (m : ℕ) (hm : m < k), y (σ' ⟨m, hm⟩) = f m := by
+        intro m hm; simp only [hy_def, Equiv.symm_apply_apply]
+      -- Key values
+      have hfb : f b = 2 * ↑(k - b) * (↑b + 1) := by simp [hf_def, le_refl]
+      have hxv : x v = f b := by
+        show x v = f (σ'.symm v').val
+        have : x v = x (u.succAbove v') := by rw [hv']
+        rw [this, hx_sa]
+      -- x ≠ 0
+      have hx_ne : x ≠ 0 := by
+        intro heq; have := congr_fun heq u; rw [hx_u, Pi.zero_apply] at this
+        simp [hxu_def] at this; omega
+      -- B(x,x) > 0 from positive definiteness
+      have hBpos := hpos x hx_ne
+      -- x is nonneg
+      have hx_nonneg : ∀ i, 0 ≤ x i := by
+        intro i
+        by_cases hi : i = u
+        · rw [hi, hx_u]; positivity
+        · have ⟨j, hj⟩ := Fin.exists_succAbove_eq hi
+          rw [← hj, hx_sa]; simp only [hy_def]
+          set m := (σ'.symm j).val
+          simp only [hf_def]
+          split_ifs with hle
+          · have : (m : ℤ) ≥ 0 := Int.natCast_nonneg m; positivity
+          · push_neg at hle
+            have hm_lt : m < k := (σ'.symm j).isLt
+            have : (k : ℤ) - ↑m > 0 := by omega
+            positivity
+      -- Upper bound: B ≤ 2∑x² - 2∑_{tree edges} x·x
+      -- because all x ≥ 0 and adj ∈ {0,1}, extra adj terms only increase ∑adj·x·x
+      -- The tent function is "harmonic" at every vertex except the hub.
+      -- So B = f(b) · g(b) where g(b) = target expression.
+      -- Since B > 0 and f(b) > 0, we get g(b) > 0 = the target inequality.
+      --
+      -- Key: adj' on path satisfies adj'(σ'(i), σ'(j)) = 1 ↔ |i-j| = 1
+      -- (from hσ'_fwd + hσ'_only + h01)
+      have hadj'_char : ∀ i j : Fin k, adj' (σ' i) (σ' j) =
+          if (i.val + 1 = j.val ∨ j.val + 1 = i.val) then 1 else 0 := by
+        intro i j
+        by_cases h : i.val + 1 = j.val ∨ j.val + 1 = i.val
+        · rw [if_pos h]
+          rcases h with h | h
+          · have hj : j = ⟨i.val + 1, by omega⟩ := Fin.ext (by simp; omega)
+            rw [hj]; exact hσ'_fwd i (by omega)
+          · have hi : i = ⟨j.val + 1, by omega⟩ := Fin.ext (by simp; omega)
+            rw [hi]
+            have hsymm' : adj'.IsSymm :=
+              Matrix.IsSymm.ext (fun a c => hsymm.apply _ _)
+            rw [hsymm'.apply]; exact hσ'_fwd j (by omega)
+        · rw [if_neg h]
+          rcases h01 (u.succAbove (σ' i)) (u.succAbove (σ' j)) with h0 | h1
+          · exact h0
+          · exfalso; exact h (hσ'_only i j h1)
+      -- adj between u and path: adj(u, u.succAbove(σ'(m))) = 1 iff σ'(m) = v'
+      have hadj_u_path : ∀ m : Fin k,
+          adj u (u.succAbove (σ' m)) = if (σ' m = v') then 1 else 0 := by
+        intro m
+        by_cases hm : σ' m = v'
+        · rw [if_pos hm, hm, hv', hsymm.apply]; exact hu_adj
+        · rw [if_neg hm]
+          rcases h01 u (u.succAbove (σ' m)) with h0 | h1
+          · exact h0
+          · exfalso
+            have hv_eq := hu_unique _ h1
+            have : u.succAbove (σ' m) = v := hv_eq
+            rw [← hv'] at this
+            exact hm (Fin.succAbove_right_injective this)
+      -- Compute the adj sum ∑_j adj(w,j)·x(j) for each vertex w
+      -- For w = u: sum = x(v) = f(b)
+      -- For w = u.succAbove(σ'(m)): sum = δ_{m=b}·xu + adj'_neighbors
+      --
+      -- The mulVec at u.succAbove(σ'(m)):
+      --   = 2·f(m) - δ_{m=b}·xu - [f(m-1) if m>0] - [f(m+1) if m<k-1]
+      --   = 0 for m ≠ b (tent linearity on each arm)
+      --   = specific nonzero value for m = b
+      --
+      -- Therefore B = ∑_w x(w)·mulVec(w)
+      --            = 0 (from u) + f(b)·(mulVec at hub) + 0 (from others)
+      --
+      -- And mulVec at hub = 2·f(b) - xu - f(b-1) - f(b+1)
+      --   = 4(k-b)(b+1) - (b+1)(k-b) - 2(k-b)b - 2(b+1)(k-b-1)
+      --   = (k-b)(1-b) + 2(b+1)
+      --   = 2(b+1) + 2(k-b) - (b+1)(k-b)
+      --
+      -- So B = f(b) · [2(b+1)+2(k-b)-(b+1)(k-b)]
+      -- Since B > 0 and f(b) > 0, the bracket > 0. QED.
+      --
+      -- We formalize this by computing B directly.
+      -- For now, sorry the computation and derive the result.
+      have hfb_pos : (0 : ℤ) < f b := by
+        rw [hfb]
+        have : (0 : ℤ) < ↑(k - b) := by omega
+        have : (0 : ℤ) < ↑b + 1 := by omega
+        nlinarith
+      suffices hB_eq : x ⬝ᵥ (2 • (1 : Matrix _ _ ℤ) - adj) *ᵥ x =
+          f b * (2 * (↑(b + 1) : ℤ) + 2 * (↑(k - b) : ℤ) -
+                 (↑(b + 1) : ℤ) * ↑(k - b)) by
+        rw [hB_eq] at hBpos
+        have hbracket_pos : 0 < 2 * (↑(b + 1) : ℤ) + 2 * ↑(k - b) -
+            (↑(b + 1) : ℤ) * ↑(k - b) := by
+          rcases mul_pos_iff.mp hBpos with ⟨_, h2⟩ | ⟨h1, _⟩
+          · exact h2
+          · linarith
+        zify at *; linarith
+      -- We compute B(x,x) by expanding as a sum, splitting at u, reindexing via σ',
+      -- and showing the tent function is harmonic except at hub.
+      -- Step 1: Express as raw sums
+      have hxu_val : xu = (↑(b + 1) : ℤ) * ↑(k - b) := rfl
+      have hfb_eq_2xu : f b = 2 * xu := by rw [hfb, hxu_val]; push_cast; ring
+      -- Unfold to raw sum form using dotProduct/mulVec definitions
+      have hsmul_ite : ∀ (i j : Fin (k + 1)),
+          (2 : ℕ) • (if i = j then (1 : ℤ) else 0) = if i = j then (2 : ℤ) else 0 := by
+        intros; split_ifs <;> simp
+      simp only [dotProduct, mulVec, Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply,
+        hsmul_ite]
+      -- Split outer sum at u
+      conv_lhs => rw [Fin.sum_univ_succAbove _ u]
+      -- u-term: xu * (2*xu - ∑_j adj(u,j)*x(j))
+      -- = xu * (2*xu - f(b)) = xu * (2*xu - 2*xu) = 0
+      have hu_inner : ∑ j, ((if u = j then (2 : ℤ) else 0) - adj u j) * x j = 2 * xu - f b := by
+        conv_lhs => rw [Fin.sum_univ_succAbove _ u]
+        rw [hx_u, show (if u = u then (2 : ℤ) else 0) = 2 from if_pos rfl,
+          show adj u u = 0 from hdiag u]
+        have : ∀ i : Fin k,
+            ((if u = u.succAbove i then (2 : ℤ) else 0) - adj u (u.succAbove i)) * x (u.succAbove i) =
+            -adj u (u.succAbove i) * y i := by
+          intro i
+          rw [if_neg (Fin.succAbove_ne u i).symm, hx_sa]; ring
+        simp_rw [this]
+        have hneg_sum : ∑ i : Fin k, -adj u (u.succAbove i) * y i =
+            -(∑ i : Fin k, adj u (u.succAbove i) * y i) := by
+          simp only [neg_mul, Finset.sum_neg_distrib]
+        rw [hneg_sum]
+        -- ∑_i adj(u,sa(i))*y(i) = f(b)
+        have hadj_y_fb : ∑ i : Fin k, adj u (u.succAbove i) * y i = f b := by
+          rw [(Equiv.sum_comp σ' _).symm]
+          simp_rw [fun m : Fin k => show y (σ' m) = f (σ'.symm (σ' m)).val from rfl,
+            fun m : Fin k => show (σ'.symm (σ' m)).val = m.val from
+              congr_arg Fin.val (σ'.symm_apply_apply m), hadj_u_path]
+          have : ∀ m : Fin k, (if σ' m = v' then (1 : ℤ) else 0) * f m.val =
+              if m = bfin then f b else 0 := by
+            intro m; by_cases hm : m = bfin
+            · rw [hm, hσ'_b, if_pos rfl, one_mul, if_pos rfl]
+            · rw [if_neg (fun h => hm (σ'.injective (h.trans hσ'_b.symm))), zero_mul, if_neg hm]
+          simp_rw [this, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+        rw [hadj_y_fb]; ring
+      rw [hx_u, hu_inner, hfb_eq_2xu, show xu * (2 * xu - 2 * xu) = 0 from by ring, zero_add]
+      -- Remaining: ∑_i x(sa(i)) * inner_sum(sa(i)) = f(b) * bracket
+      -- Reindex by σ'
+      rw [(Equiv.sum_comp σ' _).symm]
+      simp_rw [hx_sa]
+      -- Compute inner sum at sa(σ'(m))
+      have hinner : ∀ m : Fin k,
+          ∑ j : Fin (k + 1), ((if u.succAbove (σ' m) = j then (2 : ℤ) else 0) - adj (u.succAbove (σ' m)) j) * x j =
+          2 * f m.val - (if m = bfin then xu else 0) -
+          (if 0 < m.val then f (m.val - 1) else 0) -
+          (if m.val + 1 < k then f (m.val + 1) else 0) := by
+        intro m
+        conv_lhs => rw [Fin.sum_univ_succAbove _ u]
+        -- u-column: (if sa(σ'm) = u then 2 else 0) - adj(sa(σ'm), u) = 0 - adj(u, sa(σ'm))
+        rw [hx_u, show (if u.succAbove (σ' m) = u then (2 : ℤ) else 0) = 0 from
+            if_neg (Fin.succAbove_ne u _),
+          hsymm.apply, hadj_u_path m]
+        -- sa-columns: reindex by σ'
+        rw [(Equiv.sum_comp σ' _).symm]
+        simp_rw [hx_sa,
+          fun n : Fin k => show (if u.succAbove (σ' m) = u.succAbove (σ' n) then (2 : ℤ) else 0) =
+              if m = n then 2 else 0 from by
+            simp only [Fin.succAbove_right_inj, σ'.injective.eq_iff],
+          fun n : Fin k => show adj (u.succAbove (σ' m)) (u.succAbove (σ' n)) =
+              if (m.val + 1 = n.val ∨ n.val + 1 = m.val) then 1 else 0 from hadj'_char m n,
+          fun n : Fin k => show y (σ' n) = f (σ'.symm (σ' n)).val from rfl,
+          fun n : Fin k => show (σ'.symm (σ' n)).val = n.val from
+            congr_arg Fin.val (σ'.symm_apply_apply n)]
+        -- u-column contribution simplification
+        have hu_col : (0 - (if σ' m = v' then (1 : ℤ) else 0)) * xu =
+            -(if m = bfin then xu else 0) := by
+          by_cases hm : m = bfin
+          · rw [hm, hσ'_b, if_pos rfl, if_pos rfl]; ring
+          · rw [if_neg (fun h => hm (σ'.injective (h.trans hσ'_b.symm))), if_neg hm]; ring
+        rw [hu_col]
+        -- Split sum into diagonal and off-diagonal parts
+        simp_rw [sub_mul]
+        rw [Finset.sum_sub_distrib]
+        -- First sum: ∑ x, (if m = x then 2 else 0) * f ↑x = 2 * f ↑m
+        have hsum1 : ∑ n : Fin k, (if m = n then (2 : ℤ) else 0) * f ↑n = 2 * f ↑m := by
+          conv_lhs =>
+            arg 2; ext n
+            rw [show (if m = n then (2 : ℤ) else 0) * f ↑n =
+                if m = n then 2 * f ↑n else 0 from by split_ifs <;> ring]
+          rw [Finset.sum_ite_eq, if_pos (Finset.mem_univ _)]
+        -- Second sum: neighbor sum
+        have hsum2 : ∑ n : Fin k,
+            (if (m.val + 1 = n.val ∨ n.val + 1 = m.val) then (1 : ℤ) else 0) * f n.val =
+            (if 0 < m.val then f (m.val - 1) else 0) +
+            (if m.val + 1 < k then f (m.val + 1) else 0) := by
+          have htf : ∀ n : Fin k,
+              (if (m.val + 1 = n.val ∨ n.val + 1 = m.val) then (1 : ℤ) else 0) * f n.val =
+              if (m.val + 1 = n.val ∨ n.val + 1 = m.val) then f n.val else 0 := by
+            intro n; split_ifs <;> ring
+          simp_rw [htf]
+          rw [← Finset.sum_filter]
+          by_cases hm_pos : 0 < m.val <;> by_cases hm_lt : m.val + 1 < k
+          · -- Both neighbors exist
+            have hfilt_eq : Finset.univ.filter (fun n : Fin k =>
+                m.val + 1 = n.val ∨ n.val + 1 = m.val) =
+                {⟨m.val - 1, by omega⟩, ⟨m.val + 1, hm_lt⟩} := by
+              ext n; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Finset.mem_insert, Finset.mem_singleton, Fin.ext_iff]
+              omega
+            rw [hfilt_eq, Finset.sum_pair (by intro h; simp only [Fin.mk.injEq] at h; omega)]
+            simp only [if_pos hm_pos, if_pos hm_lt]
+          · -- Only left neighbor
+            have hfilt_eq : Finset.univ.filter (fun n : Fin k =>
+                m.val + 1 = n.val ∨ n.val + 1 = m.val) = {⟨m.val - 1, by omega⟩} := by
+              ext n; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Finset.mem_singleton, Fin.ext_iff]
+              omega
+            rw [hfilt_eq, Finset.sum_singleton]
+            simp only [if_pos hm_pos, if_neg (show ¬m.val + 1 < k by omega), add_zero]
+          · -- Only right neighbor
+            have hfilt_eq : Finset.univ.filter (fun n : Fin k =>
+                m.val + 1 = n.val ∨ n.val + 1 = m.val) = {⟨m.val + 1, by omega⟩} := by
+              ext n; simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Finset.mem_singleton, Fin.ext_iff]
+              omega
+            rw [hfilt_eq, Finset.sum_singleton]
+            simp only [if_neg (show ¬0 < m.val by omega), if_pos (show m.val + 1 < k by omega), zero_add]
+          · exfalso; have := m.isLt; omega
+        rw [hsum1, hsum2]; ring
+      simp_rw [hinner]
+      simp_rw [fun m : Fin k => show y (σ' m) = f (σ'.symm (σ' m)).val from rfl,
+        fun m : Fin k => show (σ'.symm (σ' m)).val = m.val from
+          congr_arg Fin.val (σ'.symm_apply_apply m)]
+      -- g(m) = 0 for m ≠ b (tent linearity), g(b) = target bracket
+      suffices h : ∀ m : Fin k,
+          f (m : ℕ) * (((2 * f (m : ℕ) - if m = bfin then xu else 0) -
+            if (0 : ℕ) < (m : ℕ) then f ((m : ℕ) - 1) else 0) -
+            if (m : ℕ) + 1 < k then f ((m : ℕ) + 1) else 0) =
+          if m = bfin then 2 * xu * (2 * ↑(b + 1) + 2 * ↑(k - b) - ↑(b + 1) * ↑(k - b)) else 0 by
+        simp_rw [h, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+      intro m
+      by_cases hm : m = bfin
+      · -- m = b: compute the bracket
+        subst hm
+        rw [if_pos rfl, if_pos rfl, if_pos hb_pos, if_pos (show b + 1 < k by omega)]
+        -- Compute: f(b)·(2·f(b) - xu - f(b-1) - f(b+1)) = f(b)·bracket
+        -- First, show bracket = target value using f expansions
+        suffices hbracket_val : 2 * f b - xu - f (b - 1) - f (b + 1) =
+            2 * ↑(b + 1) + 2 * ↑(k - b) - ↑(b + 1) * ↑(k - b) by
+          rw [hbracket_val, hfb_eq_2xu]
+        simp only [hf_def]
+        rw [if_pos (show b ≤ b from le_refl _)]
+        rw [if_pos (show b - 1 ≤ b by omega)]
+        rw [if_neg (show ¬(b + 1 ≤ b) by omega)]
+        simp only [hxu_def]
+        push_cast
+        rw [show (↑(b - 1) : ℤ) = ↑b - 1 from by omega]
+        rw [show (↑(k - b) : ℤ) = ↑k - ↑b from by omega]
+        ring
+      · -- m ≠ b: show the product is 0 by showing the bracket is 0
+        rw [if_neg hm]
+        have hm_ne_b : m.val ≠ b := fun h => hm (Fin.ext h)
+        rw [if_neg hm, sub_zero]
+        suffices hbracket : 2 * f m.val -
+            (if 0 < m.val then f (m.val - 1) else 0) -
+            (if m.val + 1 < k then f (m.val + 1) else 0) = 0 by
+          rw [hbracket]; ring
+        by_cases hm_lt_b : m.val < b
+        · simp only [hf_def]
+          by_cases hm_pos : 0 < m.val
+          · rw [if_pos hm_pos, if_pos (show m.val + 1 < k by omega),
+              if_pos (show m.val ≤ b by omega), if_pos (show m.val - 1 ≤ b by omega),
+              if_pos (show m.val + 1 ≤ b by omega)]
+            push_cast
+            rw [show (↑(m.val - 1) : ℤ) = ↑m.val - 1 from by omega]
+            ring
+          · rw [if_neg (show ¬0 < m.val by omega), if_pos (show m.val + 1 < k by omega),
+              if_pos (show m.val ≤ b by omega), if_pos (show m.val + 1 ≤ b by omega)]
+            push_cast; rw [show (m.val : ℤ) = 0 from by exact_mod_cast (by omega : m.val = 0)]
+            ring
+        · push_neg at hm_lt_b
+          have hm_gt_b : b < m.val := by omega
+          simp only [hf_def]
+          rw [if_pos (show 0 < m.val by omega), if_neg (show ¬(m.val ≤ b) by omega)]
+          by_cases hm_lt_k1 : m.val + 1 < k
+          · rw [if_pos hm_lt_k1, if_neg (show ¬(m.val + 1 ≤ b) by omega)]
+            by_cases hm1_le_b : m.val - 1 ≤ b
+            · -- m.val = b + 1: left neighbor is on left arm of tent
+              have hm_eq : m.val = b + 1 := by omega
+              rw [if_pos hm1_le_b]
+              push_cast
+              rw [show (↑(k - b) : ℤ) = ↑k - ↑b from by omega]
+              rw [show (↑(m.val - 1) : ℤ) = ↑m.val - 1 from by omega]
+              rw [show (m.val : ℤ) = ↑b + 1 from by exact_mod_cast hm_eq]
+              ring
+            · -- m.val > b + 1: left neighbor is on right arm of tent
+              rw [if_neg hm1_le_b]
+              push_cast
+              rw [show (↑(m.val - 1) : ℤ) = ↑m.val - 1 from by omega]
+              ring
+          · have hmk : m.val = k - 1 := by omega
+            rw [if_neg (show ¬(m.val + 1 < k) by omega)]
+            by_cases hm1_le_b : m.val - 1 ≤ b
+            · -- m.val = k-1 and m.val-1 ≤ b, with b < m.val, forces b = k-2
+              have hb_eq : b = k - 2 := by omega
+              rw [if_pos hm1_le_b]
+              push_cast
+              rw [show (↑(k - b) : ℤ) = ↑k - ↑b from by omega]
+              rw [show (↑(m.val - 1) : ℤ) = ↑m.val - 1 from by omega]
+              rw [show (m.val : ℤ) = ↑k - 1 from by exact_mod_cast hmk]
+              rw [show (b : ℤ) = ↑k - 2 from by omega]
+              ring
+            · rw [if_neg hm1_le_b]
+              push_cast
+              rw [show (↑(m.val - 1) : ℤ) = ↑m.val - 1 from by omega]
+              rw [show (m.val : ℤ) = ↑k - 1 from by exact_mod_cast hmk]
+              ring
     have hu_adj' : adj u (u.succAbove v') = 1 := by
       rw [hv', hsymm.apply]; exact hu_adj
     have hu_unique' : ∀ w, adj u w = 1 → w = u.succAbove v' := by
