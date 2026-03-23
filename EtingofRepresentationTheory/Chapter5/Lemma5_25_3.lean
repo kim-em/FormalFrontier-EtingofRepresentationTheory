@@ -609,7 +609,126 @@ private lemma Etingof.elliptic_sum_algebraic_core
     -- Triple-sum rearrangement: expand |S(g)|², change variables (g,x,y) → (k,x,z),
     -- factor out |GL₂|. Key ingredients: S is class-invariant, IsElliptic is
     -- conjugation-invariant (disc_conj_eq), non-K terms vanish from the dite.
-    sorry
+    -- Helper: group simplifications for conjugation
+    have hcc : ∀ (a b : GL2 p n), a⁻¹ * (a * b * a⁻¹) * a = b := by intros; group
+    have hcc2 : ∀ (a b c : GL2 p n),
+        (a * b)⁻¹ * (a * c * a⁻¹) * (a * b) = b⁻¹ * c * b := by intros; group
+    -- Helper: IsElliptic is conjugation-invariant
+    have hdisc' : ∀ (a b : GL2 p n), GL2.disc (a * b * a⁻¹) = GL2.disc b := by
+      intro a b
+      conv_lhs => rw [show a * b * a⁻¹ = a⁻¹⁻¹ * b * a⁻¹ from by simp]
+      exact Etingof.disc_conj_eq p n b a⁻¹
+    have hIsEll : ∀ (a b : GL2 p n),
+        GL2.IsElliptic (p := p) (n := n) (a * b * a⁻¹) ↔
+        GL2.IsElliptic (p := p) (n := n) b := by
+      intro a b; simp only [GL2.IsElliptic, hdisc']
+    -- Step 1: S(g) is conjugation-invariant
+    -- S(a⁻¹ga) = S(g) via substitution x → ax
+    -- Key: x⁻¹(a⁻¹ga)x = (ax)⁻¹g(ax) by group
+    have hS_conj : ∀ (g a : GL2 p n),
+        (∑ x : GL2 p n,
+          if h : x⁻¹ * (a⁻¹ * g * a) * x ∈ Etingof.GL2.ellipticSubgroup p n
+          then (nu ⟨x⁻¹ * (a⁻¹ * g * a) * x, h⟩).val else 0) =
+        (∑ x : GL2 p n,
+          if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+          then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) := by
+      intro g a
+      refine Fintype.sum_equiv (Equiv.mulLeft a) _ _ ?_
+      intro x; simp only [Equiv.coe_mulLeft]
+      have key : x⁻¹ * (a⁻¹ * g * a) * x = (a * x)⁻¹ * g * (a * x) := by group
+      simp_rw [key]
+    -- Phase 1: Expand |S(g)|² and swap sums
+    -- |S(g)|² = (∑_x f(g,x)) * conj(∑_y f(g,y)) = ∑_x ∑_y f(g,x) * conj(f(g,y))
+    simp_rw [map_sum (starRingEnd ℂ), apply_dite (starRingEnd ℂ), map_zero,
+             Fintype.sum_mul_sum]
+    rw [Finset.sum_comm]
+    -- Now: ∑_x ∑_{g ell} ∑_y body(g,x,y)
+    -- Phase 2: For each x, reindex g→x⁻¹gx, y→x⁻¹y to make body x-free
+    -- Key: x⁻¹(xkx⁻¹)x = k, (x·z)⁻¹(g)(x·z) = z⁻¹(x⁻¹gx)z
+    have hreindex_inner : ∀ (x : GL2 p n),
+        (∑ g ∈ Finset.univ.filter (fun g : GL2 p n =>
+            GL2.IsElliptic (p := p) (n := n) g),
+          ∑ y : GL2 p n,
+            (if hx : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+             then (nu ⟨x⁻¹ * g * x, hx⟩).val else 0) *
+            (if hy : y⁻¹ * g * y ∈ Etingof.GL2.ellipticSubgroup p n
+             then starRingEnd ℂ ((nu ⟨y⁻¹ * g * y, hy⟩).val) else 0)) =
+        (∑ k ∈ Finset.univ.filter (fun k : GL2 p n =>
+            GL2.IsElliptic (p := p) (n := n) k),
+          ∑ z : GL2 p n,
+            (if hk : k ∈ Etingof.GL2.ellipticSubgroup p n
+             then (nu ⟨k, hk⟩).val else 0) *
+            (if hz : z⁻¹ * k * z ∈ Etingof.GL2.ellipticSubgroup p n
+             then starRingEnd ℂ ((nu ⟨z⁻¹ * k * z, hz⟩).val) else 0)) := by
+      intro x
+      -- Reindex g via MulAut.conj x⁻¹: g ↦ x⁻¹gx
+      -- After this, x⁻¹gx in the LHS becomes just k in the RHS
+      refine Finset.sum_equiv ((MulAut.conj x⁻¹).toEquiv) (fun g => ?_) (fun g _ => ?_)
+      · -- Filter preservation: ell(g) ↔ ell(x⁻¹gx)
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                    MulEquiv.toEquiv_eq_coe, MulEquiv.coe_toEquiv, MulAut.conj_apply, inv_inv]
+        exact (hIsEll x⁻¹ g).symm
+      · -- Body equality: ∑_y body(g,x,y) = ∑_z body'(x⁻¹gx, z)
+        -- After simp, the RHS has x⁻¹gx substituted for k
+        simp only [MulEquiv.toEquiv_eq_coe, MulEquiv.coe_toEquiv, MulAut.conj_apply, inv_inv]
+        -- First dites are identical: both dite(x⁻¹gx∈K, ν(x⁻¹gx), 0)
+        -- For the y/z sums: use Fintype.sum_equiv (Equiv.mulLeft x⁻¹)
+        -- Key: (x⁻¹y)⁻¹(x⁻¹gx)(x⁻¹y) = y⁻¹gy
+        refine Fintype.sum_equiv (Equiv.mulLeft x⁻¹) _ _ ?_
+        intro y; simp only [Equiv.coe_mulLeft]
+        have h_grp : (x⁻¹ * y)⁻¹ * (x⁻¹ * g * x) * (x⁻¹ * y) = y⁻¹ * g * y := by group
+        simp_rw [h_grp]
+    simp_rw [hreindex_inner]
+    -- Phase 3: Factor out |GL₂| (the body no longer depends on x)
+    rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+    -- Now: |GL₂| * ∑_{k ell} ∑_z body(k,z)
+    -- Phase 4: Convert GL₂-filtered to K-subtype sum
+    congr 1
+    -- Need: ∑_{k ∈ GL₂, ell} ∑_z dite(k∈K, ν(k), 0) * conj(dite(z⁻¹kz∈K, ν(z⁻¹kz), 0))
+    --      = ∑_{k:K} (if ell(k) then ∑_z dite(z⁻¹kz∈K, ν(k)*conj(ν(z⁻¹kz)), 0) else 0)
+    -- Phase 4: Convert GL₂-filtered to K-subtype sum
+    -- Non-K terms vanish (first dite=0 makes product=0)
+    -- Step 1: unfold filter to if/else
+    rw [Finset.sum_filter]
+    -- Step 2: apply sum_congr_set to convert GL₂ → K subtype
+    symm
+    apply (Finset.sum_congr_set
+      (GL2.ellipticSubgroup p n).carrier
+      (fun (k : GL2 p n) =>
+        if GL2.IsElliptic (p := p) (n := n) k then
+          ∑ z : GL2 p n,
+            (if hk : k ∈ GL2.ellipticSubgroup p n then (nu ⟨k, hk⟩ : ℂˣ).val else 0) *
+            (if hz : z⁻¹ * k * z ∈ GL2.ellipticSubgroup p n
+             then starRingEnd ℂ ((nu ⟨z⁻¹ * k * z, hz⟩ : ℂˣ).val) else 0)
+        else (0 : ℂ))
+      (fun (k : ↥(GL2.ellipticSubgroup p n)) =>
+        if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n) then
+          ∑ z : GL2 p n,
+            if h : z⁻¹ * (k : GL2 p n) * z ∈ GL2.ellipticSubgroup p n
+            then (nu k : ℂˣ).val * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩ : ℂˣ).val)
+            else (0 : ℂ)
+        else (0 : ℂ))
+      ?_ ?_).symm
+    · -- For k ∈ K: bodies match after simplifying dite
+      intro k hk
+      have hk' : k ∈ GL2.ellipticSubgroup p n := hk
+      simp only []
+      split_ifs with hell
+      · -- k ∈ K and elliptic: dite(k∈K) already resolved by split_ifs
+        -- Need: ν(k)*dite(z⁻¹kz∈K, conj(...), 0) = dite(z⁻¹kz∈K, ν(k)*conj(...), 0)
+        congr 1; ext z
+        split_ifs with hz
+        · rfl
+        · exact mul_zero _
+      · rfl
+    · -- For k ∉ K: LHS is 0 (first dite gives 0)
+      intro k hk
+      have hk' : k ∉ GL2.ellipticSubgroup p n := hk
+      simp only []
+      split_ifs with hell
+      · apply Finset.sum_eq_zero; intro z _
+        simp only [dif_neg hk', zero_mul]
+      · rfl
   -- Step B: Evaluate the normalizer sum for each non-scalar k ∈ K.
   -- For non-scalar k: {z : z⁻¹kz ∈ K} = N(K) = K ∪ σK (disjoint).
   -- K-part: z⁻¹kz = k (K abelian), so ν(k)*conj(ν(k)) = 1 by normSq.

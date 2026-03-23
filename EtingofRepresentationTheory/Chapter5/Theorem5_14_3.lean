@@ -63,6 +63,13 @@ noncomputable def cycleTypePsumProduct (n : ℕ) (σ : Equiv.Perm (Fin n)) :
   (σ.cycleType.map (MvPolynomial.psum (Fin n) ℂ)).prod *
     MvPolynomial.psum (Fin n) ℂ 1 ^ (n - σ.support.card)
 
+/-- The cycleTypePsumProduct is invariant under inversion: P_{σ⁻¹} = P_σ.
+This holds because `cycleType` and `support` are both invariant under inversion. -/
+theorem cycleTypePsumProduct_inv (n : ℕ) (σ : Equiv.Perm (Fin n)) :
+    cycleTypePsumProduct n σ⁻¹ = cycleTypePsumProduct n σ := by
+  unfold cycleTypePsumProduct
+  rw [Equiv.Perm.cycleType_inv, Equiv.Perm.support_inv]
+
 /-! ## Helper infrastructure for Theorem 5.14.3
 
 ### Key types and constructions
