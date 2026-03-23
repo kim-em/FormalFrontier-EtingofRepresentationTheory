@@ -200,6 +200,74 @@ noncomputable instance spechtModuleFDRep_simple (n : ℕ) (la : Nat.Partition n)
   exact Simple.of_full_faithful_preservesMono'
     (CategoryTheory.forget₂ (FDRep ℂ G) (Rep ℂ G)) _
 
+/-- Specht modules for distinct partitions give non-isomorphic FDReps.
+This lifts `Theorem5_12_2_distinct` (algebra-level non-isomorphism) to the categorical level.
+
+An FDRep iso induces a ℂ-linear equiv that is G-equivariant. By MonoidAlgebra induction,
+G-equivariance lifts to SymGroupAlgebra-equivariance, contradicting `Theorem5_12_2_distinct`. -/
+private lemma spechtModuleFDRep_noniso (n : ℕ) (ν₁ ν₂ : Nat.Partition n) (hne : ν₁ ≠ ν₂) :
+    IsEmpty (spechtModuleFDRep n ν₁ ≅ spechtModuleFDRep n ν₂) := by
+  constructor
+  intro iso
+  -- An FDRep iso's hom commutes with the G-action (iso.hom.comm).
+  -- Since ↑(FDRep.of ρ).V is definitionally SpechtModule, we can build
+  -- a SymGroupAlgebra-linear equiv by MonoidAlgebra induction, contradicting
+  -- Theorem5_12_2_distinct.
+  -- FDRep.isoToLinearEquiv gives a ℂ-linear equiv on ↑V.V types,
+  -- which are definitionally SpechtModule types.
+  set e := FDRep.isoToLinearEquiv iso
+  -- Prove G-equivariance using conj_ρ
+  have e_equivar : ∀ (g : Equiv.Perm (Fin n)) (m : ↑(spechtModuleFDRep n ν₁).V),
+      e ((spechtModuleFDRep n ν₁).ρ g m) = (spechtModuleFDRep n ν₂).ρ g (e m) := by
+    intro g m
+    have key := FDRep.Iso.conj_ρ iso g
+    have h := LinearMap.congr_fun key (e m)
+    rw [LinearEquiv.conj_apply, LinearMap.comp_apply, LinearMap.comp_apply,
+        LinearEquiv.coe_coe, LinearEquiv.coe_coe,
+        show e.symm (e m) = m from e.symm_apply_apply m] at h
+    exact h.symm
+  -- Change e's type to SpechtModule (definitionally equal) for the record update
+  change SpechtModule n ν₁ ≃ₗ[ℂ] SpechtModule n ν₂ at e
+  exact (Theorem5_12_2_distinct n ν₁ ν₂ hne).false
+    { e with
+      map_smul' := by
+        intro a m
+        simp only [RingHom.id_apply]
+        induction a using MonoidAlgebra.induction_on with
+        | hM g =>
+          show e (spechtModuleRep n ν₁ g m) = spechtModuleRep n ν₂ g (e m)
+          exact e_equivar g m
+        | hadd a b ha hb =>
+          show e ((a + b) • m) = (a + b) • e m
+          change e (a • m) = a • e m at ha
+          change e (b • m) = b • e m at hb
+          rw [add_smul, map_add, ha, hb, add_smul]
+        | hsmul r a ha =>
+          show e ((r • a) • m) = (r • a) • e m
+          change e (a • m) = a • e m at ha
+          rw [smul_assoc, map_smul, ha, smul_assoc] }
+
+/-- Character orthonormality for Specht modules: the character inner product
+⅟|S_n| · ∑_σ χ_ν(σ) · χ_μ(σ⁻¹) = δ_{νμ}.
+This combines `FDRep.char_orthonormal` with `spechtModuleFDRep_simple` and
+`spechtModuleFDRep_noniso`. -/
+private lemma spechtCharacter_orthonormal (n : ℕ) (ν μ : Nat.Partition n) :
+    ⅟(Fintype.card (Equiv.Perm (Fin n)) : ℂ) •
+      ∑ σ : Equiv.Perm (Fin n),
+        spechtModuleCharacter n ν σ * spechtModuleCharacter n μ σ⁻¹ =
+    if ν = μ then 1 else 0 := by
+  -- Apply Mathlib's char_orthonormal (spechtModuleCharacter = FDRep.character by rfl)
+  have h := FDRep.char_orthonormal (spechtModuleFDRep n ν) (spechtModuleFDRep n μ)
+  simp only [spechtModuleFDRep_character] at h
+  rw [h]
+  -- Bridge: Nonempty (iso) ↔ ν = μ
+  by_cases heq : ν = μ
+  · subst heq; simp [show Nonempty (spechtModuleFDRep n ν ≅ spechtModuleFDRep n ν) from
+      ⟨CategoryTheory.Iso.refl _⟩]
+  · have hne : ¬ Nonempty (spechtModuleFDRep n ν ≅ spechtModuleFDRep n μ) :=
+      fun ⟨f⟩ => (spechtModuleFDRep_noniso n ν μ heq).false f
+    simp [hne, heq]
+
 /-! ## Intermediate lemmas for the Frobenius character formula -/
 
 noncomputable section
@@ -2249,16 +2317,24 @@ private theorem alternatingKostka_diag {n : ℕ} (la : Nat.Partition n) :
 ∑_ν L²_{νλ} = 1, where L_{νλ} = ∑_π sign(π) · K(sort(λ+ρ-π(ρ)), ν).
 
 **Proof strategy** (Etingof, Theorem 5.15.1):
-By character orthonormality (⟨χ_ν, χ_μ⟩ = δ_{νμ}, Mathlib `FDRep.char_orthonormal`)
-and the expansion θ_λ = ∑_ν L_{νλ} χ_ν (from Young's Rule), we get
-⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ}. Then Vandermonde coefficient orthogonality
-(the S_n-orbits of λ+ρ for distinct partitions λ are disjoint) gives
-⟨θ_λ, θ_λ⟩ = 1.
+By character orthonormality (⟨χ_ν, χ_μ⟩ = δ_{νμ}, proved via `spechtCharacter_orthonormal`)
+and the expansion θ_λ = ∑_ν L_{νλ} χ_ν (from Young's Rule + sum exchange), we get
+⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ}. Then since θ_λ = sign(rev) · χ_λ (Frobenius formula),
+⟨θ_λ, θ_λ⟩ = ⟨χ_λ, χ_λ⟩ = 1.
 
-**Infrastructure needed** to close this sorry:
-1. Bridge `spechtModuleCharacter` to `FDRep.character` (construct FDRep from SpechtModule)
-2. Apply Mathlib's `FDRep.char_orthonormal` to get character orthonormality
-3. Prove Vandermonde coefficient orthogonality: (1/n!) ∑_σ |[x^{λ+ρ}](Δ·P_σ)|² = 1 -/
+**Completed infrastructure** (this PR):
+1. `spechtModuleFDRep_simple`: Specht FDRep is a simple object ✓
+2. `spechtModuleFDRep_noniso`: distinct partitions give non-isomorphic FDReps ✓
+3. `spechtCharacter_orthonormal`: ⟨χ_ν, χ_μ⟩ = δ_{νμ} ✓
+
+**Remaining blocker** to close this sorry:
+The proof requires ⟨θ_λ, θ_λ⟩ = 1 where θ_λ(σ) = coeff_{λ+ρ}(Δ·P_σ). This is either:
+  (a) Vandermonde coefficient orthogonality: (1/n!) ∑_σ |[x^{λ+ρ}](Δ·P_σ)|² = 1, or
+  (b) An independent proof that θ_λ = sign(rev) · χ_λ (the Frobenius formula),
+      but this is what the entire file is trying to prove, creating a circularity.
+The non-circular path requires (a), which is a polynomial orthogonality identity.
+One approach: expand Δ·P_σ using the Vandermonde basis, show the x^{λ+ρ} coefficients
+form an orthonormal system via the Cauchy identity for symmetric polynomials. -/
 private theorem alternatingKostka_norm_sq_eq_one {n : ℕ} (la : Nat.Partition n) :
     ∑ nu : Nat.Partition n, alternatingKostkaInt la nu ^ 2 = 1 := by
   sorry
