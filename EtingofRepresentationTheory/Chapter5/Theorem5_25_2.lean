@@ -1264,23 +1264,6 @@ private lemma Etingof.GL2.detChar_eq_of
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Etingof.GL2.detChar p n mu = FDRep.of (Etingof.GL2.detCharRep p n mu) := rfl
 
-private lemma simple_of_full_faithful_preservesMono' {C D : Type*} [Category C] [Category D]
-    [Limits.HasZeroMorphisms C] [Limits.HasZeroMorphisms D]
-    (F : C ⥤ D) [F.Full] [F.Faithful] [F.PreservesMonomorphisms] (X : C)
-    [Simple (F.obj X)] : Simple X where
-  mono_isIso_iff_nonzero {Y} f := by
-    intro
-    constructor
-    · intro hiso
-      haveI : IsIso (F.map f) := Functor.map_isIso F f
-      exact fun h => (Simple.mono_isIso_iff_nonzero (F.map f)).mp inferInstance
-        (by rw [h]; simp)
-    · intro hne
-      haveI : Mono (F.map f) := inferInstance
-      haveI : IsIso (F.map f) := (Simple.mono_isIso_iff_nonzero (F.map f)).mpr
-        (fun h => hne (F.map_injective (by rwa [F.map_zero])))
-      exact isIso_of_fully_faithful F f
-
 private lemma Etingof.GL2.detChar_simple
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Simple (Etingof.GL2.detChar p n mu) := by
@@ -1369,6 +1352,142 @@ private lemma Etingof.GL2.detCharEmbedding_mono
   haveI := Etingof.GL2.detChar_simple p n mu
   exact mono_of_nonzero_from_simple (Etingof.GL2.detCharEmbedding_ne_zero p n mu)
 
+set_option maxHeartbeats 4000000 in
+/-- The projection V(μ,μ) → W_μ: f ↦ f − (aug(f)/|G|)·(μ∘det), as a morphism in FDRep. -/
+private noncomputable def Etingof.GL2.complementWProjection
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.principalSeries p n mu mu ⟶ Etingof.GL2.complementW p n mu where
+  hom := FGModuleCat.ofHom
+    { toFun := fun ⟨f, hf⟩ =>
+        let c := (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+          Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩
+        ⟨fun g => f g - c * (mu (Matrix.GeneralLinearGroup.det g) : ℂ),
+         ⟨fun b g' => by
+            have hcov := hf b g'
+            have hdet := Etingof.GL2.detFun_mem_principalSeries p n mu b g'
+            simp only [Etingof.GL2.borelCharValue] at hcov hdet ⊢
+            rw [hcov, hdet]; ring,
+          by
+            show (fun g => f g - (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+              Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩ *
+              ↑(mu (Matrix.GeneralLinearGroup.det g))) ∈
+              LinearMap.ker (Etingof.GL2.augmentation p n mu)
+            rw [LinearMap.mem_ker]
+            simp only [Etingof.GL2.augmentation, LinearMap.coe_mk, AddHom.coe_mk]
+            simp_rw [sub_mul, Finset.sum_sub_distrib]
+            simp_rw [show ∀ g : GL2 p n,
+              (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+                Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩ *
+                ↑(mu (Matrix.GeneralLinearGroup.det g)) *
+                ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ =
+              (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+                Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩ from fun g => by
+              rw [mul_assoc, mul_assoc, Units.val_inv_eq_inv_val,
+                mul_inv_cancel₀ (Units.ne_zero _), mul_one]]
+            rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul,
+              ← mul_assoc, mul_inv_cancel₀ (Nat.cast_ne_zero.mpr Fintype.card_ne_zero),
+              one_mul]
+            simp only [Etingof.GL2.augOnPrincipalSeries, Etingof.GL2.augmentation,
+              LinearMap.comp_apply, Submodule.coe_subtype,
+              LinearMap.coe_mk, AddHom.coe_mk, sub_self]⟩⟩
+      map_add' := fun ⟨a, ha⟩ ⟨b, hb⟩ => by
+        apply Subtype.ext; funext g
+        simp only [Etingof.GL2.augOnPrincipalSeries, LinearMap.comp_apply,
+          Submodule.coe_subtype, Submodule.coe_add, Pi.add_apply, LinearMap.map_add]
+        ring
+      map_smul' := fun r ⟨a, ha⟩ => by
+        apply Subtype.ext; funext g
+        simp only [smul_eq_mul, Etingof.GL2.augOnPrincipalSeries, LinearMap.comp_apply,
+          Submodule.coe_subtype, Submodule.coe_smul, Pi.smul_apply, RingHom.id_apply,
+          LinearMap.map_smul]
+        ring }
+  comm g := by
+    apply FGModuleCat.hom_ext; ext ⟨f, hf⟩
+    apply Subtype.ext; funext x
+    -- Both sides reduce to f(xg) - (1/|G|)·aug(f)·μ(det g)·μ(det x)
+    sorry
+
+/-- The scaled augmentation (1/|G|)·aug as a morphism V(μ,μ) → ℂ_μ in FDRep. -/
+private noncomputable def Etingof.GL2.scaledAugMorphism
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.principalSeries p n mu mu ⟶ Etingof.GL2.detChar p n mu where
+  hom := FGModuleCat.ofHom
+    ((Fintype.card (GL2 p n) : ℂ)⁻¹ • Etingof.GL2.augOnPrincipalSeries p n mu)
+  comm g := by
+    apply FGModuleCat.hom_ext; ext ⟨f, hf⟩
+    change (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+      Etingof.GL2.augOnPrincipalSeries p n mu
+        (Etingof.GL2.principalSeriesRep p n mu mu g ⟨f, hf⟩) =
+      ((mu (Matrix.GeneralLinearGroup.det g) : ℂˣ) : ℂ) *
+        ((Fintype.card (GL2 p n) : ℂ)⁻¹ *
+          Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩)
+    rw [Etingof.GL2.augOnPrincipalSeries_equivariant]; ring
+
+/-- emb ≫ scaledAug = 𝟙: the scaled augmentation retracts the embedding. -/
+private lemma Etingof.GL2.emb_comp_scaledAug_eq_id
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.detCharEmbedding p n mu ≫
+      Etingof.GL2.scaledAugMorphism p n mu = 𝟙 _ := by
+  refine Action.Hom.ext (FGModuleCat.hom_ext (LinearMap.ext (fun c => ?_)))
+  -- (emb ≫ scaledAug)(c) = (1/|G|) · aug(emb(c)) = (1/|G|) · c · |G| = c
+  show (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+    Etingof.GL2.augOnPrincipalSeries p n mu
+      (Etingof.GL2.detCharEmbedding_linearMap p n mu c) = c
+  rw [Etingof.GL2.aug_comp_emb_eq]
+  field_simp
+
+/-- The total condition: scaledAug ≫ emb + proj ≫ incl = 𝟙 V. -/
+private lemma Etingof.GL2.total_condition
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.scaledAugMorphism p n mu ≫ Etingof.GL2.detCharEmbedding p n mu +
+      Etingof.GL2.complementWProjection p n mu ≫ Etingof.GL2.complementWInclusion p n mu =
+      𝟙 _ := by
+  refine Action.Hom.ext (FGModuleCat.hom_ext (LinearMap.ext (fun ⟨f, hf⟩ => ?_)))
+  apply Subtype.ext; funext g
+  show ((Fintype.card (GL2 p n) : ℂ)⁻¹ *
+    Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩) *
+    ↑(mu (Matrix.GeneralLinearGroup.det g)) +
+    (f g - (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+      Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩ *
+      ↑(mu (Matrix.GeneralLinearGroup.det g))) = f g
+  ring
+
+/-- emb ≫ proj = 0: the projection kills the image of the embedding. -/
+private lemma Etingof.GL2.emb_comp_proj_eq_zero
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.detCharEmbedding p n mu ≫ Etingof.GL2.complementWProjection p n mu = 0 := by
+  apply Action.Hom.ext
+  simp only [Action.comp_hom, Action.zero_hom]
+  apply FGModuleCat.hom_ext
+  ext c
+  -- c = 1 since detChar is ℂ as a 1-dim module
+  -- Need: (emb ≫ proj)(1) = 0 in complementW
+  apply Subtype.ext; funext g
+  -- LHS: emb(1)(g) = μ(det g), then proj subtracts (1/|G|)*aug(emb(1))*μ(det g)
+  -- aug(emb(1)) = |G|, so proj(emb(1))(g) = μ(det g) - μ(det g) = 0
+  show (1 : ℂ) * ↑(mu (Matrix.GeneralLinearGroup.det g)) -
+    (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+      Etingof.GL2.augOnPrincipalSeries p n mu
+        (Etingof.GL2.detCharEmbedding_linearMap p n mu (1 : ℂ)) *
+      ↑(mu (Matrix.GeneralLinearGroup.det g)) = 0
+  rw [Etingof.GL2.aug_comp_emb_eq, one_mul, one_mul,
+    inv_mul_cancel₀ (Nat.cast_ne_zero.mpr Fintype.card_ne_zero), one_mul, sub_self]
+
+/-- incl ≫ proj = 𝟙: the projection is a retraction of the inclusion. -/
+private lemma Etingof.GL2.incl_comp_proj_eq_id
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.complementWInclusion p n mu ≫
+      Etingof.GL2.complementWProjection p n mu = 𝟙 _ := by
+  refine Action.Hom.ext (FGModuleCat.hom_ext (LinearMap.ext (fun ⟨f, hf⟩ => ?_)))
+  apply Subtype.ext; funext g
+  show f g - (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+    Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf.1⟩ *
+    ↑(mu (Matrix.GeneralLinearGroup.det g)) = f g
+  have hker : Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf.1⟩ = 0 := by
+    simp only [Etingof.GL2.augOnPrincipalSeries, LinearMap.comp_apply, Submodule.coe_subtype]
+    exact hf.2
+  rw [hker, mul_zero, zero_mul, sub_zero]
+
 /-- V(μ,μ) decomposes as ℂ_μ ⊕ W_μ in FDRep. -/
 private lemma Etingof.GL2.principalSeries_decomp
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
@@ -1378,6 +1497,8 @@ private lemma Etingof.GL2.principalSeries_decomp
   haveI : Simple (Etingof.GL2.detChar p n mu) := Etingof.GL2.detChar_simple p n mu
   have hne := Etingof.GL2.detCharEmbedding_ne_zero p n mu
   set emb := Etingof.GL2.detCharEmbedding p n mu
+  set incl := Etingof.GL2.complementWInclusion p n mu
+  set proj := Etingof.GL2.complementWProjection p n mu
   haveI : Mono emb := Etingof.GL2.detCharEmbedding_mono p n mu
   haveI : NeZero (Nat.card (GL2 p n) : ℂ) := ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
   haveI : CategoryTheory.Injective (Etingof.GL2.detChar p n mu) := inferInstance
@@ -1393,10 +1514,39 @@ private lemma Etingof.GL2.principalSeries_decomp
   have iso1 : Etingof.GL2.principalSeries p n mu mu ≅
     Etingof.GL2.detChar p n mu ⊞ cokernel emb :=
     biprod.uniqueUpToIso _ _ hbl
-  -- Step 3: Show cokernel(emb) ≅ W_μ
-  -- Both have the same character (= χ_V - χ_{ℂ_μ})
-  -- For now, we use character comparison via Corollary 4.2.4
-  sorry
+  -- Step 3: Show cokernel(emb) ≅ W_μ using the projection
+  -- The projection factors through the cokernel since emb ≫ proj = 0
+  let ψ : cokernel emb ⟶ Etingof.GL2.complementW p n mu :=
+    cokernel.desc emb proj (Etingof.GL2.emb_comp_proj_eq_zero p n mu)
+  -- The composition incl ≫ cokernel.π gives the map W_μ → cokernel(emb)
+  let φ : Etingof.GL2.complementW p n mu ⟶ cokernel emb := incl ≫ cokernel.π emb
+  -- Show φ ≫ ψ = 𝟙 (using incl ≫ proj = 𝟙)
+  have hφψ : φ ≫ ψ = 𝟙 _ := by
+    simp only [φ, ψ, Category.assoc, cokernel.π_desc]
+    exact Etingof.GL2.incl_comp_proj_eq_id p n mu
+  -- Show ψ ≫ φ = 𝟙 (using epi-ness of cokernel.π and total condition)
+  have hψφ : ψ ≫ φ = 𝟙 _ := by
+    -- proj ≫ incl = 𝟙 - scaledAug ≫ emb (from total condition)
+    set sAug := Etingof.GL2.scaledAugMorphism p n mu
+    have htotal := Etingof.GL2.total_condition p n mu
+    have hpi : proj ≫ incl = 𝟙 _ - sAug ≫ emb := by
+      rw [eq_sub_iff_add_eq, add_comm]; exact htotal
+    -- Key: proj ≫ incl ≫ cokernel.π = cokernel.π
+    have hkey : proj ≫ (incl ≫ cokernel.π emb) = cokernel.π emb := by
+      rw [← Category.assoc, hpi, Preadditive.sub_comp, Category.id_comp,
+        Category.assoc, cokernel.condition, comp_zero, sub_zero]
+    -- cokernel.π is epi, so cancel it
+    haveI : Epi (cokernel.π emb) := inferInstance
+    apply (cancel_epi (cokernel.π emb)).mp
+    rw [Category.comp_id]
+    -- LHS: cokernel.π ≫ ψ ≫ φ = (cokernel.π ≫ ψ) ≫ φ = proj ≫ φ = proj ≫ incl ≫ cokernel.π
+    conv_lhs => rw [← Category.assoc (cokernel.π emb) ψ φ]
+    show (cokernel.π emb ≫ ψ) ≫ φ = cokernel.π emb
+    rw [cokernel.π_desc]
+    exact hkey
+  let cokIso : cokernel emb ≅ Etingof.GL2.complementW p n mu :=
+    ⟨ψ, φ, hψφ, hφψ⟩
+  exact ⟨iso1.trans (biprod.mapIso (Iso.refl _) cokIso)⟩
 
 /-- W_μ is irreducible. -/
 private lemma Etingof.GL2.complementW_simple
