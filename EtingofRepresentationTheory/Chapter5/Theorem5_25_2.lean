@@ -255,6 +255,112 @@ private lemma Etingof.GL2.complementW_simple
     Simple (Etingof.GL2.complementW p n mu) := by
   sorry
 
+/-- Coset representatives for B\GL₂(𝔽_q), indexed by Option (GaloisField p n) ≅ P¹(𝔽_q).
+    none ↦ I, some t ↦ [[0,-1],[1,t]] with det = 1. -/
+private noncomputable def Etingof.GL2.cosetRep
+    (i : Option (GaloisField p n)) : GL2 p n :=
+  match i with
+  | none => 1
+  | some t => Matrix.GeneralLinearGroup.mkOfDetNeZero
+      (n := Fin 2) (K := GaloisField p n) !![0, -1; 1, t]
+      (by simp [Matrix.det_fin_two])
+
+/-- The coset index of g ∈ GL₂: none if g ∈ B, some (g₁₁/g₁₀) if g₁₀ ≠ 0. -/
+private noncomputable def Etingof.GL2.cosetIndex
+    (g : GL2 p n) : Option (GaloisField p n) :=
+  if h : (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 then none
+  else some ((g.val : Matrix _ _ _) 1 1 / (g.val : Matrix _ _ _) 1 0)
+
+/-- Every g ∈ GL₂ satisfies g = b * rep(idx(g)) for some b ∈ B. -/
+private lemma Etingof.GL2.mem_coset_of_cosetIndex
+    (g : GL2 p n) :
+    ∃ (b : ↥(Etingof.GL2.BorelSubgroup p n)),
+      g = b.val * Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g) := by
+  unfold Etingof.GL2.cosetIndex Etingof.GL2.cosetRep
+  split_ifs with h10
+  · exact ⟨⟨g, h10⟩, by simp⟩
+  · set gm := (g.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) with hgm_def
+    have hdet : gm.det ≠ 0 := IsUnit.ne_zero ((Units.isUnit g).map Matrix.detMonoidHom)
+    set bmat : Matrix (Fin 2) (Fin 2) (GaloisField p n) :=
+      !![gm.det / gm 1 0, gm 0 0; (0 : _), gm 1 0] with hbmat_def
+    have hbdet : bmat.det ≠ 0 := by
+      have : bmat.det = gm.det := by
+        simp [hbmat_def, Matrix.det_fin_two]
+        field_simp
+      rw [this]; exact hdet
+    refine ⟨⟨Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet, ?_⟩, ?_⟩
+    · -- b ∈ B: b₁₀ = 0
+      show ((Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet).val :
+        Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0
+      simp [Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+            Matrix.unitOfDetInvertible, bmat]
+    · -- g = b * rep(t): verify entry by entry
+      apply Matrix.GeneralLinearGroup.ext; intro i j
+      simp only [Matrix.GeneralLinearGroup.coe_mul,
+        Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+        Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+      fin_cases i <;> fin_cases j <;>
+        simp [bmat, Matrix.det_fin_two, Matrix.unitOfDetInvertible] <;>
+        (try ring) <;> (field_simp; ring)
+
+/-- Evaluation at coset representatives is injective: if f(rep(i)) = 0 for all i, then f = 0. -/
+private lemma Etingof.GL2.principalSeries_eval_injective
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (hf : ∀ i : Option (GaloisField p n),
+      (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i) = 0) :
+    f = 0 := by
+  sorry
+
+/-- For any values on coset representatives, there exists a covariant function realizing them. -/
+private lemma Etingof.GL2.principalSeries_eval_surjective
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (c : Option (GaloisField p n) → ℂ) :
+    ∃ f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2),
+      ∀ i, (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i) = c i := by
+  sorry
+
+/-- dim V(χ₁,χ₂) = [G:B] = p^n + 1. -/
+private lemma Etingof.GL2.principalSeriesSubmodule_finrank
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Module.finrank ℂ ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) = p ^ n + 1 := by
+  sorry
+
+/-- The determinant character g ↦ μ(det g) is in the principal series submodule for (μ,μ). -/
+private lemma Etingof.GL2.detFun_mem_principalSeries
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    (fun g : GL2 p n => (mu (Matrix.GeneralLinearGroup.det g) : ℂ)) ∈
+      Etingof.GL2.principalSeriesSubmodule p n mu mu := by
+  sorry
+
+/-- Augmentation of μ∘det equals |G|, hence is nonzero. -/
+private lemma Etingof.GL2.augmentation_detFun_ne_zero
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Etingof.GL2.augmentation p n mu
+      (fun g : GL2 p n => (mu (Matrix.GeneralLinearGroup.det g) : ℂ)) ≠ 0 := by
+  sorry
+
+/-- The augmentation restricted to the principal series submodule, as a linear map. -/
+private noncomputable def Etingof.GL2.augOnPrincipalSeries
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    ↥(Etingof.GL2.principalSeriesSubmodule p n mu mu) →ₗ[ℂ] ℂ :=
+  (Etingof.GL2.augmentation p n mu).comp (Submodule.subtype _)
+
+/-- The kernel of augmentation restricted to principal series equals
+    the complement W_μ submodule. -/
+private lemma Etingof.GL2.ker_augOnPrincipalSeries_eq
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    LinearMap.ker (Etingof.GL2.augOnPrincipalSeries p n mu) =
+      (Etingof.GL2.complementWSubmodule p n mu).comap
+        (Submodule.subtype (Etingof.GL2.principalSeriesSubmodule p n mu mu)) := by
+  sorry
+
+/-- The augmentation restricted to principal series is surjective (onto ℂ). -/
+private lemma Etingof.GL2.augOnPrincipalSeries_surjective
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    Function.Surjective (Etingof.GL2.augOnPrincipalSeries p n mu) := by
+  sorry
+
 /-- Helper: dim W_μ = q = p^n. Since dim V(μ,μ) = [G:B] = q+1 and
 dim ℂ_μ = 1, we get dim W_μ = q. -/
 private lemma Etingof.GL2.complementW_finrank
