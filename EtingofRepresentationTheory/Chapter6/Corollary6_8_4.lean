@@ -203,7 +203,7 @@ private lemma isEmpty_of_eq {X Y : Sort v_arrow} (h : X = Y) :
   fun hy => match h with | rfl => hy
 
 /-- Reversing all arrows at a vertex preserves the orientation property. -/
-private lemma Etingof.reversedAtVertex_isOrientationOf
+lemma Etingof.reversedAtVertex_isOrientationOf
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hadj_symm : adj.IsSymm) (hnoloop : ∀ v, adj v v = 0)
     {Q : Quiver (Fin n)} (hQ : Etingof.IsOrientationOf Q adj) (p : Fin n) :

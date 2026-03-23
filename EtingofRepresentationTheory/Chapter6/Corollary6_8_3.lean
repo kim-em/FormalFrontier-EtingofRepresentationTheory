@@ -1,4 +1,5 @@
 import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
+import EtingofRepresentationTheory.Chapter6.CoxeterInfrastructure
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
 import EtingofRepresentationTheory.Chapter6.Definition6_4_1
 import EtingofRepresentationTheory.Chapter6.Definition6_5_1
@@ -276,18 +277,26 @@ until reaching a simple representation, then use `iteratedSimpleReflection_prese
 to conclude B(d,d) = B(αₚ,αₚ) = 2. This approach requires the same Coxeter element
 infrastructure as `reflectionFunctors_reduce_and_recover` (type-changing iteration,
 vertex-sink alignment) but avoids Ext groups completely. If that infrastructure is
-built, this lemma becomes a direct corollary and can be eliminated. -/
+built, this lemma becomes a direct corollary and can be eliminated.
+
+The Tits form of the dimension vector of an indecomposable representation of a
+Dynkin quiver satisfies B(d, d) ≤ 2.
+
+This follows from the stronger result `indecomposable_bilinearForm_eq_two` (B = 2 exactly),
+proved via representation-level Coxeter iteration in `CoxeterInfrastructure.lean`.
+The ≤ 2 form is kept for backward compatibility with the existing proof of `Corollary6_8_3`. -/
 private lemma Etingof.indecomposable_titsForm_le_two
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
-    (_hDynkin : Etingof.IsDynkinDiagram n adj)
+    (hDynkin : Etingof.IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
     (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
-    (_hρ : ρ.IsIndecomposable) :
+    (hρ : ρ.IsIndecomposable) :
     dotProduct (fun v => (Module.finrank k (ρ.obj v) : ℤ))
       ((Etingof.cartanMatrix n adj).mulVec (fun v => (Module.finrank k (ρ.obj v) : ℤ))) ≤ 2 :=
-  sorry
+  le_of_eq (Etingof.indecomposable_bilinearForm_eq_two hDynkin hOrient ρ hρ)
 
 end TitsFormBound
 
@@ -330,7 +339,7 @@ theorem Etingof.Corollary6_8_3
     have hlb : 2 ≤ dotProduct d ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec d) :=
       Etingof.posdef_min_value hDynkin d hd_nonzero
     have hub : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) ≤ 2 :=
-      Etingof.indecomposable_titsForm_le_two hDynkin ρ₁ h₁
+      Etingof.indecomposable_titsForm_le_two hDynkin hOrient ρ₁ h₁
     unfold Etingof.cartanMatrix at hub ⊢
     omega
   -- Step 5: By Theorem 6.8.1, there exists a sequence of reflections reducing d to a simple root
