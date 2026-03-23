@@ -2235,20 +2235,12 @@ private theorem alternatingKostka_diag {n : ℕ} (la : Nat.Partition n) :
   rw [finsuppToPartition_toFinsupp, spechtMultiplicity_diagonal]
   simp
 
-/-- **Norm-squared identity for the alternating Kostka matrix:**
-∑_ν L²_{νλ} = 1, where L_{νλ} = ∑_π sign(π) · K(sort(λ+ρ-π(ρ)), ν).
+/-- P_σ depends only on cycle type, so P_{σ⁻¹} = P_σ. -/
+private theorem cycleTypePsumProduct_inv (n : ℕ) (σ : Equiv.Perm (Fin n)) :
+    cycleTypePsumProduct n σ⁻¹ = cycleTypePsumProduct n σ := by
+  unfold cycleTypePsumProduct
+  rw [Equiv.Perm.cycleType_inv, Equiv.Perm.support_inv]
 
-**Proof strategy** (Etingof, Theorem 5.15.1):
-By character orthonormality (⟨χ_ν, χ_μ⟩ = δ_{νμ}, Mathlib `FDRep.char_orthonormal`)
-and the expansion θ_λ = ∑_ν L_{νλ} χ_ν (from Young's Rule), we get
-⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ}. Then Vandermonde coefficient orthogonality
-(the S_n-orbits of λ+ρ for distinct partitions λ are disjoint) gives
-⟨θ_λ, θ_λ⟩ = 1.
-
-**Infrastructure needed** to close this sorry:
-1. Bridge `spechtModuleCharacter` to `FDRep.character` (construct FDRep from SpechtModule)
-2. Apply Mathlib's `FDRep.char_orthonormal` to get character orthonormality
-3. Prove Vandermonde coefficient orthogonality: (1/n!) ∑_σ |[x^{λ+ρ}](Δ·P_σ)|² = 1 -/
 private theorem alternatingKostka_norm_sq_eq_one {n : ℕ} (la : Nat.Partition n) :
     ∑ nu : Nat.Partition n, alternatingKostkaInt la nu ^ 2 = 1 := by
   sorry
