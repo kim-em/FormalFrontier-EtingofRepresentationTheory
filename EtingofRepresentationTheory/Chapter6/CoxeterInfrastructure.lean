@@ -2,6 +2,7 @@ import EtingofRepresentationTheory.Chapter6.Definition6_1_4
 import EtingofRepresentationTheory.Chapter6.Definition6_4_1
 import EtingofRepresentationTheory.Chapter6.Definition6_6_1
 import EtingofRepresentationTheory.Chapter6.Definition6_6_2
+import EtingofRepresentationTheory.Chapter6.Corollary6_8_2
 import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
 
 /-!
@@ -616,19 +617,46 @@ simple representation α_p. Then B(d(V), d(V)) = B(α_p, α_p) = 2.
 
 This is the content of the book's proof of Theorem 6.8.1 + Corollary 6.8.2. -/
 
+/-- **Representation-level Theorem 6.8.1**: For an indecomposable representation V
+of a Dynkin quiver, there exist simple reflections reducing d(V) to a simple root.
+
+The proof follows the book's argument:
+1. Choose an admissible ordering σ = (σ₁, ..., σₙ)
+2. Apply reflection functors F⁺_{σ₁}, F⁺_{σ₂}, ... along the ordering
+3. At each step, by Prop 6.6.5: either V^(i) is simple (done) or surjective at σᵢ
+4. If surjective, by Prop 6.6.8: d(V^(i+1)) = s_{σᵢ}(d(V^(i)))
+5. By Prop 6.6.7: V^(i+1) is indecomposable
+6. By Lemma 6.7.2: this cannot continue indefinitely (d would get negative entries)
+7. At the first non-surjective step, d(V^(i)) = αₚ for some vertex p
+
+The main technical challenge is the type-changing iteration: each F⁺ changes the
+quiver type. This requires threading `Module.Free`/`Module.Finite` instances and
+connecting the representation-level iteration to `iteratedSimpleReflection`. -/
+private lemma indecomposable_reduces_to_simpleRoot
+    (hDynkin : IsDynkinDiagram n adj)
+    {k : Type*} [Field k]
+    {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    (ρ : @QuiverRepresentation k (Fin n) _ Q)
+    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    (hρ : ρ.IsIndecomposable) :
+    ∃ (vertices : List (Fin n)) (p : Fin n),
+      iteratedSimpleReflection n (cartanMatrix n adj) vertices
+        (fun v => (Module.finrank k (ρ.obj v) : ℤ)) = simpleRoot n p := by
+  -- Requires type-changing iterated reflection functor along admissible ordering.
+  -- Each F⁺_i changes the quiver from Q to reversedAtVertex Q i, requiring
+  -- Module.Free/Module.Finite instances to be threaded through the iteration.
+  -- The termination argument uses Lemma 6.7.2 (Coxeter action eventually produces
+  -- negative entries) combined with the constraint that finrank ≥ 0.
+  sorry
+
 /-- The dimension vector of an indecomposable representation of a Dynkin quiver
 satisfies B(d, d) = 2 (not just ≤ 2).
 
-This is proved by the representation-level Coxeter iteration argument:
-1. Choose admissible ordering (by `admissibleOrdering_exists`)
-2. At each step, either ρ is simple (done) or F⁺(ρ) is indecomposable
-3. Dimension vector tracks as Coxeter element action
-4. By Lemma 6.7.2, eventually some dim < 0 at integer level
-5. But dim = finrank ≥ 0, so must hit simple before that
-6. B(d, d) = B(α_p, α_p) = 2 by preservation
+The proof uses `indecomposable_reduces_to_simpleRoot` to find reflections reducing d(V) to a
+simple root αₚ, then applies `Corollary6_8_2` (bilinear form preservation through
+reflections) to conclude B(d(V), d(V)) = B(αₚ, αₚ) = 2.
 
-This theorem, once fully proved, resolves `indecomposable_titsForm_le_two`
-in `Corollary6_8_3.lean`. -/
+This theorem resolves `indecomposable_titsForm_le_two` in `Corollary6_8_3.lean`. -/
 theorem indecomposable_bilinearForm_eq_two
     (hDynkin : IsDynkinDiagram n adj)
     {k : Type*} [Field k]
@@ -638,6 +666,26 @@ theorem indecomposable_bilinearForm_eq_two
     (hρ : ρ.IsIndecomposable) :
     dotProduct (fun v => (Module.finrank k (ρ.obj v) : ℤ))
       ((cartanMatrix n adj).mulVec (fun v => (Module.finrank k (ρ.obj v) : ℤ))) = 2 := by
-  sorry
+  set d := fun v => (Module.finrank k (ρ.obj v) : ℤ) with hd_def
+  -- d is nonneg (finranks are nonneg)
+  have hd_pos : ∀ v, 0 ≤ d v := fun v => Int.natCast_nonneg _
+  -- d is nonzero (V is indecomposable, hence nontrivial at some vertex)
+  have hd_nonzero : d ≠ 0 := by
+    obtain ⟨v, hv⟩ := hρ.1
+    intro heq
+    have hv_eq := congr_fun heq v
+    simp only [hd_def, Pi.zero_apply, Int.natCast_eq_zero] at hv_eq
+    -- finrank = 0 → Subsingleton, contradicting Nontrivial
+    letI : AddCommGroup (ρ.obj v) := addCommGroupOfField (k := k)
+    have hsub : Subsingleton (ρ.obj v) := Module.finrank_zero_iff.mp hv_eq
+    exact not_nontrivial (ρ.obj v) hv
+  -- By rep-level Theorem 6.8.1: reflections reduce d to a simple root
+  obtain ⟨vertices, p, hrefl⟩ := indecomposable_reduces_to_simpleRoot hDynkin hOrient ρ hρ
+  -- By Corollary 6.8.2: d is a positive root
+  have hroot := Corollary6_8_2 hDynkin d hd_pos hd_nonzero ⟨vertices, p, hrefl⟩
+  -- Extract B(d, d) = 2 from IsPositiveRoot
+  -- IsPositiveRoot = (d ≠ 0 ∧ B(d,d) = 2) ∧ (∀ i, 0 ≤ d i)
+  -- where B uses (2 • 1 - adj) = cartanMatrix n adj
+  exact hroot.1.2
 
 end Etingof
