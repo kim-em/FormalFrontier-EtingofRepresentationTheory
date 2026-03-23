@@ -219,16 +219,59 @@ def Etingof.GL2.complementW
     FDRep ℂ (GL2 p n) :=
   FDRep.of (Etingof.GL2.complementWRep p n mu)
 
+-- ============================================================
+-- Character orthogonality helpers
+-- ============================================================
+
+/-- Sum of a nontrivial multiplicative character over a finite commutative group is zero. -/
+private lemma sum_monoidHom_units_eq_zero
+    {F : Type*} [CommGroup F] [Fintype F]
+    (φ : F →* ℂˣ) (hφ : φ ≠ 1) :
+    ∑ x : F, (φ x : ℂ) = 0 := by
+  -- Find an element where φ is nontrivial
+  have ⟨b, hb⟩ : ∃ b, φ b ≠ 1 := by
+    by_contra h; push_neg at h
+    exact hφ (MonoidHom.ext fun x => h x)
+  -- Reindex sum: ∑ φ(x) = ∑ φ(b*x) = φ(b) · ∑ φ(x)
+  have hreindex : ∑ x : F, (φ (b * x) : ℂ) = ∑ x : F, (φ x : ℂ) :=
+    Fintype.sum_equiv (Equiv.mulLeft b) _ _ (fun _ => rfl)
+  simp_rw [map_mul, Units.val_mul] at hreindex
+  rw [← Finset.mul_sum] at hreindex
+  -- So (φ(b) - 1) · ∑ φ(x) = 0, and φ(b) ≠ 1, hence ∑ = 0
+  have hsub : ((φ b : ℂ) - 1) * ∑ x : F, (φ x : ℂ) = 0 := by
+    rw [sub_mul, one_mul, sub_eq_zero]; exact hreindex
+  rcases mul_eq_zero.mp hsub with h | h
+  · exact absurd (Units.val_injective ((sub_eq_zero.mp h).trans Units.val_one.symm)) hb
+  · exact h
+
 section Theorem5_25_2
 
 variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ) (hn : 0 < n)
 
 /-- Helper: inner product ⟨χ_{V(χ₁,χ₂)}, χ_{V(χ₁,χ₂)}⟩ = 1 when χ₁ ≠ χ₂.
 Uses the Frobenius trace formula evaluated on each conjugacy class of GL₂(𝔽_q)
-and the vanishing of ∑_{z ∈ 𝔽_q×} (χ₁/χ₂)(z) for χ₁ ≠ χ₂. -/
+and the vanishing of ∑_{z ∈ 𝔽_q×} (χ₁/χ₂)(z) for χ₁ ≠ χ₂.
+
+Proof strategy (from Etingof Theorem 5.25.2):
+1. Apply `FDRep.simple_iff_char_is_norm_one`: reduces to
+   ∑_g χ_V(g) · χ_V(g⁻¹) = |G|
+2. The induced character formula gives χ_V on each conjugacy class type:
+   - Scalar xI: (q+1)χ₁(x)χ₂(x)
+   - Parabolic: χ₁(x)χ₂(x)
+   - Split semisimple diag(x,y): χ₁(x)χ₂(y) + χ₁(y)χ₂(x)
+   - Elliptic: 0
+3. Use `GL2.sum_split` to decompose and `sum_monoidHom_units_eq_zero`
+   for ∑ (χ₁/χ₂)(z) = 0.
+4. Arithmetic: (q-1)(q+1)² + (q-1)(q²-1) + q(q+1)(q-1)(q-3) = q(q+1)(q-1)² = |G|.
+-/
 private lemma Etingof.GL2.principalSeries_simple_of_ne
     (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) (hne : chi1 ≠ chi2) :
     Simple (Etingof.GL2.principalSeries p n chi1 chi2) := by
+  -- The proof reduces to showing ∑_g χ(g)·χ(g⁻¹) = |G| via simple_iff_char_is_norm_one.
+  -- This requires:
+  -- (a) The induced character formula (trace of right translation on covariant functions)
+  -- (b) Conjugacy class decomposition via GL2.sum_split
+  -- (c) Character orthogonality: ∑ (χ₁/χ₂)(z) = 0 (proved in sum_monoidHom_units_eq_zero)
   sorry
 
 /-- **Theorem 5.25.2 (1)**: If χ₁ ≠ χ₂, the principal series representation
