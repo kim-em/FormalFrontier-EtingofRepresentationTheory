@@ -97,7 +97,22 @@ private lemma frobenius_char_reciprocity {G : Type} [Group G] [Fintype G]
   -- then reindexing h → h⁻¹ in H converts f(↑h)⁻¹ * χ(h) to f(↑h) * χ(h⁻¹).
   -- The mathematical content is trivial; the remaining complexity is
   -- matching Lean Fintype instances between {x // x ∈ H} and ↥H.
-  sorry
+  -- Step 3: Split G-sum into H-part and complement
+  -- The G-sum with dite restricts to ↥H (complement terms are 0)
+  have h_restrict : (∑ k : G, if h_1 : k ∈ H then f k⁻¹ * χ ⟨k, h_1⟩ else 0) =
+      ∑ k : ↥H, f (↑k)⁻¹ * χ k := by
+    rw [← Fintype.sum_subtype_add_sum_subtype (· ∈ H)
+      (fun k : G => if h_1 : k ∈ H then f k⁻¹ * χ ⟨k, h_1⟩ else 0)]
+    have h_compl : (∑ k : {k : G // k ∉ H},
+        if h_1 : (↑k : G) ∈ H then f (↑k)⁻¹ * χ ⟨↑k, h_1⟩ else 0) = 0 :=
+      Finset.sum_eq_zero (fun ⟨k, hk⟩ _ => dif_neg hk)
+    rw [h_compl, add_zero]
+    congr 1; ext ⟨k, hk⟩; exact dif_pos hk
+  rw [h_restrict]
+  -- Step 4: Reindex by h ↦ h⁻¹ in the subtype sum
+  conv_lhs => rw [← Equiv.sum_comp (Equiv.inv ↥H)]
+  congr 1; ext h
+  simp only [Equiv.inv_apply, Subgroup.coe_inv, inv_inv]
 
 open Classical in
 /-- Character completeness on subgroups: if a class function f on G, when restricted to
@@ -174,9 +189,9 @@ Proof outline (Etingof, Theorem 5.26.1):
 5. By `artin_Q_span_of_induced_chars` (Remark 5.26.2): the ℚ-span of induced
    characters contains all irreducible characters.
 
-Sorry status: 3 sorry'd helpers (`frobenius_char_reciprocity` has 1 sorry in a
-subtype conversion step, `class_fun_vanishes_on_subgroup_of_orthogonal`,
-`artin_Q_span_of_induced_chars`). `covering_implies_vanishing` is fully proved.
+Sorry status: 2 sorry'd helpers (`class_fun_vanishes_on_subgroup_of_orthogonal`,
+`artin_Q_span_of_induced_chars`). `frobenius_char_reciprocity` and
+`covering_implies_vanishing` are fully proved.
 The `artin_forward` proof itself is sorry-free given the helpers. -/
 private lemma artin_forward {G : Type} [Group G] [Fintype G]
     (X : Set (Subgroup G))

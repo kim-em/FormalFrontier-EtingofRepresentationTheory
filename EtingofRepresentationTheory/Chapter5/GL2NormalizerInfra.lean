@@ -886,6 +886,53 @@ lemma Etingof.GL2.normalizer_card (hn : n ≠ 0) (hp2 : p ≠ 2)
     (Finset.univ.filter (fun g : GL2 p n =>
       Etingof.GL2.isInNormalizer p n g)).card =
     2 * Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) := by
-  sorry
+  classical
+  haveI : Fintype (GaloisField p n) := Fintype.ofFinite _
+  -- Split normalizer into K-part and σK-part
+  set N := Finset.univ.filter (fun g : GL2 p n => Etingof.GL2.isInNormalizer p n g)
+  set K := Finset.univ.filter (fun g : GL2 p n => g ∈ Etingof.GL2.ellipticSubgroup p n)
+  set σK := Finset.univ.filter (fun g : GL2 p n =>
+    ∃ α : (GaloisField p (2 * n))ˣ,
+      g = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α)
+  -- Show N = K ∪ σK
+  have hN_eq : N = K ∪ σK := by
+    ext g; simp only [Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and, N, K, σK]
+    constructor
+    · intro hg
+      exact Etingof.GL2.normalizer_mem_dichotomy p n hn hp2 g hg
+    · rintro (hk | ⟨α, rfl⟩)
+      · exact Etingof.GL2.ellipticSubgroup_mem_normalizer p n g hk
+      · exact Etingof.GL2.normalizer_contains_frobeniusCoset p n hn
+          (Etingof.GL2.fieldExtEmbed p n α) ⟨α, rfl⟩
+  -- Show K and σK are disjoint
+  have hKσK_disj : Disjoint K σK := by
+    rw [Finset.disjoint_filter]
+    intro g _ hgK ⟨α, hgα⟩
+    have : Etingof.GL2.frobeniusMatrix p n ∈ Etingof.GL2.ellipticSubgroup p n := by
+      obtain ⟨β, hβ⟩ := hgK
+      rw [hgα] at hβ
+      have : Etingof.GL2.frobeniusMatrix p n =
+          Etingof.GL2.fieldExtEmbed p n β * (Etingof.GL2.fieldExtEmbed p n α)⁻¹ := by
+        rw [hβ]; group
+      rw [this]; exact ⟨β * α⁻¹, by rw [map_mul, map_inv]⟩
+    exact Etingof.GL2.frobeniusMatrix_not_in_elliptic p n hn this
+  -- |K| = Fintype.card (ellipticSubgroup)
+  have hK_card : K.card = Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) := by
+    simp only [K, ← Fintype.card_subtype]
+  -- |σK| = Fintype.card (ellipticSubgroup)
+  have hσK_card : σK.card = Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) := by
+    -- σK = image of K under left multiplication by σ
+    set σ := Etingof.GL2.frobeniusMatrix p n
+    have hσK_eq : σK = K.map ⟨(σ * ·), mul_right_injective σ⟩ := by
+      ext g; simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_map,
+        Function.Embedding.coeFn_mk, σK, K]
+      constructor
+      · rintro ⟨α, rfl⟩
+        exact ⟨Etingof.GL2.fieldExtEmbed p n α, ⟨α, rfl⟩, rfl⟩
+      · rintro ⟨k, ⟨α, rfl⟩, rfl⟩
+        exact ⟨α, rfl⟩
+    rw [hσK_eq, Finset.card_map, hK_card]
+  -- Combine
+  rw [hN_eq, Finset.card_union_of_disjoint hKσK_disj, hK_card, hσK_card, two_mul]
 
 end Normalizer
