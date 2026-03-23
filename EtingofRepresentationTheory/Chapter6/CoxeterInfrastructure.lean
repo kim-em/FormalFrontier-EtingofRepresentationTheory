@@ -106,15 +106,85 @@ theorem exists_sink_of_dynkin_orientation
     · -- w ⟶ v: harr2 gives w ⟶ next w, and h1 : v = next w
       rw [show v = next w from h1]; exact harr2
   -- Step 4: The double sum Σ_i Σ_j adj(i,j) satisfies incompatible bounds.
-  -- Upper bound: B(1,1) > 0 means 2n - Σ adj > 0, so Σ adj < 2n.
-  -- Lower bound: the 2n distinct pairs {(v, next v)} ∪ {(next v, v)} each with adj = 1
-  --   force Σ adj ≥ 2n.
-  -- We show: for each v, adj(v, next v) ≤ Σ_j adj(v, j) (single summand of a sum of nonneg terms)
-  -- and similarly for adj(next v, v). The non-overlap condition ensures these contribute distinctly.
-  --
-  -- For now, the counting argument (injection into the double sum) is sorry'd.
-  -- The proof structure above (Steps 1-3) is complete and verified.
-  sorry
+  -- adj is nonneg
+  have hadj_nonneg : ∀ i j, (0 : ℤ) ≤ adj i j := by
+    intro i j; rcases hDynkin.2.2.1 i j with h | h <;> omega
+  -- Total sum of adj
+  set total := ∑ i : Fin n, ∑ j : Fin n, adj i j
+  -- Upper bound: positive definiteness with x = all-ones gives 2n - total > 0
+  have hone_ne : (fun (_ : Fin n) => (1 : ℤ)) ≠ 0 := by
+    intro heq; have := congr_fun heq ⟨0, hn⟩; simp at this
+  have hpos := hDynkin.2.2.2.2 (fun _ => (1 : ℤ)) hone_ne
+  -- Expand B(1,1) = 2n - total
+  have hexpand : dotProduct (fun _ => (1 : ℤ))
+      ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec (fun _ => 1)) =
+      2 * (↑n : ℤ) - total := by
+    -- Row sum of (2I - adj) is 2 - row sum of adj
+    have h_row : ∀ i : Fin n,
+        ∑ j, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) i j = 2 - ∑ j, adj i j := by
+      intro i
+      have h2I : ∑ j : Fin n, (2 • (1 : Matrix (Fin n) (Fin n) ℤ)) i j = 2 := by
+        simp [Matrix.smul_apply, Matrix.one_apply, Finset.mem_univ]
+      simp only [Matrix.sub_apply]
+      rw [Finset.sum_sub_distrib]
+      linarith
+    -- dotProduct 1 (M.mulVec 1) = ∑ i, ∑ j, M i j
+    have h_dot : dotProduct (fun _ => (1 : ℤ))
+        ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec (fun _ => 1)) =
+        ∑ i, ∑ j, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) i j := by
+      simp only [dotProduct, Matrix.mulVec, one_mul, mul_one]
+    rw [h_dot]
+    -- Now ∑ i, ∑ j, (2I - adj) i j = ∑ i, (2 - ∑ j, adj i j) = 2n - total
+    simp_rw [h_row]
+    simp only [Finset.sum_sub_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+      nsmul_eq_mul, total]
+    ring
+  have hub : total < 2 * (↑n : ℤ) := by linarith
+  -- Lower bound: 2n ≤ total via disjoint pair counting
+  -- Define forward and backward pair maps
+  have hfwd_inj : Function.Injective (fun v : Fin n => (v, next v)) :=
+    fun a b h => (Prod.mk.inj h).1
+  have hbwd_inj : Function.Injective (fun v : Fin n => (next v, v)) :=
+    fun a b h => (Prod.mk.inj h).2
+  -- The forward and backward images are disjoint (by hno_overlap)
+  have hdisjoint : Disjoint
+      (Finset.univ.image (fun v : Fin n => (v, next v)))
+      (Finset.univ.image (fun v : Fin n => (next v, v))) := by
+    rw [Finset.disjoint_left]
+    intro p hp1 hp2
+    rw [Finset.mem_image] at hp1 hp2
+    obtain ⟨v, _, hv⟩ := hp1
+    obtain ⟨w, _, hw⟩ := hp2
+    exact absurd (hv ▸ hw ▸ rfl : (v, next v) = (next w, w)) (hno_overlap v w)
+  -- Sum over forward pairs = n
+  have h_fwd_sum : ∑ p ∈ Finset.univ.image (fun v : Fin n => (v, next v)),
+      adj p.1 p.2 = ↑n := by
+    rw [Finset.sum_image (fun a _ b _ h => hfwd_inj h)]
+    simp [hadj_out, Finset.sum_const, Finset.card_univ, mul_one]
+  -- Sum over backward pairs = n
+  have h_bwd_sum : ∑ p ∈ Finset.univ.image (fun v : Fin n => (next v, v)),
+      adj p.1 p.2 = ↑n := by
+    rw [Finset.sum_image (fun a _ b _ h => hbwd_inj h)]
+    simp [hadj_in, Finset.sum_const, Finset.card_univ, mul_one]
+  -- Sum over the disjoint union = 2n
+  have h_union_sum : ∑ p ∈ (Finset.univ.image (fun v : Fin n => (v, next v)) ∪
+      Finset.univ.image (fun v : Fin n => (next v, v))),
+      adj p.1 p.2 = 2 * ↑n := by
+    rw [Finset.sum_union hdisjoint, h_fwd_sum, h_bwd_sum]; ring
+  -- The union is a subset of all pairs, and adj ≥ 0, so total ≥ 2n
+  have h_sub : Finset.univ.image (fun v : Fin n => (v, next v)) ∪
+      Finset.univ.image (fun v : Fin n => (next v, v)) ⊆
+      (Finset.univ : Finset (Fin n × Fin n)) :=
+    Finset.subset_univ _
+  have h_pair_sum : (∑ p : Fin n × Fin n, adj p.fst p.snd) = total := by
+    show (∑ p ∈ (Finset.univ : Finset (Fin n × Fin n)), adj p.fst p.snd) = total
+    rw [Finset.univ_product_univ.symm, Finset.sum_product']
+  have hlb : 2 * (↑n : ℤ) ≤ total := by
+    have := Finset.sum_le_sum_of_subset_of_nonneg h_sub
+      (fun p _ _ => hadj_nonneg p.1 p.2)
+    linarith [h_union_sum, h_pair_sum]
+  -- Contradiction: total < 2n and total ≥ 2n
+  linarith
 
 /-- Reversing at a sink makes that vertex a source in the reversed quiver. -/
 theorem reversedAtVertex_sink_becomes_source

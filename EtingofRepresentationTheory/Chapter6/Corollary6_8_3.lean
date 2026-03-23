@@ -189,17 +189,25 @@ dimension vectors transform by sᵢ, and by induction they're isomorphic on
 
 1. **Type-changing iteration**: Each reflection functor changes the quiver from Q
    to `reversedAtVertex Q i`, producing a chain of different Lean types. The
-   induction hypothesis must apply to the reversed quiver, requiring a
-   universally-quantified statement over all orientations of the same graph.
+   induction hypothesis must apply to the reversed quiver, requiring either:
+   (a) A universally-quantified auxiliary lemma with Q explicit, proved by
+       `induction vertices generalizing Q`, or
+   (b) Well-founded recursion with a bundled state type.
+   Either approach requires threading `Free`/`Finite` instances for F⁺ᵢ outputs.
 
 2. **Vertex-sink alignment**: The vertices from Theorem 6.8.1 (via `exists_good_vertex`)
    are chosen to reduce the integer dimension vector, but may not be sinks in the
    current quiver Q. The book's proof uses the Coxeter element ordering, which
    guarantees each vertex is a sink at the appropriate step. Aligning these two
-   approaches requires Coxeter element infrastructure.
+   approaches requires `admissibleOrdering_exists` (currently sorry'd in
+   `CoxeterInfrastructure.lean`). Note: `exists_sink_of_dynkin_orientation` is
+   now proved, which is the key ingredient for admissible ordering existence.
 
 3. **`Proposition6_6_7_source` (sorry'd)**: Preserving indecomposability through
-   source reflection functors is not yet proven (1 sorry in Proposition6_6_7.lean). -/
+   source reflection functors is not yet proven (1 sorry in Proposition6_6_7.lean).
+
+4. **Proposition 6.6.6 naturality**: The round-trip theorem F⁻F⁺(V) ≅ V has 2
+   remaining sorries in the naturality proof (arrow cases a≠i,b=i and a≠i,b≠i). -/
 private lemma Etingof.reflectionFunctors_reduce_and_recover
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
