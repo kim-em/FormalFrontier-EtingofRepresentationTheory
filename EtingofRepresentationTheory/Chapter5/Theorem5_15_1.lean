@@ -2241,6 +2241,34 @@ private theorem cycleTypePsumProduct_inv (n : ℕ) (σ : Equiv.Perm (Fin n)) :
   unfold cycleTypePsumProduct
   rw [Equiv.Perm.cycleType_inv, Equiv.Perm.support_inv]
 
+/-- **Norm-squared identity for the alternating Kostka matrix:**
+∑_ν L²_{νλ} = 1, where L_{νλ} = ∑_π sign(π) · K(sort(λ+ρ-π(ρ)), ν).
+
+**Proof outline** (Etingof, Theorem 5.15.1):
+Define θ_λ(σ) = [x^{λ+ρ}](Δ(x) · P_σ(x)). By Young's Rule expansion,
+θ_λ = ∑_ν L_{νλ} χ_ν. Character orthonormality (`FDRep.char_orthonormal`)
+gives ⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ}.
+
+The key step is showing ⟨θ_λ, θ_λ⟩ = 1 via Vandermonde coefficient orthogonality.
+This requires the **power sum Cauchy identity**:
+
+  (1/n!) ∑_{σ ∈ S_n} P_σ(x) P_σ(y) = [degree n of ∏_{i,j} 1/(1 - xᵢyⱼ)]
+
+Combined with the Cauchy determinant identity (Lemma 5.15.3 + Corollary 5.15.4):
+
+  det(1/(1-xᵢyⱼ)) = Δ(x)Δ(y) · ∏_{i,j} 1/(1-xᵢyⱼ)
+
+the coefficient of x^{λ+ρ}y^{λ+ρ} in the RHS is 1 (since λ+ρ has strictly
+decreasing distinct entries, only σ=id contributes).
+
+**Blocked on**: The power sum Cauchy identity is not yet formalized. This requires
+either the exponential formula for formal power series or a direct combinatorial
+argument about cycle types. See GitHub issue for details.
+
+Three alternative approaches were investigated and found insufficient:
+1. Character orthonormality alone → tautological (Parseval gives ∑L² = ⟨θ,θ⟩)
+2. Strong induction on dominance order → also tautological
+3. Sign-reversing involution → requires Gessel-Viennot / lattice path infrastructure -/
 private theorem alternatingKostka_norm_sq_eq_one {n : ℕ} (la : Nat.Partition n) :
     ∑ nu : Nat.Partition n, alternatingKostkaInt la nu ^ 2 = 1 := by
   sorry
