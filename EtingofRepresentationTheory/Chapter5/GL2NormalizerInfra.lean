@@ -438,7 +438,7 @@ lemma Etingof.GL2.conj_mem_implies_normalizer (hn : n ≠ 0)
 /-- The Frobenius matrix is not in K = 𝔽_{q²}×. If it were, then conjugation
 by σ would be trivial on K, meaning α^q = α for all α ∈ 𝔽_{q²}×, which
 contradicts [𝔽_{q²} : 𝔽_q] = 2. -/
-private lemma Etingof.GL2.frobeniusMatrix_not_in_elliptic (hn : n ≠ 0)
+lemma Etingof.GL2.frobeniusMatrix_not_in_elliptic (hn : n ≠ 0)
     [Fintype (GaloisField p n)] :
     Etingof.GL2.frobeniusMatrix p n ∉ Etingof.GL2.ellipticSubgroup p n := by
   intro ⟨α, hα⟩
@@ -680,7 +680,7 @@ private lemma Etingof.GL2.root_dichotomy_of_deg_two
 
 set_option maxHeartbeats 1600000 in
 /-- Every element of the normalizer N_{GL₂}(K) is in K or in the Frobenius coset σK. -/
-private lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2)
+lemma Etingof.GL2.normalizer_mem_dichotomy (hn : n ≠ 0) (hp2 : p ≠ 2)
     [Fintype (GaloisField p n)]
     (g : GL2 p n) (hg : Etingof.GL2.isInNormalizer p n g) :
     g ∈ Etingof.GL2.ellipticSubgroup p n ∨

@@ -1,5 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.GL2CharacterValues
+import EtingofRepresentationTheory.Chapter5.GL2NormalizerInfra
 
 variable (p : ℕ) [hp : Fact (Nat.Prime p)] (n : ℕ)
 
@@ -344,6 +345,218 @@ private lemma Etingof.nonscalar_char_sum
     rw [hKc_nat]; push_cast [Nat.cast_sub h1]; ring
   rw [hKc_C]; ring
 
+-- For non-scalar k ∈ K, the normalizer character sum evaluates to |K|·(1 + conj(ψ(k))).
+-- Proof: {z : z⁻¹kz ∈ K} = N(K) = K ∪ σK. On K: ν(k)·conj(ν(k)) = 1 (norm).
+-- On σK: ν(k)·conj(ν(k^q)) = conj(ψ(k)). Rest contributes 0.
+open Classical in
+private lemma Etingof.normalizer_char_eval
+    [Fintype (GL2 p n)] [Fintype (GaloisField p n)]
+    [DecidableEq (GaloisField p n)]
+    (hp2 : p ≠ 2)
+    (nu : (Etingof.GL2.ellipticSubgroup p n) →* ℂˣ) (hn : n ≠ 0)
+    (k : ↥(Etingof.GL2.ellipticSubgroup p n))
+    (hk_ell : GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)) :
+    ∑ z : GL2 p n,
+      (if h : z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n
+       then (nu k : ℂ) * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩).val)
+       else 0) =
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+    ((1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)) := by
+  haveI : Fintype (GaloisField p (2 * n)) := Fintype.ofFinite _
+  -- k is non-scalar (elliptic ⟹ non-scalar)
+  have hk_ns : ¬GL2.IsScalar (p := p) (n := n) (k : GL2 p n) :=
+    fun hs => GL2.isScalar_not_isElliptic (k : GL2 p n) hs hk_ell
+  -- Get field element underlying k
+  obtain ⟨β, hβ⟩ := k.2
+  -- Define the three filter sets
+  set N := Finset.univ.filter (fun z : GL2 p n => Etingof.GL2.isInNormalizer p n z)
+  set K_set := Finset.univ.filter (fun z : GL2 p n =>
+    z ∈ Etingof.GL2.ellipticSubgroup p n) with hK_set_def
+  set σK_set := Finset.univ.filter (fun z : GL2 p n =>
+    ∃ α : (GaloisField p (2 * n))ˣ,
+      z = Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α) with hσK_set_def
+  -- The summand
+  set F : GL2 p n → ℂ := fun z =>
+    if h : z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n
+    then (nu k : ℂ) * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩).val)
+    else 0 with hF_def
+  -- Step 1: Terms outside N(K) vanish
+  have h_vanish : ∀ z : GL2 p n, ¬Etingof.GL2.isInNormalizer p n z → F z = 0 := by
+    intro z hz; simp only [F, hF_def]
+    rw [dif_neg]; intro h
+    exact hz (Etingof.GL2.conj_mem_implies_normalizer p n hn hp2
+      (k : GL2 p n) k.2 hk_ns z h)
+  -- Step 2: Restrict sum to normalizer
+  have h_restrict : ∑ z, F z = ∑ z ∈ N, F z := by
+    symm; apply Finset.sum_subset_zero_on_sdiff (Finset.filter_subset _ _)
+    · intro z hz
+      simp only [Finset.mem_sdiff, Finset.mem_univ, true_and,
+          Finset.mem_filter] at hz
+      exact h_vanish z hz
+    · intro z _; rfl
+  -- Step 3: N(K) = K ∪ σK (from normalizer_mem_dichotomy)
+  have hN_eq : N = K_set ∪ σK_set := by
+    ext z
+    simp only [N, K_set, σK_set, Finset.mem_union, Finset.mem_filter,
+      Finset.mem_univ, true_and]
+    constructor
+    · exact Etingof.GL2.normalizer_mem_dichotomy p n hn hp2 z
+    · rintro (hk | ⟨α, hα⟩)
+      · exact Etingof.GL2.ellipticSubgroup_mem_normalizer p n z hk
+      · subst hα
+        exact Etingof.GL2.normalizer_contains_frobeniusCoset p n hn _ ⟨α, rfl⟩
+  -- Step 4: K and σK are disjoint
+  have hKσK_disj : Disjoint K_set σK_set := by
+    rw [Finset.disjoint_filter]
+    intro z _ hz_K ⟨α, hα⟩
+    have : Etingof.GL2.frobeniusMatrix p n ∈ Etingof.GL2.ellipticSubgroup p n := by
+      obtain ⟨γ, hγ⟩ := hz_K
+      rw [hα] at hγ
+      have : Etingof.GL2.frobeniusMatrix p n =
+          Etingof.GL2.fieldExtEmbed p n γ * (Etingof.GL2.fieldExtEmbed p n α)⁻¹ := by
+        rw [hγ]; group
+      rw [this]; exact ⟨γ * α⁻¹, by rw [map_mul, map_inv]⟩
+    exact Etingof.GL2.frobeniusMatrix_not_in_elliptic p n hn this
+  -- Step 5: Split the sum
+  rw [h_restrict, hN_eq, Finset.sum_union hKσK_disj]
+  -- Step 6: Evaluate K-part
+  -- For z ∈ K: z⁻¹kz = k (K abelian), so F(z) = ν(k)*conj(ν(k)) = 1
+  have hK_eval : ∑ z ∈ K_set, F z =
+      (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) := by
+    -- For z ∈ K: z⁻¹kz = k (K is abelian), so F(z) = ν(k)*conj(ν(k)) = 1
+    have hK_conj : ∀ z : GL2 p n, z ∈ Etingof.GL2.ellipticSubgroup p n →
+        z⁻¹ * (k : GL2 p n) * z = (k : GL2 p n) := by
+      intro z hz
+      obtain ⟨α, rfl⟩ := hz
+      obtain ⟨γ, hγ⟩ := k.2
+      change (Etingof.GL2.fieldExtEmbed p n α)⁻¹ * (k : GL2 p n) *
+        Etingof.GL2.fieldExtEmbed p n α = (k : GL2 p n)
+      rw [show (k : GL2 p n) = Etingof.GL2.fieldExtEmbed p n γ from hγ.symm]
+      simp only [← map_inv, ← map_mul, inv_mul_cancel_comm]
+    have hK_mem : ∀ z : GL2 p n, z ∈ Etingof.GL2.ellipticSubgroup p n →
+        z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n := by
+      intro z hz; rw [hK_conj z hz]; exact k.2
+    -- Each term = ν(k)*conj(ν(k)) = 1
+    have hterm : ∀ z ∈ K_set, F z = 1 := by
+      intro z hz
+      simp only [K_set, Finset.mem_filter, Finset.mem_univ, true_and] at hz
+      simp only [F, dif_pos (hK_mem z hz)]
+      have : (⟨z⁻¹ * (k : GL2 p n) * z, hK_mem z hz⟩ :
+          ↥(Etingof.GL2.ellipticSubgroup p n)) = k := by
+        exact Subtype.ext (hK_conj z hz)
+      rw [this]
+      exact Etingof.normSq_monoidHom_val_eq_one nu k
+    rw [Finset.sum_congr rfl hterm, Finset.sum_const, nsmul_eq_mul, mul_one]
+    -- |K_set| = |K|
+    simp only [K_set, ← Fintype.card_subtype]
+  -- Step 7: Evaluate σK-part
+  -- For z = σ·α: z⁻¹kz = k^q (Frobenius), so F(z) = ν(k)*conj(ν(k^q)) = conj(ψ(k))
+  have hσK_eval : ∑ z ∈ σK_set, F z =
+      (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+      starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ) := by
+    -- For z = σ·embed(α) ∈ σK:
+    -- z⁻¹kz = α⁻¹·σ⁻¹·k·σ·α = α⁻¹·(k^q)·α = k^q (K abelian)
+    -- where k^q = fieldExtEmbed(β^q) with k = fieldExtEmbed(β)
+    -- So F(z) = ν(k)·conj(ν(k^q)) = ν(k)·conj(ν(k)^q) = conj(ν(k)^{q-1}) = conj(ψ(k))
+    obtain ⟨γ, hγ⟩ := k.2  -- k = fieldExtEmbed(γ)
+    -- The Frobenius image of k in K
+    set kq_units : (GaloisField p (2 * n))ˣ :=
+      ⟨(γ : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n),
+       (γ⁻¹ : GaloisField p (2 * n)) ^ Fintype.card (GaloisField p n),
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, mul_inv_cancel₀ γ.ne_zero],
+       by rw [← mul_pow]; simp [Units.val_inv_eq_inv_val, inv_mul_cancel₀ γ.ne_zero]⟩
+    have hkq_mem : Etingof.GL2.fieldExtEmbed p n kq_units ∈
+        Etingof.GL2.ellipticSubgroup p n := ⟨kq_units, rfl⟩
+    -- σ⁻¹·k·σ = fieldExtEmbed(kq_units) (by frobeniusMatrix_conj)
+    have hfrob_conj : (Etingof.GL2.frobeniusMatrix p n)⁻¹ *
+        (k : GL2 p n) * Etingof.GL2.frobeniusMatrix p n =
+        Etingof.GL2.fieldExtEmbed p n kq_units := by
+      rw [show (k : GL2 p n) = Etingof.GL2.fieldExtEmbed p n γ from hγ.symm]
+      exact Etingof.GL2.frobeniusMatrix_conj p n hn γ
+    -- For z = σ·embed(α): z⁻¹·k·z = fieldExtEmbed(kq_units)
+    have hσK_conj : ∀ α : (GaloisField p (2 * n))ˣ,
+        (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α)⁻¹ *
+        (k : GL2 p n) *
+        (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α) =
+        Etingof.GL2.fieldExtEmbed p n kq_units := by
+      intro α
+      -- (σα)⁻¹ k (σα) = α⁻¹ (σ⁻¹ k σ) α = α⁻¹ kq α = kq (K abelian)
+      have h1 : (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α)⁻¹ *
+          (k : GL2 p n) *
+          (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α) =
+          (Etingof.GL2.fieldExtEmbed p n α)⁻¹ *
+          ((Etingof.GL2.frobeniusMatrix p n)⁻¹ * (k : GL2 p n) *
+            Etingof.GL2.frobeniusMatrix p n) *
+          Etingof.GL2.fieldExtEmbed p n α := by group
+      rw [h1, hfrob_conj, ← map_inv, ← map_mul, ← map_mul, inv_mul_cancel_comm]
+    -- Membership in K for conjugates
+    have hσK_mem : ∀ α : (GaloisField p (2 * n))ˣ,
+        (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α)⁻¹ *
+        (k : GL2 p n) *
+        (Etingof.GL2.frobeniusMatrix p n * Etingof.GL2.fieldExtEmbed p n α) ∈
+        Etingof.GL2.ellipticSubgroup p n := by
+      intro α; rw [hσK_conj α]; exact hkq_mem
+    -- Character value: ν(k)·conj(ν(kq)) = conj(ψ(k))
+    -- ψ(k) = qm1_char(k) = ν(k)^{q-1}
+    -- ν(kq) = ν(fieldExtEmbed(γ^q)) = ν(fieldExtEmbed(γ))^q = ν(k)^q
+    -- (since fieldExtEmbed is a homomorphism and γ^q = γ^q as group power)
+    have hnu_kq : nu ⟨Etingof.GL2.fieldExtEmbed p n kq_units, hkq_mem⟩ =
+        (nu k) ^ Fintype.card (GaloisField p n) := by
+      have : ⟨Etingof.GL2.fieldExtEmbed p n kq_units, hkq_mem⟩ =
+          k ^ Fintype.card (GaloisField p n) := by
+        apply Subtype.ext
+        show Etingof.GL2.fieldExtEmbed p n kq_units =
+          (k : GL2 p n) ^ Fintype.card (GaloisField p n)
+        rw [show (k : GL2 p n) = Etingof.GL2.fieldExtEmbed p n γ from hγ.symm,
+          ← map_pow]
+        congr 1; exact Units.ext rfl
+      rw [this, map_pow]
+    -- ν(k)·conj(ν(k)^q) = conj(ν(k)^{q-1})
+    have hchar_val : (nu k : ℂ) * starRingEnd ℂ ((nu k : ℂ) ^ Fintype.card (GaloisField p n)) =
+        starRingEnd ℂ ((nu k : ℂ) ^ (Fintype.card (GaloisField p n) - 1)) := by
+      set v := (nu k : ℂ)
+      set c := starRingEnd ℂ v
+      have hvc : v * c = 1 := Etingof.normSq_monoidHom_val_eq_one nu k
+      rw [map_pow, map_pow]
+      -- v * c^q = c^{q-1}
+      have hq_pos : 0 < Fintype.card (GaloisField p n) := Fintype.card_pos
+      rw [show Fintype.card (GaloisField p n) = Fintype.card (GaloisField p n) - 1 + 1 from
+        by omega, pow_succ]
+      calc v * (c ^ (Fintype.card (GaloisField p n) - 1) * c)
+          = c ^ (Fintype.card (GaloisField p n) - 1) * (v * c) := by ring
+        _ = c ^ (Fintype.card (GaloisField p n) - 1) * 1 := by rw [hvc]
+        _ = c ^ (Fintype.card (GaloisField p n) - 1) := mul_one _
+    -- Each term in σK contributes the same value
+    have hterm : ∀ z ∈ σK_set, F z =
+        starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ) := by
+      intro z hz
+      simp only [σK_set, Finset.mem_filter, Finset.mem_univ, true_and] at hz
+      obtain ⟨α, rfl⟩ := hz
+      simp only [F, dif_pos (hσK_mem α)]
+      -- The conjugated element equals kq
+      have hconj_eq : (⟨_ , hσK_mem α⟩ : ↥(Etingof.GL2.ellipticSubgroup p n)) =
+          ⟨Etingof.GL2.fieldExtEmbed p n kq_units, hkq_mem⟩ :=
+        Subtype.ext (hσK_conj α)
+      rw [hconj_eq, hnu_kq, Units.val_pow_eq_pow_val, hchar_val]
+      congr 1 -- conj is injective; both sides reduce to the same qm1_char definition
+    rw [Finset.sum_congr rfl hterm, Finset.sum_const, nsmul_eq_mul]
+    -- |σK_set| = |K|
+    congr 1
+    -- σK bijects with K via z ↦ σ⁻¹z
+    rw [show σK_set = K_set.map ⟨(Etingof.GL2.frobeniusMatrix p n * ·),
+        mul_right_injective _⟩ from by
+      ext z; simp only [σK_set, K_set, Finset.mem_filter, Finset.mem_univ, true_and,
+        Finset.mem_map, Function.Embedding.coeFn_mk]
+      constructor
+      · rintro ⟨α, rfl⟩
+        exact ⟨Etingof.GL2.fieldExtEmbed p n α, ⟨α, rfl⟩, rfl⟩
+      · rintro ⟨w, ⟨α, rfl⟩, rfl⟩
+        exact ⟨α, rfl⟩]
+    rw [Finset.card_map]
+    simp only [K_set, ← Fintype.card_subtype]
+  -- Step 8: Combine
+  rw [hK_eval, hσK_eval]; ring
+
 -- The algebraic core: change of variables and normalizer evaluation.
 -- The sum over elliptic elements rewrites via (g,x,y) -> (k,x,z) as
 -- |GL₂| * |K| * ∑_{k in K non-scalar} (1 + conj(qm1_char(k))).
@@ -373,7 +586,63 @@ private lemma Etingof.elliptic_sum_algebraic_core
       (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
        then (1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)
        else 0) := by
-  sorry
+  -- Step A: Reindex the triple sum.
+  -- Expand |S(g)|² into double sum, change variables (g,x,y) → (k,x,z) where
+  -- k = x⁻¹gx ∈ K non-scalar, z = x⁻¹y. The x variable is free → factor |GL₂|.
+  -- Result: LHS = |GL₂| * ∑_{k ∈ K, ell} ∑_z ν(k)*conj(ν(z⁻¹kz))
+  have hreindex :
+    ∑ g ∈ Finset.univ.filter (fun g : GL2 p n => GL2.IsElliptic (p := p) (n := n) g),
+      (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) *
+      starRingEnd ℂ (∑ x : GL2 p n,
+        if h : x⁻¹ * g * x ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu ⟨x⁻¹ * g * x, h⟩).val else 0) =
+    (Fintype.card (GL2 p n) : ℂ) *
+    ∑ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+      (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+       then ∑ z : GL2 p n,
+         (if h : z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n
+          then (nu k : ℂ) * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩).val)
+          else 0)
+       else 0) := by
+    -- Triple-sum rearrangement: expand |S(g)|², change variables (g,x,y) → (k,x,z),
+    -- factor out |GL₂|. Key ingredients: S is class-invariant, IsElliptic is
+    -- conjugation-invariant (disc_conj_eq), non-K terms vanish from the dite.
+    sorry
+  -- Step B: Evaluate the normalizer sum for each non-scalar k ∈ K.
+  -- For non-scalar k: {z : z⁻¹kz ∈ K} = N(K) = K ∪ σK (disjoint).
+  -- K-part: z⁻¹kz = k (K abelian), so ν(k)*conj(ν(k)) = 1 by normSq.
+  -- σK-part: z⁻¹kz = k^q (Frobenius), so ν(k)*conj(ν(k^q)) = conj(ψ(k)).
+  -- Total: |K|·1 + |K|·conj(ψ(k)) = |K|·(1 + conj(ψ(k))).
+  have hnorm_eval : ∀ (k : ↥(Etingof.GL2.ellipticSubgroup p n)),
+    GL2.IsElliptic (p := p) (n := n) (k : GL2 p n) →
+    ∑ z : GL2 p n,
+      (if h : z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n
+       then (nu k : ℂ) * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩).val)
+       else 0) =
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+    ((1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)) :=
+    fun k hk => Etingof.normalizer_char_eval p n hp2 nu hn k hk
+  -- Step C: Combine the two results.
+  rw [hreindex]
+  -- Replace inner sums using hnorm_eval
+  have hinner : ∀ k : ↥(Etingof.GL2.ellipticSubgroup p n),
+    (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+     then ∑ z : GL2 p n,
+       (if h : z⁻¹ * (k : GL2 p n) * z ∈ Etingof.GL2.ellipticSubgroup p n
+        then (nu k : ℂ) * starRingEnd ℂ ((nu ⟨z⁻¹ * (k : GL2 p n) * z, h⟩).val)
+        else 0)
+     else 0) =
+    (Fintype.card ↥(Etingof.GL2.ellipticSubgroup p n) : ℂ) *
+    (if GL2.IsElliptic (p := p) (n := n) (k : GL2 p n)
+     then (1 : ℂ) + starRingEnd ℂ ((Etingof.qm1_char p n nu k : ℂˣ) : ℂ)
+     else 0) := by
+    intro k; split_ifs with hk
+    · exact hnorm_eval k hk
+    · simp
+  simp_rw [hinner, ← Finset.mul_sum]
+  ring
 
 open Classical in
 /-- The sum of |Ind_K^G ν|² over elliptic elements equals q(q-1)³.
