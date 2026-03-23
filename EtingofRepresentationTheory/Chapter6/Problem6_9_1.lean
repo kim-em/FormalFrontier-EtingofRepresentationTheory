@@ -645,8 +645,27 @@ private lemma nilpotent_nontrivial_decomp {V : Type*} [AddCommGroup V] [Module �
       linarith
     · intro w _; simp
     · intro w _; simp
-  -- Case 2: T ≠ 0. Use the elementary construction when ker T ⊄ range T.
-  · sorry
+  -- Case 2: T ≠ 0.
+  · by_cases hdisjoint : Disjoint (LinearMap.ker T) (LinearMap.range T)
+    · -- Case 2a: ker T ∩ range T = 0. Use ker T and range T directly.
+      refine ⟨LinearMap.ker T, LinearMap.range T, ?_, ?_, ?_, ?_, ?_⟩
+      · -- ker T ≠ ⊥
+        intro h; rw [h, finrank_bot] at hker; omega
+      · -- range T ≠ ⊥
+        rwa [ne_eq, LinearMap.range_eq_bot]
+      · -- IsCompl: disjoint + dimensions add up
+        have hdim := T.finrank_range_add_finrank_ker
+        exact (Submodule.isCompl_iff_disjoint _ _
+          (by linarith)).mpr hdisjoint
+      · -- T-invariance of ker T
+        intro v hv
+        rw [LinearMap.mem_ker] at hv ⊢
+        simp [hv]
+      · -- T-invariance of range T
+        intro v hv
+        exact ⟨v, rfl⟩
+    · -- Case 2b: ker T ∩ range T ≠ 0. Requires PID structure theorem.
+      sorry
 
 /-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
 then the rep is decomposable.
