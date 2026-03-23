@@ -2241,34 +2241,35 @@ private theorem cycleTypePsumProduct_inv (n : ℕ) (σ : Equiv.Perm (Fin n)) :
   unfold cycleTypePsumProduct
   rw [Equiv.Perm.cycleType_inv, Equiv.Perm.support_inv]
 
-/-- **Norm-squared identity for the alternating Kostka matrix:**
-∑_ν L²_{νλ} = 1, where L_{νλ} = ∑_π sign(π) · K(sort(λ+ρ-π(ρ)), ν).
+/-- **Vandermonde coefficient orthogonality**: ∑_σ θ_λ(σ)² = n!,
+where θ_λ(σ) = [x^{λ+ρ}](Δ(x) · P_σ(x)).
 
-**Proof outline** (Etingof, Theorem 5.15.1):
-Define θ_λ(σ) = [x^{λ+ρ}](Δ(x) · P_σ(x)). By Young's Rule expansion,
-θ_λ = ∑_ν L_{νλ} χ_ν. Character orthonormality (`FDRep.char_orthonormal`)
-gives ⟨θ_λ, θ_λ⟩ = ∑_ν L²_{νλ}.
+This is equivalent to the norm-squared identity ∑_ν L²_{νλ} = 1 via
+character orthonormality (Parseval), but is stated as a combinatorial identity
+about polynomial coefficients that can be proved directly.
 
-The key step is showing ⟨θ_λ, θ_λ⟩ = 1 via Vandermonde coefficient orthogonality.
-This requires the **power sum Cauchy identity**:
+**Proof strategy** (Etingof, proof of Theorem 5.15.1):
+1. Expand θ_λ(σ)² = (∑_π sign(π) [x^{λ+ρ-e_π}](P_σ))²
+2. Sum over σ: ∑_σ c_{π,σ} c_{τ,σ} = n! · dim Hom(U_{μ_π}, U_{μ_τ})
+3. The double alternating sum gives ∑_ν L²_{νλ} (Parseval).
+4. Independently: via the power sum Cauchy identity
+   (∑_σ P_σ(x)P_σ(y) = n! · ∏_{i,j} 1/(1-x_i y_j) at degree n)
+   and the Cauchy determinant identity (Corollary 5.15.4),
+   this sum equals n! · coeff(x^{λ+ρ} y^{λ+ρ}, det(1/(1-x_i y_j))) = n! · 1.
 
-  (1/n!) ∑_{σ ∈ S_n} P_σ(x) P_σ(y) = [degree n of ∏_{i,j} 1/(1 - xᵢyⱼ)]
+**Blocked on**: The power sum Cauchy identity (GitHub issue #1622).
+The coefficient extraction coeff(x^α y^α, cauchyRHS) = 1 for distinct α
+is straightforward (only σ=id contributes when α has distinct entries),
+but connecting ∑_σ P_σ(x)P_σ(y) to ∏ 1/(1-x_i y_j) requires either
+the exponential formula for formal power series or a direct combinatorial
+argument about cycle types (estimated 300-500 lines).
 
-Combined with the Cauchy determinant identity (Lemma 5.15.3 + Corollary 5.15.4):
-
-  det(1/(1-xᵢyⱼ)) = Δ(x)Δ(y) · ∏_{i,j} 1/(1-xᵢyⱼ)
-
-the coefficient of x^{λ+ρ}y^{λ+ρ} in the RHS is 1 (since λ+ρ has strictly
-decreasing distinct entries, only σ=id contributes).
-
-**Blocked on**: The power sum Cauchy identity is not yet formalized. This requires
-either the exponential formula for formal power series or a direct combinatorial
-argument about cycle types. See GitHub issue for details.
-
-Three alternative approaches were investigated and found insufficient:
+Alternative approaches investigated and found insufficient:
 1. Character orthonormality alone → tautological (Parseval gives ∑L² = ⟨θ,θ⟩)
-2. Strong induction on dominance order → also tautological
-3. Sign-reversing involution → requires Gessel-Viennot / lattice path infrastructure -/
+2. Strong induction on dominance order → also tautological (inductive hypothesis
+   gives L_{ν,μ} = 0 for μ > λ, but doesn't constrain K(μ_π, ν) directly)
+3. Sign-reversing involution → requires Gessel-Viennot / lattice path infrastructure
+4. Matrix L^T L = I argument → needs ⟨θ_λ, θ_λ⟩ ≤ 1, same blocker -/
 private theorem alternatingKostka_norm_sq_eq_one {n : ℕ} (la : Nat.Partition n) :
     ∑ nu : Nat.Partition n, alternatingKostkaInt la nu ^ 2 = 1 := by
   sorry
