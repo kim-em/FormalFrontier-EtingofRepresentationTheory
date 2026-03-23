@@ -4065,7 +4065,7 @@
     "end_page": "144",
     "start_line": 22,
     "end_line": 14,
-    "status": "sent_to_aristotle",
+    "status": "sorry_free",
     "needs_statement": false,
     "aristotle_projects": {
       "innerProduct": "962da88d-5e9e-4e8a-a792-1550f1974c1c",
@@ -4262,7 +4262,7 @@
     "end_page": "150",
     "start_line": 7,
     "end_line": 27,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false
   },
   {
@@ -4687,7 +4687,8 @@
     "end_page": "171",
     "start_line": 19,
     "end_line": 32,
-    "status": "proof_partial"
+    "status": "proof_partial",
+    "sorry_count": 2
   },
   {
     "id": "Chapter6/Proposition6.6.7",
@@ -4855,7 +4856,8 @@
     "end_line": 14,
     "status": "sent_to_aristotle",
     "aristotle_project_id": "26603e6c-cfee-4580-a784-613428bc9e84",
-    "needs_statement": true
+    "needs_statement": true,
+    "sorry_count": 1
   },
   {
     "id": "Chapter6/Problem6.9.2",
