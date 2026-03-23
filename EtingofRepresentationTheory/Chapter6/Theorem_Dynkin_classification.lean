@@ -636,7 +636,140 @@ private lemma tree_branch_iso {k : ℕ} {adj : Matrix (Fin (k + 1)) (Fin (k + 1)
     (ht_diag_k : t_adj ⟨k, by omega⟩ ⟨k, by omega⟩ = 0) :
     ∃ σ : Fin (k + 1) ≃ Fin (k + 1),
       ∀ i j, adj (σ i) (σ j) = t_adj i j := by
-  sorry
+  have hk_pos : 0 < k := by omega
+  -- adj' symmetry and 0-1 property
+  have hadj'_symm : ∀ i j : Fin k, adj' i j = adj' j i := by
+    intro i j; simp only [hadj'_def]; exact hsymm.apply _ _
+  -- σ' path characterization: adj'(σ' i, σ' j) = 1 ↔ consecutive
+  have hσ'_iff : ∀ (i j : Fin k), adj' (σ' i) (σ' j) = 1 ↔
+      (i.val + 1 = j.val ∨ j.val + 1 = i.val) := by
+    intro i j; constructor
+    · exact hσ'_only i j
+    · rintro (h1 | h2)
+      · have hlt : i.val + 1 < k := h1 ▸ j.isLt
+        rw [show j = ⟨i.val + 1, hlt⟩ from Fin.ext h1.symm]
+        exact hσ'_fwd i hlt
+      · have hlt : j.val + 1 < k := h2 ▸ i.isLt
+        rw [show i = ⟨j.val + 1, hlt⟩ from Fin.ext h2.symm]
+        rw [hadj'_symm]; exact hσ'_fwd j hlt
+  -- Maybe-reversed Fin k equivalence: maps b_std ↦ b
+  -- If b = b_std, identity; otherwise, reverse the path
+  let revK : Fin k ≃ Fin k :=
+    ⟨fun i => ⟨k - 1 - i.val, by omega⟩,
+     fun i => ⟨k - 1 - i.val, by omega⟩,
+     fun i => Fin.ext (by simp; omega),
+     fun i => Fin.ext (by simp; omega)⟩
+  let maybeRevEquiv : Fin k ≃ Fin k :=
+    if b = b_std then Equiv.refl _ else revK
+  have hMR_b : maybeRevEquiv ⟨b_std, hb_std_lt⟩ = ⟨b, hb_lt⟩ := by
+    simp only [maybeRevEquiv]
+    split_ifs with h
+    · exact Fin.ext h.symm
+    · rcases hb_match with rfl | hrev
+      · exact absurd rfl h
+      · apply Fin.ext; show k - 1 - b_std = b; omega
+  have hMR_consec : ∀ (i j : Fin k),
+      (maybeRevEquiv i).val + 1 = (maybeRevEquiv j).val ∨
+        (maybeRevEquiv j).val + 1 = (maybeRevEquiv i).val ↔
+      i.val + 1 = j.val ∨ j.val + 1 = i.val := by
+    intro i j; simp only [maybeRevEquiv]
+    split_ifs with h
+    · simp [Equiv.refl_apply]
+    · show (k - 1 - i.val) + 1 = (k - 1 - j.val) ∨
+           (k - 1 - j.val) + 1 = (k - 1 - i.val) ↔
+           i.val + 1 = j.val ∨ j.val + 1 = i.val
+      have hi := i.isLt; have hj := j.isLt
+      constructor <;> (intro hc; omega)
+  -- σ₀ = σ' ∘ maybeRev
+  let σ₀ : Fin k ≃ Fin k := maybeRevEquiv.trans σ'
+  have hσ₀_apply : ∀ i, σ₀ i = σ' (maybeRevEquiv i) := fun _ => rfl
+  -- σ₀ maps b_std to v'
+  have hσ₀_b : σ₀ ⟨b_std, by omega⟩ = v' := by
+    rw [hσ₀_apply, hMR_b]; exact hσ'_b
+  -- σ₀ path property
+  have hσ₀_iff : ∀ (i j : Fin k), adj' (σ₀ i) (σ₀ j) = 1 ↔
+      (i.val + 1 = j.val ∨ j.val + 1 = i.val) := by
+    intro i j; rw [hσ₀_apply, hσ₀_apply, hσ'_iff]; exact hMR_consec i j
+  -- Rewrite adj via adj'
+  have hadj'_apply : ∀ (a b : Fin k),
+      adj' a b = adj (u.succAbove a) (u.succAbove b) :=
+    fun a b => congrFun (congrFun hadj'_def a) b
+  -- Full graph adj in terms of σ₀
+  have hadj_σ₀ : ∀ (i j : Fin k),
+      adj (u.succAbove (σ₀ i)) (u.succAbove (σ₀ j)) =
+      if (i.val + 1 = j.val ∨ j.val + 1 = i.val)
+        then 1 else 0 := by
+    intro i j; rw [← hadj'_apply]
+    by_cases h : i.val + 1 = j.val ∨ j.val + 1 = i.val
+    · rw [if_pos h]; exact (hσ₀_iff i j).mpr h
+    · rw [if_neg h]
+      rcases h01 (u.succAbove (σ₀ i)) (u.succAbove (σ₀ j))
+        with h0 | h1
+      · rwa [← hadj'_apply] at h0
+      · rw [← hadj'_apply] at h1
+        exact absurd ((hσ₀_iff i j).mp h1) h
+  -- Branch adjacency
+  have hadj_branch : ∀ (i : Fin k),
+      adj (u.succAbove (σ₀ i)) u =
+        if i.val = b_std then 1 else 0 := by
+    intro i; split_ifs with h
+    · have hi : i = ⟨b_std, by omega⟩ := by ext; exact h
+      rw [hi, hσ₀_b]
+      rw [hsymm.apply]; exact hu_adj
+    · have hne : σ₀ i ≠ v' := by
+        intro heq; apply h
+        have := σ₀.injective (heq.trans hσ₀_b.symm)
+        exact congrArg Fin.val this
+      rcases h01 (u.succAbove (σ₀ i)) u with h0 | h1
+      · exact h0
+      · rw [hsymm.apply] at h1
+        exact absurd (Fin.succAbove_right_injective
+          (hu_unique _ h1)) hne
+  -- Construct forward map
+  let fwd : Fin (k + 1) → Fin (k + 1) := fun i =>
+    if h : i.val < k then u.succAbove (σ₀ ⟨i.val, h⟩) else u
+  -- fwd is injective
+  have fwd_inj : Function.Injective fwd := by
+    intro i j hij; simp only [fwd] at hij
+    by_cases hi : i.val < k <;> by_cases hj : j.val < k
+    · rw [dif_pos hi, dif_pos hj] at hij
+      have h1 := Fin.succAbove_right_injective hij
+      have h2 := σ₀.injective h1
+      have h3 : i.val = j.val := by
+        rw [Fin.mk.injEq] at h2; exact h2
+      exact Fin.ext h3
+    · rw [dif_pos hi, dif_neg hj] at hij
+      exact absurd hij (Fin.succAbove_ne u _)
+    · rw [dif_neg hi, dif_pos hj] at hij
+      exact absurd hij.symm (Fin.succAbove_ne u _)
+    · exact Fin.ext (by omega)
+  -- Build the equivalence
+  let σ : Fin (k + 1) ≃ Fin (k + 1) :=
+    Equiv.ofBijective fwd
+      ((Finite.injective_iff_bijective).mp fwd_inj)
+  refine ⟨σ, fun i j => ?_⟩
+  -- Prove ∀ i j, adj (σ i) (σ j) = t_adj i j
+  change adj (fwd i) (fwd j) = t_adj i j
+  simp only [fwd]
+  by_cases hi : i.val < k <;> by_cases hj : j.val < k
+  · -- Both path vertices
+    rw [dif_pos hi, dif_pos hj, hadj_σ₀, ht_path i j hi hj]
+  · -- i path, j = branch vertex (k)
+    rw [dif_pos hi, dif_neg hj]
+    have hj_val : j.val = k := by have := j.isLt; omega
+    have hj_eq : j = ⟨k, by omega⟩ := Fin.ext hj_val
+    rw [hj_eq, ht_branch _ hi, hadj_branch]
+  · -- i = branch vertex (k), j path
+    rw [dif_neg hi, dif_pos hj]
+    have hi_val : i.val = k := by have := i.isLt; omega
+    have hi_eq : i = ⟨k, by omega⟩ := Fin.ext hi_val
+    rw [hi_eq, ht_branch_symm _ hj, hsymm.apply, hadj_branch]
+  · -- Both = k
+    have hi_val : i.val = k := by have := i.isLt; omega
+    have hj_val : j.val = k := by have := j.isLt; omega
+    have hi_eq : i = ⟨k, by omega⟩ := Fin.ext hi_val
+    have hj_eq : j = ⟨k, by omega⟩ := Fin.ext hj_val
+    rw [dif_neg hi, dif_neg hj, hi_eq, hj_eq, ht_diag_k, hdiag]
 
 /-- A tree with a degree-3 vertex (branch) and all degrees ≤ 3 has exactly one such vertex,
     three arms of lengths p ≤ q ≤ r with n = p + q + r + 1, and is uniquely determined
@@ -921,29 +1054,114 @@ private lemma branch_classification {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
           change wfin.val + 1 = b at h2; omega
       linarith
     -- Set up arm lengths
-    set p := 1 with hp_def
     set q := min b (k - 1 - b) with hq_def
     set r := max b (k - 1 - b) with hr_def
-    have hp1 : 1 ≤ p := le_refl 1
-    have hpq : p ≤ q := by
-      simp only [p, q]; exact Nat.one_le_iff_ne_zero.mpr (by omega)
+    have hpq : 1 ≤ q := by
+      simp only [q]; exact Nat.one_le_iff_ne_zero.mpr (by omega)
     have hqr : q ≤ r := by simp only [q, r]; omega
-    have hn_eq : k + 1 = p + q + r + 1 := by
-      simp only [p, q, r, min_def, max_def]
+    have hn_eq : k + 1 = 1 + q + r + 1 := by
+      simp only [q, r, min_def, max_def]
       split_ifs <;> omega
-    have hrecip : (q + 1) * (r + 1) + (p + 1) * (r + 1) + (p + 1) * (q + 1) >
-                  (p + 1) * (q + 1) * (r + 1) := by
+    have hrecip : (q + 1) * (r + 1) + 2 * (r + 1) + 2 * (q + 1) >
+                  2 * (q + 1) * (r + 1) := by
       sorry -- Derived from positive definiteness of the Cartan form
-    rcases arm_length_solutions p q r hp1 hpq hqr hrecip with
+    have hu_adj' : adj u (u.succAbove v') = 1 := by
+      rw [hv', hsymm.apply]; exact hu_adj
+    have hu_unique' : ∀ w, adj u w = 1 → w = u.succAbove v' := by
+      intro w hw; have h := hu_unique w hw; rwa [← hv'] at h
+    rcases arm_length_solutions 1 q r (le_refl 1) hpq hqr hrecip with
       ⟨_, hq1⟩ | ⟨_, hq2, hr2⟩ | ⟨_, hq2, hr3⟩ | ⟨_, hq2, hr4⟩
     · -- Case (1, 1, r): D_{r+3} type
-      sorry
+      have hk4 : 4 ≤ k + 1 := by omega
+      refine ⟨.D (k + 1) hk4, ?_⟩
+      have hbm : b = k - 2 ∨ b = k - 1 - (k - 2) := by
+        simp only [q, min_def] at hq1; split_ifs at hq1 <;> omega
+      exact tree_branch_iso hsymm hdiag h01 u v' adj' hadj'_def
+        hu_adj' hu_unique' σ' hσ'_fwd hσ'_only b hb_lt hσ'_b
+        _ (k - 2) (by omega) hbm
+        (by intro i j hi hj
+            show (if ((i.val + 1 = j.val ∧ j.val ≤ (k + 1) - 2) ∨
+                      (j.val + 1 = i.val ∧ i.val ≤ (k + 1) - 2)) ∨
+                     ((i.val = (k + 1) - 3 ∧ j.val = (k + 1) - 1) ∨
+                      (j.val = (k + 1) - 3 ∧ i.val = (k + 1) - 1))
+                 then 1 else 0) = if (i.val + 1 = j.val ∨ j.val + 1 = i.val) then 1 else 0
+            split_ifs <;> omega)
+        (by intro i hi
+            show (if ((i.val + 1 = (⟨k, by omega⟩ : Fin (k + 1)).val ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val ≤ (k + 1) - 2) ∨
+                      ((⟨k, by omega⟩ : Fin (k + 1)).val + 1 = i.val ∧
+                       i.val ≤ (k + 1) - 2)) ∨
+                     ((i.val = (k + 1) - 3 ∧ (⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 1) ∨
+                      ((⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 3 ∧ i.val = (k + 1) - 1))
+                 then 1 else 0) = if i.val = k - 2 then 1 else 0
+            simp only [show (⟨k, by omega⟩ : Fin (k + 1)).val = k from rfl]
+            split_ifs <;> omega)
+        (by intro i hi
+            show (if (((⟨k, by omega⟩ : Fin (k + 1)).val + 1 = i.val ∧
+                       i.val ≤ (k + 1) - 2) ∨
+                      (i.val + 1 = (⟨k, by omega⟩ : Fin (k + 1)).val ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val ≤ (k + 1) - 2)) ∨
+                     (((⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 3 ∧ i.val = (k + 1) - 1) ∨
+                      (i.val = (k + 1) - 3 ∧ (⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 1))
+                 then 1 else 0) = if i.val = k - 2 then 1 else 0
+            simp only [show (⟨k, by omega⟩ : Fin (k + 1)).val = k from rfl]
+            split_ifs <;> omega)
+        (by show (if (((⟨k, by omega⟩ : Fin (k + 1)).val + 1 = (⟨k, by omega⟩ : Fin (k + 1)).val ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val ≤ (k + 1) - 2) ∨
+                      ((⟨k, by omega⟩ : Fin (k + 1)).val + 1 = (⟨k, by omega⟩ : Fin (k + 1)).val ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val ≤ (k + 1) - 2)) ∨
+                     (((⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 3 ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 1) ∨
+                      ((⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 3 ∧
+                       (⟨k, by omega⟩ : Fin (k + 1)).val = (k + 1) - 1))
+                 then 1 else 0) = 0
+            simp only [show (⟨k, by omega⟩ : Fin (k + 1)).val = k from rfl]
+            split_ifs <;> omega)
     · -- Case (1, 2, 2): E₆
-      sorry
+      have hk5 : k = 5 := by omega
+      subst hk5
+      refine ⟨.E6, ?_⟩
+      have hbm : b = 2 ∨ b = 5 - 1 - 2 := by
+        simp only [q, min_def] at hq2
+        simp only [r, max_def] at hr2
+        split_ifs at hq2 hr2 <;> omega
+      exact tree_branch_iso hsymm hdiag h01 u v' adj' hadj'_def
+        hu_adj' hu_unique' σ' hσ'_fwd hσ'_only b hb_lt hσ'_b
+        _ 2 (by omega) hbm
+        (by intro i j hi hj; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by dsimp only [DynkinType.adj]; split_ifs <;> omega)
     · -- Case (1, 2, 3): E₇
-      sorry
+      have hk6 : k = 6 := by omega
+      subst hk6
+      refine ⟨.E7, ?_⟩
+      have hbm : b = 2 ∨ b = 6 - 1 - 2 := by
+        simp only [q, min_def] at hq2
+        simp only [r, max_def] at hr3
+        split_ifs at hq2 hr3 <;> omega
+      exact tree_branch_iso hsymm hdiag h01 u v' adj' hadj'_def
+        hu_adj' hu_unique' σ' hσ'_fwd hσ'_only b hb_lt hσ'_b
+        _ 2 (by omega) hbm
+        (by intro i j hi hj; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by dsimp only [DynkinType.adj]; split_ifs <;> omega)
     · -- Case (1, 2, 4): E₈
-      sorry
+      have hk7 : k = 7 := by omega
+      subst hk7
+      refine ⟨.E8, ?_⟩
+      have hbm : b = 2 ∨ b = 7 - 1 - 2 := by
+        simp only [q, min_def] at hq2
+        simp only [r, max_def] at hr4
+        split_ifs at hq2 hr4 <;> omega
+      exact tree_branch_iso hsymm hdiag h01 u v' adj' hadj'_def
+        hu_adj' hu_unique' σ' hσ'_fwd hσ'_only b hb_lt hσ'_b
+        _ 2 (by omega) hbm
+        (by intro i j hi hj; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by intro i hi; dsimp only [DynkinType.adj]; split_ifs <;> omega)
+        (by dsimp only [DynkinType.adj]; split_ifs <;> omega)
 
 /-- Forward direction of the Dynkin classification: any Dynkin diagram on n ≥ 1 vertices
     is graph-isomorphic to one of the standard types A_n, D_n, E₆, E₇, or E₈. -/
