@@ -1,4 +1,5 @@
 import Mathlib
+import EtingofRepresentationTheory.Chapter4.Theorem4_2_1
 
 /-!
 # Theorem 5.26.1: Artin's Theorem
@@ -132,7 +133,22 @@ private lemma class_fun_vanishes_on_subgroup_of_orthogonal
     (horth : ∀ (W : FDRep ℂ ↥H), CategoryTheory.Simple W →
       ∑ h : ↥H, f ↑h * W.character (h⁻¹) = 0) :
     ∀ h : ↥H, f ↑h = 0 := by
-  sorry
+  -- It suffices to show the restriction g(h) = f(↑h) is zero as a function
+  suffices hzero : (fun h : ↥H => f ↑h) = 0 by
+    intro h; exact congr_fun hzero h
+  -- |H| is invertible in ℂ (characteristic 0, |H| > 0)
+  haveI : Invertible (Fintype.card ↥H : ℂ) :=
+    invertibleOfNonzero (Nat.cast_ne_zero.mpr Fintype.card_ne_zero)
+  -- Apply character completeness on H (Theorem 4.2.1)
+  apply Etingof.classFunction_eq_zero_of_orthogonal_simples
+  · -- The restriction is a class function on H
+    intro a b
+    change f ↑(b * a * b⁻¹) = f ↑a
+    simp only [Subgroup.coe_mul, Subgroup.coe_inv]
+    exact hf_class ↑a ↑b
+  · -- The restriction is orthogonal to all irreducible characters of H
+    intro W
+    exact horth W ‹_›
 
 /-- Trivial covering argument: if f vanishes on every subgroup in X and X covers G,
 then f vanishes on all of G. -/

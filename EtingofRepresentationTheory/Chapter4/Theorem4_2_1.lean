@@ -172,6 +172,18 @@ private lemma classFunction_eq_zero_of_orthogonal_simples
 end Etingof.Theorem4_2_1_aux
 
 open Etingof.Theorem4_2_1_aux in
+/-- Character completeness: a class function orthogonal to all irreducible
+characters is zero. Public API for the internal completeness lemma. -/
+theorem Etingof.classFunction_eq_zero_of_orthogonal_simples
+    {k G : Type u} [Field k] [IsAlgClosed k] [Group G] [Fintype G]
+    [Invertible (Fintype.card G : k)]
+    (f : G → k) (hf_class : ∀ g h : G, f (h * g * h⁻¹) = f g)
+    (hf_orth : ∀ (V : FDRep k G) [Simple V], ∑ g : G, f g * V.character g⁻¹ = 0) :
+    f = 0 := by
+  classical
+  exact Etingof.Theorem4_2_1_aux.classFunction_eq_zero_of_orthogonal_simples f hf_class hf_orth
+
+open Etingof.Theorem4_2_1_aux in
 /-- Characters of irreducible representations span the space of class functions:
 every function G → k that is constant on conjugacy classes is a k-linear combination
 of characters of simple (irreducible) representations. (Etingof Theorem 4.2.1) -/
