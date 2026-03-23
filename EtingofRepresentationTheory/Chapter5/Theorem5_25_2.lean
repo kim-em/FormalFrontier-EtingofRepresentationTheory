@@ -585,11 +585,64 @@ private lemma Etingof.GL2.detChar_simple
     simple_of_full_faithful_preservesMono' E.functor _
   exact simple_of_full_faithful_preservesMono' (forget₂ (FDRep ℂ (GL2 p n)) (Rep ℂ (GL2 p n))) _
 
+/-- The linear map underlying the embedding sends c to ⟨g ↦ c·μ(det g), _⟩. -/
+private def Etingof.GL2.detCharEmbedding_linearMap
+    (mu : (GaloisField p n)ˣ →* ℂˣ) :
+    ℂ →ₗ[ℂ] ↥(Etingof.GL2.principalSeriesSubmodule p n mu mu) where
+  toFun c := ⟨fun g => c * (mu (Matrix.GeneralLinearGroup.det g) : ℂ),
+    fun b g => by
+      have := Etingof.GL2.detFun_mem_principalSeries p n mu b g
+      simp only [Etingof.GL2.borelCharValue] at this ⊢; rw [this]; ring⟩
+  map_add' a b := Subtype.ext (funext fun _ => by simp [add_mul])
+  map_smul' r c := Subtype.ext (funext fun _ => by simp [mul_assoc])
+
+/-- aug ∘ emb(c) = c · |G| (at the linear map level). -/
+private lemma Etingof.GL2.aug_comp_emb_eq
+    (mu : (GaloisField p n)ˣ →* ℂˣ) (c : ℂ) :
+    Etingof.GL2.augOnPrincipalSeries p n mu
+      (Etingof.GL2.detCharEmbedding_linearMap p n mu c) =
+    c * (Fintype.card (GL2 p n) : ℂ) := by
+  simp only [Etingof.GL2.augOnPrincipalSeries, LinearMap.comp_apply,
+    Etingof.GL2.augmentation, Etingof.GL2.detCharEmbedding_linearMap,
+    LinearMap.coe_mk, AddHom.coe_mk, Submodule.coe_subtype]
+  simp_rw [show ∀ g : GL2 p n,
+      c * ↑(mu (Matrix.GeneralLinearGroup.det g)) *
+      ↑(mu (Matrix.GeneralLinearGroup.det g))⁻¹ = c from fun g => by
+    rw [mul_assoc, Units.val_inv_eq_inv_val, mul_inv_cancel₀ (Units.ne_zero _), mul_one]]
+  simp [Finset.sum_const, Finset.card_univ, mul_comm]
+
 /-- The embedding ℂ_μ ↪ V(μ,μ) is nonzero. -/
 private lemma Etingof.GL2.detCharEmbedding_ne_zero
     (mu : (GaloisField p n)ˣ →* ℂˣ) :
     Etingof.GL2.detCharEmbedding p n mu ≠ 0 := by
-  sorry
+  -- It suffices to show the underlying linear map is nonzero
+  -- emb(1) = (g ↦ μ(det g)) which evaluated at g=1 gives μ(1) = 1 ≠ 0
+  intro h
+  -- Extract: if emb = 0 in FDRep, the linear map sends 1 to 0
+  have h1 : (Etingof.GL2.detCharEmbedding_linearMap p n mu 1).val (1 : GL2 p n) = 0 := by
+    -- The detCharEmbedding is built from detCharEmbedding_linearMap
+    -- If emb = 0, then emb.hom.hom = 0, so detCharEmbedding_linearMap = 0
+    have hlin : Etingof.GL2.detCharEmbedding_linearMap p n mu = 0 := by
+      have hh : (Etingof.GL2.detCharEmbedding p n mu).hom = 0 := by
+        rw [h]; exact Action.zero_hom
+      ext x
+      -- Goal: ↑(detCharEmbedding_linearMap ... 1) x = 0
+      -- This equals μ(det x) = 0, derivable from hh
+      -- detCharEmbedding.hom = FGModuleCat.ofHom {toFun := detCharEmbedding_linearMap ...}
+      -- So hh tells us FGModuleCat.ofHom(detCharEmbedding_linearMap) = 0
+      -- Extract: (FGModuleCat.ofHom f).hom.hom = f as a function
+      have key : ∀ (c : ℂ) (g : GL2 p n),
+          (Etingof.GL2.detCharEmbedding_linearMap p n mu c).val g =
+          (ConcreteCategory.hom
+            (Etingof.GL2.detCharEmbedding p n mu).hom.hom c :
+            ↥(Etingof.GL2.principalSeriesSubmodule p n mu mu)).val g := by
+        intro c g; rfl
+      rw [key 1 x, hh]
+      -- Goal: ↑((ConcreteCategory.hom (InducedCategory.Hom.hom 0)) 1) x = 0
+      rfl
+    simp [hlin]
+  -- But emb(1) at g=1 is 1·μ(det 1) = μ(1) = 1
+  simp [Etingof.GL2.detCharEmbedding_linearMap] at h1
 
 /-- The embedding ℂ_μ ↪ V(μ,μ) is mono (injective). -/
 private lemma Etingof.GL2.detCharEmbedding_mono
