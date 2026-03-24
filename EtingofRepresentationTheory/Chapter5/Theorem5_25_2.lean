@@ -1,5 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration
+import EtingofRepresentationTheory.Chapter4.Corollary4_2_4
 
 /-!
 # Theorem 5.25.2: Principal Series Representations of GL₂(𝔽_q)
@@ -2298,14 +2299,156 @@ theorem Etingof.Theorem5_25_2_part2
    Etingof.GL2.complementW_simple p n mu,
    Etingof.GL2.complementW_finrank p n hn mu⟩
 
-/-- Helper: the character of W_μ on diagonal matrices determines μ.
-If W_μ ≅ W_ν as representations, then their characters agree on all elements,
-and evaluation on diagonal matrices diag(x, 1) recovers μ(x). -/
+/-- The action of diagElt(c) on a complementW element at cosetRep(some t)
+gives mu(c) * f(cosetRep(some(t * c⁻¹))). This is the W_μ version of
+action_diagonal_some. -/
+private lemma Etingof.GL2.complementW_action_diagonal_some
+    (mu : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.complementWSubmodule p n mu))
+    (c : (GaloisField p n)ˣ) (t : GaloisField p n) :
+    (Etingof.GL2.complementWRep p n mu (Etingof.GL2.diagElt p n c) f).val
+      (Etingof.GL2.cosetRep p n (some t)) =
+    (mu c : ℂ) * f.val (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹))) := by
+  -- The complementWRep action is the same as principalSeriesRep on the underlying function
+  change f.val (Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.diagElt p n c) = _
+  -- Use the principalSeries action formula (same proof as action_diagonal_some with chi1=chi2=mu)
+  set bmat : Matrix (Fin 2) (Fin 2) (GaloisField p n) :=
+    !![1, 0; 0, (c : GaloisField p n)]
+  have hbdet : bmat.det ≠ 0 := by
+    simp [bmat, Matrix.det_fin_two, Units.ne_zero]
+  set b := Matrix.GeneralLinearGroup.mkOfDetNeZero bmat hbdet
+  have hb_mem : b.val 1 0 = 0 := by
+    simp [b, bmat, Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible]
+  have hprod : Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.diagElt p n c =
+      b * Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹)) := by
+    apply Matrix.GeneralLinearGroup.ext; intro i j
+    simp only [Matrix.GeneralLinearGroup.coe_mul,
+      Etingof.GL2.cosetRep, Etingof.GL2.diagElt, b, bmat,
+      Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+      Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+    have hc_ne : (c : GaloisField p n) ≠ 0 := Units.ne_zero c
+    fin_cases i <;> fin_cases j <;> simp
+    · field_simp
+  rw [hprod]
+  have hcov := f.prop.1 ⟨b, hb_mem⟩ (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹)))
+  rw [hcov]
+  congr 1
+  simp [Etingof.GL2.borelCharValue, b, bmat,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible]
+
+/-- The permutation action on 𝔽_q → ℂ given by (σ_c · f)(t) = f(t * c⁻¹). -/
+private noncomputable def Etingof.GL2.permAction
+    (c : (GaloisField p n)ˣ) : (GaloisField p n → ℂ) →ₗ[ℂ] (GaloisField p n → ℂ) where
+  toFun f t := f (t * ↑c⁻¹)
+  map_add' f g := by ext t; simp [Pi.add_apply]
+  map_smul' r f := by ext t; simp [Pi.smul_apply, smul_eq_mul]
+
+set_option maxHeartbeats 800000 in
+/-- The trace of the permutation t ↦ t * c⁻¹ on 𝔽_q → ℂ.
+For c ≠ 1, only t = 0 is a fixed point, so the trace is 1. -/
+private lemma Etingof.GL2.trace_permAction
+    (c : (GaloisField p n)ˣ) (hc : c ≠ 1) :
+    LinearMap.trace ℂ (GaloisField p n → ℂ) (Etingof.GL2.permAction p n c) = 1 := by
+  rw [LinearMap.trace_eq_matrix_trace ℂ (Pi.basisFun ℂ (GaloisField p n))]
+  simp only [Matrix.trace, Matrix.diag]
+  -- Need to compute diagonal entries of the matrix representation
+  -- M_{i,i} = coefficient of e_i in permAction(c)(e_i) = (permAction(c)(e_i))(i) = e_i(i * c⁻¹)
+  -- = if i = i * c⁻¹ then 1 else 0
+  -- For c ≠ 1: only i = 0 satisfies i = i * c⁻¹
+  have hcinv_ne_one : (↑c⁻¹ : GaloisField p n) ≠ 1 := by
+    intro h
+    apply hc
+    have : c⁻¹ = 1 := Units.val_eq_one.mp h
+    rw [inv_eq_one] at this
+    exact this
+  have hfixed : ∀ i : GaloisField p n, i * ↑c⁻¹ = i ↔ i = 0 := by
+    intro i
+    constructor
+    · intro h
+      by_contra hi
+      apply hcinv_ne_one
+      have : i * ↑c⁻¹ = i * 1 := by rw [mul_one]; exact h
+      exact mul_left_cancel₀ hi this
+    · intro h; rw [h, zero_mul]
+  -- Each diagonal entry of the matrix is: (permAction(c)(e_i))(i)
+  -- = e_i(i * c⁻¹) = if i*c⁻¹ = i then 1 else 0
+  -- By hfixed, only i = 0 contributes, so the sum = 1
+  have hentry : ∀ i : GaloisField p n,
+      (Pi.basisFun ℂ (GaloisField p n)).repr
+        (Etingof.GL2.permAction p n c ((Pi.basisFun ℂ (GaloisField p n)) i)) i =
+      if i = 0 then (1 : ℂ) else 0 := by
+    intro i
+    simp only [Pi.basisFun_apply, Pi.basisFun_repr, Etingof.GL2.permAction,
+      LinearMap.coe_mk, AddHom.coe_mk, Pi.single_apply, hfixed]
+  simp_rw [LinearMap.toMatrix_apply, hentry]
+  simp [Finset.sum_ite_eq', Finset.mem_univ]
+
+set_option maxHeartbeats 800000 in
+private lemma Etingof.GL2.complementW_char_diagElt
+    (mu : (GaloisField p n)ˣ →* ℂˣ)
+    (c : (GaloisField p n)ˣ) (hc : c ≠ 1) :
+    FDRep.character (Etingof.GL2.complementW p n mu)
+      (Etingof.GL2.diagElt p n c) = (mu c : ℂ) := by
+  -- The character is the trace of the action
+  simp only [FDRep.character]
+  -- Transfer trace to (GaloisField p n → ℂ) via the evaluation equivalence
+  have hinj : Function.Injective (Etingof.GL2.complementW_evalMap p n mu) := by
+    intro f g heq
+    have : f - g = 0 := by
+      apply Etingof.GL2.complementW_eval_injective
+      intro t
+      have := congr_fun heq t
+      simp [Etingof.GL2.complementW_evalMap] at this
+      simp [this]
+    exact sub_eq_zero.mp this
+  have hsurj : Function.Surjective (Etingof.GL2.complementW_evalMap p n mu) := by
+    intro c
+    obtain ⟨f, hf⟩ := Etingof.GL2.complementW_eval_surjective p n mu c
+    exact ⟨f, funext hf⟩
+  set e := LinearEquiv.ofBijective (Etingof.GL2.complementW_evalMap p n mu) ⟨hinj, hsurj⟩
+  -- trace on complementWSubmodule = trace of conjugated map on (GaloisField → ℂ)
+  rw [show (LinearMap.trace ℂ _)
+      ((Etingof.GL2.complementW p n mu).ρ (Etingof.GL2.diagElt p n c)) =
+    (LinearMap.trace ℂ _) (e.conj
+      ((Etingof.GL2.complementW p n mu).ρ (Etingof.GL2.diagElt p n c))) from
+    (LinearMap.trace_conj' _ e).symm]
+  -- The conjugated map is μ(c) • permAction
+  have hconj : e.conj ((Etingof.GL2.complementW p n mu).ρ (Etingof.GL2.diagElt p n c)) =
+      (mu c : ℂ) • Etingof.GL2.permAction p n c := by
+    apply LinearMap.ext; intro g
+    apply funext; intro t
+    simp only [LinearEquiv.conj_apply, LinearMap.comp_apply, LinearMap.smul_apply,
+      Etingof.GL2.permAction, LinearMap.coe_mk, AddHom.coe_mk, smul_eq_mul,
+      Pi.smul_apply]
+    -- Use the action formula: (diagElt c · e⁻¹(g))(rep(some t)) = μ(c) * e⁻¹(g)(rep(some(t*c⁻¹)))
+    have hact := Etingof.GL2.complementW_action_diagonal_some p n mu (e.symm g) c t
+    -- The LHS after unfolding e = complementW_evalMap
+    change (Etingof.GL2.complementWRep p n mu (Etingof.GL2.diagElt p n c) (e.symm g)).val
+      (Etingof.GL2.cosetRep p n (some t)) = _
+    rw [hact]
+    congr 1
+    -- (e⁻¹(g))(cosetRep(some(t*c⁻¹))) = g(t*c⁻¹) by definition of e
+    exact congr_fun (e.apply_symm_apply g) (t * ↑c⁻¹)
+  rw [hconj, map_smul, Etingof.GL2.trace_permAction p n c hc, smul_eq_mul, mul_one]
+
 private lemma Etingof.GL2.complementW_iso_implies_eq
     (mu nu : (GaloisField p n)ˣ →* ℂˣ)
     (iso : Etingof.GL2.complementW p n mu ≅ Etingof.GL2.complementW p n nu) :
     mu = nu := by
-  sorry
+  -- Step 1: Isomorphic reps have equal characters
+  have hchar : FDRep.character (Etingof.GL2.complementW p n mu) =
+    FDRep.character (Etingof.GL2.complementW p n nu) := FDRep.char_iso iso
+  -- Step 2: Extract pointwise equality from character equality at diagElt(c)
+  ext c
+  by_cases hc : c = 1
+  · subst hc; simp
+  · have h1 := Etingof.GL2.complementW_char_diagElt p n mu c hc
+    have h2 := Etingof.GL2.complementW_char_diagElt p n nu c hc
+    have h3 := congr_fun hchar (Etingof.GL2.diagElt p n c)
+    rw [h1, h2] at h3
+    exact_mod_cast h3
 
 /-- **Theorem 5.25.2 (3a)**: W_μ ≅ W_ν if and only if μ = ν.
 (Etingof Theorem 5.25.2) -/
@@ -2319,14 +2462,270 @@ theorem Etingof.Theorem5_25_2_part3a
   · rintro rfl
     exact ⟨Iso.refl _⟩
 
+/-- Character orthogonality: sum of nontrivial character values is zero. -/
+private lemma Etingof.GL2.sum_nontrivial_char_eq_zero
+    {G : Type*} [CommGroup G] [Fintype G]
+    (χ : G →* ℂˣ) (hχ : χ ≠ 1) :
+    ∑ g : G, (χ g : ℂ) = 0 := by
+  have ⟨g₀, hg₀⟩ : ∃ g₀, χ g₀ ≠ 1 := by
+    by_contra h; push_neg at h; exact absurd (MonoidHom.ext h) hχ
+  have hne : (χ g₀ : ℂ) ≠ 1 := fun h => hg₀ (Units.val_injective h)
+  have key : (χ g₀ : ℂ) * ∑ g, (χ g : ℂ) = ∑ g, (χ g : ℂ) := by
+    rw [Finset.mul_sum]
+    apply Finset.sum_nbij (fun g => g₀ * g)
+    · intro g _; exact Finset.mem_univ _
+    · intro g₁ _ g₂ _ h; exact mul_left_cancel h
+    · intro g _; exact ⟨g₀⁻¹ * g, Finset.mem_univ _, by group⟩
+    · intro g _; simp only [map_mul, Units.val_mul]
+  have h1 : ((χ g₀ : ℂ) - 1) * ∑ g, (χ g : ℂ) = 0 := by
+    rw [sub_mul, one_mul, sub_eq_zero]; exact key
+  exact (mul_eq_zero.mp h1).resolve_left (sub_ne_zero.mpr hne)
+
+/-- V(χ₁,χ₂) ≅ V(χ₂,χ₁): the character of V(χ₁,χ₂) is symmetric in χ₁, χ₂,
+    so by Corollary 4.2.4 (equal characters ⟹ isomorphic representations) they are isomorphic. -/
+private lemma Etingof.GL2.principalSeries_iso_swap
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
+    Nonempty (Etingof.GL2.principalSeries p n chi1 chi2 ≅
+      Etingof.GL2.principalSeries p n chi2 chi1) := by
+  apply Etingof.Corollary4_2_4
+  ext g
+  simp only [FDRep.character, Etingof.GL2.principalSeries, Etingof.GL2.principalSeriesRep]
+  sorry -- character of V(χ₁,χ₂) at g = character of V(χ₂,χ₁) at g
+
+set_option maxHeartbeats 1600000 in
+-- trace computation through evaluation linear equiv
+/-- The character of V(χ₁,χ₂) on diagElt(c) for c ≠ 1 equals χ₁(c) + χ₂(c). -/
+private lemma Etingof.GL2.principalSeries_char_diagElt
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (c : (GaloisField p n)ˣ) (hc : c ≠ 1) :
+    FDRep.character (Etingof.GL2.principalSeries p n chi1 chi2)
+      (Etingof.GL2.diagElt p n c) = (chi1 c : ℂ) + (chi2 c : ℂ) := by
+  simp only [FDRep.character]
+  -- Build the evaluation linear equiv
+  let evalMap : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) →ₗ[ℂ]
+      (Option (GaloisField p n) → ℂ) :=
+    { toFun := fun f i => (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i)
+      map_add' := fun _ _ => funext fun _ => rfl
+      map_smul' := fun _ _ => funext fun _ => rfl }
+  have hinj : Function.Injective evalMap := by
+    intro f g hfg
+    have h : f - g = 0 := Etingof.GL2.principalSeries_eval_injective p n chi1 chi2 (f - g)
+      (fun i => by have := congr_fun hfg i; simp [evalMap] at this; simp [this])
+    exact sub_eq_zero.mp h
+  have hsurj : Function.Surjective evalMap := fun c =>
+    ⟨⟨Etingof.GL2.mkCovariantFun p n chi1 chi2 c,
+      Etingof.GL2.mkCovariantFun_mem p n chi1 chi2 c⟩,
+     funext fun i => Etingof.GL2.mkCovariantFun_eval p n chi1 chi2 c i⟩
+  set e := LinearEquiv.ofBijective evalMap ⟨hinj, hsurj⟩
+  rw [show (LinearMap.trace ℂ _)
+      ((Etingof.GL2.principalSeries p n chi1 chi2).ρ (Etingof.GL2.diagElt p n c)) =
+    (LinearMap.trace ℂ _) (e.conj
+      ((Etingof.GL2.principalSeries p n chi1 chi2).ρ (Etingof.GL2.diagElt p n c))) from
+    (LinearMap.trace_conj' _ e).symm]
+  have hcinv_ne_one : (↑c⁻¹ : GaloisField p n) ≠ 1 := by
+    intro h; apply hc; exact inv_eq_one.mp (Units.val_eq_one.mp h)
+  have hfixed : ∀ t : GaloisField p n, t * ↑c⁻¹ = t ↔ t = 0 := by
+    intro t; constructor
+    · intro h; by_contra ht; apply hcinv_ne_one
+      exact mul_left_cancel₀ ht (by rw [mul_one]; exact h)
+    · intro h; rw [h, zero_mul]
+  -- The conjugated map acts as: g(none) ↦ χ₁(c)·g(none), g(some t) ↦ χ₂(c)·g(some(t*c⁻¹))
+  -- Compute its trace via the matrix diagonal
+  rw [LinearMap.trace_eq_matrix_trace ℂ (Pi.basisFun ℂ (Option (GaloisField p n)))]
+  simp only [Matrix.trace, Matrix.diag]
+  -- Compute diagonal entries
+  have hentry : ∀ i : Option (GaloisField p n),
+      (Pi.basisFun ℂ (Option (GaloisField p n))).repr
+        (e.conj ((Etingof.GL2.principalSeries p n chi1 chi2).ρ
+          (Etingof.GL2.diagElt p n c))
+          ((Pi.basisFun ℂ (Option (GaloisField p n))) i)) i =
+      match i with
+      | none => (chi1 c : ℂ)
+      | some t => if t = 0 then (chi2 c : ℂ) else 0 := by
+    intro i
+    simp only [Pi.basisFun_apply, Pi.basisFun_repr, LinearEquiv.conj_apply,
+      LinearMap.comp_apply]
+    -- e.conj(ρ(δ_c))(e_i) = e(ρ(δ_c)(e⁻¹(e_i)))
+    -- e⁻¹(e_i) is the unique covariant function with value (Pi.single i 1) at coset reps
+    -- ρ(δ_c) acts on it, then e evaluates at cosetRep(i)
+    -- The result at index i gives the diagonal entry
+    cases i with
+    | none =>
+      -- (e(ρ(δ_c)(e⁻¹(e_none))))(none)
+      -- = (ρ(δ_c)(e⁻¹(e_none)))(cosetRep(none))
+      -- = χ₁(c) · (e⁻¹(e_none))(cosetRep(none))
+      -- = χ₁(c) · e_none(none) = χ₁(c) · 1 = χ₁(c)
+      show (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
+        (Etingof.GL2.diagElt p n c) (e.symm (Pi.single none 1)))) none = (chi1 c : ℂ)
+      -- Unfold evalMap
+      show (Etingof.GL2.principalSeriesRep p n chi1 chi2
+        (Etingof.GL2.diagElt p n c) (e.symm (Pi.single none 1))).val
+        (Etingof.GL2.cosetRep p n none) = (chi1 c : ℂ)
+      rw [Etingof.GL2.action_diagonal_none]
+      congr 1
+      -- Goal: χ₁(c) * (e⁻¹(e_none))(cosetRep(none)) = χ₁(c)
+      -- Suffices to show the eval = 1
+      have h1 : (↑(e.symm (Pi.single none 1)) : GL2 p n → ℂ)
+          (Etingof.GL2.cosetRep p n none) = 1 :=
+        (congr_fun (e.apply_symm_apply (Pi.single none 1)) none).trans
+          (Pi.single_eq_same _ _)
+      rw [h1, mul_one]
+    | some t =>
+      show (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
+        (Etingof.GL2.diagElt p n c) (e.symm (Pi.single (some t) 1)))) (some t) =
+        if t = 0 then (chi2 c : ℂ) else 0
+      show (Etingof.GL2.principalSeriesRep p n chi1 chi2
+        (Etingof.GL2.diagElt p n c) (e.symm (Pi.single (some t) 1))).val
+        (Etingof.GL2.cosetRep p n (some t)) = if t = 0 then (chi2 c : ℂ) else 0
+      rw [Etingof.GL2.action_diagonal_some]
+      -- Goal: χ₂(c) * (e⁻¹(δ_{some t}))(cosetRep(some(t*c⁻¹))) = if t = 0 then χ₂(c) else 0
+      -- First isolate the eval part using congr 1 won't work since RHS isn't chi2*_
+      -- Instead, prove the eval = Pi.single value, then rewrite
+      have heval : (↑(e.symm (Pi.single (some t) 1)) : GL2 p n → ℂ)
+          (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹))) =
+          if t = 0 then 1 else 0 := by
+        have h := congr_fun (e.apply_symm_apply (Pi.single (some t) 1)) (some (t * ↑c⁻¹))
+        -- h : e(e.symm(δ_{some t}))(some(t*c⁻¹)) = δ_{some t}(some(t*c⁻¹))
+        -- which is definitionally = (e.symm ...).val(cosetRep(some(t*c⁻¹)))
+        rw [show e (e.symm (Pi.single (some t) 1)) (some (t * ↑c⁻¹)) =
+            (↑(e.symm (Pi.single (some t) 1)) : GL2 p n → ℂ)
+            (Etingof.GL2.cosetRep p n (some (t * ↑c⁻¹))) from rfl] at h
+        rw [h]; simp only [Pi.single_apply, Option.some.injEq]
+        simp only [hfixed]
+      rw [heval]; split_ifs <;> simp
+  simp_rw [LinearMap.toMatrix_apply, hentry]
+  -- Sum over Option: none gives χ₁(c), some(0) gives χ₂(c), rest give 0
+  rw [Fintype.sum_option]
+  simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+
+/-- If χ₁ + χ₂ = χ₁' + χ₂' as functions on units, and χ₁ ≠ χ₂, χ₁' ≠ χ₂',
+    then {χ₁, χ₂} = {χ₁', χ₂'} as sets. Uses character orthogonality. -/
+private lemma Etingof.GL2.pair_eq_of_sum_eq
+    (chi1 chi2 chi1' chi2' : (GaloisField p n)ˣ →* ℂˣ)
+    (hne : chi1 ≠ chi2) (hne' : chi1' ≠ chi2')
+    (hsum : ∀ c : (GaloisField p n)ˣ, (chi1 c : ℂ) + (chi2 c : ℂ) =
+      (chi1' c : ℂ) + (chi2' c : ℂ)) :
+    ({chi1, chi2} : Set ((GaloisField p n)ˣ →* ℂˣ)) = {chi1', chi2'} := by
+  -- Use orthogonality: ∑_c (χ/ψ)(c) = 0 if χ ≠ ψ, = |G| if χ = ψ
+  -- Pair both sides of the sum with χ₁'⁻¹:
+  -- ∑_c (χ₁(c) + χ₂(c)) · χ₁'(c)⁻¹ = ∑_c (χ₁'(c) + χ₂'(c)) · χ₁'(c)⁻¹
+  -- LHS = ∑ (χ₁/χ₁')(c) + ∑ (χ₂/χ₁')(c) = δ(χ₁,χ₁')·|G| + δ(χ₂,χ₁')·|G|
+  -- RHS = |G| + 0 = |G| (since χ₂' ≠ χ₁')
+  -- So δ(χ₁,χ₁') + δ(χ₂,χ₁') = 1
+  -- Either χ₁ = χ₁' (→ χ₂ = χ₂') or χ₂ = χ₁' (→ χ₁ = χ₂')
+  by_cases h : chi1 = chi1'
+  · -- χ₁ = χ₁': from sum equality, χ₂ = χ₂'
+    have h2 : chi2 = chi2' := by
+      ext c; have := hsum c; rw [show (chi1 c : ℂ) = (chi1' c : ℂ) from by rw [h]] at this
+      exact_mod_cast add_left_cancel this
+    rw [h, h2]
+  · by_cases h2 : chi2 = chi1'
+    · -- χ₂ = χ₁': from sum equality, χ₁ = χ₂'
+      have h3 : chi1 = chi2' := by
+        ext c; have hsm := hsum c
+        rw [show (chi2 c : ℂ) = (chi1' c : ℂ) from by rw [h2]] at hsm
+        rw [add_comm (chi1 c : ℂ) (chi1' c : ℂ)] at hsm
+        exact_mod_cast (add_left_cancel hsm : (chi1 c : ℂ) = (chi2' c : ℂ))
+      rw [Set.pair_eq_pair_iff]; right; exact ⟨h3, h2⟩
+    · -- Neither: get contradiction from orthogonality
+      exfalso
+      -- ∑_c (χ₁·χ₁'⁻¹)(c) = 0 (since χ₁ ≠ χ₁')
+      -- ∑_c (χ₂·χ₁'⁻¹)(c) = 0 (since χ₂ ≠ χ₁')
+      -- But also: ∑_c (χ₁'·χ₁'⁻¹)(c) = |G| ≠ 0
+      -- From sum: ∑_c ((χ₁+χ₂)·χ₁'⁻¹)(c) = ∑_c ((χ₁'+χ₂')·χ₁'⁻¹)(c)
+      -- LHS = 0 + 0 = 0
+      -- RHS = |G| + ∑_c (χ₂'·χ₁'⁻¹)(c) = |G| + 0 = |G| (since χ₂' ≠ χ₁')
+      -- Contradiction: 0 = |G|
+      have hcard_ne : (Fintype.card (GaloisField p n)ˣ : ℂ) ≠ 0 :=
+        Nat.cast_ne_zero.mpr Fintype.card_ne_zero
+      -- ∑_c χ₁(c)·χ₁'(c)⁻¹
+      set μ₁ : (GaloisField p n)ˣ →* ℂˣ := chi1 * chi1'⁻¹
+      set μ₂ : (GaloisField p n)ˣ →* ℂˣ := chi2 * chi1'⁻¹
+      set μ₂' : (GaloisField p n)ˣ →* ℂˣ := chi2' * chi1'⁻¹
+      have hμ₁_ne : μ₁ ≠ 1 := by
+        intro heq; apply h
+        have : ∀ c, μ₁ c = 1 := fun c => by
+          have := congr_arg (· c) heq; simpa using this
+        ext c; have := mul_inv_eq_one.mp (this c)
+        exact congr_arg Units.val this
+      have hμ₂_ne : μ₂ ≠ 1 := by
+        intro heq; apply h2
+        have : ∀ c, μ₂ c = 1 := fun c => by
+          have := congr_arg (· c) heq; simpa using this
+        ext c; have := mul_inv_eq_one.mp (this c)
+        exact congr_arg Units.val this
+      have hμ₂'_ne : μ₂' ≠ 1 := by
+        intro heq; apply hne'
+        have : ∀ c, μ₂' c = 1 := fun c => by
+          have := congr_arg (· c) heq; simpa using this
+        ext c; have := (mul_inv_eq_one.mp (this c)).symm
+        exact congr_arg Units.val this
+      -- Sum both sides of hsum times χ₁'⁻¹
+      have lhs_eq : ∑ c : (GaloisField p n)ˣ,
+          ((chi1 c : ℂ) + (chi2 c : ℂ)) * ((chi1' c)⁻¹ : ℂˣ) =
+        ∑ c, ((chi1' c : ℂ) + (chi2' c : ℂ)) * ((chi1' c)⁻¹ : ℂˣ) := by
+        congr 1; ext c; rw [hsum c]
+      -- Key: ∑ (χ·ψ⁻¹)(c) relates to ∑ μ(c) for μ = χ·ψ⁻¹
+      have hval_eq : ∀ (χ ψ : (GaloisField p n)ˣ →* ℂˣ) (c : (GaloisField p n)ˣ),
+          (χ c : ℂ) * (↑(ψ c)⁻¹ : ℂ) = ((χ * ψ⁻¹) c : ℂ) := by
+        intro χ ψ c; simp [MonoidHom.mul_apply, MonoidHom.inv_apply, Units.val_mul]
+      -- LHS = ∑ μ₁(c) + ∑ μ₂(c) = 0 + 0 = 0
+      have hlhs : ∑ c : (GaloisField p n)ˣ,
+          ((chi1 c : ℂ) + (chi2 c : ℂ)) * (↑(chi1' c)⁻¹ : ℂ) = 0 := by
+        simp_rw [add_mul, hval_eq]
+        rw [Finset.sum_add_distrib,
+            Etingof.GL2.sum_nontrivial_char_eq_zero μ₁ hμ₁_ne,
+            Etingof.GL2.sum_nontrivial_char_eq_zero μ₂ hμ₂_ne, add_zero]
+      -- RHS = |G| + ∑ μ₂'(c) = |G| + 0 = |G|
+      have hrhs : ∑ c : (GaloisField p n)ˣ,
+          ((chi1' c : ℂ) + (chi2' c : ℂ)) * (↑(chi1' c)⁻¹ : ℂ) =
+          (Fintype.card (GaloisField p n)ˣ : ℂ) := by
+        simp_rw [add_mul, hval_eq]
+        rw [Finset.sum_add_distrib]
+        have h1 : ∑ c : (GaloisField p n)ˣ, ((chi1' * chi1'⁻¹) c : ℂ) =
+            Fintype.card (GaloisField p n)ˣ := by
+          simp [mul_inv_cancel, Finset.card_univ]
+        rw [h1, Etingof.GL2.sum_nontrivial_char_eq_zero μ₂' hμ₂'_ne, add_zero]
+      -- Contradiction: 0 = |G|
+      have lhs_eq : ∑ c : (GaloisField p n)ˣ,
+          ((chi1 c : ℂ) + (chi2 c : ℂ)) * (↑(chi1' c)⁻¹ : ℂ) =
+        ∑ c, ((chi1' c : ℂ) + (chi2' c : ℂ)) * (↑(chi1' c)⁻¹ : ℂ) :=
+        Finset.sum_congr rfl (fun c _ => by rw [hsum c])
+      exact hcard_ne (hrhs.symm.trans (lhs_eq.symm.trans hlhs))
+
 /-- **Theorem 5.25.2 (3b)**: V(χ₁, χ₂) ≅ V(χ'₁, χ'₂) if and only if
 {χ₁, χ₂} = {χ'₁, χ'₂} (as sets). (Etingof Theorem 5.25.2) -/
-theorem Etingof.Theorem5_25_2_part3b
+theorem Etingof.Theorem5_25_2_part3b [NeZero n]
     (chi1 chi2 chi1' chi2' : (GaloisField p n)ˣ →* ℂˣ)
     (hne : chi1 ≠ chi2) (hne' : chi1' ≠ chi2') :
     Nonempty (Etingof.GL2.principalSeries p n chi1 chi2 ≅
       Etingof.GL2.principalSeries p n chi1' chi2') ↔
     ({chi1, chi2} : Set ((GaloisField p n)ˣ →* ℂˣ)) = {chi1', chi2'} := by
-  sorry
+  constructor
+  · -- Forward: iso → equal characters → sum equality → set equality
+    rintro ⟨iso⟩
+    have hchar := FDRep.char_iso iso
+    have hsum : ∀ c : (GaloisField p n)ˣ, c ≠ 1 →
+        (chi1 c : ℂ) + (chi2 c : ℂ) = (chi1' c : ℂ) + (chi2' c : ℂ) := by
+      intro c hc
+      have h1 := Etingof.GL2.principalSeries_char_diagElt p n chi1 chi2 c hc
+      have h2 := Etingof.GL2.principalSeries_char_diagElt p n chi1' chi2' c hc
+      rw [← h1, ← h2, congr_fun hchar]
+    -- Extend to c = 1: both sides equal 2
+    have hsum_all : ∀ c : (GaloisField p n)ˣ,
+        (chi1 c : ℂ) + (chi2 c : ℂ) = (chi1' c : ℂ) + (chi2' c : ℂ) := by
+      intro c
+      by_cases hc : c = 1
+      · subst hc; simp
+      · exact hsum c hc
+    exact Etingof.GL2.pair_eq_of_sum_eq p n chi1 chi2 chi1' chi2' hne hne' hsum_all
+  · -- Backward: set equality → iso
+    intro heq
+    rw [Set.pair_eq_pair_iff] at heq
+    rcases heq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2]
+      exact ⟨Iso.refl _⟩
+    · rw [h1, h2]
+      exact Etingof.GL2.principalSeries_iso_swap p n chi2' chi1'
 
 end
