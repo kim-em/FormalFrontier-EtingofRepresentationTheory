@@ -2222,7 +2222,60 @@ lemma Etingof.Theorem921.exists_complete_orthogonal_idempotents_for_simples
     exact (Module.finrank_eq_card_basis (Module.Basis.mk hv_indep htop)).symm
   -- σ is surjective (using hM_exhaustive)
   have hσ_surj : Function.Surjective σ := by
-    sorry
+    intro l₀
+    by_contra h_not
+    push_neg at h_not
+    -- h_not : ∀ i, σ i ≠ l₀
+    -- Step 1: e_raw ⟨l₀, 0⟩ annihilates all M j (rank = 0 for all j)
+    haveI := hd l₀
+    set p : Σ l : Fin n, Fin (d l) := ⟨l₀, 0⟩ with hp_def
+    have h_ann : ∀ j : ι, ∀ m : M j, e_raw p • m = 0 := by
+      intro j m
+      have hfr := hrank p j
+      have hne : σ j ≠ l₀ := h_not j
+      rw [if_neg hne] at hfr
+      haveI := hMi_finite j
+      have h_bot : smulRange (k := k) (A := A) (M j) (e_raw p) = ⊥ := by
+        have : Module.Finite k ↥(smulRange (k := k) (A := A) (M j) (e_raw p)) :=
+          Submodule.finiteDimensional_of_le le_top
+        exact (Submodule.finrank_eq_zero (R := k)).mp hfr
+      have : e_raw p • m ∈ smulRange (k := k) (A := A) (M j) (e_raw p) := ⟨m, rfl⟩
+      rw [h_bot] at this; exact (Submodule.mem_bot k).mp this
+    -- Step 2: e_raw p ∈ Ring.jacobson A
+    -- For any maximal left ideal I, A ⧸ I is simple, hence ≃ₗ[A] M j₀ for some j₀.
+    -- Since e_raw p annihilates M j₀, it annihilates A ⧸ I, so e_raw p ∈ I.
+    have h_in_J : e_raw p ∈ Ring.jacobson A := by
+      rw [Ring.jacobson_eq_sInf_isMaximal]
+      apply Submodule.mem_sInf.mpr
+      intro I hI
+      haveI : IsSimpleModule A (A ⧸ I) :=
+        isSimpleModule_iff_isCoatom.mpr (Ideal.isMaximal_def.mp hI)
+      obtain ⟨j₀, ⟨φ⟩⟩ := hM_exhaustive (A ⧸ I)
+      -- e_raw p annihilates A ⧸ I via transport through φ
+      have h_all_zero : ∀ x : A ⧸ I, (e_raw p) • x = 0 :=
+        fun x => φ.injective (by rw [φ.map_smul, h_ann j₀, map_zero])
+      -- e_raw p • mkQ(1) = mkQ(e_raw p * 1) = mkQ(e_raw p) = 0, so e_raw p ∈ I
+      have h0 := h_all_zero (I.mkQ 1)
+      rw [show (e_raw p) • I.mkQ (1 : A) = I.mkQ (e_raw p) by
+        simp only [Submodule.mkQ_apply, ← Submodule.Quotient.mk_smul, smul_eq_mul, mul_one]] at h0
+      exact (Submodule.Quotient.mk_eq_zero I).mp h0
+    -- Step 3: π(e_raw p) = 0 (since e_raw p ∈ J = ker π)
+    have h_eq_zero : π (e_raw p) = 0 :=
+      Ideal.Quotient.eq_zero_iff_mem.mpr h_in_J
+    -- Step 4: But π(e_raw p) ≠ 0 (it lifts a nonzero element of ∏ Mat)
+    have h_ne_zero : π (e_raw p) ≠ 0 := by
+      have he := congr_fun he_raw_lift p
+      simp only [Function.comp_apply] at he
+      rw [he]; intro h
+      have h1 : (Pi.single l₀ (Matrix.single (0 : Fin (d l₀)) 0 (1 : k)) :
+          ∀ l, Matrix (Fin (d l)) (Fin (d l)) k) = 0 :=
+        WA.symm.injective (by rw [map_zero]; exact h)
+      have h2 := congr_fun h1 l₀
+      rw [Pi.single_eq_same, Pi.zero_apply] at h2
+      -- h2 : Matrix.single 0 0 (1 : k) = 0 in Mat_{d(l₀)}(k)
+      have h3 := congr_fun (congr_fun h2 (0 : Fin (d l₀))) (0 : Fin (d l₀))
+      simp [Matrix.single_apply] at h3
+    exact h_ne_zero h_eq_zero
   exact ⟨σ, ⟨hσ_inj, hσ_surj⟩, hd_eq, hrank⟩
 
 end CompleteSystem
