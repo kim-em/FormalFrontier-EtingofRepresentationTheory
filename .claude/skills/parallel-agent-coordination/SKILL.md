@@ -362,3 +362,16 @@ grep -n "sorry" EtingofRepresentationTheory/Chapter5/TargetFile.lean
 **Mitigation for workers:**
 - Commit and push early — the first-to-merge agent wins, and the other must rebase
 - If you see another open PR touching your file, coordinate by commenting on the PR
+
+### Infrastructure Deduplication
+
+**Problem (waves 31-33):** PRs #1682, #1685, #1690 independently built the same GL₂(𝔽_q) BorelSubgroup ≃ F_q × F_q* equivalence. Three agents each spent time constructing equivalent infrastructure because none checked what already existed in other files or recent PRs.
+
+**Mitigation for planners:**
+- When creating issues that need group/subgroup equivalences, character computation helpers, or coset decompositions, explicitly note in the issue body which existing infrastructure to reuse
+- If multiple issues touch the same algebraic structure, create a shared infrastructure issue first
+
+**Mitigation for workers:**
+- Before building any equivalence, isomorphism, or computation helper, search the codebase: `grep -r "def.*BorelEquiv\|Equiv.*Borel\|BorelSubgroup" EtingofRepresentationTheory/`
+- Check recent PRs (last 2 weeks) for infrastructure that may not yet be on main
+- If you build infrastructure that could be reused, put it in a shared file or the chapter's infrastructure file, not inline in a theorem file
