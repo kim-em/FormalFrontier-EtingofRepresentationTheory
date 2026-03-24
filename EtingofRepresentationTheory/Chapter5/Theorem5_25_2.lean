@@ -1800,7 +1800,98 @@ private lemma Etingof.GL2.complementW_none_eq_neg_sum
     (f : ↥(Etingof.GL2.complementWSubmodule p n mu)) :
     f.val (Etingof.GL2.cosetRep p n none) =
     -(∑ t : GaloisField p n, f.val (Etingof.GL2.cosetRep p n (some t))) := by
-  sorry
+  -- f ∈ complementWSubmodule = principalSeriesSubmodule ⊓ ker(augmentation)
+  have hcov := f.prop.1  -- covariance
+  have hker : f.val ∈ LinearMap.ker (Etingof.GL2.augmentation p n mu) := f.prop.2
+  rw [LinearMap.mem_ker] at hker
+  -- hker : ∑_g f.val(g) * μ(det g)⁻¹ = 0
+  simp only [Etingof.GL2.augmentation, LinearMap.coe_mk, AddHom.coe_mk] at hker
+  -- Each term: f(g) * μ(det g)⁻¹ = f(rep(cosetIndex g))
+  -- because borelCharValue(cosetBorel g) cancels with μ(det(cosetBorel g))⁻¹
+  -- and det(rep(i)) = 1 for all i
+  have hdet_rep : ∀ i : Option (GaloisField p n),
+      Matrix.GeneralLinearGroup.det (Etingof.GL2.cosetRep p n i) = 1 := by
+    intro i; cases i with
+    | none => ext; simp [Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.det]
+    | some t => ext; simp [Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.det,
+        Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+        Matrix.unitOfDetInvertible, Matrix.det_fin_two]
+  have hborel_cancel : ∀ b : ↥(Etingof.GL2.BorelSubgroup p n),
+      Etingof.GL2.borelCharValue p n mu mu b *
+      ((mu (Matrix.GeneralLinearGroup.det b.val))⁻¹ : ℂˣ) = 1 := by
+    intro b
+    have hb10 : (b.val.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := b.prop
+    have hdet_b : Matrix.GeneralLinearGroup.det b.val =
+      Units.mk0 ((b.val.val : Matrix _ _ _) 0 0)
+        (Etingof.GL2.borel_diag00_ne_zero p n b) *
+      Units.mk0 ((b.val.val : Matrix _ _ _) 1 1)
+        (Etingof.GL2.borel_diag11_ne_zero p n b) := by
+      ext; simp [Matrix.GeneralLinearGroup.det, Matrix.det_fin_two, hb10]
+    rw [hdet_b, map_mul]
+    rw [Units.val_inv_eq_inv_val, Units.val_mul]
+    simp only [Etingof.GL2.borelCharValue]
+    rw [mul_inv_cancel₀ (mul_ne_zero (Units.ne_zero _) (Units.ne_zero _))]
+  -- Each term f(g) * μ(det g)⁻¹ = f(rep(cosetIndex g))
+  have hterm : ∀ g : GL2 p n,
+      f.val g * ((mu (Matrix.GeneralLinearGroup.det g))⁻¹ : ℂˣ) =
+      f.val (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g)) := by
+    intro g
+    have hdecomp := Etingof.GL2.cosetBorel_mul_cosetRep p n g
+    have hdet_g : Matrix.GeneralLinearGroup.det g =
+        Matrix.GeneralLinearGroup.det (Etingof.GL2.cosetBorel p n g).val *
+        Matrix.GeneralLinearGroup.det
+          (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g)) := by
+      conv_lhs => rw [hdecomp]; exact map_mul _ _ _
+    rw [hdet_g, hdet_rep, mul_one]
+    -- f(g) = f(cosetBorel(g) * rep(idx(g))) = borelCharValue(cosetBorel g) * f(rep(idx(g)))
+    have hcov_g := hcov (Etingof.GL2.cosetBorel p n g)
+      (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g))
+    rw [← hdecomp] at hcov_g
+    rw [hcov_g]
+    rw [show Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n g) *
+          f.val (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g)) *
+          ((mu (Matrix.GeneralLinearGroup.det
+            (Etingof.GL2.cosetBorel p n g).val))⁻¹ : ℂˣ) =
+        (Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n g) *
+          ((mu (Matrix.GeneralLinearGroup.det
+            (Etingof.GL2.cosetBorel p n g).val))⁻¹ : ℂˣ)) *
+        f.val (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n g)) from by ring]
+    rw [hborel_cancel, one_mul]
+  simp_rw [hterm] at hker
+  -- Now hker : ∑_g f.val(rep(cosetIndex g)) = 0
+  -- Reindex via GL₂ ≃ B × Option(GaloisField)
+  let e : GL2 p n ≃ ↥(Etingof.GL2.BorelSubgroup p n) × Option (GaloisField p n) :=
+    { toFun := fun g => (Etingof.GL2.cosetBorel p n g, Etingof.GL2.cosetIndex p n g)
+      invFun := fun bi => bi.1.val * Etingof.GL2.cosetRep p n bi.2
+      left_inv := fun g => by
+        simp only
+        exact (Etingof.GL2.cosetBorel_mul_cosetRep p n g).symm
+      right_inv := fun ⟨b, i⟩ => by
+        simp only
+        ext
+        · have := Etingof.GL2.cosetBorel_borel_mul p n b (Etingof.GL2.cosetRep p n i)
+          rw [this, Etingof.GL2.cosetBorel_cosetRep]; simp
+        · rw [Etingof.GL2.cosetIndex_borel_mul, Etingof.GL2.cosetIndex_cosetRep] }
+  rw [show (∑ g : GL2 p n, f.val (Etingof.GL2.cosetRep p n
+      (Etingof.GL2.cosetIndex p n g))) =
+    ∑ bi : ↥(Etingof.GL2.BorelSubgroup p n) × Option (GaloisField p n),
+      f.val (Etingof.GL2.cosetRep p n bi.2) from
+    Fintype.sum_equiv e _ _ (fun g => by simp [e])] at hker
+  rw [Fintype.sum_prod_type] at hker
+  -- ∑_{b ∈ B} 1 = |B|, so this is |B| * ∑_i f(rep(i)) = 0
+  simp only [Finset.sum_const, Finset.card_univ, nsmul_eq_mul] at hker
+  -- |B| * ∑_i f(rep(i)) = 0 and |B| ≠ 0
+  have hB_ne : (Fintype.card ↥(Etingof.GL2.BorelSubgroup p n) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Fintype.card_pos.ne'
+  have hsum_zero : ∑ i : Option (GaloisField p n),
+      f.val (Etingof.GL2.cosetRep p n i) = 0 := by
+    rcases mul_eq_zero.mp hker with h | h
+    · exact absurd h hB_ne
+    · exact h
+  -- ∑_i f(rep(i)) = f(rep(none)) + ∑_t f(rep(some t))
+  rw [Fintype.sum_option] at hsum_zero
+  -- f(none) + ∑ f(some t) = 0 → f(none) = -∑ f(some t)
+  linear_combination hsum_zero
 
 /-- For f ∈ complementW with constant evaluations σ at all rep(some t),
     and t ≠ 0, the Weyl action ρ(w)(f) also evaluates to σ at rep(some t).
