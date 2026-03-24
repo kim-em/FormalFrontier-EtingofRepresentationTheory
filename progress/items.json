@@ -5822,10 +5822,9 @@
     "end_page": "215",
     "start_line": 17,
     "end_line": 10,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false,
-    "notes": "Assembly proof for part (i) complete. Statement fixes: removed bogus sum=1, added exhaustiveness, fixed universe. 2 sorry remain in helpers (Wedderburn-Artin construction, complement argument). Parts (ii), (iii) still sorry.",
-    "attention_needed": true
+    "notes": "All sorries proved. PR #1692 proved h\u03c3_surj (last sorry)."
   },
   {
     "id": "Chapter9/Definition9.2.2",
