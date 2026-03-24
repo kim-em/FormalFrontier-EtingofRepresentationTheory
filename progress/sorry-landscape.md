@@ -1,64 +1,65 @@
-# Sorry Landscape Analysis — Wave 33
+# Sorry Landscape Analysis — Wave 34
 
-Generated 2026-03-24 by summarize session (issue #1695).
+Generated 2026-03-24 by review session (issue #1710).
 
 ## Summary
 
-**43 sorries** across 22 files. Down from 45 / 23 in wave 32 (−2 sorries, −1 file). Chapters 3, 4, 7, 8 remain 100% sorry-free. 245 of 267 Lean files (91.8%) are sorry-free. 566 of 583 items (97.1%) sorry-free.
+**44 sorries** across 22 files. Up from 43 / 22 in wave 33 (+1 sorry net, same file count). Chapters 3, 4, 7, 8 remain 100% sorry-free. 246 of 268 Lean files (91.8%) are sorry-free. 567 of 583 items (97.2%) sorry-free.
 
-3 PRs merged since wave 32 (#1690, #1692, #1693). Key changes:
-- **Theorem9_2_1.lean** became sorry-free — `hσ_surj` (surjectivity of block assignment σ) proved (PR #1692)
-- **Theorem5_25_2** went from 2 → 1 sorry (−1): `complementW_iso_implies_eq` + `Theorem5_25_2_part3b` proved (PR #1690). Only `principalSeries_iso_swap` remains.
-- **Problem6_9_1** refactored (PR #1693) — no sorry change
+6 PRs merged since wave 33 (#1701, #1704, #1705, #1706, #1709). Key changes:
+- **Theorem5_25_2.lean** became sorry-free — `principalSeries_iso_swap` proved (PR #1705). GL₂(𝔽_q) principal series classification is now complete.
+- **PowerSumCauchyBilinear.lean** added (PRs #1701, #1704) with 2 new sorrys: `fullCauchyProd_coeff_eq_card` and `double_counting`. These are infrastructure for the bilinear Cauchy identity.
+- PR #1706 added FDRep morphism extensionality skill patterns (no sorry change)
+- PR #1709 was a meditate session reviewing patterns (no sorry change)
 
 | Tier | Count | % | Description |
 |------|-------|---|-------------|
-| Tier 1 — Achievable | 1 | 2% | Standard math, clear path exists |
-| Tier 2 — Hard but tractable | 2 | 5% | Non-trivial proofs, self-contained |
-| Tier 3 — Blocked on SchurModule | ~21 | 49% | Missing SchurModule definition |
-| Tier 4 — Deep blockers | ~19 | 44% | Clifford theory, Gabriel chain, Morita |
+| Tier 1 — Achievable | 3 | 7% | Standard math, clear path exists |
+| Tier 2 — Hard but tractable | 1 | 2% | Non-trivial proofs, self-contained |
+| Tier 3 — Blocked on SchurModule | ~21 | 48% | Missing SchurModule definition |
+| Tier 4 — Deep blockers | ~19 | 43% | Clifford theory, Gabriel chain, Morita |
 
 ## Chapter Breakdown
 
-| Chapter | Sorries | Files | Delta from Wave 32 |
+| Chapter | Sorries | Files | Delta from Wave 33 |
 |---------|---------|-------|---------------------|
 | Ch2 | 1 | 1 | 0 |
-| Ch5 | 28 | 9 | −1 sorry (Theorem5_25_2 2→1) |
+| Ch5 | 29 | 10 | +1 sorry, +1 file (PowerSumCauchyBilinear new; Theorem5_25_2 sorry-free) |
 | Ch6 | 10 | 8 | 0 |
-| Ch9 | 2 | 2 | −1 sorry, −1 file (Theorem9_2_1 sorry-free) |
+| Ch9 | 2 | 2 | 0 |
 | Infra | 2 | 2 | 0 |
 
-## Files That Became Sorry-Free Since Wave 32
+## Files That Became Sorry-Free Since Wave 33
 
-- **Theorem9_2_1.lean** — Artin-Wedderburn block structure (classification of indecomposable projective modules). PR #1692 proved `hσ_surj`, the last sorry.
+- **Theorem5_25_2.lean** — GL₂(𝔽_q) principal series: irreducibility, non-isomorphism, classification. PR #1705 proved `principalSeries_iso_swap` (V(χ₁,χ₂) ≅ V(χ₂,χ₁)), the last sorry. This completes the entire GL₂ principal series formalization.
 
 ## Open PRs (In-Flight Work)
 
 No open PRs.
 
-## Tier 1 — Achievable (1 sorry)
+## Tier 1 — Achievable (3 sorries)
 
 ### Theorem5_15_1 — 1 sorry
 **File:** `Chapter5/Theorem5_15_1.lean`
 **Nature:** `alternatingKostka_norm_sq_eq_one` — proves ∑_ν L(λ,ν)² = 1. Key step in the Frobenius character formula.
 **Status:** PowerSumCauchyIdentity is sorry-free, providing the `cauchyRHS_coeff_diag` infrastructure. Issue #1688 created for this work.
 
-## Tier 2 — Hard but Tractable (2 sorries)
+### PowerSumCauchyBilinear — 2 sorries (NEW)
+**File:** `Chapter5/PowerSumCauchyBilinear.lean`
+**Nature:** `fullCauchyProd_coeff_eq_card` (coefficient = matrix count) and `double_counting` (core combinatorial identity). These are the bilinear extension of the Cauchy identity.
+**Status:** Issue #1707 covers these. Infrastructure is clean (240 lines). The `powerSum_bilinear_coeff` theorem correctly reduces to these two sorrys.
 
-### Theorem5_25_2 — 1 sorry
-**File:** `Chapter5/Theorem5_25_2.lean`
-**Nature:** `principalSeries_iso_swap` (line 2493) — V(χ₁,χ₂) ≅ V(χ₂,χ₁), symmetry of principal series under character permutation.
-**Progress:** Major improvement over recent waves: 8 → 2 → 1 sorry. PR #1690 proved `complementW_iso_implies_eq` and `Theorem5_25_2_part3b`. Only character symmetry remains. Issue #1694 created.
+## Tier 2 — Hard but Tractable (1 sorry)
 
 ### Problem6_9_1 — 1 sorry
 **File:** `Chapter6/Problem6_9_1.lean`
-**Nature:** `decomp_of_ker_sum_ge_two` — Q₂-rep decomposability via transfer from AB-invariant to Q₂-invariant decomposition. PR #1693 refactored but didn't prove. Issue #1637 unclaimed.
+**Nature:** `decomp_of_ker_sum_ge_two` — Q₂-rep decomposability via transfer from AB-invariant to Q₂-invariant decomposition. Issue #1691 created (compatible chain basis approach).
 
 ## Tier 3 — Blocked on SchurModule (~21 sorries)
 
 ### SchurModule & Characters (Ch5, 21 sorries)
 **Files:** Theorem5_23_2 (9), Theorem5_18_4 (4), Theorem5_22_1 (3), PolytabloidBasis (2), Proposition5_21_1 (2), Proposition5_22_2 (1)
-**Missing:** Concrete SchurModule definition (Theorem5_22_1:38 is `sorry`). Everything downstream is blocked. This is the project's critical path — 49% of all remaining sorries.
+**Missing:** Concrete SchurModule definition (Theorem5_22_1:38 is `sorry`). Everything downstream is blocked. This is the project's critical path — 48% of all remaining sorries.
 
 ## Tier 4 — Deep Blockers (~19 sorries)
 
@@ -95,7 +96,21 @@ The following definition-level sorries remain. These make downstream theorems va
 7. **Proposition5_21_1.lean:334** — `kostkaNumber` sorry'd (`ℚ := sorry`)
 8. **Problem6_1_5_theorem.lean:33** — `IsFiniteTypeQuiver` sorry'd (`Prop := sorry`)
 
-No new definition-level sorries since Wave 30. Until SchurModule is constructed, ~21 downstream sorries (49%) are vacuous.
+No new definition-level sorries since Wave 30. Until SchurModule is constructed, ~21 downstream sorries (48%) are vacuous.
+
+## Proof Quality Notes (Wave 34 Audit)
+
+### Theorem5_25_2.lean (2958 lines)
+- **Linter fixes applied**: 4 `show` → `change` replacements, 1 unused variable prefixed, 2 no-op `congr 1` removed
+- **Remaining warnings**: 2 `congr 1` flagged as no-op by linter but actually needed (remove breaks `ext`), 1 flexible `simp` warning
+- **File size concern**: At 2958 lines, approaching split threshold. Character computation section (`principalSeries_char_diagElt`) could be extracted. Not urgent — file is logically cohesive.
+- **Heartbeat usage**: `set_option maxHeartbeats 4000000` at line 1583 is aggressive. 800k and 1.6M settings elsewhere are within normal range.
+- **Stale comment**: Line 1192 says "For now, sorry the augmentation computation" but the augmentation is proved. Cosmetic only.
+
+### PowerSumCauchyBilinear.lean (240 lines)
+- Clean, well-structured. Good docstrings.
+- `powerSum_bilinear_coeff` correctly reduces to the two sorry'd lemmas.
+- No redundant tactics or AI-generated bloat detected.
 
 ## Per-File Sorry Detail
 
@@ -105,11 +120,11 @@ No new definition-level sorries since Wave 30. Until SchurModule is constructed,
 | Theorem5_27_1 | 5 | Mackey machine (Clifford theory) | 0 |
 | Theorem5_18_4 | 4 | Young symmetrizer character formula | 0 |
 | Theorem5_22_1 | 3 | SchurModule + schurPolynomial defs + theorem | 0 |
+| PowerSumCauchyBilinear | 2 | Bilinear Cauchy identity core lemmas | **NEW** |
 | PolytabloidBasis | 2 | Linear independence + straightening | 0 |
 | Proposition6_6_6 | 2 | Reflection functor naturality cases | 0 |
 | Proposition5_21_1 | 2 | kostkaNumber def + character expansion | 0 |
 | Problem6_1_5_theorem | 2 | IsFiniteTypeQuiver def + iff theorem | 0 |
-| Theorem5_25_2 | 1 | principalSeries_iso_swap (character symmetry) | **−1** |
 | Theorem5_15_1 | 1 | Alternating Kostka norm squared | 0 |
 | Proposition5_22_2 | 1 | Schur polynomial character formula | 0 |
 | Corollary6_8_3 | 1 | Indecomposable → positive root | 0 |
@@ -124,21 +139,20 @@ No new definition-level sorries since Wave 30. Until SchurModule is constructed,
 | Example9_4_4 | 1 | Homological dimension of polynomial ring | 0 |
 | Theorem2_1_2 | 1 | Gabriel's theorem statement | 0 |
 
-**Removed since Wave 32:** Theorem9_2_1 (was 1 sorry, now 0)
+**Removed since Wave 33:** Theorem5_25_2 (was 1 sorry, now 0)
+**Added since Wave 33:** PowerSumCauchyBilinear (2 sorrys, new file)
 
 ## Strategic Recommendations
 
 1. **Highest-ROI unclaimed work:** Issue #1688 (`alternatingKostka_norm_sq_eq_one` in Theorem5_15_1) — PowerSumCauchyIdentity is sorry-free, so the infrastructure is ready. This would close the Frobenius character formula.
 
-2. **Active work:** Issue #1694 (`principalSeries_iso_swap` in Theorem5_25_2) — claimed, in progress. Would reduce Theorem5_25_2 to 0 sorries, making the entire GL₂(𝔽_q) principal series classification complete.
+2. **New Cauchy bilinear sorrys:** Issue #1707 covers the 2 PowerSumCauchyBilinear sorrys (`fullCauchyProd_coeff_eq_card`, `double_counting`). These are standard combinatorial arguments — achievable.
 
-3. **Next-best target:** Problem6_9_1 `decomp_of_ker_sum_ge_two` (issue #1637) — Q₂-rep decomposability via AB-invariant transfer. PR #1693 set up helper infrastructure.
+3. **Problem6_9_1:** Issue #1691 proposes compatible chain basis approach. Last sorry in the Q₂-rep decomposability proof.
 
-4. **Critical path unchanged:** SchurModule remains the mega-blocker. ~21 sorries (49%) transitively blocked. This is the project's critical path and the hardest remaining work.
+4. **Critical path unchanged:** SchurModule remains the mega-blocker. ~21 sorries (48%) transitively blocked. This is the project's critical path and the hardest remaining work.
 
-5. **Velocity observation:** Wave 32 → 33 saw −2 net sorries from only 3 PRs. The GL₂(𝔽_q) cluster is nearing completion (1 sorry from 8 three waves ago). Chapter 9 saw its first file go sorry-free.
-
-6. **Stale comment:** Theorem5_25_2.lean:1192 contains "For now, sorry the augmentation computation" but the augmentation is actually proved below. Cosmetic only.
+5. **Milestone:** Theorem5_25_2 becoming sorry-free completes the GL₂(𝔽_q) principal series formalization — from 8 sorrys four waves ago to 0. This is the largest individual proof completion in recent project history.
 
 ## Trajectory
 
@@ -150,3 +164,4 @@ No new definition-level sorries since Wave 30. Until SchurModule is constructed,
 | 31 | 52 | 24 | 565/583 (96.9%) | 2026-03-23 |
 | 32 | 45 | 23 | 565/583 (96.9%) | 2026-03-24 |
 | 33 | 43 | 22 | 566/583 (97.1%) | 2026-03-24 |
+| 34 | 44 | 22 | 567/583 (97.2%) | 2026-03-24 |

@@ -2663,7 +2663,7 @@ private lemma Etingof.GL2.principalSeries_iso_swap
             Etingof.GL2.cosetRep p n j * h) =
           f.val (Etingof.GL2.cosetRep p n (some u) *
             (b.val * Etingof.GL2.cosetRep p n k)) := by
-        intro u; congr 1; rw [mul_assoc, hdecomp]
+        intro u; rw [mul_assoc, hdecomp]
       simp_rw [hreassoc]
       exact Etingof.GL2.intertwining_sum_covariant p n chi1 chi2 f b
         (Etingof.GL2.cosetRep p n k)
@@ -2693,7 +2693,7 @@ private lemma Etingof.GL2.principalSeries_iso_swap
             Etingof.GL2.cosetRep p n none) =
         ∑ u : GaloisField p n,
           g₀.val (Etingof.GL2.cosetRep p n (some u)) := by
-        congr 1; ext u; congr 1; simp [Etingof.GL2.cosetRep]
+        congr 1; ext u; simp [Etingof.GL2.cosetRep]
       rw [this] at heval_none
       have hg₀_eval : ∀ u : GaloisField p n,
           g₀.val (Etingof.GL2.cosetRep p n (some u)) =
@@ -2784,14 +2784,13 @@ private lemma Etingof.GL2.principalSeries_char_diagElt
       -- = (ρ(δ_c)(e⁻¹(e_none)))(cosetRep(none))
       -- = χ₁(c) · (e⁻¹(e_none))(cosetRep(none))
       -- = χ₁(c) · e_none(none) = χ₁(c) · 1 = χ₁(c)
-      show (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      change (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
         (Etingof.GL2.diagElt p n c) (e.symm (Pi.single none 1)))) none = (chi1 c : ℂ)
       -- Unfold evalMap
-      show (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      change (Etingof.GL2.principalSeriesRep p n chi1 chi2
         (Etingof.GL2.diagElt p n c) (e.symm (Pi.single none 1))).val
         (Etingof.GL2.cosetRep p n none) = (chi1 c : ℂ)
       rw [Etingof.GL2.action_diagonal_none]
-      congr 1
       -- Goal: χ₁(c) * (e⁻¹(e_none))(cosetRep(none)) = χ₁(c)
       -- Suffices to show the eval = 1
       have h1 : (↑(e.symm (Pi.single none 1)) : GL2 p n → ℂ)
@@ -2800,10 +2799,10 @@ private lemma Etingof.GL2.principalSeries_char_diagElt
           (Pi.single_eq_same _ _)
       rw [h1, mul_one]
     | some t =>
-      show (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      change (evalMap (Etingof.GL2.principalSeriesRep p n chi1 chi2
         (Etingof.GL2.diagElt p n c) (e.symm (Pi.single (some t) 1)))) (some t) =
         if t = 0 then (chi2 c : ℂ) else 0
-      show (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      change (Etingof.GL2.principalSeriesRep p n chi1 chi2
         (Etingof.GL2.diagElt p n c) (e.symm (Pi.single (some t) 1))).val
         (Etingof.GL2.cosetRep p n (some t)) = if t = 0 then (chi2 c : ℂ) else 0
       rw [Etingof.GL2.action_diagonal_some]
@@ -2831,7 +2830,7 @@ private lemma Etingof.GL2.principalSeries_char_diagElt
     then {χ₁, χ₂} = {χ₁', χ₂'} as sets. Uses character orthogonality. -/
 private lemma Etingof.GL2.pair_eq_of_sum_eq
     (chi1 chi2 chi1' chi2' : (GaloisField p n)ˣ →* ℂˣ)
-    (hne : chi1 ≠ chi2) (hne' : chi1' ≠ chi2')
+    (_hne : chi1 ≠ chi2) (hne' : chi1' ≠ chi2')
     (hsum : ∀ c : (GaloisField p n)ˣ, (chi1 c : ℂ) + (chi2 c : ℂ) =
       (chi1' c : ℂ) + (chi2' c : ℂ)) :
     ({chi1, chi2} : Set ((GaloisField p n)ˣ →* ℂˣ)) = {chi1', chi2'} := by
