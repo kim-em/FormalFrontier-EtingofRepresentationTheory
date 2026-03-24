@@ -718,7 +718,26 @@ private lemma Etingof.GL2.principalSeries_nontrivial
   -- The underlying module is nonzero (there exist nonzero covariant functions).
   -- By principalSeries_eval_surjective, the evaluation map at coset reps is surjective,
   -- so the module has dimension ≥ 1.
-  sorry
+  -- Need: the module is nontrivial (has a nonzero element)
+  -- Produce a nonzero element using mkCovariantFun
+  set f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) :=
+    ⟨Etingof.GL2.mkCovariantFun p n chi1 chi2 (fun _ => 1),
+     Etingof.GL2.mkCovariantFun_mem p n chi1 chi2 (fun _ => 1)⟩
+  have hfne : f ≠ 0 := by
+    intro h
+    have heval := Etingof.GL2.mkCovariantFun_eval p n chi1 chi2 (fun _ => 1) none
+    simp only [f] at h
+    have : (0 : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2)).val
+        (Etingof.GL2.cosetRep p n none) = 1 := by rw [← h]; exact heval
+    simp at this
+  -- ⊥ ≠ ⊤ because ⊤ contains f ≠ 0 but ⊥ doesn't
+  exact nontrivial_of_ne ⊥ ⊤ (by
+    intro heq
+    apply hfne
+    have hmem : f ∈ (⊥ : Subrepresentation
+      (Etingof.GL2.principalSeriesRep p n chi1 chi2)).toSubmodule := by
+      rw [heq]; exact Submodule.mem_top
+    simpa using hmem)
 
 /-- Key construction: from any nonzero f ∈ S, produce g ∈ S
     with g(rep(none)) ≠ 0 and g(rep(some t)) = 0 for all t.
@@ -834,9 +853,61 @@ private lemma Etingof.GL2.principalSeries_construct_delta_none
       havg_some_const (t * ↑c⁻¹), havg_some_const t]
     ring
 
-/-- From a delta function at rep(none), the Weyl element produces a delta at rep(some 0),
-    and translations produce deltas at any rep(some s). Together these span V,
-    so S = ⊤. -/
+/-- (ρ(w) f)(rep(some 0)) = borelCharValue(-I) · f(rep(none)) for delta functions.
+More precisely, rep(some 0) · rep(some 0) = -I which is in B. -/
+private lemma Etingof.GL2.action_weyl_some_zero
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2)) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.cosetRep p n (some 0)) f).val
+      (Etingof.GL2.cosetRep p n (some 0)) =
+    f.val (Etingof.GL2.cosetRep p n (some 0) * Etingof.GL2.cosetRep p n (some 0)) := rfl
+
+/-- rep(some t) · rep(some 0) for t ≠ 0 has nonzero (1,0)-entry.
+This means it's NOT in the Borel subgroup coset of rep(none). -/
+private lemma Etingof.GL2.cosetRep_some_mul_weyl_not_borel
+    (t : GaloisField p n) (ht : t ≠ 0) :
+    ((Etingof.GL2.cosetRep p n (some t) *
+      Etingof.GL2.cosetRep p n (some 0)).val :
+      Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 ≠ 0 := by
+  simp only [Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.coe_mul,
+    Matrix.GeneralLinearGroup.mkOfDetNeZero, Matrix.GeneralLinearGroup.mk',
+    Matrix.unitOfDetInvertible, Matrix.mul_apply, Fin.sum_univ_two]
+  simp [ht]
+
+/-- (ρ(w) f)(rep(some t)) = 0 when t ≠ 0 and f is a "delta at none"
+(i.e., f(rep(some s)) = 0 for all s). -/
+private lemma Etingof.GL2.action_weyl_some_ne_zero
+    (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
+    (f : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2))
+    (hfsome : ∀ s, f.val (Etingof.GL2.cosetRep p n (some s)) = 0)
+    (t : GaloisField p n) (ht : t ≠ 0) :
+    (Etingof.GL2.principalSeriesRep p n chi1 chi2
+      (Etingof.GL2.cosetRep p n (some 0)) f).val
+      (Etingof.GL2.cosetRep p n (some t)) = 0 := by
+  -- ρ(w)(f)(rep(some t)) = f(rep(some t) · w)
+  change f.val (Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.cosetRep p n (some 0)) = 0
+  -- rep(some t) · w has (1,0) entry = -t ≠ 0, so it's in a "some" coset
+  -- By covariance, f(M) = χ(b) · f(rep(idx(M))) where idx(M) = some(...)
+  -- Since f(rep(some s)) = 0 for all s, we get f(M) = 0.
+  set M := Etingof.GL2.cosetRep p n (some t) * Etingof.GL2.cosetRep p n (some 0)
+  -- M = b · rep(cosetIndex M) and cosetIndex M = some(...)
+  obtain ⟨b, hbM⟩ := Etingof.GL2.mem_coset_of_cosetIndex p n M
+  have hcov := f.prop b (Etingof.GL2.cosetRep p n (Etingof.GL2.cosetIndex p n M))
+  rw [← hbM] at hcov
+  rw [hcov]
+  have hidx : ∃ s, Etingof.GL2.cosetIndex p n M = some s := by
+    unfold Etingof.GL2.cosetIndex
+    simp only [M]
+    have h10 := Etingof.GL2.cosetRep_some_mul_weyl_not_borel p n t ht
+    rw [show (M : Matrix (Fin 2) (Fin 2) (GaloisField p n)) =
+      (Etingof.GL2.cosetRep p n (some t)).val *
+        (Etingof.GL2.cosetRep p n (some 0)).val from
+      Units.val_mul _ _] at h10
+    simp [Etingof.GL2.cosetIndex, h10]
+  obtain ⟨s, hs⟩ := hidx
+  rw [hs, hfsome, mul_zero]
+
 private lemma Etingof.GL2.principalSeries_delta_spans_top
     (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ)
     (S : Subrepresentation (Etingof.GL2.principalSeriesRep p n chi1 chi2))
@@ -845,7 +916,110 @@ private lemma Etingof.GL2.principalSeries_delta_spans_top
     (hgnone : g.val (Etingof.GL2.cosetRep p n none) ≠ 0)
     (hgsome : ∀ t, g.val (Etingof.GL2.cosetRep p n (some t)) = 0) :
     S = ⊤ := by
-  sorry
+  rw [eq_top_iff]
+  intro f _
+  -- Normalize g to have value 1 at rep(none)
+  set c₀ := g.val (Etingof.GL2.cosetRep p n none)
+  set g' := c₀⁻¹ • g with g'_def
+  have hg'S : g' ∈ S.toSubmodule := S.toSubmodule.smul_mem _ hgS
+  have hg'_none : g'.val (Etingof.GL2.cosetRep p n none) = 1 := by
+    simp only [g'_def, Submodule.coe_smul, Pi.smul_apply, smul_eq_mul]
+    exact inv_mul_cancel₀ hgnone
+  have hg'_some : ∀ t, g'.val (Etingof.GL2.cosetRep p n (some t)) = 0 := by
+    intro t
+    simp [g'_def, Submodule.coe_smul, Pi.smul_apply, smul_eq_mul, hgsome]
+  -- wg' = ρ(w)(g') is a delta at rep(some 0):
+  -- wg'(rep(none)) = 0, wg'(rep(some t)) = 0 for t ≠ 0,
+  -- wg'(rep(some 0)) ≠ 0
+  set wg' := Etingof.GL2.principalSeriesRep p n chi1 chi2
+    (Etingof.GL2.cosetRep p n (some 0)) g' with wg'_def
+  have hwg'S : wg' ∈ S.toSubmodule := S.apply_mem_toSubmodule _ hg'S
+  have hwg'_none : wg'.val (Etingof.GL2.cosetRep p n none) = 0 := by
+    rw [Etingof.GL2.action_weyl_none]; exact hg'_some 0
+  have hwg'_some_ne : ∀ t, t ≠ 0 →
+      wg'.val (Etingof.GL2.cosetRep p n (some t)) = 0 :=
+    fun t ht => Etingof.GL2.action_weyl_some_ne_zero p n chi1 chi2 g'
+      hg'_some t ht
+  -- α = wg'(rep(some 0)) ≠ 0
+  set α := wg'.val (Etingof.GL2.cosetRep p n (some 0))
+  have hα_ne : α ≠ 0 := by
+    change wg'.val (Etingof.GL2.cosetRep p n (some 0)) ≠ 0
+    rw [show wg'.val (Etingof.GL2.cosetRep p n (some 0)) =
+      g'.val (Etingof.GL2.cosetRep p n (some 0) *
+        Etingof.GL2.cosetRep p n (some 0)) from rfl]
+    -- rep(some 0)² = -I ∈ B, and g'(-I) = χ₁(-1)·χ₂(-1) · g'(rep(none))
+    obtain ⟨b, hbM⟩ := Etingof.GL2.mem_coset_of_cosetIndex p n
+      (Etingof.GL2.cosetRep p n (some 0) *
+        Etingof.GL2.cosetRep p n (some 0))
+    have hcov := g'.prop b (Etingof.GL2.cosetRep p n
+      (Etingof.GL2.cosetIndex p n
+        (Etingof.GL2.cosetRep p n (some 0) *
+          Etingof.GL2.cosetRep p n (some 0))))
+    rw [← hbM] at hcov; rw [hcov]
+    have hidx : Etingof.GL2.cosetIndex p n
+        (Etingof.GL2.cosetRep p n (some 0) *
+          Etingof.GL2.cosetRep p n (some 0)) = none := by
+      simp [Etingof.GL2.cosetIndex, Etingof.GL2.cosetRep,
+        Matrix.GeneralLinearGroup.mkOfDetNeZero,
+        Matrix.GeneralLinearGroup.mk',
+        Matrix.unitOfDetInvertible,
+        Matrix.GeneralLinearGroup.coe_mul,
+        Matrix.mul_apply, Fin.sum_univ_two]
+    rw [hidx, hg'_none]
+    simp [Etingof.GL2.borelCharValue]
+  -- Decompose f = f(rep(none)) • g' + ∑_t f(rep(some t)) • (α⁻¹ • ρ(τ_{-t})(wg'))
+  -- Each ρ(τ_{-t})(wg') is a "delta at rep(some t)" (up to factor α).
+  set rhs := f.val (Etingof.GL2.cosetRep p n none) • g' +
+    ∑ t : GaloisField p n,
+      f.val (Etingof.GL2.cosetRep p n (some t)) •
+        (α⁻¹ • Etingof.GL2.principalSeriesRep p n chi1 chi2
+          (Etingof.GL2.translationElt p n (-t)) wg')
+  have hrhs_S : rhs ∈ S.toSubmodule := by
+    apply S.toSubmodule.add_mem (S.toSubmodule.smul_mem _ hg'S)
+    apply S.toSubmodule.sum_mem; intro t _
+    exact S.toSubmodule.smul_mem _
+      (S.toSubmodule.smul_mem _ (S.apply_mem_toSubmodule _ hwg'S))
+  suffices heq : f = rhs by rwa [heq]
+  -- Prove f = rhs by showing they agree on all coset reps (then use injectivity)
+  have := Etingof.GL2.principalSeries_eval_injective p n chi1 chi2 (f - rhs)
+  rw [sub_eq_zero] at this; apply this
+  intro i
+  -- Unfold the subtraction and rhs definition
+  change f.val (Etingof.GL2.cosetRep p n i) -
+    (f.val (Etingof.GL2.cosetRep p n none) • g' +
+      ∑ t : GaloisField p n,
+        f.val (Etingof.GL2.cosetRep p n (some t)) •
+          (α⁻¹ • Etingof.GL2.principalSeriesRep p n chi1 chi2
+            (Etingof.GL2.translationElt p n (-t)) wg')).val
+      (Etingof.GL2.cosetRep p n i) = 0
+  simp only [Submodule.coe_add, Submodule.coe_smul, Submodule.coe_sum,
+    Pi.add_apply, Pi.smul_apply, Finset.sum_apply, smul_eq_mul]
+  cases i with
+  | none =>
+    rw [hg'_none, mul_one]
+    simp_rw [Etingof.GL2.action_translation_none p n chi1 chi2 wg']
+    simp [hwg'_none]
+  | some s =>
+    rw [hg'_some, mul_zero, zero_add]
+    -- ρ(τ_{-t})(wg')(rep(some s)) = wg'(rep(some(s + (-t))))
+    simp_rw [Etingof.GL2.action_translation_some p n chi1 chi2
+      wg' (-_) s]
+    conv_lhs =>
+      arg 2; arg 2; ext t; rw [show s + -t = s - t from by ring]
+    -- Only t = s contributes: wg'(rep(some 0)) = α, others = 0
+    rw [show (∑ t : GaloisField p n,
+        f.val (Etingof.GL2.cosetRep p n (some t)) *
+          (α⁻¹ * wg'.val
+            (Etingof.GL2.cosetRep p n (some (s - t))))) =
+      f.val (Etingof.GL2.cosetRep p n (some s)) *
+        (α⁻¹ * wg'.val (Etingof.GL2.cosetRep p n (some 0))) from by
+      rw [← Finset.sum_subset (Finset.subset_univ {s})
+        (fun t _ ht => by
+          simp at ht
+          rw [hwg'_some_ne (s - t)
+            (sub_ne_zero.mpr (Ne.symm ht)), mul_zero, mul_zero])]
+      simp [sub_self]]
+    rw [inv_mul_cancel₀ hα_ne, mul_one, sub_self]
 
 /-- V(χ₁, χ₂) is irreducible when χ₁ ≠ χ₂.
 
