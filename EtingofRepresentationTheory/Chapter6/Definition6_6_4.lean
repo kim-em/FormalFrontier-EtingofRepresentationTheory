@@ -237,4 +237,76 @@ theorem Etingof.reflFunctorMinus_mapLinear_ne_ne
   intro e w
   rfl
 
+/-- Convert a reversed-quiver arrow from a ≠ i to i back to the original i ⟶ a in Q.
+For a ≠ i, `ReversedAtVertexHom Q i a i = i ⟶ a`. -/
+def Etingof.reversedArrow_ne_eq
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q] {i a : Q}
+    (ha : a ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a i) : i ⟶ a := by
+  change @Etingof.ReversedAtVertexHom Q inst _ i a i at e
+  unfold Etingof.ReversedAtVertexHom at e
+  revert e
+  exact match inst a i, inst i i with
+  | .isTrue h, _ => absurd h ha
+  | .isFalse _, .isFalse h => absurd rfl h
+  | .isFalse _, .isTrue _ => fun e => e
+
+/-- Canonical quotient map into F⁻ᵢ(ρ).obj i from the direct sum.
+Reduces the `Decidable.casesOn` at vertex i (which is `.isTrue` since i = i)
+and injects via the quotient map `mkQ`. -/
+noncomputable def Etingof.reflFunctorMinus_mkQ
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)] :
+    DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1) →ₗ[k]
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) i := by
+  -- Need AddCommGroup for Submodule.mkQ
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+  letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) :=
+    Etingof.addCommGroupOfRing (k := k)
+  unfold Etingof.reflectionFunctorMinus
+  simp only
+  exact match inst i i with
+  | .isTrue _ => Submodule.mkQ _
+  | .isFalse h => absurd rfl h
+
+open Classical in
+set_option maxHeartbeats 1600000 in
+-- reason: unfolding reflectionFunctorMinus + equivAt_ne + mkQ + match reduction
+/-- At (a ≠ i, b = i), the F⁻ᵢ map sends w to mkQ(lof ⟨a, reversed_arrow⟩ (equivAt_ne w))
+in the quotient at vertex i.
+
+Dual of `reflFunctorPlus_mapLinear_eq_ne`. -/
+theorem Etingof.reflFunctorMinus_mapLinear_ne_eq
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    {a : Q} (ha : a ≠ i)
+    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a i)
+    (w : @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) a) :
+    @Etingof.QuiverRepresentation.mapLinear k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) a i e w =
+    (Etingof.reflFunctorMinus_mkQ hi ρ)
+      (DirectSum.lof k (Etingof.ArrowsOutOf Q i)
+        (fun a => ρ.obj a.1) ⟨a, Etingof.reversedArrow_ne_eq ha e⟩
+        ((Etingof.reflFunctorMinus_equivAt_ne hi ρ a ha) w)) := by
+  have h_da : inst a i = .isFalse ha := by
+    cases inst a i with | isTrue h => exact absurd h ha | isFalse _ => rfl
+  have h_di : inst i i = .isTrue rfl := by
+    cases inst i i with | isTrue _ => rfl | isFalse h => exact absurd rfl h
+  revert e w
+  unfold Etingof.reflFunctorMinus_mkQ Etingof.reflFunctorMinus_equivAt_ne
+    Etingof.reversedArrow_ne_eq
+    Etingof.reflectionFunctorMinus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_da, h_di]
+  intro e w
+  rfl
+
 end ReflectionFunctorMinusAPI

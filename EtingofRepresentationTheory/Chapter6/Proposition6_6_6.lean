@@ -882,15 +882,6 @@ private theorem Etingof.reversedArrow_ne_ne_twice
       (@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm
   exact eq_of_heq ((h1 _).trans ((h2 _).trans h3))
 
-/-- Convert a reversed-quiver arrow from a to i (a ≠ i) back to i ⟶ a in Q.
-For a ≠ i, `ReversedAtVertexHom Q i a i = i ⟶ a`. -/
-private def Etingof.reversedArrow_ne_eq
-    {Q : Type*} [inst : DecidableEq Q] [Quiver Q] {i a : Q}
-    (ha : a ≠ i)
-    (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a i) : i ⟶ a := by
-  change @Etingof.ReversedAtVertexHom Q inst _ i a i at e
-  rw [Etingof.ReversedAtVertexHom_ne_eq ha rfl] at e; exact e
-
 
 end Helpers
 
@@ -944,23 +935,9 @@ theorem Etingof.Proposition6_6_6_sink
         subst ha; exact ((hi b).false e).elim
       · by_cases hb : b = i
         · -- a ≠ i, b = i: arrow a → i, involves equivAt_eq_sink at target
-          -- Subst in reverse direction to keep `i` (not `b`) in scope
           rw [eq_comm] at hb; subst hb
           simp only [dite_true, dif_neg ha, LinearEquiv.trans_apply]
-          -- Cases BEFORE unfold to resolve Decidable instances properly
-          -- Only unfold equivAt_ne and F⁻/F⁺ (not equivAt_eq_sink)
-          revert e x
-          cases ‹DecidableEq Q› a i with
-          | isTrue h => intro e x; exact absurd h ha
-          | isFalse _ =>
-            cases ‹DecidableEq Q› i i with
-            | isFalse h => intro e x; exact absurd rfl h
-            | isTrue _ =>
-              intro e x
-              -- Both sides mathematically equal ρ.mapLinear(x)(e)
-              -- Strategy: show RHS = ρ.mapLinear x e (equivAt_ne composed is id),
-              -- then show LHS = ρ.mapLinear x e (equivAt_eq_sink composed with F⁻ map)
-              sorry
+          sorry
         · -- a ≠ i, b ≠ i: use API lemmas compositionally
           simp only [dif_neg ha, dif_neg hb, LinearEquiv.trans_apply]
           -- After trans_apply, goal has explicit composition of the two equivs
