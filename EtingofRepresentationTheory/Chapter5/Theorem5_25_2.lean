@@ -1826,7 +1826,61 @@ private lemma Etingof.GL2.complementW_weyl_zero_eval
     (Etingof.GL2.complementWRep p n mu (Etingof.GL2.cosetRep p n (some 0)) f).val
       (Etingof.GL2.cosetRep p n (some 0)) =
     f.val (Etingof.GL2.cosetRep p n none) := by
-  sorry
+  -- LHS = f.val(rep(some 0) * rep(some 0)) by definition of complementWRep
+  change f.val (Etingof.GL2.cosetRep p n (some 0) *
+    Etingof.GL2.cosetRep p n (some 0)) = f.val (Etingof.GL2.cosetRep p n none)
+  set w2 := Etingof.GL2.cosetRep p n (some 0) * Etingof.GL2.cosetRep p n (some 0)
+  -- w2 ∈ B (its (1,0) entry is 0): w2 = [[0,-1],[1,0]]² = [[-1,0],[0,-1]]
+  have hw2_borel : (w2.val : Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 0 = 0 := by
+    simp [w2, Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.mkOfDetNeZero,
+      Matrix.GeneralLinearGroup.mk', Matrix.unitOfDetInvertible,
+      Matrix.mul_apply, Fin.sum_univ_two]
+  -- Use covariance from f ∈ principalSeriesSubmodule (first component of complementWSubmodule)
+  have hcov_f := f.prop.1  -- f.val ∈ principalSeriesSubmodule = covariant
+  -- cosetIndex(w2) = none since w2 ∈ B
+  have hidx : Etingof.GL2.cosetIndex p n w2 = none := by
+    unfold Etingof.GL2.cosetIndex; simp [hw2_borel]
+  -- cosetBorel(w2).val = w2 (since rep(none) = 1)
+  have hcb : (Etingof.GL2.cosetBorel p n w2).val = w2 := by
+    have := Etingof.GL2.cosetBorel_mul_cosetRep p n w2
+    rw [hidx] at this; simp [Etingof.GL2.cosetRep] at this; exact this.symm
+  -- By covariance: f(w2) = f(cosetBorel(w2) · rep(none)) = borelCharValue · f(rep(none))
+  have hcov_app := hcov_f (Etingof.GL2.cosetBorel p n w2)
+    (Etingof.GL2.cosetRep p n none)
+  rw [show (Etingof.GL2.cosetBorel p n w2).val * Etingof.GL2.cosetRep p n none = w2 from by
+    rw [hcb]; simp [Etingof.GL2.cosetRep]] at hcov_app
+  rw [hcov_app]
+  -- Need: borelCharValue(cosetBorel w2) = 1
+  -- w2 diagonal entries are both -1
+  have h00 : ((Etingof.GL2.cosetBorel p n w2).val.val :
+      Matrix (Fin 2) (Fin 2) (GaloisField p n)) 0 0 = -1 := by
+    rw [show (Etingof.GL2.cosetBorel p n w2).val = w2 from hcb]
+    simp [w2, Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.mkOfDetNeZero,
+      Matrix.GeneralLinearGroup.mk', Matrix.unitOfDetInvertible,
+      Matrix.mul_apply, Fin.sum_univ_two]
+  have h11 : ((Etingof.GL2.cosetBorel p n w2).val.val :
+      Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 1 = -1 := by
+    rw [show (Etingof.GL2.cosetBorel p n w2).val = w2 from hcb]
+    simp [w2, Etingof.GL2.cosetRep, Matrix.GeneralLinearGroup.mkOfDetNeZero,
+      Matrix.GeneralLinearGroup.mk', Matrix.unitOfDetInvertible,
+      Matrix.mul_apply, Fin.sum_univ_two]
+  -- borelCharValue(cosetBorel w2) = μ(diag00) * μ(diag11) = μ(-1) * μ(-1) = 1
+  change Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n w2) *
+    f.val (Etingof.GL2.cosetRep p n none) = f.val (Etingof.GL2.cosetRep p n none)
+  have hbcv : Etingof.GL2.borelCharValue p n mu mu (Etingof.GL2.cosetBorel p n w2) = 1 := by
+    unfold Etingof.GL2.borelCharValue
+    -- Units.mk0 (diag00) ... where diag00 = -1
+    have h00' : Units.mk0 (((Etingof.GL2.cosetBorel p n w2).val.val :
+        Matrix (Fin 2) (Fin 2) (GaloisField p n)) 0 0)
+        (Etingof.GL2.borel_diag00_ne_zero p n _) = -1 := by
+      ext; simp [h00]
+    have h11' : Units.mk0 (((Etingof.GL2.cosetBorel p n w2).val.val :
+        Matrix (Fin 2) (Fin 2) (GaloisField p n)) 1 1)
+        (Etingof.GL2.borel_diag11_ne_zero p n _) = -1 := by
+      ext; simp [h11]
+    simp only [h00', h11']
+    simp [← Units.val_mul, ← map_mul]
+  rw [hbcv, one_mul]
 
 /-- W_μ is irreducible.
 
