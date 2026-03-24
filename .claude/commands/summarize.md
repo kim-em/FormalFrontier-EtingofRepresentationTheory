@@ -43,6 +43,23 @@ Write an updated progress document that:
   remaining work, gaps between goals and achievements)
 - **Is honest in its framing** — don't overstate what has been achieved
 
+## Sorry Counting
+
+Lean files contain `sorry` in both code and comments/docstrings. To get accurate
+counts, you must distinguish actual `sorry` tactics/terms from comment mentions
+like "sorry'd", "currently sorry", etc.
+
+**Recommended approach:** Use grep to find all `sorry` mentions, then manually
+verify any file where the count differs from the previous wave. Common false
+positives:
+- `sorry'd` in docstrings and block comments (`/- ... -/`)
+- `"sorry"` in string literals or comment text like "1 sorry in ..."
+- Inline comments after code: `-- ... sorry ...`
+
+A simple first pass: `grep -rn '\bsorry\b' --include='*.lean'`, then for each
+file, inspect the matching lines to separate code sorries from comment mentions.
+Don't trust automated filtering alone — wave-over-wave deltas catch errors.
+
 ## Constraints
 
 - Do NOT modify any code or implementation files
