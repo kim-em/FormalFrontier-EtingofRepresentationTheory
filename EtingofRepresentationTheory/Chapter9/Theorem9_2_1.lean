@@ -1990,8 +1990,120 @@ lemma Etingof.Theorem921.exists_complete_orthogonal_idempotents_for_simples
         WA.symm (Pi.single l (Matrix.single j_idx j_idx (1 : k))) :=
       congr_fun he_raw_lift ⟨l, j_idx⟩
     split_ifs with hlj
-    · -- Case σ j = l: rank 1
-      sorry
+    · -- Case σ j = l: rank 1 (generalization of E₁₁ case to E_{j_idx, j_idx})
+      subst hlj
+      -- Step 1: e_raw acts idempotently on M j
+      have ha_idem : ∀ m : M j, e_raw ⟨σ j, j_idx⟩ • (e_raw ⟨σ j, j_idx⟩ • m) =
+          e_raw ⟨σ j, j_idx⟩ • m := by
+        intro m; rw [← mul_smul]
+        exact hsmul_eq _ _ j m (by
+          rw [map_mul, he_lift, hWA_mul]; congr 1
+          rw [← Pi.single_mul_left, Pi.single_eq_same]; congr 1
+          exact (matrix_single_zero_isIdempotentElem j_idx).eq)
+      -- Step 2: Image is nonzero (two-sided ideal argument)
+      have ha_ne_zero : ∃ m₀ : M j, e_raw ⟨σ j, j_idx⟩ • m₀ ≠ 0 := by
+        by_contra hall; push_neg at hall
+        have h_prod_zero : ∀ (b₁ b₂ : A) (m : M j),
+            (b₁ * e_raw ⟨σ j, j_idx⟩ * b₂) • m = 0 := by
+          intro b₁ b₂ m; rw [mul_smul, mul_smul, hall, smul_zero]
+        haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+        obtain ⟨m₀, hm₀⟩ := exists_ne (0 : M j)
+        apply hm₀
+        -- ∑_k E_{k,j_idx} * E_{j_idx,j_idx} * E_{j_idx,k} = I in Mat
+        have h_sum_eq_c : ∑ k' : Fin (d (σ j)),
+            WA.symm (Pi.single (σ j) (Matrix.single k' j_idx 1)) *
+            WA.symm (Pi.single (σ j) (Matrix.single j_idx j_idx 1)) *
+            WA.symm (Pi.single (σ j) (Matrix.single j_idx k' 1)) = c (σ j) := by
+          simp_rw [hWA_mul, ← Pi.single_mul_left, Pi.single_eq_same,
+            Matrix.single_mul_mul_single, one_mul, mul_one]
+          simp_rw [show (Matrix.single j_idx j_idx (1 : k))
+            j_idx j_idx = 1 from by simp [Matrix.single_apply]]
+          rw [show c (σ j) = WA.symm (Pi.single (σ j) 1) from rfl]
+          rw [show ∑ x, WA.symm (Pi.single (σ j) (Matrix.single x x (1 : k))) =
+            WA.symm (∑ x, Pi.single (σ j) (Matrix.single x x (1 : k))) from
+            (map_sum WA.symm.toRingHom _ _).symm]
+          congr 1; funext l'; by_cases hl' : l' = σ j
+          · subst hl'; simp only [Pi.single_eq_same, Finset.sum_apply]
+            ext r s
+            simp only [Matrix.sum_apply, Matrix.single_apply, Matrix.one_apply]
+            split_ifs with h
+            · subst h; simp [Finset.sum_ite_eq, Finset.mem_univ]
+            · apply Finset.sum_eq_zero; intro x _
+              simp [show ¬(x = r ∧ x = s) from fun ⟨h1, h2⟩ => h (h1.symm.trans h2)]
+          · simp [Finset.sum_apply, Pi.single_apply, hl']
+        let b₁ : Fin (d (σ j)) → A := fun k' =>
+          (Ideal.Quotient.mk_surjective (WA.symm (Pi.single (σ j)
+            (Matrix.single k' j_idx 1)))).choose
+        let b₂ : Fin (d (σ j)) → A := fun k' =>
+          (Ideal.Quotient.mk_surjective (WA.symm (Pi.single (σ j)
+            (Matrix.single j_idx k' 1)))).choose
+        have hb₁ : ∀ k', π (b₁ k') = WA.symm (Pi.single (σ j)
+            (Matrix.single k' j_idx 1)) :=
+          fun k' => (Ideal.Quotient.mk_surjective _).choose_spec
+        have hb₂ : ∀ k', π (b₂ k') = WA.symm (Pi.single (σ j)
+            (Matrix.single j_idx k' 1)) :=
+          fun k' => (Ideal.Quotient.mk_surjective _).choose_spec
+        have hsum_zero : (∑ k', b₁ k' * e_raw ⟨σ j, j_idx⟩ * b₂ k') • m₀ = 0 := by
+          rw [Finset.sum_smul]
+          exact Finset.sum_eq_zero (fun k' _ => h_prod_zero _ _ m₀)
+        have hsum_lifts : π (∑ k', b₁ k' * e_raw ⟨σ j, j_idx⟩ * b₂ k') = c (σ j) := by
+          rw [map_sum]; simp_rw [map_mul, hb₁, hb₂, he_lift]; exact h_sum_eq_c
+        rw [← hc_identity j _ hsum_lifts m₀]; exact hsum_zero
+      -- Step 3: Pick v₀ in the image
+      obtain ⟨m₀, hm₀⟩ := ha_ne_zero
+      set v₀ := e_raw ⟨σ j, j_idx⟩ • m₀ with hv₀_def
+      have hav₀ : e_raw ⟨σ j, j_idx⟩ • v₀ = v₀ := ha_idem m₀
+      -- Step 4: Every element of Im(e) is a k-multiple of v₀ (corner identity)
+      have hscalar : ∀ m' : M j,
+          e_raw ⟨σ j, j_idx⟩ • m' ∈ Submodule.span k {v₀} := by
+        intro m'
+        haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+        have hgen : Submodule.span A {v₀} = ⊤ := by
+          rcases IsSimpleOrder.eq_bot_or_eq_top (Submodule.span A {v₀}) with h | h
+          · exfalso; exact hm₀ ((Submodule.eq_bot_iff _).mp h v₀ (Submodule.subset_span rfl))
+          · exact h
+        have hm'_mem : m' ∈ Submodule.span A {v₀} := hgen ▸ Submodule.mem_top
+        rw [Submodule.mem_span_singleton] at hm'_mem
+        obtain ⟨b, rfl⟩ := hm'_mem
+        rw [← mul_smul]
+        have hab_eq : (e_raw ⟨σ j, j_idx⟩ * b) • v₀ =
+            (e_raw ⟨σ j, j_idx⟩ * b * e_raw ⟨σ j, j_idx⟩) • v₀ := by
+          conv_lhs => rw [← hav₀]; rw [← mul_smul]
+        rw [hab_eq]
+        set c_val := (WA (π b)) (σ j) j_idx j_idx with hc_val_def
+        have hpi_aba : π (e_raw ⟨σ j, j_idx⟩ * b * e_raw ⟨σ j, j_idx⟩) =
+            π ((algebraMap k A c_val) * e_raw ⟨σ j, j_idx⟩) := by
+          apply WA.injective
+          have hWAe : WA (π (e_raw ⟨σ j, j_idx⟩)) = Pi.single (σ j)
+              (Matrix.single j_idx j_idx (1 : k)) := by
+            rw [he_lift]; exact WA.apply_symm_apply _
+          simp only [map_mul, hWAe]
+          rw [← Pi.single_mul_left, ← Pi.single_mul_left,
+              Pi.single_eq_same, matrix_single_corner]
+          rw [Ideal.Quotient.mk_algebraMap, WA.commutes]
+          ext l'; by_cases hl' : l' = σ j
+          · subst hl'
+            simp only [Pi.single_eq_same, Pi.mul_apply, Algebra.algebraMap_eq_smul_one,
+              Pi.smul_apply, Pi.one_apply, Matrix.smul_apply, smul_eq_mul, one_mul,
+              smul_mul_assoc, hc_val_def]
+          · simp [Pi.mul_apply, Pi.single_apply, hl']
+        have : (e_raw ⟨σ j, j_idx⟩ * b * e_raw ⟨σ j, j_idx⟩) • v₀ = c_val • v₀ := by
+          have h := hsmul_eq (e_raw ⟨σ j, j_idx⟩ * b * e_raw ⟨σ j, j_idx⟩)
+            ((algebraMap k A c_val) * e_raw ⟨σ j, j_idx⟩) j v₀ hpi_aba
+          rw [h, mul_smul, hav₀, algebraMap_smul]
+        rw [this]
+        exact Submodule.smul_mem _ c_val (Submodule.subset_span rfl)
+      -- Step 5: smulRange = span{v₀}, finrank = 1
+      have hspan : smulRange (k := k) (A := A) (M j) (e_raw ⟨σ j, j_idx⟩) =
+          Submodule.span k {v₀} := by
+        ext w; constructor
+        · rintro ⟨m', rfl⟩; exact hscalar m'
+        · intro hw
+          rw [Submodule.mem_span_singleton] at hw
+          obtain ⟨c_val, rfl⟩ := hw
+          exact ⟨c_val • m₀, by
+            simp [smulEnd, smul_comm (e_raw ⟨σ j, j_idx⟩) c_val m₀, hv₀_def]⟩
+      rw [hspan]; exact finrank_span_singleton hm₀
     · -- Case σ j ≠ l: rank 0
       -- E_{j_idx, j_idx} is in block l. c_l * E = E. c_l acts as 0 on M j (since σ j ≠ l).
       have hfactor : π (e_raw ⟨l, j_idx⟩) = c l * π (e_raw ⟨l, j_idx⟩) := by
