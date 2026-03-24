@@ -2111,11 +2111,115 @@ lemma Etingof.Theorem921.exists_complete_orthogonal_idempotents_for_simples
         · rintro ⟨m, rfl⟩; exact ha_zero m
         · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) (e_raw ⟨l, j_idx⟩)).zero_mem
       rw [hbot]; simp
+  -- M_i is finite-dimensional (simple module over finite-dimensional algebra)
+  have hMi_finite : ∀ i, Module.Finite k (M i) := by
+    intro i
+    haveI : Nontrivial (M i) := IsSimpleModule.nontrivial A (M i)
+    obtain ⟨m₀, hm₀⟩ := exists_ne (0 : M i)
+    haveI : Module.Finite A (M i) := by
+      refine ⟨⟨{m₀}, ?_⟩⟩
+      rw [Finset.coe_singleton, eq_top_iff]
+      exact le_of_eq ((eq_bot_or_eq_top (Submodule.span A {m₀})).resolve_left (fun h => hm₀ (by
+        have := h.le (Submodule.mem_span_singleton_self m₀)
+        rwa [Submodule.mem_bot] at this))).symm
+    exact Module.Finite.trans A (M i)
   -- Dimension matching: d(σ i) = finrank k (M i)
-  -- Strategy: the d(σ i) idempotents e_raw(σ i, j) each contribute a 1-dim subspace to M_i
-  -- (by hrank), and together they span M_i (by COI completeness + other blocks vanish).
   have hd_eq : ∀ i, d (σ i) = Module.finrank k (M i) := by
-    sorry
+    intro i
+    haveI := hMi_finite i
+    -- Pick nonzero v_j from each 1-dimensional image
+    have hne_zero : ∀ j : Fin (d (σ i)), ∃ v : M i,
+        v ∈ smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩) ∧ v ≠ 0 := by
+      intro j
+      have h1 : Module.finrank k (smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩)) = 1 := by
+        have := hrank ⟨σ i, j⟩ i; simp at this; exact this
+      have hne_bot : smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩) ≠ ⊥ := by
+        intro hbot; rw [hbot, finrank_bot] at h1; exact absurd h1 (by omega)
+      exact (Submodule.ne_bot_iff _).mp hne_bot
+    choose v hv_mem hv_ne using hne_zero
+    -- v_j is fixed by e_raw(σ i, j) (idempotent)
+    have hv_idem : ∀ j, e_raw ⟨σ i, j⟩ • v j = v j := by
+      intro j
+      obtain ⟨m, hm⟩ := hv_mem j; change e_raw ⟨σ i, j⟩ • m = v j at hm
+      rw [← hm, ← mul_smul]
+      exact hsmul_eq _ _ i _ (congrArg π
+        (he_raw_coi.toOrthogonalIdempotents.idem ⟨σ i, j⟩))
+    -- e_raw(σ i, j') kills v_j for j' ≠ j (orthogonality)
+    have hv_ortho : ∀ j j' : Fin (d (σ i)), j ≠ j' →
+        e_raw ⟨σ i, j'⟩ • v j = 0 := by
+      intro j j' hjj'
+      obtain ⟨m, hm⟩ := hv_mem j; change e_raw ⟨σ i, j⟩ • m = v j at hm
+      have hortho : e_raw ⟨σ i, j'⟩ * e_raw ⟨σ i, j⟩ = 0 :=
+        he_raw_coi.toOrthogonalIdempotents.ortho (fun h => hjj' (by
+          exact (eq_of_heq (Sigma.mk.inj h).2).symm))
+      rw [← hm, ← mul_smul]
+      exact (hsmul_eq _ 0 i m (congrArg π hortho)).trans (zero_smul A m)
+    -- Helper: zero smulRange means zero action
+    have hzero_act : ∀ (l : Fin n) (j_idx : Fin (d l)), l ≠ σ i →
+        ∀ m : M i, e_raw ⟨l, j_idx⟩ • m = 0 := by
+      intro l j_idx hl m
+      have h0 := hrank ⟨l, j_idx⟩ i; simp [Ne.symm hl] at h0
+      -- h0 : smulRange ... = ⊥ (simp converts finrank = 0 to = ⊥)
+      have hmem : e_raw ⟨l, j_idx⟩ • m ∈ smulRange (k := k) (A := A) (M i) (e_raw ⟨l, j_idx⟩) :=
+        ⟨m, rfl⟩
+      rwa [h0, Submodule.mem_bot (R := k)] at hmem
+    -- ∑_j e_raw(σ i, j) • m = m for all m (completeness)
+    have hblock_id : ∀ m : M i, ∑ j : Fin (d (σ i)), e_raw ⟨σ i, j⟩ • m = m := by
+      intro m
+      have hπ_eq : π (∑ p : (Σ l : Fin n, Fin (d l)), e_raw p) = π 1 := by
+        have hpw : ∀ p, π (e_raw p) = ebar p := congr_fun he_raw_lift
+        simp only [map_sum, hpw, hebar_coi.complete, map_one]
+      have hfull : (∑ p : (Σ l : Fin n, Fin (d l)), e_raw p) • m = m :=
+        (hsmul_eq _ 1 i m hπ_eq).trans (one_smul A m)
+      rw [Finset.sum_smul] at hfull
+      rw [show (∑ x : (Σ l : Fin n, Fin (d l)), e_raw x • m) =
+        ∑ l : Fin n, ∑ j : Fin (d l), e_raw ⟨l, j⟩ • m from Fintype.sum_sigma _] at hfull
+      have hother : ∀ l : Fin n, l ≠ σ i →
+          (∑ j : Fin (d l), e_raw ⟨l, j⟩ • m) = 0 :=
+        fun l hl => Finset.sum_eq_zero (fun j _ => hzero_act l j hl m)
+      rw [← Finset.add_sum_erase _ _ (Finset.mem_univ (σ i))] at hfull
+      have hzero : (∑ x ∈ Finset.univ.erase (σ i), ∑ j : Fin (d x), e_raw ⟨x, j⟩ • m) = 0 :=
+        Finset.sum_eq_zero (fun l hl => hother l (Finset.mem_erase.mp hl).1)
+      rw [hzero, add_zero] at hfull
+      exact hfull
+    -- v_j span M_i
+    have hv_span : ∀ m : M i, m ∈ Submodule.span k (Set.range v) := by
+      intro m; rw [← hblock_id m]
+      apply Submodule.sum_mem; intro j _
+      have hmem : e_raw ⟨σ i, j⟩ • m ∈ smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩) := ⟨m, rfl⟩
+      have h1 := hrank ⟨σ i, j⟩ i; simp at h1
+      have hle : Submodule.span k {v j} ≤ smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩) :=
+        Submodule.span_le.mpr (Set.singleton_subset_iff.mpr (hv_mem j))
+      haveI : FiniteDimensional k ↥(smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩)) :=
+        Submodule.finiteDimensional_of_le (le_top)
+      have heq : smulRange (k := k) (A := A) (M i) (e_raw ⟨σ i, j⟩) = Submodule.span k {v j} :=
+        le_antisymm (Submodule.eq_of_le_of_finrank_le hle (by
+          rw [h1, finrank_span_singleton (hv_ne j)])).symm.le hle
+      rw [heq] at hmem; rw [Submodule.mem_span_singleton] at hmem
+      obtain ⟨c_val, hc⟩ := hmem; rw [← hc]
+      exact Submodule.smul_mem _ c_val (Submodule.subset_span ⟨j, rfl⟩)
+    -- Linear independence
+    have hv_indep : LinearIndependent k v := by
+      rw [linearIndependent_iff']; intro s g hg idx₀ hidx₀
+      have key : ∑ x ∈ s, g x • (e_raw ⟨σ i, idx₀⟩ • v x) = 0 := by
+        calc ∑ x ∈ s, g x • (e_raw ⟨σ i, idx₀⟩ • v x)
+            = ∑ x ∈ s, e_raw ⟨σ i, idx₀⟩ • (g x • v x) := by
+              congr 1; ext x; rw [smul_comm]
+          _ = e_raw ⟨σ i, idx₀⟩ • ∑ x ∈ s, g x • v x := (Finset.smul_sum.symm)
+          _ = e_raw ⟨σ i, idx₀⟩ • 0 := by rw [hg]
+          _ = 0 := smul_zero _
+      have hif : ∀ x, e_raw ⟨σ i, idx₀⟩ • v x = if x = idx₀ then v idx₀ else 0 := by
+        intro x; by_cases hxj : x = idx₀
+        · rw [if_pos hxj, hxj]; exact hv_idem idx₀
+        · rw [if_neg hxj]; exact hv_ortho x idx₀ hxj
+      simp_rw [hif] at key
+      simp only [smul_ite, smul_zero, Finset.sum_ite_eq'] at key
+      rw [if_pos hidx₀] at key
+      exact smul_eq_zero.mp key |>.resolve_right (hv_ne idx₀)
+    -- Conclude: finrank = card of basis = d(σ i)
+    have htop : ⊤ ≤ Submodule.span k (Set.range v) := fun m _ => hv_span m
+    rw [← Fintype.card_fin (d (σ i))]
+    exact (Module.finrank_eq_card_basis (Module.Basis.mk hv_indep htop)).symm
   -- σ is surjective (using hM_exhaustive)
   have hσ_surj : Function.Surjective σ := by
     sorry
