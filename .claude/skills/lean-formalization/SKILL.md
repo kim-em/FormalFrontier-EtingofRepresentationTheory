@@ -1007,6 +1007,41 @@ have : inst₁ = inst₂ := by
 
 **Companion:** Use `Finsupp.induction_linear` instead of `MonoidAlgebra.induction_on` when working with Finsupp directly (cases: zero, add, single — no `not_mem_support` hypothesis needed).
 
+## FDRep Morphism Extensionality Patterns
+
+FDRep morphisms are `Action.Hom` wrapping `FGModuleCat.Hom` wrapping `ModuleCat.Hom` wrapping `LinearMap`. Proving `f = g` for FDRep morphisms requires decomposing through all layers.
+
+**Pattern 1: Standalone lemma proofs** (f ≫ g = 0, f ≫ g = 𝟙, etc.)
+```lean
+apply Action.Hom.ext
+simp only [Action.comp_hom, Action.zero_hom]  -- or Action.id_hom
+apply FGModuleCat.hom_ext
+ext c
+-- Now at LinearMap level. Use `show` to set the expected form.
+show <expected_pointwise_equality>
+```
+
+Key lemmas: `Action.comp_hom`, `Action.zero_hom`, `Action.id_hom` (from `Mathlib.CategoryTheory.Action.Basic` and `Limits`).
+
+**Pattern 2: Term-mode** (useful in `exact` or `refine`)
+```lean
+exact Action.Hom.ext (FGModuleCat.hom_ext (LinearMap.ext (fun x => ...)))
+```
+
+**Pattern 3: Inside `where` clause `comm` proofs**
+The `comm` field is already at FGModuleCat level. Use:
+```lean
+comm g := by
+  apply FGModuleCat.hom_ext; ext ⟨f, hf⟩
+  -- For subtypes: apply Subtype.ext; funext g
+  show <expected_pointwise_form>
+  ...
+```
+
+**WARNING**: With high `maxHeartbeats`, Lean may eagerly reduce definitions, causing `show`/`change` to fail because the normal form differs from the expected mathematical form. If `show` fails, try `sorry` and revisit with lower heartbeats or restructured definitions.
+
+**Evidence:** Discovered during principalSeries_decomp (#1647, #1674) — ~15 build iterations were spent fighting FDRep morphism equality before these patterns were identified.
+
 ## PID Structure Theorem Bridge Pattern
 
 When using Mathlib's `Module.torsion_by_prime_power_decomposition` to decompose a module over a PID (e.g., ℂ[X]-modules for nilpotent operators), the output is a `DirectSum` of quotient modules `ℂ[X] ⧸ Ideal.span {X^nᵢ}`. Bridging this to concrete vector subspaces requires careful infrastructure.
