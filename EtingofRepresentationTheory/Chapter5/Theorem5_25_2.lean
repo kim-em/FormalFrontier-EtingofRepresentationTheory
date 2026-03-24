@@ -1189,7 +1189,7 @@ private lemma Etingof.GL2.complementW_eval_surjective
   -- f ∈ principalSeriesSubmodule is hf_mem
   -- f ∈ ker(augmentation) needs: aug(f) = 0
   -- This follows because aug(f) = |B| · ∑_i v(i) = |B| · ((-∑ c(t)) + ∑ c(t)) = 0
-  -- For now, sorry the augmentation computation and provide the witness
+  -- Show f ∈ ker(augmentation) via the augmentation computation
   have hf_aug : Etingof.GL2.mkCovariantFun p n mu mu v ∈
       LinearMap.ker (Etingof.GL2.augmentation p n mu) := by
     simp only [LinearMap.mem_ker, Etingof.GL2.augmentation, LinearMap.coe_mk, AddHom.coe_mk]
