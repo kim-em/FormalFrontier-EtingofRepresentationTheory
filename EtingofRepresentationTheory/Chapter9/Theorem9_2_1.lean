@@ -1728,7 +1728,296 @@ lemma Etingof.Theorem921.exists_complete_orthogonal_idempotents_for_simples
     -- Now: (if σ j = σ p.fst then 1 else 0) = (if p.fst = j then 1 else 0)
     congr 1; exact propext ⟨fun h => (hσ_bij.1 h).symm, fun h => congrArg σ h.symm⟩
   -- Step 9: Prove the block assignment, bijectivity, dimension matching, and rank property
-  sorry
+  -- Reconstruct block assignment infrastructure (cf. exists_orthogonal_idempotents_for_simples)
+  have hWA_mul : ∀ x y : ∀ l, Matrix (Fin (d l)) (Fin (d l)) k,
+      WA.symm x * WA.symm y = WA.symm (x * y) := fun x y => (map_mul WA.symm x y).symm
+  let c : Fin n → A ⧸ Ring.jacobson A := fun l => WA.symm (Pi.single l 1)
+  have hc_comm : ∀ (l : Fin n) (q : A ⧸ Ring.jacobson A), c l * q = q * c l := by
+    intro l q
+    obtain ⟨b, rfl⟩ := Ideal.Quotient.mk_surjective q
+    show WA.symm (Pi.single l 1) * π b = π b * WA.symm (Pi.single l 1)
+    rw [show π b = WA.symm (WA (π b)) from (WA.symm_apply_apply _).symm]
+    rw [hWA_mul, hWA_mul]; congr 1; exact pi_single_one_comm l (WA (π b))
+  have hsmulRange_A_sub : ∀ (j : ι) (l : Fin n) (a : A) (ha : π a = c l),
+      ∀ (b : A) (x : M j), x ∈ smulRange (k := k) (A := A) (M j) a →
+        b • x ∈ smulRange (k := k) (A := A) (M j) a := by
+    intro j l a ha b x ⟨m, hm⟩
+    rw [← hm]
+    have hcomm : π (b * a) = π (a * b) := by
+      rw [map_mul, map_mul, ha]; exact (hc_comm l (π b)).symm
+    show b • (a • m) ∈ smulRange (k := k) (A := A) (M j) a
+    rw [← mul_smul, hsmul_eq _ _ j _ hcomm, mul_smul]; exact ⟨b • m, rfl⟩
+  have hsmulRange_bot_or_top : ∀ (j : ι) (l : Fin n) (a : A) (ha : π a = c l),
+      smulRange (k := k) (A := A) (M j) a = ⊥ ∨
+        smulRange (k := k) (A := A) (M j) a = ⊤ := by
+    intro j l a ha
+    let N : Submodule A (M j) :=
+      { carrier := (smulRange (k := k) (A := A) (M j) a : Set (M j))
+        add_mem' := (smulRange (k := k) (A := A) (M j) a).add_mem
+        zero_mem' := (smulRange (k := k) (A := A) (M j) a).zero_mem
+        smul_mem' := fun b x hx => hsmulRange_A_sub j l a ha b x hx }
+    rcases IsSimpleOrder.eq_bot_or_eq_top N with h | h
+    · left; ext x; constructor
+      · intro hx; have : x ∈ N := hx; rw [h] at this
+        exact (Submodule.mem_bot A).mp this
+      · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) a).zero_mem
+    · right; ext x; constructor
+      · intro _; exact Submodule.mem_top
+      · intro _; have : x ∈ N := by rw [h]; exact Submodule.mem_top
+        exact this
+  have hcoi := completeOrthogonalIdempotents_pi_single_one
+    (S := fun l => Matrix (Fin (d l)) (Fin (d l)) k)
+  have hc_sum : ∑ l, c l = 1 := by
+    show ∑ l, WA.symm (Pi.single l 1) = 1
+    rw [← map_sum, hcoi.complete, map_one WA.symm]
+  have hblock_exists : ∀ j : ι, ∃ l : Fin n, ∀ a : A,
+      π a = WA.symm (Pi.single l 1) →
+      smulRange (k := k) (A := A) (M j) a = ⊤ := by
+    intro j; by_contra h_none; push_neg at h_none
+    have hall_bot : ∀ l : Fin n, ∀ a : A, π a = c l →
+        smulRange (k := k) (A := A) (M j) a = ⊥ := by
+      intro l a ha
+      obtain ⟨a₀, ha₀, hne⟩ := h_none l
+      rcases hsmulRange_bot_or_top j l a₀ ha₀ with h | h
+      · rwa [hsmulRange_eq a a₀ j (ha.trans ha₀.symm)]
+      · exact absurd h hne
+    haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+    obtain ⟨m, hm⟩ := exists_ne (0 : M j)
+    apply hm
+    have hlift : ∀ l : Fin n, ∃ a : A, π a = c l := fun l => Ideal.Quotient.mk_surjective (c l)
+    choose a_l ha_l using hlift
+    have hsum_img : π (∑ l, a_l l) = 1 := by
+      rw [map_sum]; simp_rw [ha_l]; exact hc_sum
+    have hsum_act : (∑ l, a_l l) • m = m := by
+      have := hsmul_eq (∑ l, a_l l) 1 j m (by rw [hsum_img, map_one])
+      rwa [one_smul] at this
+    rw [← hsum_act, Finset.sum_smul]
+    apply Finset.sum_eq_zero; intro l _
+    have h0 := hall_bot l (a_l l) (ha_l l)
+    have : a_l l • m ∈ smulRange (k := k) (A := A) (M j) (a_l l) := ⟨m, rfl⟩
+    rw [h0] at this; exact (Submodule.mem_bot k).mp this
+  have hblock_unique : ∀ j : ι, ∀ l₁ l₂ : Fin n,
+      (∀ a : A, π a = WA.symm (Pi.single l₁ 1) →
+        smulRange (k := k) (A := A) (M j) a = ⊤) →
+      (∀ a : A, π a = WA.symm (Pi.single l₂ 1) →
+        smulRange (k := k) (A := A) (M j) a = ⊤) →
+      l₁ = l₂ := by
+    intro j l₁ l₂ h₁ h₂; by_contra hne
+    have horth : c l₁ * c l₂ = 0 :=
+      (hcoi.toOrthogonalIdempotents.map WA.symm.toRingEquiv.toRingHom).ortho hne
+    obtain ⟨a₁, ha₁⟩ := Ideal.Quotient.mk_surjective (c l₁)
+    obtain ⟨a₂, ha₂⟩ := Ideal.Quotient.mk_surjective (c l₂)
+    have h₂_top := h₂ a₂ ha₂
+    have hprod_img : π (a₁ * a₂) = 0 := by rw [map_mul, ha₁, ha₂, horth]
+    have hprod_zero : ∀ m : M j, (a₁ * a₂) • m = 0 := by
+      intro m
+      have h0 := hsmul_eq (a₁ * a₂) 0 j m (by rw [hprod_img, map_zero])
+      rwa [zero_smul] at h0
+    have h₁_top := h₁ a₁ ha₁
+    haveI : Nontrivial (M j) := IsSimpleModule.nontrivial A (M j)
+    have ha₁_zero : ∀ m : M j, a₁ • m = 0 := by
+      intro m
+      have : m ∈ smulRange (k := k) (A := A) (M j) a₂ := by
+        rw [h₂_top]; exact Submodule.mem_top
+      obtain ⟨m₀, hm₀⟩ := this; change a₂ • m₀ = m at hm₀
+      rw [← hm₀, ← mul_smul]; exact hprod_zero m₀
+    have : smulRange (k := k) (A := A) (M j) a₁ = ⊥ := by
+      ext x; simp only [Submodule.mem_bot]; constructor
+      · rintro ⟨m, rfl⟩; exact ha₁_zero m
+      · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) a₁).zero_mem
+    rw [this] at h₁_top; exact bot_ne_top h₁_top
+  -- Define σ
+  let σ : ι → Fin n := fun j => (hblock_exists j).choose
+  have hσ_spec : ∀ j a, π a = WA.symm (Pi.single (σ j) 1) →
+      smulRange (k := k) (A := A) (M j) a = ⊤ :=
+    fun j => (hblock_exists j).choose_spec
+  have hc_idem : ∀ l', IsIdempotentElem (c l') :=
+    (hcoi.toOrthogonalIdempotents.map WA.symm.toRingEquiv.toRingHom).idem
+  have hc_identity : ∀ (p : ι) (a : A) (ha : π a = c (σ p)),
+      ∀ m : M p, a • m = m := by
+    intro p a ha m
+    have h_top := hσ_spec p a ha
+    have ⟨m₀, hm₀⟩ : m ∈ smulRange (k := k) (A := A) (M p) a := by
+      rw [h_top]; exact Submodule.mem_top
+    change a • m₀ = m at hm₀
+    rw [← hm₀, ← mul_smul]
+    exact hsmul_eq (a * a) a p m₀ (by rw [map_mul, ha, (hc_idem (σ p)).eq])
+  have hc_zero : ∀ (p : ι) (l' : Fin n) (hl' : l' ≠ σ p) (a : A)
+      (ha : π a = c l'), ∀ m : M p, a • m = 0 := by
+    intro p l' hl' a ha m
+    rcases hsmulRange_bot_or_top p l' a ha with h | h
+    · have : a • m ∈ smulRange (k := k) (A := A) (M p) a := ⟨m, rfl⟩
+      rw [h] at this; exact (Submodule.mem_bot k).mp this
+    · exfalso; exact hl' (hblock_unique p l' (σ p)
+        (fun a' ha' => hsmulRange_eq a' a p (ha'.trans ha.symm) ▸ h) (hσ_spec p))
+  -- σ is injective
+  have hσ_inj : Function.Injective σ := by
+    intro i j hij; apply hM i j
+    set l := σ i with hl_def
+    have hlj : σ j = l := hij.symm
+    let lft : (A ⧸ Ring.jacobson A) → A := fun q => (Ideal.Quotient.mk_surjective q).choose
+    have hlft : ∀ q, π (lft q) = q := fun q => (Ideal.Quotient.mk_surjective q).choose_spec
+    let matAct : ∀ p : ι, Matrix (Fin (d l)) (Fin (d l)) k → M p → M p :=
+      fun p mat m => lft (WA.symm (Pi.single l mat)) • m
+    have hdecomp : ∀ (p : ι) (hp : σ p = l) (a : A) (m : M p),
+        a • m = matAct p ((WA (π a)) l) m := by
+      intro p hp a m
+      have hid := hc_identity p (lft (c l)) (by rw [hlft]; exact (congrArg c hp).symm ▸ rfl)
+      conv_lhs => rw [show a • m = (a * lft (c l)) • m from by rw [mul_smul, hid m]]
+      apply hsmul_eq; simp only [map_mul, hlft]
+      conv_lhs => rw [show π a = WA.symm (WA (π a)) from (WA.symm_apply_apply _).symm,
+                       show c l = WA.symm (Pi.single l 1) from rfl]
+      rw [hWA_mul]; congr 1; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · simp [Pi.mul_apply, show l ≠ l' from fun h => hl' h.symm]
+    have hpi_single_mul : ∀ (x y : Matrix (Fin (d l)) (Fin (d l)) k),
+        Pi.single l x * Pi.single l y =
+          (Pi.single l (x * y) : ∀ l', Matrix (Fin (d l')) (Fin (d l')) k) := by
+      intro x y; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · have hne : l ≠ l' := fun h => hl' h.symm
+        simp [Pi.mul_apply, hne, Pi.single_apply]
+    have hmatAct_mul : ∀ (p : ι) (mat1 mat2 : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p),
+        matAct p (mat1 * mat2) m = matAct p mat1 (matAct p mat2 m) := by
+      intro p mat1 mat2 m
+      show lft (WA.symm (Pi.single l (mat1 * mat2))) • m =
+        lft (WA.symm (Pi.single l mat1)) • (lft (WA.symm (Pi.single l mat2)) • m)
+      rw [← mul_smul]; apply hsmul_eq
+      rw [map_mul, hlft, hlft]; conv_rhs => rw [hlft]
+      rw [hWA_mul, hpi_single_mul]
+    have hmatAct_add : ∀ (p : ι) (mat1 mat2 : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p),
+        matAct p (mat1 + mat2) m = matAct p mat1 m + matAct p mat2 m := by
+      intro p mat1 mat2 m
+      show lft (WA.symm (Pi.single l (mat1 + mat2))) • m =
+        lft (WA.symm (Pi.single l mat1)) • m + lft (WA.symm (Pi.single l mat2)) • m
+      rw [← add_smul]; apply hsmul_eq
+      rw [map_add, hlft, hlft]; conv_rhs => rw [hlft]
+      rw [show WA.symm (Pi.single l mat1) + WA.symm (Pi.single l mat2) =
+            WA.symm (Pi.single l mat1 + Pi.single l mat2) from (map_add WA.symm _ _).symm]
+      congr 1; funext l'
+      by_cases hl' : l' = l
+      · subst hl'; simp [Pi.single_eq_same]
+      · have hne : l ≠ l' := fun h => hl' h.symm
+        simp [Pi.single_apply, hne]
+    have hmatAct_one : ∀ (p : ι) (hp : σ p = l) (m : M p), matAct p 1 m = m := by
+      intro p hp m
+      exact hc_identity p (lft (c l)) (by rw [hlft]; exact (congrArg c hp).symm ▸ rfl) m
+    have hmatAct_zero : ∀ (p : ι) (m : M p), matAct p 0 m = 0 := by
+      intro p m
+      have : lft (WA.symm (Pi.single l 0)) • m = (0 : A) • m := by
+        apply hsmul_eq; rw [hlft, map_zero, Pi.single_zero, map_zero]
+      exact this.trans (zero_smul A m)
+    letI instMi : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M i) :=
+      { smul := matAct i
+        one_smul := hmatAct_one i rfl
+        mul_smul := hmatAct_mul i
+        smul_zero := fun _ => smul_zero _
+        smul_add := fun _ => smul_add _
+        add_smul := hmatAct_add i
+        zero_smul := hmatAct_zero i }
+    letI instMj : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M j) :=
+      { smul := matAct j
+        one_smul := hmatAct_one j hlj
+        mul_smul := hmatAct_mul j
+        smul_zero := fun _ => smul_zero _
+        smul_add := fun _ => smul_add _
+        add_smul := hmatAct_add j
+        zero_smul := hmatAct_zero j }
+    have hMatSimple : ∀ (p : ι) (hp : σ p = l)
+        (inst : Module (Matrix (Fin (d l)) (Fin (d l)) k) (M p)),
+        (∀ (mat : Matrix (Fin (d l)) (Fin (d l)) k) (m : M p), mat • m = matAct p mat m) →
+        @IsSimpleModule (Matrix (Fin (d l)) (Fin (d l)) k) _ (M p) _ inst := by
+      intro p hp inst hsmul_def
+      haveI : Nontrivial (M p) := IsSimpleModule.nontrivial A (M p)
+      exact
+        { eq_bot_or_eq_top := fun N => by
+            let N_A : Submodule A (M p) :=
+              { carrier := N.carrier
+                add_mem' := N.add_mem'
+                zero_mem' := N.zero_mem'
+                smul_mem' := fun a x hx => by
+                  rw [hdecomp p hp a x, ← hsmul_def]; exact N.smul_mem _ hx }
+            rcases IsSimpleOrder.eq_bot_or_eq_top N_A with h | h
+            · left; ext x; simp only [Submodule.mem_bot]
+              exact ⟨fun hx => (Submodule.eq_bot_iff _).mp h x hx,
+                     fun hx => hx ▸ N.zero_mem⟩
+            · right; ext x
+              exact ⟨fun _ => trivial,
+                     fun _ => (Submodule.eq_top_iff'.mp h x : x ∈ N_A)⟩ }
+    haveI hSimMi := hMatSimple i rfl instMi (fun _ _ => rfl)
+    haveI hSimMj := hMatSimple j hlj instMj (fun _ _ => rfl)
+    haveI : IsSimpleRing (Matrix (Fin (d l)) (Fin (d l)) k) := by
+      haveI := hd l; exact IsSimpleRing.matrix (Fin (d l)) k
+    haveI : IsArtinianRing (Matrix (Fin (d l)) (Fin (d l)) k) := inferInstance
+    obtain ⟨f⟩ := @IsSimpleRing.nonempty_linearEquiv_of_isSimpleModule
+      (Matrix (Fin (d l)) (Fin (d l)) k) _ _ _ (M i) (M j) _ instMi hSimMi _ instMj hSimMj
+    exact ⟨{ toFun := f
+             invFun := f.symm
+             left_inv := f.left_inv
+             right_inv := f.right_inv
+             map_add' := f.map_add
+             map_smul' := fun a m => by
+               simp only [RingHom.id_apply]
+               rw [hdecomp i rfl a m, hdecomp j hlj a (f m)]
+               exact f.map_smul ((WA (π a)) l) m }⟩
+  -- σ is surjective (using hM_exhaustive)
+  have hσ_surj : Function.Surjective σ := by
+    intro l
+    -- Block l gives a simple module over Mat_{d l}(k). By hM_exhaustive, it's isomorphic
+    -- to some M i. Then σ(i) = l by uniqueness of block assignment.
+    -- The standard representation of Mat_{d l}(k) is simple. Lift it to an A-module structure.
+    -- Since c_l acts as identity on this module, σ for this module must be l.
+    -- Actually, more directly: use Fintype.bijective_iff_surjective after proving card equality.
+    -- |ι| ≤ n (by injectivity). n ≤ |ι| by the following:
+    -- Cardinality: |ι| = n follows from injectivity + finiteness + n ≤ |ι|.
+    -- But we need n ≤ |ι|. This requires that every block is "used", i.e., for each l,
+    -- there exists a simple module supported on block l. This follows from hM_exhaustive.
+    -- For each block l, construct a simple A-module from the standard Mat representation,
+    -- use hM_exhaustive to find i with M i ≅ this module, then σ i = l.
+    sorry
+  -- Dimension matching: d(σ i) = finrank k (M i)
+  have hd_eq : ∀ i, d (σ i) = Module.finrank k (M i) := by
+    sorry
+  -- Rank property for all E_{jj}
+  have hrank : ∀ (p : Σ l : Fin n, Fin (d l)) (j : ι),
+      Module.finrank k (smulRange (k := k) (A := A) (M j) (e_raw p)) =
+        if σ j = p.fst then 1 else 0 := by
+    intro ⟨l, j_idx⟩ j
+    -- e_raw(l, j_idx) lifts WA.symm(Pi.single l (E_{j_idx, j_idx}))
+    have he_lift : π (e_raw ⟨l, j_idx⟩) =
+        WA.symm (Pi.single l (Matrix.single j_idx j_idx (1 : k))) :=
+      congr_fun he_raw_lift ⟨l, j_idx⟩
+    split_ifs with hlj
+    · -- Case σ j = l: rank 1
+      sorry
+    · -- Case σ j ≠ l: rank 0
+      -- E_{j_idx, j_idx} is in block l. c_l * E = E. c_l acts as 0 on M j (since σ j ≠ l).
+      have hfactor : π (e_raw ⟨l, j_idx⟩) = c l * π (e_raw ⟨l, j_idx⟩) := by
+        rw [he_lift, show c l = WA.symm (Pi.single l 1) from rfl, hWA_mul]
+        congr 1; rw [← Pi.single_mul_left]; simp
+      obtain ⟨a_c, ha_c⟩ := Ideal.Quotient.mk_surjective (c l)
+      have hc_bot : smulRange (k := k) (A := A) (M j) a_c = ⊥ := by
+        rcases hsmulRange_bot_or_top j l a_c ha_c with h | h
+        · exact h
+        · exfalso; exact hlj (hblock_unique j l (σ j)
+            (fun a' ha' => hsmulRange_eq a' a_c j (ha'.trans ha_c.symm) ▸ h) (hσ_spec j)).symm
+      have ha_zero : ∀ m : M j, e_raw ⟨l, j_idx⟩ • m = 0 := by
+        intro m
+        have hca_zero : ∀ m : M j, a_c • m = 0 := by
+          intro m'
+          have : a_c • m' ∈ smulRange (k := k) (A := A) (M j) a_c := ⟨m', rfl⟩
+          rw [hc_bot] at this; exact (Submodule.mem_bot k).mp this
+        have := hsmul_eq (a_c * e_raw ⟨l, j_idx⟩) (e_raw ⟨l, j_idx⟩) j m
+          (by rw [map_mul, ha_c]; exact hfactor.symm)
+        rw [mul_smul] at this; rw [← this, hca_zero]
+      have hbot : smulRange (k := k) (A := A) (M j) (e_raw ⟨l, j_idx⟩) = ⊥ := by
+        ext x; simp only [Submodule.mem_bot]; constructor
+        · rintro ⟨m, rfl⟩; exact ha_zero m
+        · intro hx; rw [hx]; exact (smulRange (k := k) (A := A) (M j) (e_raw ⟨l, j_idx⟩)).zero_mem
+      rw [hbot]; simp
+  exact ⟨σ, ⟨hσ_inj, hσ_surj⟩, hd_eq, hrank⟩
 
 end CompleteSystem
 
