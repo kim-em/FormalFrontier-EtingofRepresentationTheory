@@ -1259,16 +1259,69 @@ private lemma Etingof.GL2.complementW_eval_surjective
     -- ∑_g v(cosetIndex g) = 0 because v factors through cosetIndex
     -- and ∑_i v(i) = 0 (by construction: v(none) = -∑ c t, v(some t) = c t)
     -- Each fiber has the same size |B|, so ∑_g v(cosetIndex g) = |B| * ∑_i v(i) = |B| * 0 = 0
-    -- TODO: needs Equiv between GL₂ and B × Option(GaloisField p n) for reindexing
-    sorry
+    -- Step 1: ∑_i v(i) = 0
+    have hv_sum : ∑ i : Option (GaloisField p n), v i = 0 := by
+      simp only [Fintype.sum_option, v]
+      simp [add_comm]
+    -- Step 2: Build Equiv GL₂ ≃ B × Option(GaloisField p n)
+    let e : GL2 p n ≃ ↥(Etingof.GL2.BorelSubgroup p n) × Option (GaloisField p n) :=
+      { toFun := fun g => (Etingof.GL2.cosetBorel p n g, Etingof.GL2.cosetIndex p n g)
+        invFun := fun bi => bi.1.val * Etingof.GL2.cosetRep p n bi.2
+        left_inv := fun g => by
+          simp only
+          exact (Etingof.GL2.cosetBorel_mul_cosetRep p n g).symm
+        right_inv := fun ⟨b, i⟩ => by
+          simp only
+          ext
+          · -- cosetBorel(b * rep(i)) = b
+            have := Etingof.GL2.cosetBorel_borel_mul p n b
+                      (Etingof.GL2.cosetRep p n i)
+            rw [this, Etingof.GL2.cosetBorel_cosetRep]
+            simp
+          · -- cosetIndex(b * rep(i)) = i
+            rw [Etingof.GL2.cosetIndex_borel_mul,
+                Etingof.GL2.cosetIndex_cosetRep] }
+    -- Step 3: Reindex the sum
+    rw [show (∑ g : GL2 p n, v (Etingof.GL2.cosetIndex p n g)) =
+        ∑ bi : ↥(Etingof.GL2.BorelSubgroup p n) × Option (GaloisField p n), v bi.2 from
+      Fintype.sum_equiv e _ _ (fun g => by simp [e])]
+    rw [Fintype.sum_prod_type]
+    simp [hv_sum]
   exact ⟨⟨Etingof.GL2.mkCovariantFun p n mu mu v, ⟨hf_mem, hf_aug⟩⟩,
     fun t => hf_eval (some t)⟩
 
 /-- dim V(χ₁,χ₂) = [G:B] = p^n + 1. -/
-private lemma Etingof.GL2.principalSeriesSubmodule_finrank
+private lemma Etingof.GL2.principalSeriesSubmodule_finrank [NeZero n]
     (chi1 chi2 : (GaloisField p n)ˣ →* ℂˣ) :
     Module.finrank ℂ ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) = p ^ n + 1 := by
-  sorry
+  -- Build linear map: evaluate at coset reps
+  let evalMap : ↥(Etingof.GL2.principalSeriesSubmodule p n chi1 chi2) →ₗ[ℂ]
+      (Option (GaloisField p n) → ℂ) :=
+    { toFun := fun f i => (f : GL2 p n → ℂ) (Etingof.GL2.cosetRep p n i)
+      map_add' := fun _ _ => funext fun _ => rfl
+      map_smul' := fun _ _ => funext fun _ => rfl }
+  -- evalMap is injective (by principalSeries_eval_injective)
+  have hinj : Function.Injective evalMap := by
+    intro f g hfg
+    have h : f - g = 0 := Etingof.GL2.principalSeries_eval_injective p n chi1 chi2 (f - g)
+      (fun i => by
+        have := congr_fun hfg i
+        simp [evalMap] at this
+        simp [this])
+    exact sub_eq_zero.mp h
+  -- evalMap is surjective (via mkCovariantFun)
+  have hsurj : Function.Surjective evalMap := fun c =>
+    ⟨⟨Etingof.GL2.mkCovariantFun p n chi1 chi2 c,
+      Etingof.GL2.mkCovariantFun_mem p n chi1 chi2 c⟩,
+     funext fun i => Etingof.GL2.mkCovariantFun_eval p n chi1 chi2 c i⟩
+  -- Use the linear equiv to transfer finrank
+  have heq := (LinearEquiv.ofBijective evalMap ⟨hinj, hsurj⟩).finrank_eq
+  rw [Module.finrank_pi_fintype] at heq
+  simp only [Module.finrank_self] at heq
+  simp only [Finset.sum_const, Finset.card_univ, smul_eq_mul, mul_one] at heq
+  rw [heq, Fintype.card_option]
+  congr 1
+  rw [← Nat.card_eq_fintype_card, GaloisField.card p n (NeZero.ne n)]
 
 /-- The determinant character g ↦ μ(det g) is in the principal series submodule for (μ,μ). -/
 private lemma Etingof.GL2.detFun_mem_principalSeries
@@ -1579,7 +1632,24 @@ private noncomputable def Etingof.GL2.complementWProjection
     apply FGModuleCat.hom_ext; ext ⟨f, hf⟩
     apply Subtype.ext; funext x
     -- Both sides reduce to f(xg) - (1/|G|)·aug(f)·μ(det g)·μ(det x)
-    sorry
+    -- LHS: proj(g·f)(x) = f(xg) - (aug(g·f)/|G|)·μ(det x)
+    -- RHS: (g·proj(f))(x) = proj(f)(xg) = f(xg) - (aug(f)/|G|)·μ(det(xg))
+    --                      = f(xg) - (aug(f)/|G|)·μ(det x)·μ(det g)
+    -- These are equal because aug(g·f) = μ(det g)·aug(f)
+    simp only [Etingof.GL2.complementW, Etingof.GL2.complementWSubmodule,
+      Etingof.GL2.principalSeriesRep, Representation.ofMulAction]
+    show f (x * g) -
+        (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+          Etingof.GL2.augOnPrincipalSeries p n mu
+            (Etingof.GL2.principalSeriesRep p n mu mu g ⟨f, hf⟩) *
+          ↑(mu (Matrix.GeneralLinearGroup.det x)) =
+      f (x * g) -
+        (Fintype.card (GL2 p n) : ℂ)⁻¹ *
+          Etingof.GL2.augOnPrincipalSeries p n mu ⟨f, hf⟩ *
+          ↑(mu (Matrix.GeneralLinearGroup.det (x * g)))
+    rw [Etingof.GL2.augOnPrincipalSeries_equivariant]
+    simp only [map_mul, Units.val_mul]
+    ring
 
 /-- The scaled augmentation (1/|G|)·aug as a morphism V(μ,μ) → ℂ_μ in FDRep. -/
 private noncomputable def Etingof.GL2.scaledAugMorphism
