@@ -503,7 +503,7 @@ private lemma invColor_orbit_const (la : Nat.Partition n) (σ : Equiv.Perm (Fin 
   exact (invColor_const_zpow la σ c x i).symm
 
 /-- All entries of fullCycleType are positive. -/
-private lemma fullCycleType_pos (σ : Equiv.Perm (Fin n)) :
+lemma fullCycleType_pos (σ : Equiv.Perm (Fin n)) :
     ∀ x ∈ fullCycleType n σ, 0 < x := by
   intro x hx
   simp only [fullCycleType, Multiset.mem_add, Multiset.mem_replicate] at hx
@@ -626,7 +626,7 @@ private lemma orbitSet_card (σ : Equiv.Perm (Fin n)) :
   simp only [orbitSizes, Multiset.card_map] at h
   exact h
 
-private lemma exists_orbIdx (σ : Equiv.Perm (Fin n)) :
+lemma exists_orbIdx (σ : Equiv.Perm (Fin n)) :
     ∃ (π : Fin n → Fin (fullCycleType n σ).toList.length),
       (∀ k₁ k₂ : Fin n, π k₁ = π k₂ ↔ σ.SameCycle k₁ k₂) ∧
       (∀ i : Fin (fullCycleType n σ).toList.length,
