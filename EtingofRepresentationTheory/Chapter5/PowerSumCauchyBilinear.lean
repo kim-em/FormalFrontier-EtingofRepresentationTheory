@@ -448,6 +448,222 @@ theorem coeff_cycleTypePsumProduct_eq_card (n : ℕ) (α : Fin n →₀ ℕ)
     from Fintype.card_congr equiv]
   simp only [Fintype.card_subtype, Finset.card_filter]
 
+/-! ### Double counting infrastructure
+
+The key identity `∑_σ |CycleCol(α,σ)| × |CycleCol(β,σ)| = n! × |NNMat|`
+is proved by going through an intermediate type of "compatible pairs" (h, σ):
+- h : Fin n → Fin n × Fin n has marginals (α, β)
+- σ ∈ Perm(Fin n) preserves h-fibers
+
+Grouping by σ gives the LHS (via orbit index). Grouping by h and using
+orbit-stabilizer gives the RHS.
+-/
+
+/-- Element bicoloring with prescribed row/column sums. -/
+private def ElemBicol (n : ℕ) (α β : Fin n →₀ ℕ) : Type :=
+  { h : Fin n → Fin n × Fin n //
+    (∀ i : Fin n, (Finset.univ.filter fun x => (h x).1 = i).card = α i) ∧
+    (∀ j : Fin n, (Finset.univ.filter fun x => (h x).2 = j).card = β j) }
+
+private instance (n : ℕ) (α β : Fin n →₀ ℕ) : Fintype (ElemBicol n α β) :=
+  Subtype.fintype _
+
+/-- Permutation preserving fibers of h. -/
+private def FiberPerm {n : ℕ} (h : Fin n → Fin n × Fin n) : Type :=
+  { σ : Equiv.Perm (Fin n) // ∀ x, h (σ x) = h x }
+
+private instance {n : ℕ} (h : Fin n → Fin n × Fin n) : Fintype (FiberPerm h) :=
+  Subtype.fintype _
+
+/-- Construct an element bicoloring from cycle colorings using orbit index. -/
+private def cycleColToBicol (n : ℕ) (α β : Fin n →₀ ℕ)
+    (σ : Equiv.Perm (Fin n)) (fg : CycleColoring n α σ × CycleColoring n β σ) :
+    ElemBicol n α β :=
+  let π := (exists_orbIdx σ).choose
+  have hπ := (exists_orbIdx σ).choose_spec
+  ⟨fun x => (fg.1.val (π x), fg.2.val (π x)),
+   ⟨fun i => by
+      rw [show (Finset.univ.filter fun x : Fin n => fg.1.val (π x) = i) =
+          (Finset.univ.filter fun j => fg.1.val j = i).biUnion
+            (fun j => Finset.univ.filter fun x => π x = j) from by
+        ext x; simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_biUnion]
+        exact ⟨fun h => ⟨π x, h, rfl⟩, fun ⟨j, hj, hjx⟩ => hjx ▸ hj⟩]
+      rw [Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij =>
+        Finset.disjoint_filter.mpr (fun x _ h₁ h₂ => hij (h₁ ▸ h₂)))]
+      conv_lhs => arg 2; ext j; rw [hπ.2 j]
+      exact fg.1.prop i,
+    fun j => by
+      rw [show (Finset.univ.filter fun x : Fin n => fg.2.val (π x) = j) =
+          (Finset.univ.filter fun k => fg.2.val k = j).biUnion
+            (fun k => Finset.univ.filter fun x => π x = k) from by
+        ext x; simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_biUnion]
+        exact ⟨fun h => ⟨π x, h, rfl⟩, fun ⟨k, hk, hkx⟩ => hkx ▸ hk⟩]
+      rw [Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij =>
+        Finset.disjoint_filter.mpr (fun x _ h₁ h₂ => hij (h₁ ▸ h₂)))]
+      conv_lhs => arg 2; ext k; rw [hπ.2 k]
+      exact fg.2.prop j⟩⟩
+
+/-- The permutation σ preserves the bicoloring constructed from its cycle colorings. -/
+private lemma cycleColToBicol_compat (n : ℕ) (α β : Fin n →₀ ℕ)
+    (σ : Equiv.Perm (Fin n)) (fg : CycleColoring n α σ × CycleColoring n β σ) :
+    ∀ x, (cycleColToBicol n α β σ fg).val (σ x) = (cycleColToBicol n α β σ fg).val x := by
+  intro x
+  simp only [cycleColToBicol]
+  let π := (exists_orbIdx σ).choose
+  have hπ := (exists_orbIdx σ).choose_spec
+  show (fg.1.val (π (σ x)), fg.2.val (π (σ x))) = (fg.1.val (π x), fg.2.val (π x))
+  have hkey : π (σ x) = π x := (hπ.1 (σ x) x).mpr ⟨-1, by simp⟩
+  rw [hkey]
+
+/-- **Part A**: The sigma type over CycleCol pairs has the same cardinality as
+the sigma type over compatible (h, σ) pairs. -/
+private lemma card_sigma_CycleCol_eq_card_sigma_fiberPerm (n : ℕ) (α β : Fin n →₀ ℕ)
+    (hα : ∑ i, α i = n) (hβ : ∑ i, β i = n) :
+    Fintype.card (Σ σ : Equiv.Perm (Fin n), CycleColoring n α σ × CycleColoring n β σ) =
+    Fintype.card (Σ hb : ElemBicol n α β, FiberPerm hb.val) := by
+  classical
+  -- Forward map: (σ, f, g) → (h, σ) where h(x) = (f(π(x)), g(π(x)))
+  -- Backward map: (h, σ) → (σ, f, g) where f(i) = (h(rep(i))).1
+  -- Both use the orbit index from exists_orbIdx.
+  apply Fintype.card_congr
+  exact {
+    toFun := fun ⟨σ, fg⟩ =>
+      ⟨cycleColToBicol n α β σ fg,
+       ⟨σ, cycleColToBicol_compat n α β σ fg⟩⟩
+    invFun := fun p =>
+      -- Use projections instead of pattern matching to avoid iota-reduction issues in left_inv
+      let h := p.1.val
+      let hrow := p.1.property.1
+      let hcol := p.1.property.2
+      let σ := p.2.val
+      let hcompat : ∀ x, h (σ x) = h x := p.2.property
+      let π := (exists_orbIdx σ).choose
+      have hπ := (exists_orbIdx σ).choose_spec
+      have hne : ∀ i : Fin (fullCycleType n σ).toList.length,
+          (Finset.univ.filter (fun k : Fin n => π k = i)).Nonempty := by
+        intro i; by_contra hemp
+        rw [Finset.not_nonempty_iff_eq_empty] at hemp
+        have h1 := hπ.2 i; rw [hemp, Finset.card_empty] at h1
+        have h2 := fullCycleType_pos σ _ (Multiset.mem_toList.mp (List.getElem_mem i.isLt))
+        omega
+      let rep := fun i => (Finset.univ.filter (fun k : Fin n => π k = i)).min' (hne i)
+      have hrep : ∀ i, π (rep i) = i := fun i =>
+        (Finset.mem_filter.mp (Finset.min'_mem _ (hne i))).2
+      have hc : ∀ x, h (σ x) = h x := hcompat
+      have hiter : ∀ (m : ℕ) (y : Fin n), h ((σ ^ m) y) = h y := by
+        intro m; induction m with
+        | zero => intro y; simp
+        | succ m ih => intro y; rw [pow_succ, Equiv.Perm.mul_apply, ih, hc]
+      have hconst : ∀ k₁ k₂, π k₁ = π k₂ → h k₁ = h k₂ := by
+        intro k₁ k₂ hk
+        obtain ⟨m, -, hm⟩ := ((hπ.1 k₁ k₂).mp hk).exists_pow_eq'
+        exact (hiter m k₁).symm.trans (congrArg h hm)
+      ⟨σ,
+        ⟨fun i => (h (rep i)).1, fun j => by
+          dsimp only
+          trans (Finset.univ.filter (fun i => (h (rep i)).1 = j)).sum
+            (fun i => (Finset.univ.filter (fun k : Fin n => π k = i)).card)
+          · exact Finset.sum_congr rfl (fun i _ => (hπ.2 i).symm)
+          rw [← Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij =>
+            Finset.disjoint_filter.mpr (fun k _ h₁ h₂ => hij (h₁ ▸ h₂)))]
+          suffices heq : (Finset.univ.filter (fun i => (h (rep i)).1 = j)).biUnion
+              (fun i => Finset.univ.filter (fun k : Fin n => π k = i)) =
+              Finset.univ.filter (fun x => (h x).1 = j) by rw [heq]; exact hrow j
+          ext k; simp only [Finset.mem_biUnion, Finset.mem_filter, Finset.mem_univ, true_and]
+          constructor
+          · rintro ⟨i, hi, hk⟩
+            rw [← hk] at hi; rwa [hconst _ _ (hrep (π k))] at hi
+          · intro hk; exact ⟨π k, by rwa [← hconst k (rep (π k)) (hrep (π k)).symm], rfl⟩⟩,
+        ⟨fun i => (h (rep i)).2, fun j => by
+          dsimp only
+          trans (Finset.univ.filter (fun i => (h (rep i)).2 = j)).sum
+            (fun i => (Finset.univ.filter (fun k : Fin n => π k = i)).card)
+          · exact Finset.sum_congr rfl (fun i _ => (hπ.2 i).symm)
+          rw [← Finset.card_biUnion (fun i₁ hi₁ i₂ hi₂ hij =>
+            Finset.disjoint_filter.mpr (fun k _ h₁ h₂ => hij (h₁ ▸ h₂)))]
+          suffices heq : (Finset.univ.filter (fun i => (h (rep i)).2 = j)).biUnion
+              (fun i => Finset.univ.filter (fun k : Fin n => π k = i)) =
+              Finset.univ.filter (fun x => (h x).2 = j) by rw [heq]; exact hcol j
+          ext k; simp only [Finset.mem_biUnion, Finset.mem_filter, Finset.mem_univ, true_and]
+          constructor
+          · rintro ⟨i, hi, hk⟩
+            rw [← hk] at hi; rwa [hconst _ _ (hrep (π k))] at hi
+          · intro hk; exact ⟨π k, by rwa [← hconst k (rep (π k)) (hrep (π k)).symm], rfl⟩⟩⟩
+    left_inv := fun ⟨σ, fg⟩ => by
+      -- invFun uses projections, so we can reason about the components
+      let π := (exists_orbIdx σ).choose
+      have hπ := (exists_orbIdx σ).choose_spec
+      have hne : ∀ i : Fin (fullCycleType n σ).toList.length,
+          (Finset.univ.filter (fun k : Fin n => π k = i)).Nonempty := by
+        intro i; by_contra hemp
+        rw [Finset.not_nonempty_iff_eq_empty] at hemp
+        have h1 := hπ.2 i; rw [hemp, Finset.card_empty] at h1
+        have h2 := fullCycleType_pos σ _ (Multiset.mem_toList.mp (List.getElem_mem i.isLt))
+        omega
+      have hrep : ∀ i, π ((Finset.univ.filter (fun k : Fin n => π k = i)).min' (hne i)) = i :=
+        fun i => (Finset.mem_filter.mp (Finset.min'_mem _ (hne i))).2
+      -- Goal: ⟨σ, (⟨f', _⟩, ⟨g', _⟩)⟩ = ⟨σ, fg⟩ where f'(i) = (bicol(rep(i))).1
+      -- Since σ matches, reduce to product equality
+      refine Sigma.ext rfl (heq_of_eq ?_)
+      simp only [cycleColToBicol]
+      apply Prod.ext
+      · apply Subtype.ext; funext i; exact congrArg fg.1.val (hrep i)
+      · apply Subtype.ext; funext i; exact congrArg fg.2.val (hrep i)
+    right_inv := fun ⟨⟨h, hrow, hcol⟩, ⟨σ, hcompat⟩⟩ => by
+      simp only [cycleColToBicol]
+      let π := (exists_orbIdx σ).choose
+      have hπ := (exists_orbIdx σ).choose_spec
+      have hne : ∀ i : Fin (fullCycleType n σ).toList.length,
+          (Finset.univ.filter (fun k : Fin n => π k = i)).Nonempty := by
+        intro i; by_contra hemp
+        rw [Finset.not_nonempty_iff_eq_empty] at hemp
+        have h1 := hπ.2 i; rw [hemp, Finset.card_empty] at h1
+        have h2 := fullCycleType_pos σ _ (Multiset.mem_toList.mp (List.getElem_mem i.isLt))
+        omega
+      have hrep : ∀ i, π ((Finset.univ.filter (fun k : Fin n => π k = i)).min' (hne i)) = i :=
+        fun i => (Finset.mem_filter.mp (Finset.min'_mem _ (hne i))).2
+      have hc : ∀ x, h (σ x) = h x := hcompat
+      have hiter : ∀ (m : ℕ) (y : Fin n), h ((σ ^ m) y) = h y := by
+        intro m; induction m with
+        | zero => intro y; simp
+        | succ m ih =>
+          intro y; rw [pow_succ, Equiv.Perm.mul_apply, ih, hc]
+      have hconst : ∀ k₁ k₂, π k₁ = π k₂ → h k₁ = h k₂ := by
+        intro k₁ k₂ hk
+        obtain ⟨m, -, hm⟩ := ((hπ.1 k₁ k₂).mp hk).exists_pow_eq'
+        exact (hiter m k₁).symm.trans (congrArg h hm)
+      -- Need to show the round trip (h', σ') = (h, σ)
+      ext1
+      · -- h is recovered: h'(x) = (h(rep(π x)).1, h(rep(π x)).2) = h(x)
+        apply Subtype.ext; funext x
+        have key := hconst _ x (hrep (π x))
+        simp only [Prod.mk.eta]; exact key
+      · -- σ is recovered (trivially, since the invFun outputs σ directly)
+        rfl
+  }
+
+/-- **Part B**: The total count of compatible (h, σ) pairs equals n! × card(NNMat).
+
+**Proof strategy**: Define a `MulAction` of `Equiv.Perm (Fin n)` on `ElemBicol n α β` by
+`(σ • h)(x) = h(σ⁻¹ x)`. Then:
+1. The stabilizer of h equals `FiberPerm h` (both are `{σ | h ∘ σ = h}`).
+2. The orbits are classified by fiber-size matrices: two h's are in the same orbit
+   iff they have the same fiber sizes `K_{ij} = |h⁻¹(i,j)|`, giving `Ω ≃ NNMatrixWithMargins`.
+3. By the orbit-stabilizer equivalence (`MulAction.sigmaFixedByEquivOrbitsProdGroup`):
+   `(Σ h, stabilizer h) ≃ Ω × Perm(Fin n)`, so
+   `card(Σ h, FiberPerm h) = card(NNMat) × n!`.
+
+Alternatively, construct a direct equiv
+`(Σ h : ElemBicol, FiberPerm h) ≃ Equiv.Perm (Fin n) × NNMatrixWithMargins`
+via the backward map `(τ, K) ↦ (h, σ)` where `h(x) = blockAssign(K, τ⁻¹ x)` assigns elements
+to blocks based on K's cumulative sums, and `σ(eₘ) = τ(cum(i,j) + m)` for the m-th sorted
+element eₘ of each fiber h⁻¹(i,j). -/
+private lemma card_sigma_fiberPerm_eq_factorial_mul (n : ℕ) (α β : Fin n →₀ ℕ)
+    (hα : ∑ i, α i = n) (hβ : ∑ i, β i = n) :
+    Fintype.card (Σ hb : ElemBicol n α β, FiberPerm hb.val) =
+    n.factorial * Fintype.card (NNMatrixWithMargins n (⇑α) (⇑β)) := by
+  sorry
+
 /-- **Double counting lemma**: The total number of (σ, f, g) triples equals
 n! times the number of matrices with given margins.
 
@@ -460,7 +676,15 @@ theorem double_counting (n : ℕ) (α β : Fin n →₀ ℕ)
     ∑ σ : Equiv.Perm (Fin n),
       Fintype.card (CycleColoring n α σ) * Fintype.card (CycleColoring n β σ) =
     n.factorial * Fintype.card (NNMatrixWithMargins n (⇑α) (⇑β)) := by
-  sorry
+  -- Step 1: Rewrite LHS as card of sigma type
+  have h1 : ∑ σ : Equiv.Perm (Fin n),
+      Fintype.card (CycleColoring n α σ) * Fintype.card (CycleColoring n β σ) =
+    Fintype.card (Σ σ : Equiv.Perm (Fin n), CycleColoring n α σ × CycleColoring n β σ) := by
+    simp_rw [← Fintype.card_prod]; exact Fintype.card_sigma.symm
+  rw [h1]
+  -- Step 2: Part A equivalence + Part B cardinality
+  rw [card_sigma_CycleCol_eq_card_sigma_fiberPerm n α β hα hβ]
+  exact card_sigma_fiberPerm_eq_factorial_mul n α β hα hβ
 
 /-- **Power Sum Cauchy Identity** (coefficient-level bilinear version):
 
