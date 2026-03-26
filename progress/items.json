@@ -3448,7 +3448,7 @@
     "end_page": "118",
     "start_line": 15,
     "end_line": 18,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": true
   },
   {
@@ -4034,7 +4034,7 @@
     "end_page": "141",
     "start_line": 15,
     "end_line": 34,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": false
   },
   {
