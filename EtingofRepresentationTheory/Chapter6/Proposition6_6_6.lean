@@ -520,7 +520,7 @@ private theorem Etingof.reflFunctorPlus_finiteDim_i
       (@Etingof.QuiverRepresentation.instModule k Q _
         (@Etingof.reversedAtVertex Q _ inst i)
         (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) i) := by
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   haveI : Fintype (@Etingof.ArrowsInto Q inst i) :=
     Fintype.ofEquiv _ (@Etingof.arrowReindexEquiv Q _ inst i hi)
   exact Module.Finite.equiv
@@ -573,7 +573,7 @@ private noncomputable def Etingof.equivAt_eq_sink
         (@Etingof.reflectionFunctorPlus k _ Q _ inst i hi ρ) _) i ≃ₗ[k]
     @Etingof.QuiverRepresentation.obj k Q _ inst ρ i := by
   -- Upgrade to AddCommGroup (needed for quotient module)
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- Eliminate Decidable.casesOn on (inst_dec i i) using `refine match` so that
   -- inside the .isTrue branch, inst_dec i i reduces definitionally. This avoids
   -- Eq.mpr wrappers from `rw [h_di]` that block external computation.
@@ -601,10 +601,10 @@ private noncomputable def Etingof.equivAt_eq_sink
     -- Provide AddCommGroup instances for quotient module construction
     letI acg_comp : ∀ a : @Etingof.ArrowsOutOf Q instR i,
         AddCommGroup (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst) :=
-      fun a => @Etingof.addCommGroupOfField k _ _ (ρ'.instAddCommMonoid a.fst) (ρ'.instModule a.fst)
+      fun a => @Etingof.addCommGroupOfRing k _ _ (ρ'.instAddCommMonoid a.fst) (ρ'.instModule a.fst)
     letI acg_ds : AddCommGroup (DirectSum (@Etingof.ArrowsOutOf Q instR i)
         (fun a => @Etingof.QuiverRepresentation.obj k Q _ instR ρ' a.fst)) :=
-      @Etingof.addCommGroupOfField k _ _ _ _
+      @Etingof.addCommGroupOfRing k _ _ _ _
     -- Use first isomorphism theorem: need Φ surjective and range(ψ') = ker(Φ)
     -- Step 1: Show Φ is surjective (follows from surjectivity of sinkMap φ)
     -- Construct reindexing equivalence: ArrowsOutOf Q̄ᵢ i → ArrowsInto Q i
@@ -665,7 +665,7 @@ private noncomputable def Etingof.equivAt_eq_sink
         -- FiniteDimensional instances from external helpers (avoid instR pollution)
         letI acg_rho'_i : AddCommGroup
             (@Etingof.QuiverRepresentation.obj k Q _ instR ρ' i) :=
-          @Etingof.addCommGroupOfField k _ _
+          @Etingof.addCommGroupOfRing k _ _
             (ρ'.instAddCommMonoid i) (ρ'.instModule i)
         haveI fd_i :
             @Module.Finite k
@@ -1115,7 +1115,7 @@ private noncomputable def Etingof.equivAt_eq_source
         (@Etingof.reflectionFunctorMinus k _ Q _ inst i hi ρ _)) i ≃ₗ[k]
     ρ.obj i := by
   -- Upgrade to AddCommGroup (needed for quotient module)
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- Unfold F⁺ to expose ker(sinkMap of F⁻(ρ) at i)
   unfold Etingof.reflectionFunctorPlus
   simp only
@@ -1133,10 +1133,10 @@ private noncomputable def Etingof.equivAt_eq_source
   -- AddCommGroup instances for F⁻ representation components
   letI acg_comp : ∀ b : @Etingof.ArrowsInto Q instR i,
       AddCommGroup (@Etingof.QuiverRepresentation.obj k Q _ instR ρ_minus b.fst) :=
-    fun b => @Etingof.addCommGroupOfField k _ _ (ρ_minus.instAddCommMonoid b.fst) (ρ_minus.instModule b.fst)
+    fun b => @Etingof.addCommGroupOfRing k _ _ (ρ_minus.instAddCommMonoid b.fst) (ρ_minus.instModule b.fst)
   letI acg_ds : AddCommGroup (DirectSum (@Etingof.ArrowsInto Q instR i)
       (fun b => @Etingof.QuiverRepresentation.obj k Q _ instR ρ_minus b.fst)) :=
-    @Etingof.addCommGroupOfField k _ _ _ _
+    @Etingof.addCommGroupOfRing k _ _ _ _
   -- Forward map: ρ.obj i → ⊕ F⁻(ρ).obj b.fst via equivAt_ne⁻¹ ∘ mapLinear(reversedArrow)
   -- Using reversedArrow_ne_eq (not origArrow) for clean composition with
   -- reflFunctorMinus_mapLinear_ne_eq in the kernel proof.
