@@ -328,10 +328,14 @@ structure BoundedPartition (N n : ℕ) where
 /-- The character value `χ_λ(C_μ)` of the irreducible representation of `S_n`
 indexed by partition `λ`, evaluated on the conjugacy class with cycle type `μ`.
 
-This is a placeholder — computing character values of symmetric groups requires
-the Murnaghan–Nakayama rule or Young tableaux, neither of which are in Mathlib. -/
-noncomputable def charValue {n : ℕ} (_N : ℕ) (_lam : BoundedPartition _N n)
-    (_μ : n.Partition) : ℚ := sorry
+Defined via the Frobenius character formula: `χ_λ(C_μ)` is the coefficient of
+`x^{λ+ρ}` in the product `Δ(x) · p_μ(x)`, where `Δ(x)` is the Vandermonde
+determinant and `p_μ(x)` is the power-sum symmetric polynomial indexed by `μ`. -/
+noncomputable def charValue {n : ℕ} (N : ℕ) (lam : BoundedPartition N n)
+    (μ : n.Partition) : ℚ :=
+  MvPolynomial.coeff
+    (Finsupp.equivFunOnFinite.symm (shiftedExps N lam.parts))
+    ((alternantMatrix N (vandermondeExps N)).det * MvPolynomial.psumPart (Fin N) ℚ μ)
 
 theorem Proposition5_21_1
     {n : ℕ} (N : ℕ) (μ : n.Partition) :
