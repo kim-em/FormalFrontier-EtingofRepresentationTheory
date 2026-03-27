@@ -27,8 +27,10 @@ open scoped TensorProduct
 
 namespace Etingof
 
-variable (k : Type*) [Field k]
-  (V : Type*) [AddCommGroup V] [Module k V] [Module.Finite k V]
+universe u v
+
+variable (k : Type u) [Field k]
+  (V : Type v) [AddCommGroup V] [Module k V] [Module.Finite k V]
   (n : ℕ)
 
 /-- The n-th tensor power V^⊗n as a type. -/
@@ -185,14 +187,36 @@ theorem symGroupImage_faithfulSMul
 /-- The centralizer of the symmetric group image equals the diagonal
 action image. This is the key content of Schur-Weyl duality:
 every endomorphism of V⊗ⁿ commuting with all permutations is
-a polynomial in diagonal operators. -/
+a polynomial in diagonal operators.
+
+**Proof approach (Etingof Theorem 5.18.2 + Lemma 5.18.3):**
+The ≥ direction is `diagonalActionImage_le_centralizer_symGroupImage`.
+For ≤: Via the basis `Basis.piTensorProduct`, an Sₙ-equivariant
+endomorphism has matrix M[c,f] depending only on the multiset
+{(c(i),f(i))}. The diagonal operator (map (fun _ => g)) has matrix
+∏ᵢ g[c(i),f(i)]. Equality reduces to: the span of
+{∏ᵢ g[c(i),f(i)] : g ∈ End V} over all g equals the space of
+Sₙ-invariant matrices. This is the Veronese spanning property
+(= Lemma 5.18.3(i): Sⁿ(U) is spanned by {u⊗ⁿ : u ∈ U}),
+which holds in characteristic 0 by irreducibility of Sⁿ(U) as a
+GL(U)-representation.
+
+**Missing Mathlib infrastructure:** The isomorphism
+End(V⊗ⁿ) ≅ (End V)⊗ⁿ for PiTensorProduct, or equivalently the
+Veronese spanning property for symmetric powers.
+-/
 theorem centralizer_symGroupImage_eq_diagonalActionImage
     (hN : n ≤ Module.finrank k V) :
     Subalgebra.centralizer k
       (symGroupImage k V n :
         Set (Module.End k (TensorPower k V n))) =
     diagonalActionImage k V n := by
-  sorry
+  apply le_antisymm
+  · -- Hard direction: centralizer(Sₙ) ≤ diagonalActionImage
+    -- Requires: Veronese spanning / End(V⊗ⁿ) ≅ (End V)⊗ⁿ
+    sorry
+  · exact diagonalActionImage_le_centralizer_symGroupImage
+      k V n
 
 /-- Schur-Weyl duality, part (i): The images of k[S_n] and End_k(V)
 in End(V^⊗n) are mutual centralizers.
@@ -225,10 +249,19 @@ theorem Theorem5_18_4_centralizers
 action subalgebras of End(V^⊗n) are both semisimple.
 (Etingof Theorem 5.18.4, part ii) -/
 theorem Theorem5_18_4_semisimple
+    [CharZero k]
     (hN : n ≤ Module.finrank k V) :
     IsSemisimpleRing (symGroupImage k V n)
     ∧ IsSemisimpleRing (diagonalActionImage k V n) := by
-  sorry
+  constructor
+  · exact symGroupImage_isSemisimpleRing k V n
+  · -- diagonalActionImage = centralizer(symGroupImage)
+    -- centralizer of semisimple subalgebra is semisimple
+    rw [← centralizer_symGroupImage_eq_diagonalActionImage
+      k V n hN]
+    haveI := symGroupImage_isSemisimpleRing k V n
+    haveI := symGroupImage_faithfulSMul k V n hN
+    exact Theorem5_18_1_commutant_semisimple k (TensorPower k V n) (symGroupImage k V n)
 
 /-- Schur-Weyl duality, part (iii): Decomposition of V^⊗n.
 
@@ -239,14 +272,24 @@ appearing in V^⊗n and {L_i} are the corresponding irreducible
 polynomial GL(V)-representations.
 (Etingof Theorem 5.18.4, part iii) -/
 theorem Theorem5_18_4_decomposition
+    [CharZero k]
     (hN : n ≤ Module.finrank k V) :
     ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
-      (S L : ι → Type)
-      (_ : ∀ i, AddCommGroup (S i)) (_ : ∀ i, Module k (S i))
-      (_ : ∀ i, AddCommGroup (L i)) (_ : ∀ i, Module k (L i)),
+      (S : ι → Type (max u v)) (L : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, AddCommGroup (L i))
+      (_ : ∀ i, Module k (L i)),
       Nonempty (TensorPower k V n ≃ₗ[k]
         DirectSum ι (fun i => S i ⊗[k] L i)) := by
-  sorry
+  haveI := symGroupImage_isSemisimpleRing k V n
+  haveI := symGroupImage_faithfulSMul k V n hN
+  obtain ⟨ι, hι, hι_dec, V', W', hV'_acg, hV'_mod,
+    hV'_Amod, hV'_simp, hW'_acg, hW'_mod, ⟨e⟩⟩ :=
+    Theorem5_18_1_decomposition k
+      (TensorPower k V n) (symGroupImage k V n)
+  exact ⟨ι, hι, hι_dec, V', W',
+    hV'_acg, hV'_mod, hW'_acg, hW'_mod, ⟨e⟩⟩
 
 /-- Schur-Weyl duality: partition-indexed decomposition of V^⊗n.
 This refines `Theorem5_18_4_decomposition` by identifying the index type
@@ -257,10 +300,13 @@ theorem Theorem5_18_4_partition_decomposition
     [IsAlgClosed k]
     (hN : n ≤ Module.finrank k V) :
     ∃ (S L : Nat.Partition n → Type)
-      (_ : ∀ p, AddCommGroup (S p)) (_ : ∀ p, Module k (S p))
-      (_ : ∀ p, AddCommGroup (L p)) (_ : ∀ p, Module k (L p)),
+      (_ : ∀ p, AddCommGroup (S p))
+      (_ : ∀ p, Module k (S p))
+      (_ : ∀ p, AddCommGroup (L p))
+      (_ : ∀ p, Module k (L p)),
       Nonempty (TensorPower k V n ≃ₗ[k]
-        DirectSum (Nat.Partition n) (fun p => S p ⊗[k] L p)) := by
+        DirectSum (Nat.Partition n)
+          (fun p => S p ⊗[k] L p)) := by
   sorry
 
 end Etingof
