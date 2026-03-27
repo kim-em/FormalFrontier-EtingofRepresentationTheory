@@ -89,6 +89,7 @@ import EtingofRepresentationTheory.Chapter5.Proposition5_21_1
 import EtingofRepresentationTheory.Chapter5.Proposition5_21_2
 
 -- Section 5.22: Weyl Character Formula
+import EtingofRepresentationTheory.Chapter5.PermDiagonalTrace
 import EtingofRepresentationTheory.Chapter5.Theorem5_22_1
 import EtingofRepresentationTheory.Chapter5.Proposition5_22_2
 
