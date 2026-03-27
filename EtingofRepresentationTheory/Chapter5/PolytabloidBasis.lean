@@ -245,7 +245,7 @@ private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
   · intro h; exact absurd (Finset.mem_univ _) h
 
 /-- Evaluation formula: the coefficient of σ in a polytabloid e_T = σ_T · c_λ. -/
-private lemma polytabloid_apply (n : ℕ) (la : Nat.Partition n)
+theorem polytabloid_apply (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n)) :
     (polytabloid n la T : SymGroupAlgebra n) σ =
       (YoungSymmetrizer n la : SymGroupAlgebra n) ((sytPerm n la T)⁻¹ * σ) := by
@@ -255,7 +255,7 @@ private lemma polytabloid_apply (n : ℕ) (la : Nat.Partition n)
 
 /-- The coefficient of σ_T in polytabloid e_T is 1. This is the diagonal
 entry of the evaluation matrix. -/
-private lemma polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
+theorem polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     (polytabloid n la T : SymGroupAlgebra n) (sytPerm n la T) = 1 := by
   rw [polytabloid_apply, inv_mul_cancel, youngSymmetrizer_one_coeff]
@@ -274,7 +274,7 @@ This is the "support characterization" used in the dominance triangularity analy
 /-- The coefficient of p ∈ P_λ in the Young symmetrizer equals 1.
 This follows from a_λ(p) = 1 for all p ∈ P_λ, and the unique PQ decomposition
 p = p · id with id ∈ Q_λ. -/
-private lemma youngSymmetrizer_rowPerm_coeff (n : ℕ) (la : Nat.Partition n)
+theorem youngSymmetrizer_rowPerm_coeff (n : ℕ) (la : Nat.Partition n)
     (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) p = 1 := by
   classical

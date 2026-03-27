@@ -662,6 +662,73 @@ theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
   ⟨column_perm_dominance T q hq,
    (ColumnSubgroup_ne_tabloid T q hq hne).symm⟩
 
+/-! ### Tabloid projection linear map -/
+
+/-- The tabloid projection linear map: sends an element of the group algebra to the
+formal sum of its tabloid indicators. Concretely, sends `single σ 1` to
+`single (toTabloid σ) 1`, extended by linearity.
+
+This is the quotient map π : ℂ[S_n] → ℂ[S_n/P_λ] = M^λ (tabloid module). -/
+def tabloidProjection (n : ℕ) (la : Nat.Partition n) :
+    SymGroupAlgebra n →ₗ[ℂ] (Tabloid n la →₀ ℂ) where
+  toFun a := a.sum (fun σ c => c • Finsupp.single (toTabloid n la σ) 1)
+  map_add' a b := by
+    apply Finsupp.sum_add_index
+    · intro σ; simp
+    · intro σ c₁ c₂; simp [add_smul]
+  map_smul' r a := by
+    simp only [RingHom.id_apply]
+    rw [Finsupp.sum_smul_index (fun σ => by simp)]
+    simp only [Finsupp.sum, Finset.smul_sum, smul_smul]
+
+/-- The tabloid projection of a basis element `single σ 1` is `single (toTabloid σ) 1`. -/
+theorem tabloidProjection_single (σ : Equiv.Perm (Fin n)) :
+    tabloidProjection n la (Finsupp.single σ 1) = Finsupp.single (toTabloid n la σ) 1 := by
+  simp [tabloidProjection, Finsupp.sum_single_index]
+
+/-- Evaluate tabloidProjection at a specific tabloid: it sums the coefficients of all
+permutations in that tabloid's P_λ-coset. -/
+theorem tabloidProjection_apply [DecidableEq (Tabloid n la)]
+    (a : SymGroupAlgebra n) (t : Tabloid n la) :
+    (tabloidProjection n la a) t =
+      a.sum (fun σ c => if toTabloid n la σ = t then c else 0) := by
+  simp only [tabloidProjection, LinearMap.coe_mk, AddHom.coe_mk]
+  rw [Finsupp.sum_apply]
+  apply Finsupp.sum_congr
+  intro σ _
+  simp only [Finsupp.smul_apply, Finsupp.single_apply, smul_eq_mul]
+  split_ifs with h
+  · simp [h]
+  · simp [h]
+
+/-! ### Left P_λ-coset preservation -/
+
+/-- For p ∈ P_λ, left-multiplying by p preserves tabloids: toTabloid(p * σ) = toTabloid(σ).
+This is because the tabloid equivalence uses LEFT P_λ-cosets: σ₁ ~ σ₂ iff σ₁ σ₂⁻¹ ∈ P_λ. -/
+theorem toTabloid_rowPerm_mul (p σ : Equiv.Perm (Fin n))
+    (hp : p ∈ RowSubgroup n la) :
+    toTabloid n la (p * σ) = toTabloid n la σ := by
+  rw [toTabloid_eq_iff]
+  show p * σ * σ⁻¹ ∈ RowSubgroup n la
+  rw [mul_assoc, mul_inv_cancel]
+  exact hp
+
+/-! ### Dominance well-definedness on tabloids -/
+
+/-- Dominance is well-defined with respect to tabloid equivalence on the right. -/
+theorem tabloidDominates_of_toTabloid_eq_right {σ₁ σ₂ σ₂' : Equiv.Perm (Fin n)}
+    (hdom : tabloidDominates la σ₁ σ₂)
+    (h : toTabloid n la σ₂ = toTabloid n la σ₂') :
+    tabloidDominates la σ₁ σ₂' :=
+  tabloidDominates_congr rfl h hdom
+
+/-- Dominance is well-defined with respect to tabloid equivalence on the left. -/
+theorem tabloidDominates_of_toTabloid_eq_left {σ₁ σ₁' σ₂ : Equiv.Perm (Fin n)}
+    (hdom : tabloidDominates la σ₁ σ₂)
+    (h : toTabloid n la σ₁ = toTabloid n la σ₁') :
+    tabloidDominates la σ₁' σ₂ :=
+  tabloidDominates_congr h rfl hdom
+
 end
 
 end Etingof
