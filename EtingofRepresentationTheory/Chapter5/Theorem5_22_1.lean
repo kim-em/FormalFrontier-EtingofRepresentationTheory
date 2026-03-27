@@ -2,6 +2,7 @@ import Mathlib
 import EtingofRepresentationTheory.Chapter5.Proposition5_21_1
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
+import EtingofRepresentationTheory.Chapter5.PermDiagonalTrace
 
 /-!
 # Theorem 5.22.1: Weyl Character Formula for GL(V)
@@ -428,31 +429,55 @@ theorem alternantMatrix_vandermondeExps_det_ne_zero (N : ℕ) :
     simp [hij.symm] at this
   exact hprod (by rw [← hu, h, zero_mul])
 
+/-! ### Helper lemma for the Weyl character formula -/
+
+/-- **Core identity**: The formal character of the Schur module equals the Schur polynomial.
+
+This is the central content of the Weyl character formula:
+  `ch(L_λ) = s_λ(x₁, …, x_N)`
+
+## Proof strategy (via trace on tensor power)
+
+1. **Scalar idempotent**: The Young symmetrizer `c_λ ∈ ℚ[S_n]` satisfies `c_λ² = α · c_λ`
+   for some nonzero `α : ℚ`. This follows from the sandwich property
+   `a_λ · x · b_λ = ℓ(x) · c_λ` (Lemma 5.13.1, currently proved over ℂ,
+   needs generalization to ℚ).
+
+2. **Trace formula**: Since `(1/α) · c_λ` is an idempotent projector onto `Im(c_λ) = L_λ`,
+   `ch(L_λ) = (1/α) · ∑_{π ∈ S_n} c_λ(π) · permTracePoly(N, π)`
+   where `permTracePoly(N, π)` is the power-sum product for π's cycle type
+   (`permTracePoly_eq_powerSumCycleProduct`, proved in PermDiagonalTrace.lean).
+
+3. **Character orthogonality**: Group the sum by conjugacy class (= cycle type μ),
+   apply the Frobenius formula (`Proposition5_21_1`, proved), and use
+   character orthogonality for S_n to collapse the sum:
+   `∑_π c_λ(π) · permTracePoly(N, π) = α · s_λ(x)`
+
+4. **Cancel α**: Combine steps 2-3 to get `ch(L_λ) = (1/α) · α · s_λ = s_λ`.
+
+**Key dependencies**:
+- `permTracePoly_eq_powerSumCycleProduct` (proved)
+- `Proposition5_21_1` (Frobenius formula, proved)
+- Lemma 5.13.1 sandwich property over ℚ (not yet generalized from ℂ)
+- Character orthogonality for S_n (not yet formalized) -/
+theorem formalCharacter_schurModule_eq_schurPoly
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
+  sorry
+
 /-! ### Weight multiplicity equals Schur polynomial coefficient -/
 
 /-- **Core Weyl character formula (polynomial level)**: The formal character of the Schur
 module `L_λ`, when multiplied by the Vandermonde determinant, equals the alternant determinant
 with shifted exponents `λ + δ`.
 
-This is the deep content: `ch(L_λ) · Δ = A_{λ+δ}`, where `Δ = det(x_i^{N-1-j})` and
-`A_{λ+δ} = det(x_i^{λ_j+N-1-j})`.
-
-## Proof approaches
-
-### Via trace on tensor power (most direct)
-1. Show Young symmetrizer `c_λ` over general field `k` satisfies `c_λ² = α • c_λ`
-   (generalize `Lemma5_13_3` from ℂ to arbitrary fields)
-2. Show `(1/α) • c_λ` is a projection, hence `char_{L_λ}(g) = (1/α) tr(c_λ ∘ g^⊗n)`
-3. Prove `tr(π ∘ g^⊗n) = p_{cycle-type(π)}(eigenvalues)` for permutation π
-4. Conclude via Proposition 5.21.1 (Frobenius formula)
-
-### Via Schur-Weyl duality
-Requires `Theorem5_18_4` sorry-free (V^⊗n ≅ ⊕_λ S_λ ⊗ L_λ). -/
+`ch(L_λ) · Δ = A_{λ+δ}`, where `Δ = det(x_i^{N-1-j})` and
+`A_{λ+δ} = det(x_i^{λ_j+N-1-j})`. -/
 theorem formalCharacter_schurModule_mul_vandermonde
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     formalCharacter k N (SchurModule k N lam) * (alternantMatrix N (vandermondeExps N)).det =
       (alternantMatrix N (shiftedExps N lam)).det := by
-  sorry
+  rw [formalCharacter_schurModule_eq_schurPoly k N lam hlam, schurPoly_mul_vandermonde]
 
 /-- **Key helper**: The dimension of the weight space for weight `μ` in the Schur module `L_λ`
 equals the coefficient of `x^μ` in the Schur polynomial `S_λ`.
