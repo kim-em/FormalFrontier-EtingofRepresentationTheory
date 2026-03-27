@@ -302,40 +302,65 @@ theorem Etingof.Theorem5_27_1
   · exact fun _ _ => sorry
   -- (iv) Character formula
   · intro χ U _hU a g
+    classical
     change (LinearMap.trace ℂ ((G ⧸ stabAux φ χ) → ↥U))
         ((inducedRepV φ χ U).ρ ⟨a, g⟩) = _
     haveI : Fintype (G ⧸ stabAux φ χ) := Quotient.fintype _
     -- The action has twisted permutation form: T f q = L q (f (σ q))
-    set σ' : G ⧸ stabAux φ χ → G ⧸ stabAux φ χ := (g⁻¹ • ·) with hσ_def
-    set L' : G ⧸ stabAux φ χ → (↥U →ₗ[ℂ] ↥U) := fun q =>
-      ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
-      FDRep.ρ U ⟨q.out⁻¹ * g * (σ' q).out, transition_mem_stab φ χ g q⟩
-      with hL_def
     have hTwist : ∀ (f : G ⧸ stabAux φ χ → ↥U) (q : G ⧸ stabAux φ χ),
-        (inducedRepV φ χ U).ρ ⟨a, g⟩ f q = L' q (f (σ' q)) := fun f q => rfl
-    have step1 := trace_twisted_permutation σ' L' _ hTwist
+        (inducedRepV φ χ U).ρ ⟨a, g⟩ f q =
+        (((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+          FDRep.ρ U ⟨q.out⁻¹ * g * (g⁻¹ • q).out,
+            transition_mem_stab φ χ g q⟩)
+        (f (g⁻¹ • q)) := fun f q => rfl
+    have step1 := trace_twisted_permutation (g⁻¹ • ·)
+      (fun q => ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+        FDRep.ρ U ⟨q.out⁻¹ * g * (g⁻¹ • q).out,
+          transition_mem_stab φ χ g q⟩) _ hTwist
     rw [step1]
-    -- Proof strategy: both sides equal ∑ q, [q.out⁻¹gq.out ∈ H] · c(q) · char(q.out⁻¹gq.out)
-    -- where c(q) = χ(φ(q.out⁻¹)(a)) and H = stabAux φ χ.
-    --
-    -- LHS simplification (coset sum → canonical form):
-    --   (1) σ'(q) = q iff q.out⁻¹·g·q.out ∈ H (quotient fixed-point characterization)
-    --   (2) When σ'(q) = q: (σ'q).out = q.out (same quotient element)
-    --   (3) trace(c • ρ(s)) = c * trace(ρ(s)) = c * U.character(s) (trace linearity)
-    --   These give: LHS = ∑ q, [q.out⁻¹gq.out∈H] · c(q) · char(q.out⁻¹gq.out)
-    --
-    -- RHS simplification (group sum → canonical form):
-    --   (4) ∑_h f(h) = ∑_h f(h⁻¹) (involution h↦h⁻¹)
-    --   (5) f(h⁻¹) = [h⁻¹gh∈H] · χ(φ(h⁻¹)(a)) · char(h⁻¹gh)
-    --   (6) f∘inv is right-H-invariant: f((hs)⁻¹) = f(s⁻¹h⁻¹) = f(h⁻¹) by left-H-inv of f
-    --       Left-H-invariance of f uses stab_char_inv and FDRep.char_conj
-    --   (7) Fiber sum: ∑_h (f∘inv)(h) = |H| · ∑_q (f∘inv)(q.out) for right-H-inv functions
-    --       via Subgroup.groupEquivQuotientProdSubgroup decomposition
-    --   (8) (f∘inv)(q.out) = f(q.out⁻¹) = [q.out⁻¹gq.out∈H] · c(q) · char(q.out⁻¹gq.out)
-    --   These give: RHS = (1/|H|) · |H| · ∑_q [q.out⁻¹gq.out∈H] · c(q) · char(q.out⁻¹gq.out)
-    --            = ∑_q [q.out⁻¹gq.out∈H] · c(q) · char(q.out⁻¹gq.out)
-    -- Step 2: Simplify trace(L'(q)) when σ'(q) = q
-    -- L'(q) = c(q) • ρ(q.out⁻¹ * g * (σ'q).out)
-    -- When σ'(q) = q, (σ'q).out = q.out, so trace(L'(q)) = c(q) * char(q.out⁻¹ * g * q.out)
-    -- Also σ'(q) = q ↔ q.out⁻¹ * g * q.out ∈ stabAux φ χ by coset_fixed_iff
-    sorry
+    -- Goal: ∑ q, if g⁻¹•q = q then trace(c•ρ(s)) else 0
+    --     = |H|⁻¹ * ∑ h:G, if h*g*h⁻¹ ∈ H then χ(φ(h)a) * char(h*g*h⁻¹) else 0
+    -- Define the per-element function f on G
+    -- f(h) = if h*g*h⁻¹ ∈ H then χ(φ(h)(a)) * U.character ⟨h*g*h⁻¹, _⟩ else 0
+    -- Strategy: show both sides equal ∑ q, f(q.out⁻¹)
+    -- Step 2: Both sides equal ∑ q, F(q)
+    -- Use trans to go through an intermediate form
+    -- LHS → intermediate: coset_fixed_iff + trace linearity
+    -- intermediate → RHS: fiber sum decomposition
+    trans (∑ q : G ⧸ stabAux φ χ,
+      if hq : q.out⁻¹ * g * q.out ∈ stabAux φ χ then
+        ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) *
+          U.character ⟨q.out⁻¹ * g * q.out, hq⟩
+      else 0)
+    · -- LHS = intermediate
+      apply Finset.sum_congr rfl
+      intro q _
+      by_cases hq : q.out⁻¹ * g * q.out ∈ stabAux φ χ
+      · have hfixed : g⁻¹ • q = q := (coset_fixed_iff _ g q).mpr hq
+        have hout : (g⁻¹ • q).out = q.out := congrArg Quotient.out hfixed
+        simp only [hfixed, ite_true, dif_pos hq, map_smul, smul_eq_mul, FDRep.character]
+      · have hnotfixed : g⁻¹ • q ≠ q :=
+          fun h => hq ((coset_fixed_iff _ g q).mp h)
+        simp [hnotfixed, dif_neg hq]
+    · -- Need: ∑ q F(q) = |H|⁻¹ * ∑ h f(h)
+      -- Equivalently: ∑ h f(h) = |H| * ∑ q F(q)
+      -- where F(q) = f(q.out⁻¹) with f(h) = if hgh⁻¹∈H then χ(φ(h)a)*char(hgh⁻¹) else 0
+      -- Step 1: Show ∑ q, F(q) = ∑ q, f(q.out⁻¹)
+      -- Step 2: ∑ h, f(h) = ∑ h, f(h⁻¹) (involution)
+      -- Step 3: f∘inv is right-H-invariant
+      -- Step 4: ∑ h, (f∘inv)(h) = |H| * ∑ q, (f∘inv)(q.out) = |H| * ∑ q, f(q.out⁻¹)
+      -- Suffices to show |H| * ∑ q F(q) = ∑ h f(h), then multiply by |H|⁻¹
+      rw [eq_comm, inv_mul_eq_div, div_eq_iff]
+      · -- Need: ∑ h, f(h) = (∑ q, F(q)) * |H|
+        -- Proof outline:
+        -- (A) f is left-H-invariant: f(sh) = f(h) for s ∈ H
+        --     because (sh)g(sh)⁻¹ = s(hgh⁻¹)s⁻¹ ∈ H ↔ hgh⁻¹ ∈ H,
+        --     χ(φ(sh)(a)) = χ(φ(h)(a)) by stab_char_inv,
+        --     char(sts⁻¹) = char(t) by FDRep.char_mul_comm
+        -- (B) ∑ h, f(h) = ∑ h, f(h⁻¹) by Equiv.sum_comp (MulEquiv.inv G)
+        -- (C) g := f∘inv is right-H-invariant (from A)
+        -- (D) ∑ h, g(h) = |H| * ∑ q, g(q.out) by groupEquivQuotientProdSubgroup
+        -- (E) g(q.out) = f(q.out⁻¹) = F(q) since q.out⁻¹*g*(q.out⁻¹)⁻¹ = q.out⁻¹*g*q.out
+        sorry
+      · -- Need: |H| ≠ 0
+        exact Nat.cast_ne_zero.mpr (Fintype.card_pos.ne')
