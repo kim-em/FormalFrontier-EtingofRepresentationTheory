@@ -676,7 +676,7 @@ theorem indecomposable_bilinearForm_eq_two
     have hv_eq := congr_fun heq v
     simp only [hd_def, Pi.zero_apply, Int.natCast_eq_zero] at hv_eq
     -- finrank = 0 → Subsingleton, contradicting Nontrivial
-    letI : AddCommGroup (ρ.obj v) := addCommGroupOfField (k := k)
+    letI : AddCommGroup (ρ.obj v) := addCommGroupOfRing (k := k)
     have hsub : Subsingleton (ρ.obj v) := Module.finrank_zero_iff.mp hv_eq
     exact not_nontrivial (ρ.obj v) hv
   -- By rep-level Theorem 6.8.1: reflections reduce d to a simple root

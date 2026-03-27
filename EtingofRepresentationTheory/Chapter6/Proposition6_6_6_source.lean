@@ -139,7 +139,7 @@ private noncomputable def Etingof.equivAt_eq_source
         (@Etingof.reflectionFunctorMinus k _ Q _ inst i hi ρ _)) i ≃ₗ[k]
     ρ.obj i := by
   -- Upgrade to AddCommGroup (needed for quotient module)
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- Unfold F⁺ to expose ker(sinkMap of F⁻(ρ) at i)
   unfold Etingof.reflectionFunctorPlus
   simp only
@@ -157,10 +157,10 @@ private noncomputable def Etingof.equivAt_eq_source
   -- AddCommGroup instances for F⁻ representation components
   letI acg_comp : ∀ b : @Etingof.ArrowsInto Q instR i,
       AddCommGroup (@Etingof.QuiverRepresentation.obj k Q _ instR ρ_minus b.fst) :=
-    fun b => @Etingof.addCommGroupOfField k _ _ (ρ_minus.instAddCommMonoid b.fst) (ρ_minus.instModule b.fst)
+    fun b => @Etingof.addCommGroupOfRing k _ _ (ρ_minus.instAddCommMonoid b.fst) (ρ_minus.instModule b.fst)
   letI acg_ds : AddCommGroup (DirectSum (@Etingof.ArrowsInto Q instR i)
       (fun b => @Etingof.QuiverRepresentation.obj k Q _ instR ρ_minus b.fst)) :=
-    @Etingof.addCommGroupOfField k _ _ _ _
+    @Etingof.addCommGroupOfRing k _ _ _ _
   -- Forward map: ρ.obj i → ⊕ F⁻(ρ).obj b.fst via equivAt_ne⁻¹ ∘ mapLinear(reversedArrow)
   -- Using reversedArrow_ne_eq (not origArrow) for clean composition with
   -- reflFunctorMinus_mapLinear_ne_eq in the kernel proof.

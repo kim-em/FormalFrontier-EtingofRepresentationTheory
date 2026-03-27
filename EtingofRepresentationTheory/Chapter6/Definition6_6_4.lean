@@ -35,9 +35,9 @@ def Etingof.ArrowsOutOf (V : Type*) [Quiver V] (i : V) :=
 with negation given by scalar multiplication by `-1`. The resulting `AddCommGroup`
 extends the existing `AddCommMonoid` — no diamond.
 
-This is the same construction as `addCommGroupOfField` (Proposition 6.6.5) but
-generalized to `CommRing`. -/
-private noncomputable def Etingof.addCommGroupOfRing {k : Type*} [CommRing k] {M : Type*}
+This is useful since `QuiverRepresentation` uses `AddCommMonoid` but many APIs
+(e.g. `Submodule.exists_isCompl`) require `AddCommGroup`. -/
+noncomputable def Etingof.addCommGroupOfRing {k : Type*} [CommRing k] {M : Type*}
     [inst : AddCommMonoid M] [Module k M] : AddCommGroup M :=
   { inst with
     neg := fun x => (-1 : k) • x

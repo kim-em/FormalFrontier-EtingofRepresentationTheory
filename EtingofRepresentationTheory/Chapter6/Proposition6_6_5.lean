@@ -27,35 +27,6 @@ Requires quiver representation infrastructure (indecomposable representations,
 dimension vectors). Not directly available in Mathlib.
 -/
 
-/-- Over a field, any `AddCommMonoid` module is actually an `AddCommGroup`, with negation
-given by scalar multiplication by `-1`. This bridges `QuiverRepresentation` (which uses
-`AddCommMonoid`) and APIs like `Submodule.exists_isCompl` (which require `AddCommGroup`).
-The resulting `AddCommGroup` extends the existing `AddCommMonoid` — no diamond. -/
-noncomputable def Etingof.addCommGroupOfField {k : Type*} [Field k] {M : Type*}
-    [inst : AddCommMonoid M] [Module k M] : AddCommGroup M :=
-  { inst with
-    neg := fun x => (-1 : k) • x
-    zsmul := fun n x => (n : k) • x
-    neg_add_cancel := fun a => by
-      change (-1 : k) • a + a = 0
-      nth_rw 2 [show a = (1 : k) • a from (one_smul k a).symm]
-      rw [← add_smul, neg_add_cancel, zero_smul]
-    zsmul_zero' := fun a => by simp [zero_smul]
-    zsmul_succ' := fun n a => by
-      simp only [Nat.succ_eq_add_one, Nat.cast_add, Nat.cast_one,
-                  Int.cast_add, Int.cast_natCast, Int.cast_one, add_smul, one_smul]
-    zsmul_neg' := fun n a => by
-      simp only [Int.negSucc_eq, Nat.succ_eq_add_one, Nat.cast_add, Nat.cast_one,
-                  Int.cast_neg, smul_smul, neg_one_mul] }
-
-/-- Any submodule of a module over a field has a complement. This wraps
-`Submodule.exists_isCompl` by constructing the required `AddCommGroup` instance. -/
-private noncomputable def Etingof.existsIsCompl_repr
-    {k : Type*} [Field k] {M : Type*} [AddCommMonoid M] [Module k M]
-    (p : Submodule k M) : ∃ q : Submodule k M, IsCompl p q := by
-  letI : AddCommGroup M := Etingof.addCommGroupOfField (k := k)
-  exact Submodule.exists_isCompl p
-
 /-- A quiver representation is **indecomposable** if it is nonzero and cannot be
 written as a direct sum of two nonzero sub-representations. -/
 def Etingof.QuiverRepresentation.IsIndecomposable
@@ -100,7 +71,7 @@ theorem Etingof.Proposition6_6_5_sink
     (hρ : ρ.IsIndecomposable) :
     ρ.IsSimpleAt i ∨ Function.Surjective (ρ.sinkMap i) := by
   -- Upgrade to AddCommGroup (needed for complements); extends existing AddCommMonoid
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- At a sink, no arrow leaves i
   have sink_no_out : ∀ {a b : Q} (_ : a ⟶ b), a ≠ i :=
     fun {_ b} e h => (hi b).false (h ▸ e)
@@ -208,7 +179,7 @@ theorem Etingof.Proposition6_6_5_source
     (hρ : ρ.IsIndecomposable) :
     ρ.IsSimpleAt i ∨ Function.Injective (ρ.sourceMap i) := by
   -- Upgrade to AddCommGroup (needed for complements); extends existing AddCommMonoid
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   -- At a source, no arrow enters i
   have source_no_in : ∀ {a b : Q} (_ : a ⟶ b), b ≠ i :=
     fun {a _} e h => (hi a).false (h ▸ e)
