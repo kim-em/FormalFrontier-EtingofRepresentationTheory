@@ -598,6 +598,161 @@ theorem admissibleOrdering_exists
       ⟨h_eq ▸ e⟩
     exact (htopo m k hm hk (by omega)).false this.some
 
+/-! ## Generalized Coxeter element for arbitrary permutations
+
+For any permutation σ of [0, ..., n-1], the product s_{σ₁} ∘ ... ∘ s_{σₙ}
+is a Coxeter element. We prove that iterating any Coxeter element on a
+nonneg nonzero vector eventually produces negative entries, generalizing
+Lemma 6.7.2 to arbitrary orderings. -/
+
+/-- If vertex j doesn't appear in the list, `iteratedSimpleReflection`
+leaves coordinate j unchanged. -/
+private lemma iteratedSimpleReflection_coord_not_mem
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n)) (v : Fin n → ℤ)
+    (j : Fin n) (hj : j ∉ vs) :
+    iteratedSimpleReflection n A vs v j = v j := by
+  induction vs generalizing v with
+  | nil => rfl
+  | cons k rest ih =>
+    rw [iteratedSimpleReflection_cons]
+    have hk : j ≠ k := fun h => hj (by simp [h])
+    have hrest : j ∉ rest := fun h => hj (List.mem_cons.mpr (Or.inr h))
+    rw [ih _ hrest]
+    exact simpleReflection_apply_ne v k j hk
+
+/-- `iteratedSimpleReflection` distributes over list append. -/
+private lemma iteratedSimpleReflection_append
+    (A : Matrix (Fin n) (Fin n) ℤ) (xs ys : List (Fin n))
+    (v : Fin n → ℤ) :
+    iteratedSimpleReflection n A (xs ++ ys) v =
+    iteratedSimpleReflection n A ys (iteratedSimpleReflection n A xs v) := by
+  simp [iteratedSimpleReflection, List.foldl_append]
+
+/-- `iteratedSimpleReflection` with a full permutation preserves B. -/
+private lemma iteratedSimpleReflection_preserves_B
+    (hDynkin : IsDynkinDiagram n adj) (vs : List (Fin n))
+    (v : Fin n → ℤ) :
+    dotProduct (iteratedSimpleReflection n (cartanMatrix n adj) vs v)
+      ((cartanMatrix n adj).mulVec
+        (iteratedSimpleReflection n (cartanMatrix n adj) vs v)) =
+    dotProduct v ((cartanMatrix n adj).mulVec v) := by
+  induction vs generalizing v with
+  | nil => rfl
+  | cons k rest ih =>
+    rw [iteratedSimpleReflection_cons]
+    rw [ih]
+    exact simpleReflection_preserves_B hDynkin v k
+
+/-- **Key lemma**: A fixed point of any full-permutation Coxeter element
+is zero.
+
+If σ is a permutation of all n vertices and s_{σₙ}(...s_{σ₁}(v)...) = v,
+then v = 0. The proof uses a forward telescoping argument: since σ is a
+permutation, each coordinate σₖ is touched exactly once. The fixed-point
+condition forces (A·v)_{σₖ} = 0 for each k, hence A·v = 0, hence v = 0
+by positive definiteness. -/
+private lemma iteratedSimpleReflection_perm_fixed_zero
+    (hDynkin : IsDynkinDiagram n adj)
+    (σ : List (Fin n)) (hσ : σ.Perm (List.finRange n))
+    (v : Fin n → ℤ)
+    (hfixed : iteratedSimpleReflection n (cartanMatrix n adj) σ v = v) :
+    v = 0 := by
+  set A := cartanMatrix n adj with hA_def
+  have hnodup : σ.Nodup := hσ.nodup_iff.mpr (List.nodup_finRange n)
+  have hlen : σ.length = n := by
+    have := hσ.length_eq; rwa [List.length_finRange] at this
+  -- Forward induction: iteratedSimpleReflection (σ.take k) v = v for all k
+  suffices hall : ∀ k, k ≤ n →
+      iteratedSimpleReflection n A (σ.take k) v = v by
+    -- Extract A·v = 0 from the invariant
+    suffices hAv : A.mulVec v = 0 by
+      by_contra hv
+      have hpos := hDynkin.2.2.2.2 v hv
+      rw [show A = (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) from rfl]
+        at hAv
+      rw [hAv, dotProduct_zero] at hpos
+      exact lt_irrefl 0 hpos
+    ext p
+    -- Find p's position in σ
+    have hp_mem : p ∈ σ := hσ.mem_iff.mpr (List.mem_finRange p)
+    obtain ⟨⟨k, hk_lt⟩, hk_eq⟩ := List.mem_iff_get.mp hp_mem
+    -- From hall(k) and hall(k+1):
+    -- iteratedSimpleReflection (σ.take (k+1)) v = v
+    -- σ.take (k+1) = σ.take k ++ [σ[k]]
+    have hk_lt_n : k < n := by rw [← hlen]; exact hk_lt
+    have h_take_k := hall k (by omega)
+    have h_take_k1 := hall (k + 1) (by omega)
+    have htake_split : σ.take (k + 1) = σ.take k ++ [σ[k]] :=
+      (List.take_append_getElem hk_lt).symm
+    rw [htake_split, iteratedSimpleReflection_append, h_take_k] at h_take_k1
+    -- Now: iteratedSimpleReflection [σ[k]] v = v
+    -- i.e., simpleReflection σ[k] v = v
+    simp only [iteratedSimpleReflection, List.foldl] at h_take_k1
+    -- At coordinate σ[k] = p:
+    have hp_eq : σ[k] = p := by
+      change σ.get ⟨k, hk_lt⟩ = p; exact hk_eq
+    have := congr_fun h_take_k1 p
+    rw [← hp_eq] at this
+    rw [simpleReflection_apply_self
+      (cartanMatrix_isSymm hDynkin.1) v σ[k]] at this
+    -- this : v σ[k] - (A *ᵥ v) σ[k] = v σ[k], and σ[k] = p
+    rw [hp_eq] at this
+    simp only [Pi.zero_apply]
+    linarith
+  intro k hk
+  induction k with
+  | zero => simp [iteratedSimpleReflection]
+  | succ m ih =>
+    have hm_le : m ≤ n := by omega
+    have him := ih hm_le
+    have hm_lt : m < σ.length := by rw [hlen]; omega
+    have htake_split : σ.take (m + 1) =
+        σ.take m ++ [σ[m]] :=
+      (List.take_append_getElem hm_lt).symm
+    rw [htake_split, iteratedSimpleReflection_append, him]
+    set p : Fin n := σ[m]
+    have hp_not_drop : p ∉ σ.drop (m + 1) := by
+      intro hmem
+      have hp_take : p ∈ σ.take (m + 1) := by
+        rw [htake_split]; simp
+      have hnd : (σ.take (m + 1) ++ σ.drop (m + 1)).Nodup := by
+        rwa [List.take_append_drop]
+      exact (List.nodup_append.mp hnd).2.2 p hp_take p hmem rfl
+    -- From the full fixed-point and the fact that drop doesn't touch p:
+    have hsplit : σ = σ.take (m + 1) ++ σ.drop (m + 1) :=
+      (List.take_append_drop (m + 1) σ).symm
+    have hfull : iteratedSimpleReflection n A σ v = v := hfixed
+    rw [hsplit, iteratedSimpleReflection_append, htake_split,
+      iteratedSimpleReflection_append, him] at hfull
+    -- hfull: iteratedSimpleReflection (drop(m+1)) (iteratedSimpleReflection [p] v) = v
+    -- iteratedSimpleReflection [p] v = simpleReflection n A p v
+    have hsingleton : iteratedSimpleReflection n A [p] v = simpleReflection n A p v := by
+      simp [iteratedSimpleReflection]
+    rw [hsingleton] at hfull
+    -- At coordinate p (not in drop):
+    have hcoord := congr_fun hfull p
+    rw [iteratedSimpleReflection_coord_not_mem A (σ.drop (m + 1))
+      (simpleReflection n A p v) p hp_not_drop] at hcoord
+    -- hcoord: s_p(v)(p) = v(p)
+    rw [simpleReflection_apply_self
+      (cartanMatrix_isSymm hDynkin.1) v p] at hcoord
+    -- hcoord: v(p) - (A·v)(p) = v(p), so (A·v)(p) = 0
+    have hAv_zero : (A.mulVec v) p = 0 := by linarith
+    -- s_p(v) = v since (A·v)(p) = 0
+    change iteratedSimpleReflection n A [p] v = v
+    simp only [iteratedSimpleReflection, List.foldl]
+    change v - dotProduct v (A.mulVec (Pi.single p 1)) • Pi.single p 1 = v
+    have hcoeff : dotProduct v (A.mulVec (Pi.single p 1)) =
+        (A.mulVec v) p := by
+      have hAsymm := cartanMatrix_isSymm hDynkin.1
+      simp only [dotProduct, Matrix.mulVec, Pi.single_apply,
+        mul_ite, mul_one, mul_zero,
+        Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+      exact Finset.sum_congr rfl fun j _ => by
+        rw [show A j p = A p j from
+          congr_fun (congr_fun hAsymm p) j]; ring
+    rw [hcoeff, hAv_zero, zero_smul, sub_zero]
+
 /-! ## Dimension vector tracking through admissible ordering
 
 The key connection: applying one full round of reflection functors along an
