@@ -673,7 +673,7 @@ theorem Etingof.Proposition6_6_7_source
     @Etingof.QuiverRepresentation.IsZero k _ Q
       (Etingof.reversedAtVertex Q i)
       (Etingof.reflectionFunctorMinus Q i hi ρ) := by
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   rcases Etingof.Proposition6_6_5_source hi hρ with hsimple | hinj
   · -- V is simple at i → F⁻(V) is zero
     right
