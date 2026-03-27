@@ -184,6 +184,43 @@ private noncomputable def inducedRepV {G A : Type} [Group G] [CommGroup A] [Fint
       simp_rw [hcoset]
       rfl }
 
+-- Helper: trace of a "twisted permutation" on a function space.
+-- If T acts by (Tf)(x) = L(x)(f(σ(x))), then
+-- trace(T) = ∑ x, if σ(x) = x then trace(L(x)) else 0
+open Classical in
+private lemma trace_twisted_permutation
+    {X : Type*} [Fintype X]
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [Module.Finite ℂ V] [Module.Free ℂ V]
+    (σ : X → X) (L : X → V →ₗ[ℂ] V)
+    (T : (X → V) →ₗ[ℂ] (X → V))
+    (hT : ∀ (f : X → V) (x : X), T f x = L x (f (σ x))) :
+    LinearMap.trace ℂ (X → V) T =
+    ∑ x : X, if σ x = x then LinearMap.trace ℂ V (L x) else 0 := by
+  classical
+  set b := Module.Free.chooseBasis ℂ V
+  haveI : Fintype (Module.Free.ChooseBasisIndex ℂ V) :=
+    FiniteDimensional.fintypeBasisIndex b
+  set pb := Pi.basis (fun (_ : X) => b)
+  rw [LinearMap.trace_eq_matrix_trace ℂ pb]
+  simp only [Matrix.trace, Matrix.diag, LinearMap.toMatrix_apply]
+  rw [Fintype.sum_sigma]
+  congr 1; ext x
+  split_ifs with hfixed
+  · -- Fixed point: sum gives trace(L x)
+    rw [LinearMap.trace_eq_matrix_trace ℂ b]
+    simp only [Matrix.trace, Matrix.diag, LinearMap.toMatrix_apply]
+    congr 1; ext i
+    rw [show pb ⟨x, i⟩ = Pi.single x (b i) from Pi.basis_apply _ _, Pi.basis_repr]
+    dsimp only
+    congr 1; rw [hT, hfixed, Pi.single_eq_same]
+  · -- Not a fixed point: all terms are 0
+    apply Finset.sum_eq_zero; intro i _
+    have heval : T (pb ⟨x, i⟩) x = 0 := by
+      rw [show pb ⟨x, i⟩ = Pi.single x (b i) from Pi.basis_apply _ _]
+      rw [hT]; simp only [Pi.single_apply, if_neg hfixed, map_zero]
+    rw [Pi.basis_repr]; dsimp only
+    rw [heval, map_zero, Finsupp.zero_apply]
+
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
 via the orbit method: they are parametrized by pairs (O, U) where O is a
@@ -242,4 +279,24 @@ theorem Etingof.Theorem5_27_1
   -- (iii) Completeness: every irrep arises as some V(χ, U)
   · exact fun _ _ => sorry
   -- (iv) Character formula
-  · exact fun _ _ _ _ _ => sorry
+  · intro χ U _hU a g
+    change (LinearMap.trace ℂ ((G ⧸ stabAux φ χ) → ↥U))
+        ((inducedRepV φ χ U).ρ ⟨a, g⟩) = _
+    haveI : Fintype (G ⧸ stabAux φ χ) := Quotient.fintype _
+    -- The action has twisted permutation form: T f q = L q (f (σ q))
+    set σ' : G ⧸ stabAux φ χ → G ⧸ stabAux φ χ := (g⁻¹ • ·) with hσ_def
+    set L' : G ⧸ stabAux φ χ → (↥U →ₗ[ℂ] ↥U) := fun q =>
+      ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+      FDRep.ρ U ⟨q.out⁻¹ * g * (σ' q).out, transition_mem_stab φ χ g q⟩
+      with hL_def
+    have hTwist : ∀ (f : G ⧸ stabAux φ χ → ↥U) (q : G ⧸ stabAux φ χ),
+        (inducedRepV φ χ U).ρ ⟨a, g⟩ f q = L' q (f (σ' q)) := fun f q => rfl
+    have step1 := trace_twisted_permutation σ' L' _ hTwist
+    rw [step1]
+    -- Step 2: Simplify trace(L' q) for fixed q
+    -- L' q = c • ρ_U(s), so trace(L' q) = c * trace(ρ_U(s)) = c * U.character(s)
+    -- The remaining identity converts the coset-sum to the group-sum formula.
+    -- This requires: (1) trace(c • ρ(s)) = c * U.character(s),
+    -- (2) fiber-sum over G/H → sum over G with weight 1/|H|,
+    -- (3) stabilizer invariance and class function properties.
+    sorry
