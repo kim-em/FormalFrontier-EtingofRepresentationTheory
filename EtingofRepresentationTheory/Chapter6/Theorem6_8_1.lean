@@ -48,7 +48,7 @@ lemma cartanMatrix_isSymm (hadj : adj.IsSymm) :
   rw [show adjᵀ = adj from hadj]
 
 /-- Simple reflection at i only changes coordinate i. -/
-private lemma simpleReflection_apply_ne {A : Matrix (Fin n) (Fin n) ℤ}
+lemma simpleReflection_apply_ne {A : Matrix (Fin n) (Fin n) ℤ}
     (v : Fin n → ℤ) (i j : Fin n) (hij : j ≠ i) :
     simpleReflection n A i v j = v j := by
   simp [simpleReflection, rootReflection, Pi.sub_apply, Pi.smul_apply,
@@ -56,7 +56,7 @@ private lemma simpleReflection_apply_ne {A : Matrix (Fin n) (Fin n) ℤ}
 
 /-- Simple reflection at i changes coordinate i. For symmetric A, this equals
     v i - (A.mulVec v) i. -/
-private lemma simpleReflection_apply_self {A : Matrix (Fin n) (Fin n) ℤ}
+lemma simpleReflection_apply_self {A : Matrix (Fin n) (Fin n) ℤ}
     (hA : A.IsSymm) (v : Fin n → ℤ) (i : Fin n) :
     simpleReflection n A i v i = v i - (A.mulVec v) i := by
   -- s_i(v) = v - ⟨v, A·e_i⟩ · e_i, and for symmetric A, ⟨v, A·e_i⟩ = (Av)_i
