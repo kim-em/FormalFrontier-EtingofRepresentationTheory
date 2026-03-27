@@ -26,43 +26,15 @@ def Etingof.QuiverRepresentation.IsZero
     (ρ : Etingof.QuiverRepresentation k Q) : Prop :=
   ∀ v : Q, Subsingleton (ρ.obj v)
 
-/-- At a vertex v ≠ i, the reflection functor leaves the space unchanged:
-`F⁺ᵢ(ρ).obj v = ρ.obj v`. -/
-private theorem reflFunctorPlus_obj_ne
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
-    {i : Q} (hi : Etingof.IsSink Q i)
-    (ρ : Etingof.QuiverRepresentation k Q) (v : Q) (hv : v ≠ i) :
-    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorPlus Q i hi ρ) v = ρ.obj v := by
-  unfold Etingof.reflectionFunctorPlus
-  simp only
-  match hd : (‹DecidableEq Q› v i) with
-  | .isTrue hvi => exact absurd hvi hv
-  | .isFalse _ => rw [hd]
-
-/-- At vertex i, the reflection functor gives the kernel of the sink map:
-`F⁺ᵢ(ρ).obj i = ker(sinkMap i)`. -/
-private theorem reflFunctorPlus_obj_eq
-    {k : Type*} [CommSemiring k] {Q : Type*} [DecidableEq Q] [Quiver Q]
-    {i : Q} (hi : Etingof.IsSink Q i)
-    (ρ : Etingof.QuiverRepresentation k Q) :
-    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
-      (Etingof.reflectionFunctorPlus Q i hi ρ) i = ↥(ρ.sinkMap i).ker := by
-  unfold Etingof.reflectionFunctorPlus
-  simp only
-  match hd : (‹DecidableEq Q› i i) with
-  | .isTrue _ => rw [hd]
-  | .isFalse hii => exact absurd rfl hii
-
 /-- At a sink i, the source vertex of an arrow into i is distinct from i. -/
-private theorem arrowsInto_ne_sink
+theorem Etingof.arrowsInto_ne_sink
     {Q : Type*} [Quiver Q] {i : Q} (hi : Etingof.IsSink Q i)
     (a : Etingof.ArrowsInto Q i) : a.1 ≠ i := by
   intro heq; have := a.2; rw [heq] at this; exact (hi i).false this
 
 /-- Construct the reversed arrow from i to a.1 in Q̄ᵢ, given an arrow a.1 → i in Q.
 At a sink i, every arrow a : ArrowsInto Q i gives a reversed arrow i →_{Q̄ᵢ} a.1. -/
-private def arrowsIntoReversed
+def Etingof.arrowsIntoReversed
     {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (a : Etingof.ArrowsInto Q i) :
@@ -80,7 +52,7 @@ set_option maxHeartbeats 800000 in
 equals the component projection composed with equivAt_eq (as subtype val).
 
 This connects the abstract F⁺ map to the concrete direct sum component. -/
-private theorem reflFunctorPlus_map_from_sink_component
+theorem Etingof.reflFunctorPlus_map_from_sink_component
     {k : Type*} [CommSemiring k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : Etingof.IsSink Q i)
     (ρ : Etingof.QuiverRepresentation k Q) (a : Etingof.ArrowsInto Q i)
@@ -309,7 +281,7 @@ theorem Etingof.Proposition6_6_7_sink
           · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
               (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
                 ⟨w, hw, rfl⟩, rfl⟩)
-          · show (ρ.sinkMap i) _ = _
+          · change (ρ.sinkMap i) _ = _
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₁, dif_neg hb']
@@ -352,7 +324,7 @@ theorem Etingof.Proposition6_6_7_sink
           · exact Submodule.mem_iSup_of_mem ⟨a', e'⟩
               (Submodule.mem_map.mpr ⟨(Etingof.reflFunctorPlus_equivAt_ne hi ρ a' ha') w,
                 ⟨w, hw, rfl⟩, rfl⟩)
-          · show (ρ.sinkMap i) _ = _
+          · change (ρ.sinkMap i) _ = _
             simp only [Etingof.QuiverRepresentation.sinkMap, DirectSum.toModule_lof]
             rfl
         · simp only [U₂, dif_neg hb']
@@ -624,7 +596,7 @@ theorem Etingof.Proposition6_6_7_sink
           (Etingof.reflFunctorPlus_equivAt_eq hi ρ).injective (by rw [hzero, map_zero])
         -- Show the kernel element is 0 by showing its val (direct sum element) is 0
         apply Subtype.ext
-        show ((Etingof.reflFunctorPlus_equivAt_eq hi ρ) x).val = 0
+        change ((Etingof.reflFunctorPlus_equivAt_eq hi ρ) x).val = 0
         refine DFunLike.ext _ _ fun a => ?_
         -- For each a : ArrowsInto Q i, show component a is 0
         have ha := arrowsInto_ne_sink hi a
