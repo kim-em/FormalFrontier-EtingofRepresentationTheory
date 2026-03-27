@@ -1070,14 +1070,14 @@ private theorem permExponentY_le_bilinExponent_iff (N : ℕ) (α' β : Fin N →
     | inr j => exact h j
 
 private theorem bilinExponent_sub_permExponentY (N : ℕ) (α' β : Fin N → ℕ)
-    (τ : Equiv.Perm (Fin N)) (h : ∀ j, (τ⁻¹ j : Fin N).val ≤ β j) :
+    (τ : Equiv.Perm (Fin N)) (_h : ∀ j, (τ⁻¹ j : Fin N).val ≤ β j) :
     bilinExponent N α' β - permExponentY N τ =
     bilinExponent N α' (fun j => β j - (τ⁻¹ j).val) := by
   ext v; cases v with
   | inl i => simp [bilinExponent, permExponentY, Finsupp.equivFunOnFinite]
   | inr j =>
     simp only [bilinExponent, permExponentY, Finsupp.equivFunOnFinite, Finsupp.tsub_apply]
-    simp [Finsupp.equivFunOnFinite]
+    simp
 
 /-- **FPS Cauchy identity**: the product of x- and y-Vandermonde polynomials with the full
 Cauchy product equals the Cauchy RHS (= determinant of the Cauchy matrix).
@@ -1099,7 +1099,7 @@ private theorem coeff_vandermondeFPS_x_mul (N : ℕ) (d : CauchyVars N →₀ �
          then MvPowerSeries.coeff (d - permExponentX N π) F
          else 0) := by
   simp only [vandermondeFPS_x, Finset.sum_mul, smul_mul_assoc, map_sum,
-    MvPowerSeries.coeff_smul, zsmul_eq_mul]
+    MvPowerSeries.coeff_smul]
   congr 1; ext π
   congr 1
   rw [MvPowerSeries.coeff_monomial_mul, one_mul]
@@ -1127,7 +1127,7 @@ private theorem alternating_coeff_eq_cauchyRHS_coeff (N : ℕ) (α β : Fin N �
     rw [if_pos hle, bilinExponent_sub_permExponentX N α β π hπ]
     -- Expand V_y * F coefficient
     simp only [vandermondeFPS_y, Finset.sum_mul, smul_mul_assoc, map_sum,
-      MvPowerSeries.coeff_smul, zsmul_eq_mul]
+      MvPowerSeries.coeff_smul]
     -- LHS: ∑_τ sign(π)*sign(τ) * (if hπ ∧ hτ then coeff ... else 0)
     -- RHS: sign(π) * ∑_τ sign(τ) * coeff(monomial*F)
     rw [Finset.mul_sum]; congr 1; ext τ
