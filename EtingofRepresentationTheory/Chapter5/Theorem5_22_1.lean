@@ -1,23 +1,18 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Proposition5_21_1
+import EtingofRepresentationTheory.Chapter5.Definition5_12_1
+import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
 
 /-!
 # Theorem 5.22.1: Weyl Character Formula for GL(V)
 
-The character of the irreducible polynomial representation `L_λ` of `GL_N(k)`
-with highest weight `λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
-Consequently, `dim L_λ = S_λ(1, …, 1) = ∏_{i<j} (λᵢ - λⱼ + j - i)/(j - i)`
-(the dimension formula is already captured by Proposition 5.21.2).
+## Construction
 
-When `λ : Fin N → ℕ` (at most `N` parts), `L_λ` is always nonzero.
-The vanishing case `L_λ = 0` arises only when the partition has strictly more
-parts than `dim V`, which is excluded by our parameterization.
-
-## Mathlib correspondence
-
-Schur polynomials are defined locally in `Proposition5_21_1`.
-The Schur module (highest weight representation of GL_N) and its formal
-character are not yet in Mathlib; they are defined as opaque placeholders.
+The Schur module `L_λ` is the image of the Young symmetrizer `c_λ` acting
+on the tensor power `(k^N)^{⊗n}` where `n = ∑ λᵢ`. The GL_N(k)-action
+on this image comes from the diagonal action `g ↦ g⊗g⊗…⊗g`, which
+commutes with the symmetric group action (hence with `c_λ`), so the image
+is GL_N-stable.
 -/
 
 open MvPolynomial Finset CategoryTheory
@@ -26,30 +21,167 @@ noncomputable section
 
 namespace Etingof
 
-variable (k : Type*) [Field k] [IsAlgClosed k]
+/-! ### Weight to partition conversion -/
+
+/-- Convert a weight vector `lam : Fin N → ℕ` to a partition of `∑ i, lam i`. -/
+def weightToPartition (N : ℕ) (lam : Fin N → ℕ) :
+    Nat.Partition (∑ i, lam i) where
+  parts := (Finset.univ.val.map lam).filter (0 < ·)
+  parts_pos hi := (Multiset.mem_filter.mp hi).2
+  parts_sum := by
+    have h_filt : ∀ (s : Multiset ℕ), (s.filter (0 < ·)).sum = s.sum := by
+      intro s
+      induction s using Multiset.induction with
+      | empty => simp
+      | cons a s ih =>
+        simp only [Multiset.filter_cons]
+        split
+        · simp [Multiset.sum_cons, ih]
+        · rename_i h; push_neg at h; simp [Nat.le_zero.mp h, ih]
+    rw [h_filt]
+    simp [Finset.sum]
+
+/-! ### Young symmetrizer over a general field -/
+
+/-- The Young symmetrizer `c_λ = a_λ · b_λ` in `k[S_n]`, over a general field `k`. -/
+def YoungSymmetrizerK (k : Type*) [CommRing k] (n : ℕ) (la : Nat.Partition n) :
+    MonoidAlgebra k (Equiv.Perm (Fin n)) :=
+  haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of k _ g.val) *
+  (∑ g : (ColumnSubgroup n la),
+    ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val)
+
+/-! ### Young symmetrizer endomorphism on tensor power -/
+
+/-- The Young symmetrizer `c_λ` lifted to an endomorphism of `V^{⊗n}`. -/
+def youngSymEndomorphism (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    Module.End k (TensorPower k (Fin N → k) (∑ i, lam i)) :=
+  symGroupAlgHom k (Fin N → k) (∑ i, lam i)
+    (YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam))
+
+/-! ### GL_N representation on tensor power -/
+
+/-- The diagonal action of `GL_N(k)` on `V^{⊗n}`: `g` acts as `g ⊗ g ⊗ … ⊗ g`.
+The representation map sends `g ∈ GL_N(k)` to the linear endomorphism
+`PiTensorProduct.map (fun _ => g.val.mulVecLin)`. -/
+def glTensorRep (k : Type*) [Field k] (N n : ℕ) :
+    Representation k (Matrix.GeneralLinearGroup (Fin N) k)
+      (TensorPower k (Fin N → k) n) where
+  toFun g := PiTensorProduct.map (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val)
+  map_one' := by
+    classical
+    change PiTensorProduct.map (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
+      LinearMap.id
+    have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
+        (fun _ : Fin n => (LinearMap.id : (Fin N → k) →ₗ[k] (Fin N → k))) :=
+      funext fun _ => Matrix.mulVecLin_one
+    rw [this, PiTensorProduct.map_id]
+  map_mul' g₁ g₂ := by
+    classical
+    change PiTensorProduct.map (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+      (PiTensorProduct.map (fun _ : Fin n => Matrix.mulVecLin g₁.val)) ∘ₗ
+      (PiTensorProduct.map (fun _ : Fin n => Matrix.mulVecLin g₂.val))
+    have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+        (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp (Matrix.mulVecLin g₂.val)) :=
+      funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
+    rw [this, PiTensorProduct.map_comp]
+
+/-! ### GL action commutes with Young symmetrizer -/
+
+/-- The GL_N diagonal action commutes with the Young symmetrizer endomorphism.
+The GL action commutes with each permutation operator σ ∈ S_n by
+`symGroupAction_comm_diagonalAction`, hence with any element of k[S_n],
+hence with the Young symmetrizer. -/
+theorem glTensor_comm_youngSym (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (g : Matrix.GeneralLinearGroup (Fin N) k) :
+    glTensorRep k N (∑ i, lam i) g ∘ₗ youngSymEndomorphism k N lam =
+    youngSymEndomorphism k N lam ∘ₗ glTensorRep k N (∑ i, lam i) g := by
+  set n := ∑ i, lam i
+  set V := Fin N → k
+  set f : V →ₗ[k] V := Matrix.mulVecLin g.val
+  -- The Young symmetrizer endomorphism is in symGroupImage (range of symGroupAlgHom)
+  have h_sym : (youngSymEndomorphism k N lam : Module.End k (TensorPower k V n)) ∈
+      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) := by
+    rw [← symGroupAlgHom_range k V n]
+    exact ⟨_, rfl⟩
+  -- The GL tensor action is in diagonalActionImage (generated by PiTensorProduct.map f)
+  have h_diag : (glTensorRep k N n g : Module.End k (TensorPower k V n)) ∈
+      (diagonalActionImage k V n : Set (Module.End k (TensorPower k V n))) := by
+    apply Algebra.subset_adjoin
+    exact ⟨f, rfl⟩
+  -- By diagonalActionImage_le_centralizer_symGroupImage, diagonal elements
+  -- commute with all symmetric group elements
+  have hcent := diagonalActionImage_le_centralizer_symGroupImage k V n h_diag
+  rw [Subalgebra.mem_centralizer_iff] at hcent
+  -- Get commutativity: young * g_tensor = g_tensor * young
+  exact (hcent _ h_sym).symm
+
+/-- The image of the Young symmetrizer is GL_N-stable. -/
+theorem glTensorRep_mem_range (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (g : Matrix.GeneralLinearGroup (Fin N) k) (v : TensorPower k (Fin N → k) (∑ i, lam i))
+    (hv : v ∈ LinearMap.range (youngSymEndomorphism k N lam)) :
+    (glTensorRep k N (∑ i, lam i) g) v ∈ LinearMap.range (youngSymEndomorphism k N lam) := by
+  obtain ⟨w, rfl⟩ := hv
+  exact ⟨(glTensorRep k N (∑ i, lam i) g) w,
+    (LinearMap.ext_iff.mp (glTensor_comm_youngSym k N lam g) w).symm⟩
+
+/-! ### Schur module construction -/
+
+/-- The Schur module as a submodule of `V^{⊗n}`: the image of the Young symmetrizer. -/
+def SchurModuleSubmodule (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    Submodule k (TensorPower k (Fin N → k) (∑ i, lam i)) :=
+  LinearMap.range (youngSymEndomorphism k N lam)
+
+/-- The GL_N(k) representation restricted to the Schur module submodule.
+The representation sends `g` to the restriction of `g^{⊗n}` to the image
+of the Young symmetrizer, which is stable because GL_N commutes with S_n. -/
+def schurModuleRep (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    Representation k (Matrix.GeneralLinearGroup (Fin N) k)
+      (SchurModuleSubmodule k N lam) where
+  toFun g := (glTensorRep k N (∑ i, lam i) g).restrict
+    (p := SchurModuleSubmodule k N lam) (q := SchurModuleSubmodule k N lam)
+    (fun v hv => glTensorRep_mem_range k N lam g v hv)
+  map_one' := by
+    ext ⟨v, hv⟩
+    simp only [LinearMap.restrict_coe_apply]
+    exact LinearMap.ext_iff.mp (map_one (glTensorRep k N _)) v
+  map_mul' g₁ g₂ := by
+    ext ⟨v, hv⟩
+    -- After ext, both sides coerce to elements of TensorPower via restrict_coe_apply
+    have h_mul := LinearMap.ext_iff.mp (map_mul (glTensorRep k N (∑ i, lam i)) g₁ g₂) v
+    -- h_mul : (glTensorRep (g₁ * g₂)) v = (glTensorRep g₁ * glTensorRep g₂) v
+    --       = (glTensorRep g₁) ((glTensorRep g₂) v)
+    -- Goal: coercion of restrict(g₁*g₂) = coercion of (restrict(g₁) * restrict(g₂))
+    simp only [LinearMap.restrict_coe_apply, Module.End.mul_apply] at h_mul ⊢
+    exact h_mul
+
+/-- The Schur module submodule is finite-dimensional. -/
+instance schurModuleSubmodule_finite (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    Module.Finite k (SchurModuleSubmodule k N lam) :=
+  inferInstance
 
 /-- The Schur module `L_λ`: the irreducible polynomial representation of `GL_N(k)`
 with highest weight `λ = (λ₁ ≥ ⋯ ≥ λ_N ≥ 0)`.
 
-This is the image of the Schur functor `𝕊_λ` applied to `k^N`. Over algebraically
-closed fields of characteristic zero, it is the unique irreducible polynomial
-representation with the given highest weight. Not yet in Mathlib. -/
-noncomputable def SchurModule (N : ℕ) (lam : Fin N → ℕ) :
-    FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := sorry
+Constructed as the image of the Young symmetrizer `c_λ` acting on the tensor
+power `(k^N)^{⊗n}` where `n = ∑ λᵢ`. The `GL_N(k)`-action is the restriction
+of the diagonal action `g ↦ g^{⊗n}`, which commutes with the `S_n`-action
+(and hence with `c_λ`), making the image `GL_N`-stable. -/
+def SchurModule (k : Type*) [Field k] [IsAlgClosed k] (N : ℕ) (lam : Fin N → ℕ) :
+    FDRep k (Matrix.GeneralLinearGroup (Fin N) k) :=
+  FDRep.of (schurModuleRep k N lam)
 
 /-- The formal character of a finite-dimensional polynomial `GL_N(k)`-representation,
-as a polynomial in `N` variables over `ℚ`. The formal character encodes the trace
-of the representation evaluated on diagonal matrices `diag(x₁, …, x_N)` as a
-polynomial in `x₁, …, x_N`. Not yet in Mathlib. -/
-noncomputable def formalCharacter (N : ℕ)
+as a polynomial in `N` variables over `ℚ`. Not yet in Mathlib. -/
+noncomputable def formalCharacter (k : Type*) [Field k] [IsAlgClosed k] (N : ℕ)
     (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k)) :
     MvPolynomial (Fin N) ℚ := sorry
 
+variable (k : Type*) [Field k] [IsAlgClosed k]
+
 /-- **Weyl character formula for GL(V)**: the formal character of the Schur module
 `L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
-
-As a corollary, `dim L_λ = S_λ(1, …, 1)`, which by Proposition 5.21.2 equals
-`∏_{i<j} (λᵢ - λⱼ + j - i)/(j - i)`.
 (Etingof Theorem 5.22.1) -/
 theorem Theorem5_22_1
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
