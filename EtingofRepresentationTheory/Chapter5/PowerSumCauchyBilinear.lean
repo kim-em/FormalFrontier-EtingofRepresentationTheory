@@ -980,15 +980,38 @@ theorem powerSum_bilinear_coeff (n : ℕ) (α β : Fin n →₀ ℕ)
   congr 1
   exact double_counting n α β hα hβ
 
+/-- **Cauchy determinant at coefficient level**: the double alternating sum of
+`fullCauchyProd` coefficients equals the corresponding `cauchyRHS` coefficient.
+
+This is the coefficient-level content of the formal power series identity
+`Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS = det(1/(1-xᵢyⱼ))`,
+which follows from the Cauchy determinant formula (Lemma 5.15.3).
+
+Proof sketch: The alternating sum over π extracts a determinant from the product
+via the factorization `[x^r] fullCauchyProd = ∏_i h_{r_i}(y)` (x-variables separate
+across rows). This gives `det(h_{α_i-j}(y))_{ij}`. The alternating sum over τ then
+extracts `[y^β]` of this determinant, giving `[x^α y^β](cauchyRHS)` by Cauchy-Binet. -/
+private theorem alternating_coeff_eq_cauchyRHS_coeff (N : ℕ) (α β : Fin N → ℕ) :
+    (∑ π : Equiv.Perm (Fin N), ∑ τ : Equiv.Perm (Fin N),
+      ((Equiv.Perm.sign π : ℤ) : ℂ) * ((Equiv.Perm.sign τ : ℤ) : ℂ) *
+      (if (∀ i, (π⁻¹ i : Fin N).val ≤ α i) ∧ (∀ i, (τ⁻¹ i : Fin N).val ≤ β i)
+       then MvPowerSeries.coeff
+              (bilinExponent N (fun i => α i - (π⁻¹ i : Fin N).val)
+                               (fun i => β i - (τ⁻¹ i : Fin N).val))
+              (fullCauchyProd N ℂ)
+       else 0)) =
+    MvPowerSeries.coeff (bilinExponent N α β) (cauchyRHS N ℂ) := by
+  sorry
+
 /-- **Vandermonde-Cauchy diagonal coefficient identity**.
 
 For injective `α : Fin N → ℕ`, the double alternating sum of `fullCauchyProd` coefficients
 equals 1. This encodes the coefficient-level content of the identity
 `Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS`, evaluated at the diagonal exponent `(α, α)`.
 
-The proof requires the formal power series Cauchy determinant identity
-(connecting `fullCauchyProd` to `cauchyRHS` via Vandermonde polynomials)
-together with `cauchyRHS_coeff_bilin_of_injective`. -/
+The proof factors into two steps:
+1. `alternating_coeff_eq_cauchyRHS_coeff`: the alternating sum equals the cauchyRHS coefficient
+2. `cauchyRHS_coeff_bilin_of_injective`: the cauchyRHS coefficient at `(α, α)` is 1 -/
 theorem vandermonde_cauchy_diagonal (N : ℕ) (α : Fin N → ℕ)
     (hα_inj : Function.Injective α) :
     (∑ π : Equiv.Perm (Fin N), ∑ τ : Equiv.Perm (Fin N),
@@ -999,6 +1022,8 @@ theorem vandermonde_cauchy_diagonal (N : ℕ) (α : Fin N → ℕ)
                                (fun i => α i - (τ⁻¹ i : Fin N).val))
               (fullCauchyProd N ℂ)
        else 0)) = 1 := by
-  sorry
+  have h1 := alternating_coeff_eq_cauchyRHS_coeff N α α
+  have h2 := cauchyRHS_coeff_bilin_of_injective ℂ (N := N) α α hα_inj hα_inj (fun _ => rfl)
+  rw [h1, h2]
 
 end Etingof
