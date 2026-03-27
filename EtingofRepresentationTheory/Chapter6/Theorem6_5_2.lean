@@ -4,7 +4,7 @@ import EtingofRepresentationTheory.Chapter6.Definition6_4_3
 import EtingofRepresentationTheory.Chapter6.Definition6_4_7
 import EtingofRepresentationTheory.Chapter6.Definition6_5_1
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
-import EtingofRepresentationTheory.Chapter6.Proposition6_6_6
+import EtingofRepresentationTheory.Chapter6.ReflectionFunctorInfrastructure
 import EtingofRepresentationTheory.Chapter6.Lemma6_4_2
 
 /-!
