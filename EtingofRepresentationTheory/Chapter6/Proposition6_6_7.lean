@@ -937,28 +937,33 @@ theorem Etingof.Proposition6_6_7_source
       -- Apply V's indecomposability
       have hindecomp := hρ.2 U₁ U₂ hU₁_subrep hU₂_subrep hU_compl
       -- Transport back: U_k = ⊥ everywhere → W_k = ⊥ everywhere
-      suffices transport : ∀ (W : ∀ v, Submodule k
+      -- The source case needs the complement (quotient vs kernel), so we pass it.
+      suffices transport :
+          ∀ (W W' : ∀ v, Submodule k
             (@Etingof.QuiverRepresentation.obj k Q _
               (Etingof.reversedAtVertex Q i)
               (Etingof.reflectionFunctorMinus Q i hi ρ) v)),
             (∀ {a b} (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b),
-              ∀ x ∈ W a,
+              ∀ x ∈ W' a,
               @Etingof.QuiverRepresentation.mapLinear k Q _
                 (Etingof.reversedAtVertex Q i)
-                (Etingof.reflectionFunctorMinus Q i hi ρ) a b e x ∈ W b) →
+                (Etingof.reflectionFunctorMinus Q i hi ρ) a b e x ∈ W' b) →
+            (∀ v, IsCompl (W v) (W' v)) →
             (∀ v (hv : v ≠ i), Submodule.map
               (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).toLinearMap
               (W v) = ⊥) →
             (∀ v, W v = ⊥) by
         rcases hindecomp with h1 | h2
-        · left; exact transport W₁ hW₁ (fun v hv => by
+        · left; exact transport W₁ W₂ hW₂ hcompl (fun v hv => by
             have := h1 v; simp only [U₁, dif_neg hv] at this; exact this)
-        · right; exact transport W₂ hW₂ (fun v hv => by
+        · right; exact transport W₂ W₁ hW₁ (fun v => (hcompl v).symm) (fun v hv => by
             have := h2 v; simp only [U₂, dif_neg hv] at this; exact this)
       -- Prove the transport lemma
-      intro W hW hW_ne v
+      intro W W' hW' hWW' hW_ne v
       by_cases hv : v = i
-      · -- At i: W(j) = ⊥ for all j ≠ i (equiv injective), so ⊕W(j) = ⊥ in the quotient
+      · -- At i: W(j) = ⊥ for all j ≠ i, so W'(j) = ⊤.
+        -- The complement W' receives all images from reversed arrows, so W'(i) = ⊤.
+        -- Hence W(i) = ⊥.
         cases hv
         -- W(j) = ⊥ for all j ≠ i
         have hW_bot : ∀ j, j ≠ i → W j = ⊥ := by
@@ -971,19 +976,37 @@ theorem Etingof.Proposition6_6_7_source
           rw [Submodule.mem_bot] at hmem
           exact (Etingof.reflFunctorMinus_equivAt_ne hi ρ j hj).injective
             (hmem.trans (map_zero _).symm)
-        -- W₂(j) = ⊤ (complement of ⊥) → mkQ sends all of DirectSum into W₂(i)
-        -- Since W₁(j) = ⊥ and W₁ + W₂ = ⊤, W₂(j) = ⊤ at each j ≠ i
-        -- So all elements of DirectSum map into W₂(i) via mkQ
-        -- Hence W₂(i) = ⊤, so W₁(i) = ⊥
-        -- But W is the one we're checking, so we need W(i) = ⊥
-        -- The subrep condition: for each arrow j →_{Q̄ᵢ} i, W(j) maps into W(i)
-        -- Since W(j) = ⊥, only 0 maps into W(i), so we get 0 ∈ W(i) (trivially)
-        -- To show W(i) = ⊥: any element of W(i) ⊆ coker(ψ) has a representative
-        -- in DirectSum. Since W(i) and its complement span coker(ψ), and the
-        -- complement receives all of DirectSum (because W(j) = ⊥ for j ≠ i means
-        -- the complement W'(j) = ⊤), the complement must be all of coker.
-        -- Hence W(i) ⊓ complement = ⊥ and complement = ⊤ implies W(i) = ⊥.
-        sorry
+        -- W'(j) = ⊤ for all j ≠ i (complement of ⊥)
+        have hW'_top : ∀ j, j ≠ i → W' j = ⊤ := by
+          intro j hj
+          have hbot := hW_bot j hj
+          have hc := hWW' j
+          rw [hbot] at hc
+          exact eq_top_of_bot_isCompl hc
+        -- For each a and w ∈ F⁻(V).obj(a.1), the F⁻ map along the reversed arrow
+        -- sends w into W'(i) (since W'(a.1) = ⊤)
+        have hW'_arrow : ∀ (a : Etingof.ArrowsOutOf Q i)
+            (e_a : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a.1 i)
+            (w : @Etingof.QuiverRepresentation.obj k Q _
+              (Etingof.reversedAtVertex Q i)
+              (Etingof.reflectionFunctorMinus Q i hi ρ) a.1),
+            @Etingof.QuiverRepresentation.mapLinear k Q _
+              (Etingof.reversedAtVertex Q i)
+              (Etingof.reflectionFunctorMinus Q i hi ρ) a.1 i e_a w ∈ W' i := by
+          intro a e_a w
+          exact hW' e_a w (by rw [hW'_top a.1 (arrow_ne a)]; exact Submodule.mem_top)
+        -- W'(i) = ⊤: the range of mkQ (surjective) lands in W'(i)
+        -- because every mkQ(lof(a)(z)) = F⁻_map(reversed_arrow)(equiv⁻¹(z)) ∈ W'(i)
+        have hW'i_top : W' i = ⊤ := by
+          rw [eq_top_iff]; intro x _
+          -- Use Quotient.inductionOn to reduce to a DirectSum representative
+          -- F⁻(V).obj i is a quotient when i = i in the Decidable.casesOn
+          -- We need to unfold and work with the concrete quotient structure
+          sorry
+        -- W(i) ⊓ W'(i) = ⊥ and W'(i) = ⊤ implies W(i) = ⊥
+        have hci := hWW' i
+        rw [hW'i_top] at hci
+        exact eq_bot_of_isCompl_top hci
       · -- At v ≠ i: injective map = ⊥ → original = ⊥
         specialize hW_ne v hv
         rw [eq_bot_iff]
