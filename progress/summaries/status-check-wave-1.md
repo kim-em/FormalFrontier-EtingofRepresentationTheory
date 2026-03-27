@@ -1,6 +1,6 @@
 # Status Check Wave 1
 
-**Date:** 2026-03-26
+**Date:** 2026-03-27 (updated)
 **Issue:** #1725
 **Trigger:** 793+ PRs merged, first formal status check (overdue per PLAN.md)
 **Baseline:** Wave 34 sorry landscape (44 sorrys / 22 files)
@@ -9,10 +9,10 @@
 
 | Metric | Wave 34 | Now | Delta |
 |--------|---------|-----|-------|
-| Total sorrys | 44 | 43 | -1 |
+| Total sorrys | 44 | 42 | -2 |
 | Files with sorry | 22 | 21 | -1 |
 | Sorry-free files | 246/268 (91.8%) | 247/268 (92.2%) | +1 |
-| Definition-level sorrys | ~8 (reported) | 10 | see below |
+| Definition-level sorrys | ~8 (reported) | 9 | see below |
 
 ### Per-Chapter Breakdown
 
@@ -21,7 +21,7 @@
 | Ch2 | 1 | 1 | Theorem2_1_2 (blocked on Ch6) | #1734 |
 | Ch3 | 0 | 0 | - | - |
 | Ch4 | 0 | 0 | - | - |
-| Ch5 | 28 | 8 | Theorem5_23_2 (9, def-level) | #1717, #1721, #1722 |
+| Ch5 | 27 | 8 | Theorem5_23_2 (9, def-level) | #1717, #1721 |
 | Ch6 | 10 | 8 | Corollary6_8_3 + CoxeterInfra chain | #1691, #1714, #1724, #1726 |
 | Ch7 | 0 | 0 | - | - |
 | Ch8 | 0 | 0 | - | - |
@@ -30,27 +30,25 @@
 
 ## 1. Definition-Level Sorry Regression Check
 
-**10 definition-level sorrys found** (vs ~8 reported in wave 34):
+**9 definition-level sorrys found** (vs ~8 reported in wave 34):
 
 | # | Definition | File:Line | Known? |
 |---|-----------|-----------|--------|
-| 1 | `kostkaNumber` | Proposition5_21_1:334 | Yes |
-| 2 | `SchurModule` | Theorem5_22_1:38 | Yes (#1722) |
-| 3 | `formalCharacter` | Theorem5_22_1:46 | Yes |
+| 1 | `charValue` | Proposition5_21_1:334 | Yes |
+| 2 | ~~`SchurModule`~~ | ~~Theorem5_22_1~~ | **RESOLVED** (PR #1740) |
+| 3 | `formalCharacter` | Theorem5_22_1:179 | Yes |
 | 4 | `AlgIrrepGL` (type) | Theorem5_23_2:59 | Yes |
 | 5 | `AlgIrrepGL.addCommGroup` | Theorem5_23_2:62 | Yes |
 | 6 | `AlgIrrepGL.module` | Theorem5_23_2:65 | Yes |
 | 7 | `AlgIrrepGL.finite` | Theorem5_23_2:68 | Yes |
-| 8 | `AlgIrrepGLDual` (type) | Theorem5_23_2:73† | Yes |
+| 8 | `AlgIrrepGLDual` (type) | Theorem5_23_2:73 | Yes |
 | 9 | `AlgIrrepGLDual.addCommGroup` | Theorem5_23_2:76 | Yes |
 | 10 | `AlgIrrepGLDual.module` | Theorem5_23_2:79 | Yes |
 | 11 | `IsFiniteTypeQuiver` | Problem6_1_5_theorem:33 | Yes |
 
-†Line 73 is the sorry'd proof of `AlgIrrepGLDual`; the type definition is at line 73 (`Type := sorry`).
+**Verdict: No new definition-level sorry regressions.** SchurModule was constructed (PR #1740, closed #1722), reducing def-sorrys from 10 to 9. All remaining are known.
 
-**Verdict: No new definition-level sorry regressions.** The count difference from wave 34 (8 vs 10-11) is due to counting methodology (whether instances are counted separately from their parent type). All are known.
-
-**Critical path:** SchurModule (#1722, actively claimed) blocks ~21 sorrys transitively. This is the single highest-ROI target.
+**Critical path:** AlgIrrepGL construction (Theorem5_23_2) blocks ~21 sorrys transitively. SchurModule is now resolved.
 
 ## 2. Hardest Remaining Items
 
@@ -85,7 +83,7 @@ Files with sorrys that have had no PRs or issues in 5+ days (10+ waves):
 | Theorem2_1_2 | Mar 18 | 1 | Blocked on Ch6 | #1734 |
 | Proposition5_21_1 | Mar 19 | 2 | kostkaNumber def-sorry + proof | - (blocked on SchurModule) |
 | Proposition5_22_2 | Mar 18 | 1 | Blocked on SchurModule | - |
-| Theorem5_22_1 | Mar 18 | 3 | SchurModule + formalCharacter def-sorrys | #1722 (active) |
+| Theorem5_22_1 | Mar 27 | 2 | formalCharacter def-sorry + 1 proof | #1722 (closed, SchurModule done) |
 | Theorem5_23_2 | Mar 18 | 9 | All blocked on SchurModule/AlgIrrepGL | - |
 | Problem6_1_5_theorem | Mar 18 | 2 | IsFiniteTypeQuiver def-sorry + proof | - (blocked on Ch6 chain) |
 | Theorem6_5_2 | Mar 18 | 1 | Full proof sorry, blocked on Ch6 chain | - |
@@ -113,6 +111,7 @@ Last 50 merged PRs by chapter:
 
 ## 5. Milestones Since Wave 34
 
+- **SchurModule constructed** (PR #1740): Definition no longer sorry'd; unblocks downstream work
 - **Theorem5_15_1 → sorry-free** (PR #1719): Frobenius character formula complete
 - **Theorem5_25_2 → sorry-free** (confirmed): GL₂(𝔽_q) principal series classification
 - **Proposition6_6_6** reduced from 5→2 sorrys (PRs #1715, #1723)
@@ -125,7 +124,7 @@ Last 50 merged PRs by chapter:
 | 1 | Achievable (1-2 sessions) | 5 | PowerSumCauchyBilinear, PolytabloidBasis, Prop6_6_7 |
 | 2 | Hard but tractable | 4 | Prop6_6_6, CoxeterInfra, Problem6_9_1, Theorem5_18_4 (centralizer) |
 | 3 | Significant infrastructure needed | 8 | Theorem5_27_1, MoritaStructural, Theorem5_18_4 (decomposition) |
-| 4 | Deep blockers / SchurModule-dependent | ~26 | Theorem5_23_2 (9), Theorem5_22_1 (3), Corollary6_8_3/4, Example9_4_4 |
+| 4 | Deep blockers / AlgIrrepGL-dependent | ~25 | Theorem5_23_2 (9), Theorem5_22_1 (2), Corollary6_8_3/4, Example9_4_4 |
 
 ## 7. New Issues Created
 
@@ -143,8 +142,8 @@ Last 50 merged PRs by chapter:
 
 ## Recommendations
 
-1. **Continue SchurModule construction** (#1722) — highest ROI, unblocks ~21 sorrys
+1. **Construct AlgIrrepGL** — highest ROI, unblocks ~21 sorrys (SchurModule now done)
 2. **Complete Ch6 Gabriel chain**: CoxeterInfra → Corollary6_8_3/4 → Theorem6_5_2 → Theorem2_1_2
 3. **Attempt MoritaStructural** (#1729) — 2 easy wins in neglected Ch9/Infra
 4. **Theorem5_18_4 centralizer** (#1733) — independent of SchurModule, 4 sorrys
-5. **Deprioritize Tier 4** items until SchurModule is resolved
+5. **Deprioritize Tier 4** items until AlgIrrepGL is resolved
