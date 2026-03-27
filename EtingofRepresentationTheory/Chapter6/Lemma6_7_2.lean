@@ -307,12 +307,12 @@ private theorem coxeterAction_sum_range
 
 /-! ## Fixed point implies zero -/
 
-private lemma simpleReflection_apply_ne
+private lemma simpleReflection_apply_ne'
     (v : Fin n → ℤ) (i j : Fin n) (hij : j ≠ i) :
     simpleReflection n (cartanMatrix n adj) i v j = v j := by
   simp [simpleReflection, rootReflection, Pi.sub_apply, hij]
 
-private lemma simpleReflection_apply_self
+private lemma simpleReflection_apply_self'
     (hDynkin : IsDynkinDiagram n adj) (v : Fin n → ℤ)
     (i : Fin n) :
     simpleReflection n (cartanMatrix n adj) i v i =
@@ -471,7 +471,7 @@ private lemma coxeterAction_fixed_zero
     have hfin_eq : (⟨n - 1 - (n - 1 - k.val), by omega⟩ : Fin n) = k :=
       Fin.ext (show n - 1 - (n - 1 - k.val) = k.val by omega)
     rw [hfin_eq] at hstep
-    have hself := simpleReflection_apply_self hDynkin v k
+    have hself := simpleReflection_apply_self' hDynkin v k
     have : v k = simpleReflection n A k v k := congr_fun hstep k
     rw [hself] at this; linarith
   intro m hm
@@ -490,7 +490,7 @@ private lemma coxeterAction_fixed_zero
           simpleReflection n A j (intermediateState A v m) j := by
         rw [intermediateState_succ A v m (by omega)]
       rw [ih (by omega)] at heval
-      rw [simpleReflection_apply_self hDynkin v j] at heval
+      rw [simpleReflection_apply_self' hDynkin v j] at heval
       linarith [hstable]
     exact hrefl_id j hAv_j
 
