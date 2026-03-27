@@ -385,7 +385,74 @@ theorem formalCharacter_coeff (N : ℕ)
       exact hmem ((glWeightSpace_finite_support k N M).mem_toFinset.mpr h)
     rw [hbot]; simp
 
+/-! ### The Vandermonde determinant is nonzero -/
+
+/-- The alternant determinant with Vandermonde exponents is associated to the product of
+linear factors `∏_{i<j} (X_j - X_i)`. -/
+private theorem alternant_det_associated_prod' (N : ℕ) :
+    Associated (alternantMatrix N (vandermondeExps N)).det
+      (∏ i : Fin N, ∏ j ∈ Finset.Ioi i,
+        (MvPolynomial.X j - MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) := by
+  have h1 : alternantMatrix N (vandermondeExps N) =
+      (Matrix.vandermonde (MvPolynomial.X : Fin N → MvPolynomial (Fin N) ℚ)).submatrix
+        id (@Fin.revPerm N) := by
+    ext i j
+    simp only [alternantMatrix, Matrix.vandermonde, vandermondeExps, Matrix.of_apply,
+      Matrix.submatrix_apply, id, Fin.revPerm_apply]
+    congr 2
+    simp only [Fin.rev, Fin.val_mk]
+    omega
+  rw [h1, Matrix.det_permute', Matrix.det_vandermonde]
+  have hu : IsUnit (↑↑(@Fin.revPerm N).sign : MvPolynomial (Fin N) ℚ) :=
+    (Units.map (algebraMap ℤ (MvPolynomial (Fin N) ℚ)).toMonoidHom
+      (@Fin.revPerm N).sign).isUnit
+  exact (associated_isUnit_mul_left_iff hu).mpr (Associated.refl _)
+
+/-- The Vandermonde determinant is nonzero in `MvPolynomial (Fin N) ℚ`. -/
+theorem alternantMatrix_vandermondeExps_det_ne_zero (N : ℕ) :
+    (alternantMatrix N (vandermondeExps N)).det ≠ (0 : MvPolynomial (Fin N) ℚ) := by
+  obtain ⟨u, hu⟩ := alternant_det_associated_prod' N
+  intro h
+  have hprod : ∏ i : Fin N, ∏ j ∈ Finset.Ioi i,
+      (MvPolynomial.X j - MvPolynomial.X i : MvPolynomial (Fin N) ℚ) ≠ 0 := by
+    apply Finset.prod_ne_zero_iff.mpr
+    intro i _
+    apply Finset.prod_ne_zero_iff.mpr
+    intro j hj
+    have hij : j ≠ i := (Finset.mem_Ioi.mp hj).ne'
+    intro heq
+    -- X_j - X_i = 0 would mean X_j = X_i, but they are distinct variables
+    have : (MvPolynomial.eval (fun k : Fin N => if k = j then (1 : ℚ) else 0))
+        (MvPolynomial.X j - MvPolynomial.X i) = 0 :=
+      congr_arg _ heq |>.trans (map_zero _)
+    simp [hij.symm] at this
+  exact hprod (by rw [← hu, h, zero_mul])
+
 /-! ### Weight multiplicity equals Schur polynomial coefficient -/
+
+/-- **Core Weyl character formula (polynomial level)**: The formal character of the Schur
+module `L_λ`, when multiplied by the Vandermonde determinant, equals the alternant determinant
+with shifted exponents `λ + δ`.
+
+This is the deep content: `ch(L_λ) · Δ = A_{λ+δ}`, where `Δ = det(x_i^{N-1-j})` and
+`A_{λ+δ} = det(x_i^{λ_j+N-1-j})`.
+
+## Proof approaches
+
+### Via trace on tensor power (most direct)
+1. Show Young symmetrizer `c_λ` over general field `k` satisfies `c_λ² = α • c_λ`
+   (generalize `Lemma5_13_3` from ℂ to arbitrary fields)
+2. Show `(1/α) • c_λ` is a projection, hence `char_{L_λ}(g) = (1/α) tr(c_λ ∘ g^⊗n)`
+3. Prove `tr(π ∘ g^⊗n) = p_{cycle-type(π)}(eigenvalues)` for permutation π
+4. Conclude via Proposition 5.21.1 (Frobenius formula)
+
+### Via Schur-Weyl duality
+Requires `Theorem5_18_4` sorry-free (V^⊗n ≅ ⊕_λ S_λ ⊗ L_λ). -/
+theorem formalCharacter_schurModule_mul_vandermonde
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    formalCharacter k N (SchurModule k N lam) * (alternantMatrix N (vandermondeExps N)).det =
+      (alternantMatrix N (shiftedExps N lam)).det := by
+  sorry
 
 /-- **Key helper**: The dimension of the weight space for weight `μ` in the Schur module `L_λ`
 equals the coefficient of `x^μ` in the Schur polynomial `S_λ`.
@@ -397,7 +464,15 @@ theorem schurModule_weight_eq_schurPoly_coeff
     (μ : Fin N →₀ ℕ) :
     (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
       (schurPoly N lam).coeff μ := by
-  sorry
+  -- Reduce to the polynomial-level equality: formalCharacter = schurPoly
+  have h_poly : formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
+    -- Both polynomials satisfy p * Δ = A_{λ+δ}. Since Δ ≠ 0 in the integral domain
+    -- MvPolynomial (Fin N) ℚ, they must be equal.
+    have hΔ := alternantMatrix_vandermondeExps_det_ne_zero N
+    apply mul_right_cancel₀ hΔ
+    rw [formalCharacter_schurModule_mul_vandermonde k N lam hlam,
+        schurPoly_mul_vandermonde]
+  rw [← formalCharacter_coeff, h_poly]
 
 /-- **Weyl character formula for GL(V)**: the formal character of the Schur module
 `L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
