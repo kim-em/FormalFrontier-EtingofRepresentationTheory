@@ -713,4 +713,288 @@ theorem Etingof.Proposition6_6_7_source
         omega
   · -- sourceMap injective → F⁻(V) is indecomposable
     left
-    sorry
+    -- At a source, no arrow enters i
+    have source_no_in : ∀ {a b : Q} (_ : a ⟶ b), b ≠ i :=
+      fun {a _} e h => (hi a).false (h ▸ e)
+    -- V is not simple at i (sourceMap injective from nontrivial to subsingleton impossible)
+    have hnotsimple : ¬ρ.IsSimpleAt i := by
+      intro hs
+      have htriv : ∀ j, j ≠ i → Subsingleton (ρ.obj j) := by
+        intro j hj; rcases subsingleton_or_nontrivial (ρ.obj j) with h | h
+        · exact h
+        · exfalso; have h1 := Module.finrank_pos (R := k) (M := ρ.obj j)
+          have h2 := hs.2 j hj; omega
+      haveI : ∀ a : Etingof.ArrowsOutOf Q i, Subsingleton (ρ.obj a.1) := by
+        intro ⟨j, e⟩; exact htriv j (by intro heq; rw [heq] at e; exact (hi i).false e)
+      haveI : Subsingleton (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) :=
+        subsingleton_of_forall_eq 0 fun x => by
+          ext ⟨j, e⟩; exact Subsingleton.eq_zero _
+      have hVi : Subsingleton (ρ.obj i) :=
+        subsingleton_of_forall_eq 0 fun x =>
+          hinj (Subsingleton.elim ((ρ.sourceMap i) x) ((ρ.sourceMap i) 0))
+      haveI := hVi
+      have h1 := hs.1
+      have h2 := Module.finrank_zero_of_subsingleton (M := ρ.obj i) (R := k)
+      omega
+    constructor
+    · -- F⁻(V) is nontrivial: find j ≠ i with V_j nontrivial
+      have ⟨j, hj, hjnt⟩ : ∃ j, j ≠ i ∧ Nontrivial (ρ.obj j) := by
+        by_contra hall
+        have htriv : ∀ j, j ≠ i → Subsingleton (ρ.obj j) := by
+          intro j hji; rcases subsingleton_or_nontrivial (ρ.obj j) with h | h
+          · exact h
+          · exact absurd ⟨j, hji, h⟩ hall
+        haveI : ∀ a : Etingof.ArrowsOutOf Q i, Subsingleton (ρ.obj a.1) := by
+          intro ⟨j, e⟩; exact htriv j (by intro heq; rw [heq] at e; exact (hi i).false e)
+        haveI : Subsingleton (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) :=
+          subsingleton_of_forall_eq 0 fun x => by ext ⟨j, e⟩; exact Subsingleton.eq_zero _
+        have hVi : Subsingleton (ρ.obj i) :=
+          subsingleton_of_forall_eq 0 fun x =>
+            hinj (Subsingleton.elim ((ρ.sourceMap i) x) ((ρ.sourceMap i) 0))
+        obtain ⟨w, hw⟩ := hρ.1
+        rcases eq_or_ne w i with rfl | hwi
+        · exact not_subsingleton _ hVi
+        · exact not_subsingleton _ (htriv w hwi)
+      refine ⟨j, ?_⟩
+      unfold Etingof.reflectionFunctorMinus
+      simp only
+      match hd : (‹DecidableEq Q› j i) with
+      | .isTrue hji => exact absurd hji hj
+      | .isFalse _ => rw [hd]; dsimp only []; exact hjnt
+    · -- F⁻(V) is indecomposable: given complementary subreps W₁, W₂ of F⁻(V),
+      -- construct complementary subreps of V, use V's indecomposability.
+      intro W₁ W₂ hW₁ hW₂ hcompl
+      classical
+      let ψ := ρ.sourceMap i
+      have arrow_ne : ∀ (a : Etingof.ArrowsOutOf Q i), a.1 ≠ i := by
+        intro ⟨j, e⟩; intro heq; exact (hi i).false (heq ▸ e)
+      -- Transport W_k at arrow targets to submodules of ρ.obj
+      let W₁_at : ∀ (a : Etingof.ArrowsOutOf Q i), Submodule k (ρ.obj a.1) :=
+        fun a => Submodule.map
+          (Etingof.reflFunctorMinus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+          (W₁ a.1)
+      let W₂_at : ∀ (a : Etingof.ArrowsOutOf Q i), Submodule k (ρ.obj a.1) :=
+        fun a => Submodule.map
+          (Etingof.reflFunctorMinus_equivAt_ne hi ρ a.1 (arrow_ne a)).toLinearMap
+          (W₂ a.1)
+      -- U_k(v) for v ≠ i: transport W_k(v) via equiv
+      -- U_k(i): elements whose image under each outgoing arrow lands in W_k
+      let U₁ : ∀ v, Submodule k (ρ.obj v) := fun v =>
+        if hv : v = i then
+          hv ▸ ⨅ (a : Etingof.ArrowsOutOf Q i),
+            Submodule.comap (ρ.mapLinear a.2) (W₁_at a)
+        else
+          Submodule.map (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).toLinearMap (W₁ v)
+      let U₂ : ∀ v, Submodule k (ρ.obj v) := fun v =>
+        if hv : v = i then
+          hv ▸ ⨅ (a : Etingof.ArrowsOutOf Q i),
+            Submodule.comap (ρ.mapLinear a.2) (W₂_at a)
+        else
+          Submodule.map (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).toLinearMap (W₂ v)
+      -- W₁_at, W₂_at are complementary at each arrow target
+      have hW_at_compl : ∀ a : Etingof.ArrowsOutOf Q i,
+          IsCompl (W₁_at a) (W₂_at a) := by
+        intro a
+        have hc := hcompl a.1
+        let e := Etingof.reflFunctorMinus_equivAt_ne hi ρ a.1 (arrow_ne a)
+        exact ⟨by
+          rw [Submodule.disjoint_def]; intro x hx₁ hx₂
+          obtain ⟨w₁, hw₁, rfl⟩ := Submodule.mem_map.mp hx₁
+          obtain ⟨w₂, hw₂, hw₂eq⟩ := Submodule.mem_map.mp hx₂
+          have : w₁ ∈ W₁ a.1 ⊓ W₂ a.1 := ⟨hw₁, e.injective hw₂eq ▸ hw₂⟩
+          rw [hc.1.eq_bot, Submodule.mem_bot] at this
+          rw [this, map_zero], by
+          rw [codisjoint_iff, eq_top_iff]; intro x _
+          obtain ⟨w, rfl⟩ := e.surjective x
+          obtain ⟨w₁, hw₁, w₂, hw₂, rfl⟩ :=
+            Submodule.mem_sup.mp (hc.2.eq_top ▸ (Submodule.mem_top : w ∈ ⊤))
+          exact Submodule.mem_sup.mpr
+            ⟨_, Submodule.mem_map.mpr ⟨w₁, hw₁, rfl⟩,
+             _, Submodule.mem_map.mpr ⟨w₂, hw₂, rfl⟩,
+             (map_add _ _ _).symm⟩⟩
+      -- Prove U₁ is a subrep of ρ
+      have hU₁_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'),
+          ∀ x ∈ U₁ a', ρ.mapLinear e' x ∈ U₁ b' := by
+        intro a' b' e' x hx
+        have hb' : b' ≠ i := source_no_in e'
+        by_cases ha' : a' = i
+        · -- Arrow from i to b' ≠ i
+          cases ha'
+          simp only [U₁, dif_pos rfl, dif_neg hb'] at hx ⊢
+          -- x ∈ ⨅ a, comap mapLinear (W₁_at a), so mapLinear ⟨b', e'⟩.2 x ∈ W₁_at ⟨b', e'⟩
+          rw [Submodule.mem_iInf] at hx
+          exact hx ⟨b', e'⟩
+        · -- Arrow between a' ≠ i and b' ≠ i
+          simp only [U₁, dif_neg ha', dif_neg hb'] at hx ⊢
+          obtain ⟨w, hw, rfl⟩ := hx
+          have hsubrep : ∀ (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a' b'),
+              ∀ x ∈ W₁ a', @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i) (Etingof.reflectionFunctorMinus Q i hi ρ)
+                a' b' e x ∈ W₁ b' :=
+            fun e x hx => hW₁ e x hx
+          generalize W₁ a' = Sa at hw hsubrep ⊢
+          generalize W₁ b' = Sb at hsubrep ⊢
+          clear hcompl hW₂ hW_at_compl W₂_at U₂ W₂ U₁ W₁_at arrow_ne hnotsimple hρ hW₁ W₁
+          have h_da : ‹DecidableEq Q› a' i = .isFalse ha' := by
+            cases ‹DecidableEq Q› a' i with | isTrue h => exact absurd h ha' | isFalse _ => rfl
+          have h_db : ‹DecidableEq Q› b' i = .isFalse hb' := by
+            cases ‹DecidableEq Q› b' i with | isTrue h => exact absurd h hb' | isFalse _ => rfl
+          revert hw w e' hsubrep Sb Sa
+          unfold Etingof.reflFunctorMinus_equivAt_ne
+            Etingof.reflectionFunctorMinus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+          simp only []
+          rw [h_da, h_db]
+          simp only []
+          intro e' w Sa hw Sb hsubrep
+          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
+            LinearEquiv.refl_toLinearMap] at *
+          exact hsubrep e' w hw
+      have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'),
+          ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
+        intro a' b' e' x hx
+        have hb' : b' ≠ i := source_no_in e'
+        by_cases ha' : a' = i
+        · cases ha'
+          simp only [U₂, dif_pos rfl, dif_neg hb'] at hx ⊢
+          rw [Submodule.mem_iInf] at hx; exact hx ⟨b', e'⟩
+        · simp only [U₂, dif_neg ha', dif_neg hb'] at hx ⊢
+          obtain ⟨w, hw, rfl⟩ := hx
+          have hsubrep : ∀ (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a' b'),
+              ∀ x ∈ W₂ a', @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i) (Etingof.reflectionFunctorMinus Q i hi ρ)
+                a' b' e x ∈ W₂ b' :=
+            fun e x hx => hW₂ e x hx
+          generalize W₂ a' = Sa at hw hsubrep ⊢
+          generalize W₂ b' = Sb at hsubrep ⊢
+          clear hcompl hW₁ hW_at_compl W₁_at U₁ W₁ U₂ W₂_at arrow_ne hnotsimple hρ hW₂ W₂ hU₁_subrep
+          have h_da : ‹DecidableEq Q› a' i = .isFalse ha' := by
+            cases ‹DecidableEq Q› a' i with | isTrue h => exact absurd h ha' | isFalse _ => rfl
+          have h_db : ‹DecidableEq Q› b' i = .isFalse hb' := by
+            cases ‹DecidableEq Q› b' i with | isTrue h => exact absurd h hb' | isFalse _ => rfl
+          revert hw w e' hsubrep Sb Sa
+          unfold Etingof.reflFunctorMinus_equivAt_ne
+            Etingof.reflectionFunctorMinus Etingof.reversedAtVertex Etingof.ReversedAtVertexHom
+          simp only []
+          rw [h_da, h_db]
+          simp only []
+          intro e' w Sa hw Sb hsubrep
+          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
+            LinearEquiv.refl_toLinearMap] at *
+          exact hsubrep e' w hw
+      have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
+        intro v
+        by_cases hv : v = i
+        · -- At i: disjoint because sourceMap injective, codisjoint by mkQ argument
+          subst hv
+          simp only [U₁, U₂, dif_pos rfl]
+          constructor
+          · -- Disjoint: (⨅ a, comap W₁_at a) ∩ (⨅ a, comap W₂_at a) = ⊥
+            rw [Submodule.disjoint_def]
+            intro x hx₁ hx₂
+            -- For each a, mapLinear a.2 x ∈ W₁_at a ∩ W₂_at a = ⊥
+            simp only [Submodule.mem_iInf] at hx₁ hx₂
+            have hzero := fun a => by
+              have hmem : ρ.mapLinear a.2 x ∈ W₁_at a ⊓ W₂_at a :=
+                ⟨Submodule.mem_comap.mp (hx₁ a), Submodule.mem_comap.mp (hx₂ a)⟩
+              rw [(hW_at_compl a).inf_eq_bot, Submodule.mem_bot] at hmem
+              exact hmem
+            -- All components of ψ(x) are 0, so ψ(x) = 0, so x = 0 (injective)
+            have hψ : ψ x = 0 := by
+              change (ρ.sourceMap _) x = 0
+              unfold Etingof.QuiverRepresentation.sourceMap
+              simp only [LinearMap.sum_apply, LinearMap.comp_apply]
+              exact Finset.sum_eq_zero fun a _ => by
+                simp [DirectSum.lof_eq_of, hzero a]
+            exact hinj (hψ.trans (map_zero ψ).symm)
+          · -- Codisjoint: ⨅ comap W₁_at + ⨅ comap W₂_at = ⊤
+            -- Key argument: for any v, decompose ψ(v) componentwise,
+            -- then use subrep condition + disjointness of W₁(i), W₂(i) in coker
+            -- to show each piece is in range(ψ).
+            sorry
+        · -- At v ≠ i: same as sink case
+          simp only [U₁, U₂, dif_neg hv]
+          have hc := hcompl v
+          exact ⟨by
+            rw [Submodule.disjoint_def]
+            intro x hx1 hx2
+            obtain ⟨w₁, hw₁, rfl⟩ := Submodule.mem_map.mp hx1
+            obtain ⟨w₂, hw₂, hw₂eq⟩ := Submodule.mem_map.mp hx2
+            have heq := (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).injective hw₂eq
+            have : w₁ ∈ W₁ v ⊓ W₂ v := ⟨hw₁, heq ▸ hw₂⟩
+            rw [hc.1.eq_bot] at this
+            simp only [Submodule.mem_bot] at this
+            rw [this, map_zero],
+          by
+            rw [codisjoint_iff, eq_top_iff]; intro x _
+            obtain ⟨w, rfl⟩ := (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).surjective x
+            have hw : w ∈ (⊤ : Submodule k _) := Submodule.mem_top
+            rw [← hc.2.eq_top, Submodule.mem_sup] at hw
+            obtain ⟨w₁, hw₁, w₂, hw₂, rfl⟩ := hw
+            exact Submodule.mem_sup.mpr
+              ⟨_, Submodule.mem_map.mpr ⟨w₁, hw₁, rfl⟩,
+               _, Submodule.mem_map.mpr ⟨w₂, hw₂, rfl⟩,
+               (map_add _ _ _).symm⟩⟩
+      -- Apply V's indecomposability
+      have hindecomp := hρ.2 U₁ U₂ hU₁_subrep hU₂_subrep hU_compl
+      -- Transport back: U_k = ⊥ everywhere → W_k = ⊥ everywhere
+      suffices transport : ∀ (W : ∀ v, Submodule k
+            (@Etingof.QuiverRepresentation.obj k Q _
+              (Etingof.reversedAtVertex Q i)
+              (Etingof.reflectionFunctorMinus Q i hi ρ) v)),
+            (∀ {a b} (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b),
+              ∀ x ∈ W a,
+              @Etingof.QuiverRepresentation.mapLinear k Q _
+                (Etingof.reversedAtVertex Q i)
+                (Etingof.reflectionFunctorMinus Q i hi ρ) a b e x ∈ W b) →
+            (∀ v (hv : v ≠ i), Submodule.map
+              (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).toLinearMap
+              (W v) = ⊥) →
+            (∀ v, W v = ⊥) by
+        rcases hindecomp with h1 | h2
+        · left; exact transport W₁ hW₁ (fun v hv => by
+            have := h1 v; simp only [U₁, dif_neg hv] at this; exact this)
+        · right; exact transport W₂ hW₂ (fun v hv => by
+            have := h2 v; simp only [U₂, dif_neg hv] at this; exact this)
+      -- Prove the transport lemma
+      intro W hW hW_ne v
+      by_cases hv : v = i
+      · -- At i: W(j) = ⊥ for all j ≠ i (equiv injective), so ⊕W(j) = ⊥ in the quotient
+        cases hv
+        -- W(j) = ⊥ for all j ≠ i
+        have hW_bot : ∀ j, j ≠ i → W j = ⊥ := by
+          intro j hj
+          have h := hW_ne j hj
+          rw [eq_bot_iff] at h ⊢
+          intro z hz
+          rw [Submodule.mem_bot]
+          have hmem := h ⟨z, hz, rfl⟩
+          rw [Submodule.mem_bot] at hmem
+          exact (Etingof.reflFunctorMinus_equivAt_ne hi ρ j hj).injective
+            (hmem.trans (map_zero _).symm)
+        -- W₂(j) = ⊤ (complement of ⊥) → mkQ sends all of DirectSum into W₂(i)
+        -- Since W₁(j) = ⊥ and W₁ + W₂ = ⊤, W₂(j) = ⊤ at each j ≠ i
+        -- So all elements of DirectSum map into W₂(i) via mkQ
+        -- Hence W₂(i) = ⊤, so W₁(i) = ⊥
+        -- But W is the one we're checking, so we need W(i) = ⊥
+        -- The subrep condition: for each arrow j →_{Q̄ᵢ} i, W(j) maps into W(i)
+        -- Since W(j) = ⊥, only 0 maps into W(i), so we get 0 ∈ W(i) (trivially)
+        -- To show W(i) = ⊥: any element of W(i) ⊆ coker(ψ) has a representative
+        -- in DirectSum. Since W(i) and its complement span coker(ψ), and the
+        -- complement receives all of DirectSum (because W(j) = ⊥ for j ≠ i means
+        -- the complement W'(j) = ⊤), the complement must be all of coker.
+        -- Hence W(i) ⊓ complement = ⊥ and complement = ⊤ implies W(i) = ⊥.
+        sorry
+      · -- At v ≠ i: injective map = ⊥ → original = ⊥
+        specialize hW_ne v hv
+        rw [eq_bot_iff]
+        intro x hx
+        rw [eq_bot_iff] at hW_ne
+        have hmem : (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv) x ∈
+            Submodule.map
+              (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).toLinearMap
+              (W v) :=
+          ⟨x, hx, rfl⟩
+        have h0 := hW_ne hmem
+        rw [Submodule.mem_bot] at h0 ⊢
+        exact (Etingof.reflFunctorMinus_equivAt_ne hi ρ v hv).injective
+          (by rw [h0, map_zero])
