@@ -25,7 +25,6 @@ A tabloid is a left P_λ-coset of S_n: two permutations give the same tabloid if
 * `Etingof.sytToTabloid_injective` — different SYTs give different tabloids
 * `Etingof.RowSubgroup_inter_ColumnSubgroup` — P_λ ∩ Q_λ = {1}
 * `Etingof.ColumnSubgroup_ne_tabloid` — non-identity column perms change tabloid
-* `Etingof.RelColumnSubgroup_ne_tabloid` — entry-level column perms change tabloid
 
 ## Convention note
 
@@ -288,28 +287,6 @@ theorem ColumnSubgroup_ne_tabloid (T : StandardYoungTableau n la)
   have : q⁻¹ = 1 := RowSubgroup_inter_ColumnSubgroup n la q⁻¹ hmem
     ((ColumnSubgroup n la).inv_mem hq)
   exact hne (inv_eq_one.mp this)
-
-/-- Entry-level column perms change the tabloid of T.
-
-For π ∈ C_T = σ_T⁻¹ Q_λ σ_T, the tabloid {π · T} = toTabloid(σ_T * π⁻¹) differs
-from {T} when π ≠ 1.
-
-The proof: π = σ_T⁻¹ q σ_T for q ∈ Q_λ, so σ_T * π⁻¹ = q⁻¹ * σ_T, and
-the result follows from `ColumnSubgroup_ne_tabloid`. -/
-theorem RelColumnSubgroup_ne_tabloid (T : StandardYoungTableau n la)
-    (π : Equiv.Perm (Fin n)) (hπ : π ∈ RelColumnSubgroup n la T) (hne : π ≠ 1) :
-    toTabloid n la (sytPerm n la T * π⁻¹) ≠ sytToTabloid n la T := by
-  rw [mem_RelColumnSubgroup_iff] at hπ
-  obtain ⟨q, hq, rfl⟩ := hπ
-  -- π = σ_T⁻¹ q σ_T, so π⁻¹ = σ_T⁻¹ q⁻¹ σ_T
-  -- σ_T * π⁻¹ = σ_T * σ_T⁻¹ * q⁻¹ * σ_T = q⁻¹ * σ_T
-  have hsimp : sytPerm n la T * ((sytPerm n la T)⁻¹ * q * sytPerm n la T)⁻¹ =
-      q⁻¹ * sytPerm n la T := by group
-  rw [hsimp]
-  have hq_ne : q ≠ 1 := by
-    intro heq; apply hne
-    rw [heq]; simp
-  exact ColumnSubgroup_ne_tabloid T q hq hq_ne
 
 /-! ### Dominance order on tabloids -/
 
