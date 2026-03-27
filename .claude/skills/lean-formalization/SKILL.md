@@ -28,6 +28,9 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - ~~Definition-level `sorry : Type` for `AlgIrrepGL`~~ — **RESOLVED** (Wave 35): SchurModule constructed in PR #1740, AlgIrrepGL instances via `show ... from inferInstance` in PR #1752. Some downstream definition sorrys remain (`formalCharacter`, `kostkaNumber`).
    - Nilpotent operator structure theorem (cyclic decomposition / Jordan chains) — not in Mathlib, blocks Problem6_9_1. Would require ~100-200 line development.
    - Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1). Would require ~500 lines of new theory.
+   - `Submodule.map` of complementary submodules through non-injective maps — does NOT preserve complementarity. Problem6_9_1 IsCompl conditions hit this fundamental gap.
+   - `Lemma5_13_3` (Young symmetrizer idempotency) over general fields — currently only works over ℂ. Blocks the trace-based approach to Weyl character formula.
+   - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
 
 2. **Search for existing definitions and infrastructure.** Before defining any concept or building any equivalence/isomorphism, search the codebase:
    ```bash
@@ -618,48 +621,49 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 36)
+## Endgame Priorities (Wave 38)
 
-With **~36 sorries** across 21 files (~97.4% items sorry-free), the remaining work is concentrated in hard items.
+With **27 sorries** across 19 files, the remaining work is concentrated in hard items. All definition-level sorries are resolved. Easy wins are exhausted — future progress is slower per sorry.
 
-**Recently completed (Waves 34-36, PRs #1723–#1771):**
-- SchurModule constructed (PR #1740) — the project's single biggest blocker resolved
-- AlgIrrepGL/AlgIrrepGLDual instances constructed (PR #1752) — via `show ... from inferInstance`
-- formalCharacter definition constructed (PR #1753) — weight-based character formula
-- TabloidModule infrastructure: Tabloid quotient, SYT injectivity, P_λ ∩ Q_λ = {1} (PRs #1754, #1769, #1771)
-- double_counting proved (PR #1755) — orbit-stabilizer via Burnside's lemma
-- addCommGroupOfField → addCommGroupOfRing consolidated (PR #1743) — 20 usages across 7 files
-- vandermonde_cauchy_diagonal factored (PR #1748) — proof structure decomposed
-- IsFiniteTypeQuiver definition constructed (PR #1770)
-- RelColumnSubgroup fixed (PR #1771) — wrong conjugation direction corrected
+**Trajectory:** 66 sorries (wave 28, Mar 22) → 33 (wave 37) → 27 (wave 38, Mar 27). Rate: ~8 sorries/day declining.
 
-**Tier 1 — Single-sorry files (11 files, highest ROI):**
-- PowerSumCauchyBilinear (1 sorry) — `alternating_coeff_eq_cauchyRHS_coeff`, unclaimed (#1747)
-- CoxeterInfrastructure (1 sorry) — `admissibleOrdering_exists`, no dedicated issue
-- Problem6_1_5_theorem (1 sorry) — `IsFiniteTypeQuiver` iff Dynkin, definition-level
-- Several Ch9 files with 1 sorry each
+**Recently completed (Waves 37-38, PRs #1780–#1824):**
+- Proposition6_6_7 sorry-free (#1800) — Decidable.casesOn workarounds
+- Proposition5_21_1 sorry-free (#1808) — Antisymmetric basis decomposition
+- Theorem5_18_4 reduced 4→1 sorry (#1817, #1781) — Centralizer proved
+- Theorem5_22_1 reduced 2→1 sorry (#1815, #1806) — Weight-to-Schur-poly coefficient identity
+- Problem6_9_1 decomposed (#1807) — 6/8 sub-goals proved
+- Mackey machine infrastructure (#1804, #1822) — coset_fixed_iff, LHS simplification
+- Cauchy identity reduced to polynomial determinant (#1801, #1812)
+- Theorem5_23_2_i proved (#1824) — trivial by inferInstance
 
-**Tier 2 — Active in-flight work:**
-- Theorem5_22_1 (2 sorries) — Weyl character formula, claimed (#1773)
-- Theorem5_18_4 (4 sorries) — Schur-Weyl centralizer, claimed (#1776)
-- Proposition6_6_6_source (2 sorries) — instance diamond, claimed (#1724, 14h old)
-- Proposition6_6_7 (2 sorries) — Decidable.casesOn, claimed (#1764)
+**Tier 1 — Achievable (3 sorries):**
+- PowerSumCauchyBilinear (1) — orbit-stabilizer for element bicolorings
+- PolytabloidBasis (2) — linear independence + straightening lemma
 
-**Tier 3 — Blocked on in-flight definitions:**
-- PolytabloidBasis (2 sorries) — blocked on #1750 (dominance order properties)
-- Proposition5_21_1 (2 sorries) — `kostkaNumber` def-sorry + character expansion
+**Tier 2 — Hard but tractable (4 sorries):**
+- Proposition6_6_6_source (2) — finrank equality + source naturality
+- Problem6_9_1 (2) — IsCompl conditions for projected subspaces
 
-**Tier 4 — Deep Blockers (~8 sorries):**
-- Mackey machine Theorem5_27_1 (5 sorries) — needs ~500 lines Clifford theory
-- Morita/Basic algebra infrastructure (3 sorries)
+**Tier 3 — Significant infrastructure (7 sorries):**
+- Mackey machine Theorem5_27_1 (4) — needs Clifford theory (~500 lines)
+- BasicAlgebraExistence (2) — corner ring Morita equivalence (~200-300 lines)
+- CoxeterInfrastructure (1) — admissible ordering existence
+
+**Tier 4 — Deep blockers (~13 sorries):**
+- Weyl character formula core (`formalCharacter_schurModule_mul_vandermonde`)
+- Schur-Weyl partition decomposition
+- Theorem5_23_2_ii (needs infinitely many nonzero SchurModules)
+- Various Ch5/Ch6 items dependent on above
 
 **Key endgame insights:**
-1. **SchurModule unblock was transformative.** The mega-blocker is resolved. Focus shifts to downstream definition construction (`formalCharacter`, `kostkaNumber`) and proof completion.
-2. **Character orthogonality** remains the most reliable proof strategy for Ch5 results.
-3. **Single-sorry items are highest ROI** — 11 files with 1 sorry each are the best targets.
-4. **Approach cycling is expensive.** The escalation ladder's "3 failed attempts" threshold should be respected strictly — after 3 genuinely different approaches, document and move on.
-5. **Decidable.casesOn patterns are well-documented now** (3 variants in this skill file). New agents should read the pattern section before attempting any Ch6 reflection functor work.
-6. **False theorems can hide in conjugation/action directions.** Always verify statement correctness with a small concrete example before proving, especially for permutation group actions.
+1. **All definitions are constructed.** Every remaining sorry is a pure proof obligation.
+2. **Decomposition is the dominant value-creation pattern.** Converting a monolithic sorry into structured sub-goals (with 60-80% proved) is often the best outcome for a single session.
+3. **Approach cycling is expensive.** After 3 genuinely different approaches, document and move on.
+4. **Decidable.casesOn patterns are well-documented** (see sections below). Read before attempting Ch6 work.
+5. **False theorems can hide in conjugation/action directions.** Verify statement correctness with concrete examples.
+6. **Missing infrastructure is the primary blocker**, not tactic difficulty. Remaining sorrys need new mathematical developments (Clifford theory, Morita, tensor algebra isomorphisms).
+7. **Circular dependencies between sorry'd theorems** exist (e.g., Prop 5.22.2 needs Thm 5.22.1). When both ends of a circle have sorrys, focus on the one with fewer prerequisites.
 
 ## Type-Level If/Else Diamond Issue
 
@@ -1416,27 +1420,162 @@ The project alternates between **breadth phases** (statement formalization) and 
 ### Current Status (as of Wave 36, 2026-03-27)
 The project has ~36 sorries across 21 files (down from 43 at wave 33). Sorry-free rate: ~97.4% (568/583 items). This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
 
-**Chapter status:** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry. Ch5 remains the bottleneck (~18 sorries across 9 files). Ch6 has ~10 sorries across 8 files. Ch9 has ~5 sorries across 3 files.
+**Chapter status (Wave 38):** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry. Ch5 has 12 sorries across 7 files (down from 18). Ch6 has 9 sorries across 7 files (down from 10). Ch9 has 2 sorries across 2 files. Infrastructure has 3 sorries across 2 files.
 
 **Major milestones since wave 33:**
-- **SchurModule constructed** (PR #1740) — the mega-blocker is resolved. `SchurModule k N lam` is now a concrete `FDRep`. However, downstream definition-level sorrys remain (`formalCharacter`, `kostkaNumber`, some instances).
-- **TabloidModule infrastructure** landed (PRs #1754, #1769, #1771) — `Tabloid`, `SYT`, dominance order, `P_λ ∩ Q_λ = {1}` all proved.
-- **Proposition6_6_7** partial progress (PR #1760) — sink/source case decomposition proved, 2 sorrys remain.
-- **addCommGroupOfField → addCommGroupOfRing** consolidation (PR #1743) — 20 usages unified.
+- **All definition-level sorries resolved** (wave 37) — every mathematical object is constructed
+- **SchurModule constructed** (PR #1740) — the mega-blocker is resolved
+- **Proposition6_6_7 sorry-free** (#1800) — Decidable.casesOn workarounds succeeded
+- **Proposition5_21_1 sorry-free** (#1808) — antisymmetric basis decomposition
+- **Theorem5_18_4 reduced to 1 sorry** (#1817) — centralizer theorem proved
+- **Theorem5_22_1 reduced to 1 sorry** (#1815) — weight-to-Schur-poly coefficient identity
+- **False theorem removed** (#1786) — `RelColumnSubgroup_ne_tabloid` was false for partition (2,2)
+- **Formalization defect identified** — Theorem5_23_2_ii is false for n=0 due to spurious `1/det` variable in `GLCoordinateRing`
 
-**Major blocker clusters (updated):**
-1. **SchurModule downstream** (~12 sorries): SchurModule itself is constructed, but `formalCharacter`, `kostkaNumber`, `AlgIrrepGL` instances still need work. #1773 (Weyl character formula) in flight.
-2. **Gabriel's theorem chain** (~8 sorries): Blocked on `Decidable.casesOn` composition in reflection functors. #1724 (Prop6_6_6 source) and #1764 (Prop6_6_7) in flight.
-3. **Mackey machine / Clifford theory** (5 sorries): Theorem5_27_1 — PR #1778 reduces some. Still needs ~500 lines.
-4. **Morita/Basic algebra** (3 sorries): Infrastructure gaps.
-5. **Tabloid linear independence** (2 sorries): #1751, #1759 blocked on #1750 (dominance order properties).
+**Major blocker clusters (updated wave 38):**
+1. **Weyl character formula core** (1 sorry): `formalCharacter_schurModule_mul_vandermonde` — needs either generalized Young symmetrizer idempotency (over arbitrary fields) OR sorry-free Schur-Weyl duality
+2. **Gabriel's theorem chain** (~9 sorries): Prop6_6_6_source (2), Problem6_9_1 (2), plus downstream
+3. **Mackey machine / Clifford theory** (4 sorries): Theorem5_27_1 — needs ~500 lines new theory
+4. **Morita/Basic algebra** (2 sorries): Corner ring Morita equivalence (~200-300 lines)
+5. **Polytabloid basis** (2 sorries): linear independence + straightening lemma
 
-**Best ROI targets (Wave 36+):**
-1. **Theorem5_22_1** (Weyl character formula) — SchurModule now exists, in flight (#1773)
-2. **Theorem5_18_4** (Schur-Weyl centralizer) — 4 sorries, in flight (#1776)
-3. **PowerSumCauchyBilinear** `alternating_coeff_eq_cauchyRHS_coeff` — 1 sorry, unclaimed (#1747)
-4. **Single-sorry files** (11 files with 1 sorry each) — highest ROI per agent-hour
-
-**Velocity trend:** 66 → 43 → 36 sorries over waves 28-36 (−45% total). SchurModule unblock is the biggest structural win. Rate continues to decelerate as remaining items are increasingly hard.
+**Velocity trend:** 66 → 43 → 36 → 27 sorries over waves 28-38 (−59% total). Rate decelerating as remaining items are increasingly hard — 48% of remaining sorries are "deep blockers" requiring substantial new infrastructure.
 
 **Key velocity insight:** Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
+
+## `simp` Doesn't See Through Local `let` Bindings
+
+When `simp` fails to make progress on a goal involving a term bound by a local `let`:
+
+**The problem:** `simp` and `simp_rw` do not beta-reduce through local `let` bindings. If you have:
+```lean
+let f := DirectSum.component R i
+-- Goal: ... f (Finset.sum ...) ...
+simp [DirectSum.component.of]  -- makes no progress!
+```
+
+**Workaround 1: Use `rw` before `simp`**
+```lean
+rw [DFinsupp.finset_sum_apply]  -- expand the sum application first
+simp_rw [show f x = ... from rfl]  -- then rewrite with explicit `show`
+```
+
+**Workaround 2: Use `change` to eliminate the `let`**
+```lean
+change <explicit_form_without_let>
+simp [...]  -- now simp can see the structure
+```
+
+**Workaround 3: Use `dsimp only` to reduce `let` bindings**
+```lean
+dsimp only []  -- reduces let-bindings in the goal
+simp [...]  -- now works
+```
+
+**Evidence:** Discovered independently in Proposition6_6_7 (#1800) and Problem6_9_1 (#1807). The `DFinsupp.finset_sum_apply` + `show` pattern was the successful resolution in both cases.
+
+## Decidable Instance Mismatch Patterns (Comprehensive)
+
+Decidable instance mismatches are a recurring friction point across the project. They arise when `classical` decidability and concrete `DecidableEq`/`DecidablePred` instances coexist, creating terms that look identical but are not definitionally equal.
+
+### Symptom Recognition
+
+- `rfl` fails on two expressions that are "obviously equal"
+- `rw` fails with "motive is not type correct" on a Decidable-dependent term
+- Two `Finset.univ` expressions have different `Fintype` instances
+- `if`/`dite` expressions don't reduce under `simp` because the `Decidable` instance is opaque
+
+### Strategy 1: `open scoped Classical` (Prevention)
+
+Add at the section level, **before** any definitions that use `haveI : DecidablePred ... := Classical.decPred _`:
+```lean
+open scoped Classical
+```
+This ensures all `DecidablePred` instances come from the same source. **Best approach** — prevents the problem rather than patching it.
+
+### Strategy 2: `convert rfl using N` (Patching)
+
+When two sums over `Finset.univ` differ only in their `Fintype` instance:
+```lean
+convert rfl using 2  -- handles via Subsingleton (Fintype α)
+```
+
+### Strategy 3: `trans` + separate goals
+
+When `rw` fails due to a dependent Decidable in the motive, split into two steps:
+```lean
+-- Instead of: rw [h]  -- fails with "motive is not type correct"
+calc lhs = middle := by <prove_without_h>
+       _ = rhs := by <prove_using_h>
+```
+
+### Strategy 4: `Subsingleton.elim` for proof irrelevance
+
+When two `Decidable` instances block definitional equality:
+```lean
+have : inst₁ = inst₂ := Subsingleton.elim _ _
+subst this  -- now only one instance exists
+```
+
+### Strategy 5: Avoid `set` for local definitions
+
+The `set x := expr` tactic introduces a local definition that can capture the "wrong" Decidable instance. Prefer `have` or `let` with explicit type annotations instead.
+
+**Evidence:** Decidable mismatches appeared in Theorem5_27_1 (sessions #5, #15), Proposition6_6_7 (#1800), and Proposition6_6_6_source (#1821). Strategy 1 (`open scoped Classical`) is the most reliable prevention.
+
+## Universe Pinning Strategy
+
+When universe level errors or mismatches arise (common in representation theory where multiple universe levels interact):
+
+**Pattern:** Change from `Type*` to explicit `universe u v` declarations:
+```lean
+universe u v
+
+theorem my_theorem
+    (k : Type u) [Field k]
+    (V : Type v) [AddCommGroup V] [Module k V] :
+    ... := by
+  ...
+```
+
+**When to use:**
+- `universe polymorphism` errors
+- Sigma types with universe-level mismatches
+- `MoritaEquivalent`, `FDRep`, or other constructions that require universe alignment
+- `SchurModule`, `AlgIrrepGL`, or similar constructions that mix multiple universe-polymorphic types
+
+**Evidence:** Universe pinning resolved issues in Theorem5_18_4 (SchurModule universe annotations), IsFiniteTypeQuiver (pinned to `Type` to avoid universe mismatch), and BasicAlgebraExistence (explicit `Type u` throughout).
+
+## When to Decompose vs. Attempt Directly
+
+**Decompose immediately** when:
+- The sorry has resisted 2+ attempts by prior agents (check issue comments)
+- The proof has 3+ conceptually independent sub-goals
+- You estimate the proof at 100+ lines of tactics
+- The file is 500+ lines and you need to understand most of it
+- You're past the midpoint of your context window
+
+**Attempt directly** when:
+- The sorry is in a Tier 1 (achievable) category
+- A clear tactic sequence is visible after reading the book's proof
+- The file is short (<200 lines) and self-contained
+- No prior agent has attempted this sorry
+
+**The decomposition output pattern:**
+```lean
+-- BEFORE: monolithic sorry
+theorem hard_theorem : conclusion := by sorry
+
+-- AFTER: structured proof with isolated helper sorries
+private lemma step1 : ... := sorry  -- clear, independently claimable
+private lemma step2 : ... := sorry  -- clear, independently claimable
+
+theorem hard_theorem : conclusion := by
+  have h1 := step1
+  have h2 := step2
+  exact final_combination h1 h2
+```
+
+**Value assessment:** A session that decomposes a monolithic sorry into 5 sub-goals and proves 3 of them is MORE valuable than a session that attempts the monolithic sorry directly and fails. Decomposition creates independently claimable work items and documents the proof strategy.
+
+**Evidence:** Problem6_9_1 was decomposed from 1 sorry into 8 sub-goals, 6 proved (#1807). Theorem5_22_1 was decomposed into coefficient extraction + core identity (#1806). BasicAlgebraExistence was split into 2 targeted helpers (#1803). All three patterns created visible, committable progress.

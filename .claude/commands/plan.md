@@ -106,6 +106,35 @@ Each issue body MUST be **self-contained**:
 **Sizing**: max 3 deliverables, ~2 files, ~200 lines. Over 300 lines → split.
 When in doubt, split. Each issue must have a single logical concern.
 
+**Stage granularity**: If the project roadmap has "stages" or "phases", **never
+create an issue that spans multiple stages**. Each issue belongs to exactly one
+stage.
+
+Within a stage, maximise parallelism: if the stage contains independent items
+(e.g., "transcribe all pages", "formalise each definition"), create a **separate
+issue per item** (or per small batch of items) so workers can execute them
+concurrently. If the PLAN.md gives explicit parallelisation instructions for a
+stage, follow them. The goal is many small, independent issues — not one large
+issue per stage.
+
+If you cannot yet determine the scope of a stage because it depends on earlier
+output (e.g., item discovery), create the issue for the whole stage but include
+a note in the body: **"This issue needs decomposition: once the prerequisite is
+complete, the claiming worker should
+`coordination skip N 'needs decomposition into per-item sub-issues'` so the
+planner can create properly-scoped sub-issues."** This keeps issue creation under
+planner locking and overlap protection. Never ask workers to create issues directly.
+
+**Critical-path issues**: When you create an issue that blocks all other planned
+work (e.g., the first issue in a sequential pipeline, or a bottleneck that many
+blocked issues depend on), use `--critical-path` when posting it:
+```
+coordination plan --label feature --critical-path "title" < plans/body.md
+```
+This tells the dispatcher to assign a worker immediately, bypassing the normal
+queue-size threshold. Use sparingly — only for genuine pipeline bottlenecks where
+no other useful work can proceed until this issue is done.
+
 **Queue health**: keep <3 unclaimed → create unblocked work.
 No transitive blocking. Keep work types mixed.
 
@@ -122,12 +151,23 @@ For each issue, write the plan body to `plans/<UUID-prefix>-N.md`, then post:
 coordination plan --label <feature|review|summarize|meditate> "title" < plans/<UUID-prefix>-N.md
 ```
 
+**Adjusting agent pool size**: After assessing the project state, use these
+commands to tell the dispatcher what you think is appropriate:
+- `coordination set-target N` — recommend N agents for this project (pod uses
+  min of your recommendation and the user's configured maximum)
+- `coordination set-min-queue N` — recommend min_queue of N (pod uses min of
+  your recommendation and the config value, floored at 1)
+
+Set target based on how much parallelisable work exists. Set min_queue based on
+how far ahead you want planning to stay (typically 2-3 during active development,
+1 during sequential bottlenecks).
+
 **If you created zero new issues** but work is still in-flight (claimed issues,
-open PRs, blocked issues): `coordination nothing-to-plan` (decrements queue
-thresholds for graceful wind-down).
+open PRs, blocked issues): set target to the number of currently claimed issues
+(workers already running) and set min_queue to 1.
 
 **If zero new issues AND nothing in-flight** (no unclaimed, no claimed, no
-broken PRs): `coordination human-oversight` (signals the pod TUI to stop
+broken PRs): `coordination return-to-human` (signals the pod TUI to stop
 spawning agents). Verify all three are zero first:
 ```bash
 coordination queue-depth
