@@ -642,6 +642,222 @@ private lemma card_sigma_CycleCol_eq_card_sigma_fiberPerm (n : ℕ) (α β : Fin
         rfl
   }
 
+/-! ### MulAction of permutations on element bicolorings -/
+
+/-- Precomposing a filter with a permutation preserves cardinality. -/
+private lemma filter_card_comp_perm {n : ℕ} (P : Fin n → Prop) [DecidablePred P]
+    (σ : Equiv.Perm (Fin n)) :
+    (Finset.univ.filter (fun x => P (σ x))).card = (Finset.univ.filter P).card := by
+  apply Finset.card_bij' (fun x _ => σ x) (fun x _ => σ⁻¹ x)
+  · intro x hx; simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢; exact hx
+  · intro x hx; simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+    convert hx using 1; simp
+  · intro x _; simp
+  · intro x _; simp
+
+private noncomputable def permSmulElemBicol {n : ℕ} {α β : Fin n →₀ ℕ}
+    (σ : Equiv.Perm (Fin n)) (hb : ElemBicol n α β) : ElemBicol n α β :=
+  ⟨hb.val ∘ ⇑σ⁻¹, by
+    constructor
+    · intro i
+      have h1 : (Finset.univ.filter (fun x => ((hb.val ∘ ⇑σ⁻¹) x).1 = i)).card =
+          (Finset.univ.filter (fun x => (hb.val x).1 = i)).card :=
+        filter_card_comp_perm (fun x => (hb.val x).1 = i) σ⁻¹
+      rw [h1]; exact hb.2.1 i
+    · intro j
+      have h1 : (Finset.univ.filter (fun x => ((hb.val ∘ ⇑σ⁻¹) x).2 = j)).card =
+          (Finset.univ.filter (fun x => (hb.val x).2 = j)).card :=
+        filter_card_comp_perm (fun x => (hb.val x).2 = j) σ⁻¹
+      rw [h1]; exact hb.2.2 j⟩
+
+@[simp]
+private lemma permSmulElemBicol_val {n : ℕ} {α β : Fin n →₀ ℕ}
+    (σ : Equiv.Perm (Fin n)) (hb : ElemBicol n α β) :
+    (permSmulElemBicol σ hb).val = hb.val ∘ ⇑σ⁻¹ := rfl
+
+private noncomputable instance permMulActionElemBicol {n : ℕ} {α β : Fin n →₀ ℕ} :
+    MulAction (Equiv.Perm (Fin n)) (ElemBicol n α β) where
+  smul := permSmulElemBicol
+  one_smul hb := Subtype.ext (funext fun _ => by
+    show (permSmulElemBicol 1 hb).val _ = hb.val _
+    simp [permSmulElemBicol_val, Function.comp])
+  mul_smul σ τ hb := Subtype.ext (funext fun x => by
+    show (permSmulElemBicol (σ * τ) hb).val x = (permSmulElemBicol σ (permSmulElemBicol τ hb)).val x
+    simp [permSmulElemBicol_val, Function.comp, mul_inv_rev, Equiv.Perm.mul_apply])
+
+/-- The stabilizer of h under the Perm action equals FiberPerm h. -/
+private lemma mem_stabilizer_iff_fiberPerm {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hb : ElemBicol n α β) (σ : Equiv.Perm (Fin n)) :
+    σ ∈ MulAction.stabilizer (Equiv.Perm (Fin n)) hb ↔ ∀ x, hb.val (σ x) = hb.val x := by
+  simp only [MulAction.mem_stabilizer_iff]
+  constructor
+  · intro h x
+    have h1 := congr_arg Subtype.val h  -- (σ • hb).val = hb.val
+    rw [show (σ • hb).val = hb.val ∘ ⇑σ⁻¹ from permSmulElemBicol_val σ hb] at h1
+    have := congr_fun h1 (σ x)         -- hb.val (σ⁻¹ (σ x)) = hb.val (σ x)
+    simp at this; exact this.symm
+  · intro h
+    apply Subtype.ext
+    rw [show (σ • hb).val = hb.val ∘ ⇑σ⁻¹ from permSmulElemBicol_val σ hb]
+    funext x
+    have := h (σ⁻¹ x)                 -- hb.val (σ (σ⁻¹ x)) = hb.val (σ⁻¹ x)
+    simp at this; exact this.symm
+
+/-- Fiber size matrix: maps an element bicoloring to its fiber size matrix. -/
+private noncomputable def fiberSizes {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hb : ElemBicol n α β) : NNMatrixWithMargins n (⇑α) (⇑β) :=
+  ⟨fun i j => ⟨(Finset.univ.filter fun x => hb.val x = (i, j)).card,
+    Nat.lt_succ_of_le <| (Finset.card_filter_le _ _).trans <| by simp [Fintype.card_fin]⟩,
+   fun i => by
+     simp only [Fin.val_natCast]
+     rw [← hb.2.1 i]
+     rw [← Finset.card_biUnion (fun j₁ _ j₂ _ hj =>
+       Finset.disjoint_filter.mpr (fun x _ h₁ h₂ => hj (by
+         have := h₁.symm.trans h₂; exact Prod.ext_iff.mp this |>.2)))]
+     congr 1; ext x
+     simp only [Finset.mem_biUnion, Finset.mem_filter, Finset.mem_univ, true_and, Prod.ext_iff]
+     exact ⟨fun ⟨j, ⟨h1, h2⟩⟩ => h1, fun h => ⟨(hb.val x).2, ⟨h, rfl⟩⟩⟩,
+   fun j => by
+     simp only [Fin.val_natCast]
+     rw [← hb.2.2 j]
+     rw [← Finset.card_biUnion (fun i₁ _ i₂ _ hi =>
+       Finset.disjoint_filter.mpr (fun x _ h₁ h₂ => hi (by
+         have := h₁.symm.trans h₂; exact Prod.ext_iff.mp this |>.1)))]
+     congr 1; ext x
+     simp only [Finset.mem_biUnion, Finset.mem_filter, Finset.mem_univ, true_and, Prod.ext_iff]
+     exact ⟨fun ⟨i, ⟨h1, h2⟩⟩ => h2, fun h => ⟨(hb.val x).1, ⟨rfl, h⟩⟩⟩⟩
+
+@[simp]
+private lemma smul_val {n : ℕ} {α β : Fin n →₀ ℕ}
+    (σ : Equiv.Perm (Fin n)) (hb : ElemBicol n α β) :
+    (σ • hb).val = hb.val ∘ ⇑σ⁻¹ :=
+  permSmulElemBicol_val σ hb
+
+/-- Precomposing a filter with an equiv preserves cardinality (between different types). -/
+private lemma filter_card_comp_equiv {α' β' : Type*} [Fintype α'] [Fintype β']
+    (e : α' ≃ β') (P : β' → Prop) [DecidablePred P] :
+    (Finset.univ.filter (fun x => P (e x))).card = (Finset.univ.filter P).card := by
+  apply Finset.card_bij' (fun x _ => e x) (fun y _ => e.symm y)
+  · intro x hx; simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢; exact hx
+  · intro y hy; simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hy ⊢
+    convert hy using 1; simp
+  · intro x _; simp
+  · intro y _; simp
+
+/-- Fiber sizes are invariant under the Perm action. -/
+private lemma fiberSizes_smul_eq {n : ℕ} {α β : Fin n →₀ ℕ}
+    (σ : Equiv.Perm (Fin n)) (hb : ElemBicol n α β) :
+    fiberSizes (σ • hb) = fiberSizes hb := by
+  apply Subtype.ext; funext i; funext j; apply Fin.ext
+  simp only [fiberSizes, smul_val]
+  exact filter_card_comp_perm (fun x => hb.val x = (i, j)) σ⁻¹
+
+/-- Two bicolorings with the same fiber sizes are in the same orbit. -/
+private lemma same_fiberSizes_same_orbit {n : ℕ} {α β : Fin n →₀ ℕ}
+    (h₁ h₂ : ElemBicol n α β) (heq : fiberSizes h₁ = fiberSizes h₂) :
+    h₁ ∈ MulAction.orbit (Equiv.Perm (Fin n)) h₂ := by
+  classical
+  -- For each pair, the fibers have the same size
+  have hcard : ∀ p : Fin n × Fin n,
+      Fintype.card { x // h₁.val x = p } = Fintype.card { x // h₂.val x = p } := by
+    intro ⟨i, j⟩
+    simp only [Fintype.card_subtype, Finset.card_filter]
+    have := congr_arg (fun K => (K.1 i j : ℕ)) heq
+    simpa [fiberSizes] using this
+  -- Build a permutation matching fibers via Equiv.ofFiberEquiv
+  let σ : Equiv.Perm (Fin n) :=
+    Equiv.ofFiberEquiv (f := h₁.val) (g := h₂.val)
+      (fun p => Fintype.equivOfCardEq (hcard p))
+  -- σ satisfies h₂(σ x) = h₁(x) by ofFiberEquiv_map
+  have hσ : ∀ x, h₂.val (σ x) = h₁.val x := Equiv.ofFiberEquiv_map _
+  -- So h₁ = σ⁻¹ • h₂ (since (σ⁻¹ • h₂)(x) = h₂(σ x) = h₁(x))
+  refine ⟨σ⁻¹, Subtype.ext (funext fun x => ?_)⟩
+  simp only [smul_val, Function.comp, inv_inv]
+  exact hσ x
+
+/-- Counting lemma: for a sigma type `Σ (ij : A × B), F ij`, filtering by first
+    component gives the sum of fiber sizes. -/
+private lemma sigma_filter_fst_card {n : ℕ} (K : Fin n → Fin n → ℕ) (i : Fin n) :
+    (Finset.univ.filter (fun (s : Σ ij : Fin n × Fin n, Fin (K ij.1 ij.2)) =>
+      s.1.1 = i)).card = ∑ j, K i j := by
+  rw [← Fintype.card_subtype,
+      show ∑ j, K i j = Fintype.card (Σ j : Fin n, Fin (K i j)) from
+        by simp [Fintype.card_sigma, Fintype.card_fin]]
+  exact Fintype.card_congr {
+    toFun := fun ⟨⟨⟨i', j⟩, k⟩, (hi : i' = i)⟩ => ⟨j, hi ▸ k⟩
+    invFun := fun ⟨j, k⟩ => ⟨⟨(i, j), k⟩, rfl⟩
+    left_inv := fun ⟨⟨⟨i', j⟩, k⟩, hi⟩ => by subst hi; rfl
+    right_inv := fun ⟨j, k⟩ => rfl }
+
+/-- Same as `sigma_filter_fst_card` but for the second component. -/
+private lemma sigma_filter_snd_card {n : ℕ} (K : Fin n → Fin n → ℕ) (j : Fin n) :
+    (Finset.univ.filter (fun (s : Σ ij : Fin n × Fin n, Fin (K ij.1 ij.2)) =>
+      s.1.2 = j)).card = ∑ i, K i j := by
+  rw [← Fintype.card_subtype,
+      show ∑ i, K i j = Fintype.card (Σ i : Fin n, Fin (K i j)) from
+        by simp [Fintype.card_sigma, Fintype.card_fin]]
+  exact Fintype.card_congr {
+    toFun := fun ⟨⟨⟨i, j'⟩, k⟩, (hj : j' = j)⟩ => ⟨i, hj ▸ k⟩
+    invFun := fun ⟨i, k⟩ => ⟨⟨(i, j), k⟩, rfl⟩
+    left_inv := fun ⟨⟨⟨i, j'⟩, k⟩, hj⟩ => by subst hj; rfl
+    right_inv := fun ⟨i, k⟩ => rfl }
+
+/-- Fiber counting: the filter for exact pair (i,j) has cardinality K i j. -/
+private lemma sigma_filter_pair_card {n : ℕ} (K : Fin n → Fin n → ℕ) (i j : Fin n) :
+    (Finset.univ.filter (fun (s : Σ ij : Fin n × Fin n, Fin (K ij.1 ij.2)) =>
+      s.1 = (i, j))).card = K i j := by
+  have : Finset.univ.filter (fun (s : Σ ij : Fin n × Fin n, Fin (K ij.1 ij.2)) =>
+      s.1 = (i, j)) =
+    (Finset.univ : Finset (Fin (K i j))).map
+      ⟨fun k => ⟨(i, j), k⟩, fun k₁ k₂ h => by simpa using h⟩ := by
+    ext ⟨⟨i', j'⟩, k⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_map,
+      Function.Embedding.coeFn_mk]
+    constructor
+    · intro h; obtain ⟨rfl, rfl⟩ := Prod.mk.inj h; exact ⟨k, rfl⟩
+    · rintro ⟨k', hk'⟩; exact (congr_arg Sigma.fst hk').symm
+  rw [this, Finset.card_map, Finset.card_fin]
+
+/-- The equiv used by `elemBicolOfMatrix` to distribute elements to fibers. -/
+private noncomputable def elemBicolOfMatrix_equiv {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hα : ∑ i, α i = n) (K : NNMatrixWithMargins n (⇑α) (⇑β)) :
+    Fin n ≃ (Σ ij : Fin n × Fin n, Fin (K.1 ij.1 ij.2 : ℕ)) :=
+  Fintype.equivOfCardEq (by
+    simp only [Fintype.card_sigma, Fintype.card_fin, Fintype.sum_prod_type]
+    simp_rw [K.2.1]; rw [hα])
+
+/-- Construct an ElemBicol from a NNMatrixWithMargins by distributing elements
+    to fibers according to the matrix entries. -/
+private noncomputable def elemBicolOfMatrix {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hα : ∑ i, α i = n) (K : NNMatrixWithMargins n (⇑α) (⇑β)) :
+    ElemBicol n α β :=
+  ⟨fun x => (elemBicolOfMatrix_equiv hα K x).1,
+   ⟨fun i => by
+      classical
+      rw [filter_card_comp_equiv (elemBicolOfMatrix_equiv hα K) (fun s => s.1.1 = i)]
+      rw [sigma_filter_fst_card (fun i j => (K.1 i j : ℕ)) i]
+      exact K.2.1 i,
+    fun j => by
+      classical
+      rw [filter_card_comp_equiv (elemBicolOfMatrix_equiv hα K) (fun s => s.1.2 = j)]
+      rw [sigma_filter_snd_card (fun i j => (K.1 i j : ℕ)) j]
+      exact K.2.2 j⟩⟩
+
+@[simp]
+private lemma elemBicolOfMatrix_val {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hα : ∑ i, α i = n) (K : NNMatrixWithMargins n (⇑α) (⇑β)) :
+    (elemBicolOfMatrix hα K).val = fun x => (elemBicolOfMatrix_equiv hα K x).1 := rfl
+
+/-- The fiber sizes of `elemBicolOfMatrix` equal the original matrix K. -/
+private lemma fiberSizes_elemBicolOfMatrix {n : ℕ} {α β : Fin n →₀ ℕ}
+    (hα : ∑ i, α i = n) (K : NNMatrixWithMargins n (⇑α) (⇑β)) :
+    fiberSizes (elemBicolOfMatrix hα K) = K := by
+  classical
+  apply Subtype.ext; funext i; funext j; apply Fin.ext
+  simp only [fiberSizes, elemBicolOfMatrix_val]
+  rw [filter_card_comp_equiv (elemBicolOfMatrix_equiv hα K) (fun s => s.1 = (i, j))]
+  exact sigma_filter_pair_card (fun i j => (K.1 i j : ℕ)) i j
+
 /-- **Part B**: The total count of compatible (h, σ) pairs equals n! × card(NNMat).
 
 **Proof strategy**: Define a `MulAction` of `Equiv.Perm (Fin n)` on `ElemBicol n α β` by
@@ -662,7 +878,56 @@ private lemma card_sigma_fiberPerm_eq_factorial_mul (n : ℕ) (α β : Fin n →
     (hα : ∑ i, α i = n) (hβ : ∑ i, β i = n) :
     Fintype.card (Σ hb : ElemBicol n α β, FiberPerm hb.val) =
     n.factorial * Fintype.card (NNMatrixWithMargins n (⇑α) (⇑β)) := by
-  sorry
+  classical
+  -- Step 1: FiberPerm h ≃ stabilizer h (as subtypes of Perm)
+  have step1 : Fintype.card (Σ hb : ElemBicol n α β, FiberPerm hb.val) =
+      Fintype.card (Σ hb : ElemBicol n α β,
+        MulAction.stabilizer (Equiv.Perm (Fin n)) hb) := by
+    apply Fintype.card_congr
+    exact Equiv.sigmaCongrRight (fun hb =>
+      Equiv.subtypeEquiv (Equiv.refl _) (fun σ =>
+        (mem_stabilizer_iff_fiberPerm hb σ).symm))
+  rw [step1]
+  -- Step 2: Swap sigma: (Σ h, stab h) has same card as (Σ σ, fixedBy σ)
+  have step2 : Fintype.card (Σ hb : ElemBicol n α β,
+      MulAction.stabilizer (Equiv.Perm (Fin n)) hb) =
+    Fintype.card (Σ σ : Equiv.Perm (Fin n),
+      MulAction.fixedBy (ElemBicol n α β) σ) := by
+    apply Fintype.card_congr
+    calc (Σ hb : ElemBicol n α β, MulAction.stabilizer (Equiv.Perm (Fin n)) hb)
+      ≃ { p : ElemBicol n α β × Equiv.Perm (Fin n) // p.2 ∈ MulAction.stabilizer _ p.1 } :=
+        (Equiv.subtypeProdEquivSigmaSubtype
+          (fun (hb : ElemBicol n α β) (σ : Equiv.Perm (Fin n)) =>
+            σ ∈ MulAction.stabilizer _ hb)).symm
+      _ ≃ { p : Equiv.Perm (Fin n) × ElemBicol n α β // p.1 ∈ MulAction.stabilizer _ p.2 } :=
+        (Equiv.prodComm _ _).subtypeEquiv (fun ⟨hb, σ⟩ => Iff.rfl)
+      _ ≃ { p : Equiv.Perm (Fin n) × ElemBicol n α β // p.2 ∈ MulAction.fixedBy _ p.1 } :=
+        Equiv.subtypeEquivRight (fun ⟨σ, hb⟩ => by
+          simp [MulAction.mem_stabilizer_iff, MulAction.mem_fixedBy])
+      _ ≃ (Σ σ : Equiv.Perm (Fin n), MulAction.fixedBy (ElemBicol n α β) σ) :=
+        Equiv.subtypeProdEquivSigmaSubtype
+          (fun (σ : Equiv.Perm (Fin n)) (hb : ElemBicol n α β) =>
+            hb ∈ MulAction.fixedBy _ σ)
+  rw [step2]
+  -- Step 3: Apply Burnside's lemma
+  rw [show Fintype.card (Σ σ : Equiv.Perm (Fin n), MulAction.fixedBy (ElemBicol n α β) σ) =
+    ∑ σ : Equiv.Perm (Fin n), Fintype.card (MulAction.fixedBy (ElemBicol n α β) σ) from
+    Fintype.card_sigma]
+  rw [MulAction.sum_card_fixedBy_eq_card_orbits_mul_card_group]
+  rw [Fintype.card_perm, Fintype.card_fin]
+  -- Goal: card(Orbits) * n! = n! * card(NNMat)
+  rw [mul_comm]
+  congr 1
+  -- Step 4: Orbits ≃ NNMatrixWithMargins via fiberSizes
+  apply Fintype.card_congr
+  letI := MulAction.orbitRel (Equiv.Perm (Fin n)) (ElemBicol n α β)
+  exact Equiv.ofBijective
+    (Quotient.lift fiberSizes (fun a b (hab : a ∈ MulAction.orbit _ b) => by
+      obtain ⟨g, rfl⟩ := hab; exact fiberSizes_smul_eq g b))
+    ⟨fun q₁ q₂ => Quotient.inductionOn₂ q₁ q₂ (fun a b heq =>
+        Quotient.sound (same_fiberSizes_same_orbit a b heq)),
+     fun K => ⟨Quotient.mk' (elemBicolOfMatrix hα K),
+              fiberSizes_elemBicolOfMatrix hα K⟩⟩
 
 /-- **Double counting lemma**: The total number of (σ, f, g) triples equals
 n! times the number of matrices with given margins.
