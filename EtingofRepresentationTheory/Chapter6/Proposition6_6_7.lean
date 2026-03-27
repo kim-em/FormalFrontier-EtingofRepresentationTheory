@@ -663,16 +663,12 @@ noncomputable def Etingof.arrowOutToReversed
     @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a.1 i := by
   obtain ⟨j, e⟩ := a
   have ha : j ≠ i := fun heq => (hi i).false (heq ▸ e)
-  have h_da : inst j i = .isFalse ha := by
-    cases inst j i with | isTrue h => exact absurd h ha | isFalse _ => rfl
-  have h_di : inst i i = .isTrue rfl := by
-    cases inst i i with | isTrue _ => rfl | isFalse h => exact absurd rfl h
-  show @Etingof.ReversedAtVertexHom Q inst _ i j i
+  change @Etingof.ReversedAtVertexHom Q inst _ i j i
   unfold Etingof.ReversedAtVertexHom
-  simp only []
-  rw [h_da, h_di]
-  simp only []
-  exact e
+  exact match inst j i, inst i i with
+  | .isFalse _, .isTrue _ => e
+  | .isTrue h, _ => absurd h ha
+  | .isFalse _, .isFalse h => absurd rfl h
 
 /-- `arrowOutToReversed` is a right inverse to `reversedArrow_ne_eq`:
 converting a.2 to a reversed arrow and back gives a.2. -/
@@ -683,9 +679,19 @@ theorem Etingof.reversedArrow_arrowOut_eq
     Etingof.reversedArrow_ne_eq
       (show a.1 ≠ i from fun heq => by obtain ⟨j, e⟩ := a; exact (hi i).false (heq ▸ e))
       (Etingof.arrowOutToReversed hi a) = a.2 := by
-  -- Both sides reduce to `a.2` after matching on the Decidable instances.
-  -- Technical: the `Decidable.casesOn` motive prevents direct `rw`.
-  sorry
+  obtain ⟨j, e⟩ := a
+  show Etingof.reversedArrow_ne_eq _ (Etingof.arrowOutToReversed hi ⟨j, e⟩) = e
+  have ha : j ≠ i := fun heq => (hi i).false (heq ▸ e)
+  -- Case split on the decidable instances so that both Decidable.casesOn reduce
+  revert e
+  unfold Etingof.reversedArrow_ne_eq Etingof.arrowOutToReversed Etingof.ReversedAtVertexHom
+  simp only []
+  cases inst j i with
+  | isTrue h => exact absurd h ha
+  | isFalse _ =>
+    cases inst i i with
+    | isFalse h => exact absurd rfl h
+    | isTrue _ => intro e; rfl
 
 /-- Reflection functors preserve indecomposability at a source:
 F⁻ᵢ(V) is either indecomposable or zero.
