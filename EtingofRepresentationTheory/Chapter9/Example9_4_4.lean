@@ -202,22 +202,44 @@ private theorem not_hasHomologicalDimensionLE_zero_polynomial
       (h.trans (map_zero (Module.AEval'.of φ)).symm))
   exact this (hall_zero one_A)
 
+/-- For any R-module M, if gldim(R[X]) ≤ d + 1, then pd_R(M) ≤ d.
+
+The proof combines three ingredients, none of which are currently in Mathlib:
+
+1. **SES construction**: For any R-module M, there is a short exact sequence
+   0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → M₀ → 0
+   where M₀ is M with trivial X-action (X acts as 0).
+
+2. **X-action vanishing**: From the contravariant LES of Ext applied to this SES,
+   the map f* = precomp with X-multiplication is surjective on Ext^i(R[X]⊗M, Y)
+   for i ≥ d+1. By `smul_comp` and `mk₀_id_comp`, f* equals scalar multiplication
+   by X on Ext. Taking Y with trivial X-action (X · 𝟙_Y = 0), `smul_eq_comp_mk₀`
+   gives f* = 0, hence Ext^i_{R[X]}(R[X]⊗M, Y₀) = 0 for i ≥ d+1.
+
+3. **Shapiro's lemma**: The extension-restriction adjunction
+   (`extendRestrictScalarsAdj Polynomial.C`) plus the fact that `extendScalars`
+   preserves projective objects (from `preservesProjectiveObjects_of_adjunction` +
+   `restrictScalars` preserves epimorphisms) gives:
+     Ext^i_{R[X]}(R[X] ⊗_R M, Y₀) ≅ Ext^i_R(M, Y₀|_R)
+   Since every R-module Z equals Y₀|_R for Y₀ = Z with trivial action,
+   step 2 gives Ext^i_R(M, Z) = 0 for all Z and i ≥ d+1. -/
+private theorem pd_le_of_polynomial_gldim (R : Type u) [CommRing R] (d : ℕ)
+    (M : ModuleCat.{u} R)
+    (h : Etingof.HasHomologicalDimensionLE (Polynomial R) (d + 1)) :
+    HasProjectiveDimensionLE M d := by
+  sorry
+
 /-- If R is a nontrivial commutative ring and HasHomologicalDimensionLE (Polynomial R) (d+1),
 then HasHomologicalDimensionLE R d. This is the key inductive step for the lower bound:
 gldim(R[x]) ≥ gldim(R) + 1.
 
-The proof uses the standard short exact sequence of R[X]-modules for any R-module M
-viewed as M₀ (R[X]-module with X = 0):
-  0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → M₀ → 0
-together with the change-of-rings Ext adjunction (Shapiro's lemma):
-  Ext^n_{R[X]}(R[X] ⊗_R M, N) ≅ Ext^n_R(M, N|_R)
-to show pd_{R[X]}(M₀) = pd_R(M) + 1. Neither the SES construction for
-polynomial modules nor the Ext adjunction is in Mathlib. -/
+See `pd_le_of_polynomial_gldim` for the proof strategy. -/
 private theorem hasHomologicalDimensionLE_of_polynomial_succ
     (R : Type u) [CommRing R] [Nontrivial R] (d : ℕ)
     (h : Etingof.HasHomologicalDimensionLE (Polynomial R) (d + 1)) :
     Etingof.HasHomologicalDimensionLE R d := by
-  sorry
+  intro M
+  exact pd_le_of_polynomial_gldim R d M h
 
 end PolynomialLowerBound
 
