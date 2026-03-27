@@ -1079,13 +1079,124 @@ private theorem bilinExponent_sub_permExponentY (N : ℕ) (α' β : Fin N → �
     simp only [bilinExponent, permExponentY, Finsupp.equivFunOnFinite, Finsupp.tsub_apply]
     simp
 
+/-- The denominator product `∏_{i,j}(1-xᵢyⱼ)` times the full Cauchy product equals 1. -/
+private theorem denomProd_mul_fullCauchyProd (N : ℕ) :
+    (∏ p : Fin N × Fin N,
+      (1 - MvPowerSeries.X (Sum.inl p.1 : CauchyVars N) *
+           MvPowerSeries.X (Sum.inr p.2 : CauchyVars N) :
+        MvPowerSeries (CauchyVars N) ℂ)) *
+    fullCauchyProd N ℂ = 1 := by
+  rw [fullCauchyProd_eq_prod_pairs]
+  rw [← Finset.prod_mul_distrib]
+  apply Finset.prod_eq_one; intro p _
+  exact MvPowerSeries.mul_invOfUnit _ _ (by
+    change (MvPowerSeries.constantCoeff (σ := CauchyVars N) (R := ℂ))
+      (1 - MvPowerSeries.X (Sum.inl p.1) * MvPowerSeries.X (Sum.inr p.2)) = ↑(1 : ℂˣ)
+    rw [map_sub, map_one, map_mul, MvPowerSeries.constantCoeff_X, zero_mul, sub_zero]
+    exact Units.val_one.symm)
+
+/-- The full Cauchy product times the denominator product equals 1. -/
+private theorem fullCauchyProd_mul_denomProd (N : ℕ) :
+    fullCauchyProd N ℂ *
+    (∏ p : Fin N × Fin N,
+      (1 - MvPowerSeries.X (Sum.inl p.1 : CauchyVars N) *
+           MvPowerSeries.X (Sum.inr p.2 : CauchyVars N) :
+        MvPowerSeries (CauchyVars N) ℂ)) = 1 := by
+  rw [mul_comm]; exact denomProd_mul_fullCauchyProd N
+
+/-- The x-variables as elements of the FPS ring. -/
+private abbrev xVar (N : ℕ) (i : Fin N) : MvPowerSeries (CauchyVars N) ℂ :=
+  MvPowerSeries.X (Sum.inl i)
+
+/-- The y-variables as elements of the FPS ring. -/
+private abbrev yVar (N : ℕ) (j : Fin N) : MvPowerSeries (CauchyVars N) ℂ :=
+  MvPowerSeries.X (Sum.inr j)
+
+/-- The cleared-denominator matrix: `B(i,j) = ∏_{k ≠ j} (1 - xᵢ yₖ)`. -/
+private noncomputable def clearedDenomMatrix (N : ℕ) :
+    Matrix (Fin N) (Fin N) (MvPowerSeries (CauchyVars N) ℂ) :=
+  Matrix.of (fun i j => ∏ k ∈ Finset.univ.erase j, (1 - xVar N i * yVar N k))
+
+/-- The determinant of the cleared-denominator matrix equals `V_x * V_y`.
+This follows from the matrix factorization `B = W_x · D` where `W_x` is the
+Vandermonde matrix in x-variables and `D(s,j) = (-1)^s e_s(y \ {y_j})`, giving
+`det(B) = det(W_x) · det(D) = V_x · V_y`. -/
+private theorem det_clearedDenomMatrix_eq (N : ℕ) :
+    (clearedDenomMatrix N).det = vandermondeFPS_x N * vandermondeFPS_y N := by
+  sorry
+
+/-- Clearing denominators: `cauchyRHS * denomProd = det(clearedDenomMatrix)`.
+Uses `det_mul_column` and the cancellation `(1-xᵢyⱼ) · 1/(1-xᵢyⱼ) = 1`. -/
+private theorem cauchyRHS_mul_denomProd_eq_det (N : ℕ) :
+    cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
+      (1 - xVar N p.1 * yVar N p.2 :
+        MvPowerSeries (CauchyVars N) ℂ)) =
+    (clearedDenomMatrix N).det := by
+  -- Step 1: cauchyRHS = det(cauchyMatrix)
+  rw [← Corollary5_15_4 (k := ℂ)]
+  -- Step 2: Reindex ∏_{(i,j)} as ∏_i (∏_j ...)
+  have hreindex : (∏ p : Fin N × Fin N,
+      (1 - xVar N p.1 * yVar N p.2 :
+        MvPowerSeries (CauchyVars N) ℂ)) =
+    ∏ i : Fin N, ∏ j : Fin N,
+      (1 - xVar N i * yVar N j) := by
+    rw [← Fintype.prod_prod_type']
+  rw [hreindex]
+  -- Step 3: Apply det_mul_column in reverse
+  rw [mul_comm, ← Matrix.det_mul_column]
+  -- Step 4: Show the scaled matrix = clearedDenomMatrix
+  apply congr_arg Matrix.det
+  funext i j
+  simp only [Matrix.of_apply, cauchyMatrix, cauchyMatrixEntry]
+  -- Goal: (∏_k (1-x_iy_k)) * invOfUnit(1-x_iy_j) = ∏_{k≠j}(1-x_iy_k)
+  -- Factor: ∏_k f_k = f_j * ∏_{k≠j} f_k
+  set f := fun k : Fin N => (1 - xVar N i * yVar N k :
+    MvPowerSeries (CauchyVars N) ℂ) with hf_def
+  have hprod : ∏ k : Fin N, f k = f j * ∏ k ∈ Finset.univ.erase j, f k :=
+    (Finset.mul_prod_erase Finset.univ f (Finset.mem_univ j)).symm
+  rw [hprod, mul_assoc, mul_comm (∏ k ∈ Finset.univ.erase j, f k), ← mul_assoc]
+  -- f j * invOfUnit(f j) = 1
+  have hcancel : f j * MvPowerSeries.invOfUnit (f j) 1 = 1 :=
+    MvPowerSeries.mul_invOfUnit (f j) 1 (by
+      change MvPowerSeries.constantCoeff (σ := CauchyVars N) (R := ℂ)
+        (1 - xVar N i * yVar N j) = ↑(1 : ℂˣ)
+      rw [map_sub, map_one, map_mul, MvPowerSeries.constantCoeff_X, zero_mul, sub_zero]
+      exact Units.val_one.symm)
+  rw [hcancel, one_mul]
+  rfl
+
 /-- **FPS Cauchy identity**: the product of x- and y-Vandermonde polynomials with the full
 Cauchy product equals the Cauchy RHS (= determinant of the Cauchy matrix).
 
-This is the formal power series identity `Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS`. -/
+This is the formal power series identity `Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS`.
+
+The proof reduces to the polynomial identity `V_x · V_y = cauchyRHS · denomProd`
+via the helper `denomProd · fullCauchyProd = 1`. The polynomial identity is
+`det(clearedDenomMatrix) = V_x · V_y`, proved by matrix factorization. -/
 private theorem vandermonde_mul_fullCauchyProd_eq_cauchyRHS (N : ℕ) :
     vandermondeFPS_x N * vandermondeFPS_y N * fullCauchyProd N ℂ = cauchyRHS N ℂ := by
-  sorry
+  -- Reduce using denomProd * fullCauchyProd = 1
+  have h_inv : (∏ p : Fin N × Fin N,
+      (1 - xVar N p.1 * yVar N p.2 :
+        MvPowerSeries (CauchyVars N) ℂ)) *
+    fullCauchyProd N ℂ = 1 := denomProd_mul_fullCauchyProd N
+  -- V_x * V_y = cauchyRHS * denomProd
+  have hsuff : vandermondeFPS_x N * vandermondeFPS_y N =
+      cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
+        (1 - xVar N p.1 * yVar N p.2 :
+          MvPowerSeries (CauchyVars N) ℂ)) := by
+    rw [cauchyRHS_mul_denomProd_eq_det, det_clearedDenomMatrix_eq]
+  calc vandermondeFPS_x N * vandermondeFPS_y N * fullCauchyProd N ℂ
+      = cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
+          (1 - xVar N p.1 * yVar N p.2 :
+            MvPowerSeries (CauchyVars N) ℂ)) *
+        fullCauchyProd N ℂ := by rw [hsuff]
+    _ = cauchyRHS N ℂ * ((∏ p : Fin N × Fin N,
+          (1 - xVar N p.1 * yVar N p.2 :
+            MvPowerSeries (CauchyVars N) ℂ)) *
+        fullCauchyProd N ℂ) := by ring
+    _ = cauchyRHS N ℂ * 1 := by rw [h_inv]
+    _ = cauchyRHS N ℂ := mul_one _
 
 /-- Coefficient extraction for a monomial-sum times a power series:
 if `V = ∑_π sign(π) • monomial(e(π)) 1` and `F` is an FPS, then
