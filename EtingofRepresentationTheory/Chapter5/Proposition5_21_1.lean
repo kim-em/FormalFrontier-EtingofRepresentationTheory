@@ -373,10 +373,200 @@ private theorem rename_alternant_det {N : ℕ} (e : Fin N → ℕ) (σ : Equiv.P
   rw [hmat, Matrix.det_permute]
   simp [Units.smul_def]
 
+/-! ## Helper lemmas for the antisymmetric basis decomposition -/
+
+/-- A strictly monotone permutation of `Fin N` must be the identity. -/
+private lemma perm_eq_one_of_strictMono {N : ℕ} {σ : Equiv.Perm (Fin N)}
+    (h : StrictMono (⇑σ : Fin N → Fin N)) : σ = 1 := by
+  rcases N with _ | n
+  · exact Subsingleton.elim _ _
+  · have hle : ∀ j : Fin (n + 1), j ≤ σ j := by
+      intro j; induction j using Fin.inductionOn with
+      | zero => exact Fin.zero_le _
+      | succ k ih =>
+          apply Fin.le_def.mpr
+          have h1 : (σ k.castSucc).val < (σ k.succ).val :=
+            Fin.lt_def.mp (h (by simp [Fin.lt_def]))
+          have h2 := Fin.le_def.mp ih
+          have h3 : k.succ.val = k.castSucc.val + 1 := rfl
+          omega
+    by_contra hne
+    obtain ⟨i, hi⟩ := not_forall.mp
+      (mt (fun heq => Equiv.ext (fun j => Eq.symm (heq j))) hne)
+    linarith [Finset.sum_lt_sum (g := fun j => (σ j : ℕ)) (fun j _ => hle j)
+      ⟨i, Finset.mem_univ _, Fin.lt_def.mp (lt_of_le_of_ne (hle i) hi)⟩,
+      Fintype.sum_equiv σ (fun j => ((σ j) : ℕ)) (fun j => (j : ℕ)) (fun _ => rfl)]
+
+/-- A product of `X_i ^ f_i` equals the corresponding monomial. -/
+private lemma prod_X_pow_eq_monomial' {N : ℕ} (f : Fin N → ℕ) :
+    ∏ i : Fin N, (X i : MvPolynomial (Fin N) ℚ) ^ f i =
+    monomial (Finsupp.equivFunOnFinite.symm f) 1 := by
+  set s := Finsupp.equivFunOnFinite.symm f
+  rw [show ∏ i : Fin N, (X i : MvPolynomial (Fin N) ℚ) ^ f i = ∏ i, X i ^ s i from rfl,
+    ← MvPolynomial.prod_X_pow_eq_monomial]; symm
+  exact Finset.prod_subset (Finset.subset_univ _)
+    fun i _ hi => by rw [Finsupp.notMem_support_iff.mp hi, pow_zero]
+
+/-- Power-sum symmetric polynomials are symmetric. -/
+private theorem psumPart_isSymmetric {n : ℕ} (N : ℕ) (μ : n.Partition) :
+    (MvPolynomial.psumPart (Fin N) ℚ μ).IsSymmetric := by
+  unfold MvPolynomial.psumPart
+  induction μ.parts using Multiset.induction with
+  | empty => exact MvPolynomial.IsSymmetric.one
+  | cons a s ih => rw [Multiset.map_cons, Multiset.prod_cons]
+                   exact (MvPolynomial.psum_isSymmetric _ ℚ a).mul ih
+
+/-- Antisymmetric polynomial has zero coefficient at multi-indices with repeated entries. -/
+private theorem coeff_zero_of_antisym_repeated {N : ℕ}
+    (p : MvPolynomial (Fin N) ℚ)
+    (hp : ∀ σ : Equiv.Perm (Fin N), MvPolynomial.rename σ p = Equiv.Perm.sign σ • p)
+    (d : (Fin N) →₀ ℕ) {i j : Fin N} (hij : i ≠ j) (hd : d i = d j) :
+    MvPolynomial.coeff d p = 0 := by
+  have h1 := hp (Equiv.swap i j); rw [Equiv.Perm.sign_swap hij] at h1
+  have h3 := MvPolynomial.coeff_rename_mapDomain (⇑(Equiv.swap i j))
+    (Equiv.swap i j).injective p d
+  rw [show Finsupp.mapDomain (⇑(Equiv.swap i j)) d = d from by
+    have hsymm : (Equiv.swap i j).symm = Equiv.swap i j := Equiv.symm_swap i j
+    ext k; rw [Finsupp.mapDomain_equiv_apply, hsymm, Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · subst h1; exact hd.symm
+    · subst h2; exact hd
+    · rfl,
+    h1] at h3
+  simp only [Units.smul_def, Units.val_neg, Units.val_one, neg_smul, one_smul,
+    MvPolynomial.coeff_neg] at h3; linarith
+
+/-- The shifted exponent sequence is strictly anti-monotone. -/
+private theorem shiftedExps_strictAnti {N n : ℕ} (lam : BoundedPartition N n) :
+    StrictAnti (shiftedExps N lam.parts) := by
+  intro i j hij; simp only [shiftedExps]; have := lam.decreasing (le_of_lt hij); omega
+
+/-- Kronecker delta property: `coeff_{e'}(D_e) = δ_{e,e'}` for strictly anti exponents. -/
+private theorem alternant_coeff_kronecker {N : ℕ}
+    {e e' : Fin N → ℕ} (he : StrictAnti e) (he' : StrictAnti e') :
+    MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e') (alternantMatrix N e).det =
+    if e = e' then 1 else 0 := by
+  rw [Matrix.det_apply]; simp only [MvPolynomial.coeff_sum, MvPolynomial.coeff_smul]
+  simp_rw [show ∀ σ : Equiv.Perm (Fin N), ∏ j, alternantMatrix N e (σ j) j =
+      monomial (Finsupp.equivFunOnFinite.symm (e ∘ ⇑σ.symm)) 1 from fun σ => by
+    rw [show ∏ j, alternantMatrix N e (σ j) j = ∏ j, (X (σ j) : MvPolynomial (Fin N) ℚ) ^ e j
+      from rfl, show ∏ j, (X (σ j) : MvPolynomial (Fin N) ℚ) ^ e j =
+        ∏ i, X i ^ (e (σ.symm i)) from Fintype.prod_equiv σ _ _ (fun _ => by simp)]
+    exact prod_X_pow_eq_monomial' _]
+  simp only [MvPolynomial.coeff_monomial]
+  have key : ∀ σ : Equiv.Perm (Fin N),
+      (Finsupp.equivFunOnFinite.symm (e ∘ ⇑σ.symm) = Finsupp.equivFunOnFinite.symm e') ↔
+      (e ∘ ⇑σ.symm = e') := fun σ => Finsupp.equivFunOnFinite.symm.injective.eq_iff
+  have unique : ∀ σ : Equiv.Perm (Fin N), e ∘ ⇑σ.symm = e' → e = e' ∧ σ = 1 := by
+    intro σ h
+    have hmono : StrictMono (⇑σ.symm : Fin N → Fin N) := by
+      intro a b hab
+      have hgt := (congr_fun h a) ▸ (congr_fun h b) ▸ he' hab
+      by_contra h_not_lt; push_neg at h_not_lt
+      rcases h_not_lt.eq_or_lt with heq | hlt
+      · exact absurd hgt (not_lt.mpr (le_of_eq (congr_arg e heq.symm)))
+      · exact absurd hgt (not_lt.mpr (le_of_lt (he hlt)))
+    exact ⟨by rw [← h]; simp [show σ.symm = 1 from perm_eq_one_of_strictMono hmono],
+           by rw [← σ.symm_symm, perm_eq_one_of_strictMono hmono]; simp⟩
+  split_ifs with heq
+  · rw [Finset.sum_eq_single 1]; · simp [heq]
+    · intro σ _ hne; simp only [key]; split_ifs with h
+      · exact absurd (unique σ h).2 hne
+      · exact smul_zero _
+    · intro h; exact absurd (Finset.mem_univ _) h
+  · exact Finset.sum_eq_zero fun σ _ => by
+      simp only [key]; split_ifs with h
+      · exact absurd (unique σ h).1 heq
+      · exact smul_zero _
+
+/-- An antisymmetric polynomial whose coefficients at all strictly anti multi-indices
+are zero must be the zero polynomial. -/
+private theorem antisym_eq_zero {N : ℕ} (p : MvPolynomial (Fin N) ℚ)
+    (hp : ∀ σ : Equiv.Perm (Fin N), MvPolynomial.rename σ p = Equiv.Perm.sign σ • p)
+    (hc : ∀ e : Fin N → ℕ, StrictAnti e →
+      MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e) p = 0) :
+    p = 0 := by
+  ext d; simp only [MvPolynomial.coeff_zero]
+  set f := Finsupp.equivFunOnFinite d
+  by_cases hinj : Function.Injective f
+  · obtain ⟨σ, hσ⟩ : ∃ σ : Equiv.Perm (Fin N), StrictAnti (f ∘ ⇑σ) :=
+      ⟨Tuple.sort (OrderDual.toDual ∘ f), fun a b hab =>
+        (Tuple.monotone_sort _).strictMono_of_injective
+          (OrderDual.toDual.injective.comp hinj |>.comp (Tuple.sort _).injective) hab⟩
+    have h1 := MvPolynomial.coeff_rename_mapDomain (⇑σ.symm) σ.symm.injective p d
+    rw [show Finsupp.mapDomain (⇑σ.symm) d = Finsupp.equivFunOnFinite.symm (f ∘ ⇑σ) from by
+      ext i; simp [Finsupp.mapDomain_equiv_apply, f, Finsupp.equivFunOnFinite], hp σ.symm] at h1
+    rw [show MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (f ∘ ⇑σ))
+          (Equiv.Perm.sign σ.symm • p) = 0 from by
+      rcases Int.units_eq_one_or (Equiv.Perm.sign σ.symm) with h | h <;> simp [h, hc _ hσ]] at h1
+    exact h1.symm
+  · simp only [Function.Injective] at hinj; push_neg at hinj
+    obtain ⟨i, j, hij_val, hij_ne⟩ := hinj
+    exact coeff_zero_of_antisym_repeated p hp d hij_ne hij_val
+
+/-- For StrictAnti `e`, the entry `e j` is at least `N - 1 - j`. -/
+private theorem strictAnti_ge_rev {N : ℕ} {e : Fin N → ℕ} (he : StrictAnti e) (j : Fin N) :
+    N - 1 - (j : ℕ) ≤ e j := by
+  suffices ∀ m : ℕ, ∀ j : Fin N, m = N - 1 - (j : ℕ) → m ≤ e j by exact this _ j rfl
+  intro m; induction m with
+  | zero => intro j _; omega
+  | succ m ih =>
+    intro j hj; have hj1 : (j : ℕ) + 1 < N := by omega
+    have := ih ⟨(j : ℕ) + 1, hj1⟩ (by simp; omega)
+    have := he (show j < (⟨(j : ℕ) + 1, hj1⟩ : Fin N) from by simp [Fin.lt_def]); omega
+
+/-- For StrictAnti `e`, the gap between entries is at least the index gap. -/
+private theorem strictAnti_gap {N : ℕ} {e : Fin N → ℕ} (he : StrictAnti e)
+    {i j : Fin N} (hij : i ≤ j) : e j + ((j : ℕ) - (i : ℕ)) ≤ e i := by
+  suffices ∀ d : ℕ, ∀ i j : Fin N, d = (j : ℕ) - (i : ℕ) → i ≤ j → e j + d ≤ e i by
+    exact this _ i j rfl hij
+  intro d; induction d with
+  | zero => intro i j hd hij; have : i = j := Fin.ext (by omega); subst this; omega
+  | succ d ih =>
+    intro i j hd hij; let j' : Fin N := ⟨(j : ℕ) - 1, by omega⟩
+    have := ih i j' (by simp [j']; omega) (by simp [j', Fin.le_iff_val_le_val]; omega)
+    have := he (show j' < j from by simp [j', Fin.lt_def]; omega); omega
+
+/-- The alternant determinant is homogeneous of degree `∑ e_j`. -/
+private theorem alternant_isHomogeneous {N : ℕ} (e : Fin N → ℕ) :
+    (alternantMatrix N e).det.IsHomogeneous (∑ j : Fin N, e j) := by
+  rw [Matrix.det_apply, show ∑ j : Fin N, e j = ∑ j : Fin N, 1 * e j by simp]
+  apply MvPolynomial.IsHomogeneous.sum; intro σ _ d hd
+  rw [MvPolynomial.coeff_smul] at hd
+  exact (MvPolynomial.IsHomogeneous.prod _ _ _ (fun j _ =>
+    (MvPolynomial.isHomogeneous_X ℚ (σ j)).pow (e j))) (right_ne_zero_of_mul hd)
+
+/-- Power-sum symmetric polynomials are homogeneous of degree `n`. -/
+private theorem psumPart_isHomogeneous {n : ℕ} (N : ℕ) (μ : n.Partition) :
+    (MvPolynomial.psumPart (Fin N) ℚ μ).IsHomogeneous n := by
+  unfold MvPolynomial.psumPart
+  suffices h : (Multiset.map (psum (Fin N) ℚ) μ.parts).prod.IsHomogeneous μ.parts.sum by
+    rwa [μ.parts_sum] at h
+  induction μ.parts using Multiset.induction with
+  | empty => simpa using MvPolynomial.isHomogeneous_one (Fin N) ℚ
+  | cons a s ih =>
+    rw [Multiset.map_cons, Multiset.prod_cons, Multiset.sum_cons]
+    exact ((show (∑ i : Fin N, X i ^ a).IsHomogeneous a from by
+      apply IsHomogeneous.sum; intro i _
+      convert (MvPolynomial.isHomogeneous_X ℚ i).pow a using 1; ring)).mul ih
+
+/-- If `e` is StrictAnti with the right sum, it comes from a BoundedPartition. -/
+private theorem exists_bp_of_strictAnti_sum {N n : ℕ}
+    (e : Fin N → ℕ) (he : StrictAnti e)
+    (hsum : ∑ j : Fin N, e j = (∑ j : Fin N, vandermondeExps N j) + n) :
+    ∃ lam : BoundedPartition N n, shiftedExps N lam.parts = e := by
+  set parts : Fin N → ℕ := fun j => e j - (N - 1 - ↑j)
+  have hge := strictAnti_ge_rev he
+  refine ⟨⟨parts, ?_, ?_⟩, ?_⟩
+  · intro i j hij; simp only [parts]; have := strictAnti_gap he hij; omega
+  · have h1 : ∑ i : Fin N, (parts i + (N - 1 - ↑i)) = ∑ i : Fin N, e i :=
+      Finset.sum_congr rfl fun j _ => by simp only [parts]; exact Nat.sub_add_cancel (hge j)
+    rw [Finset.sum_add_distrib] at h1
+    simp only [vandermondeExps] at hsum; omega
+  · funext j; simp only [shiftedExps, parts]; exact Nat.sub_add_cancel (hge j)
+
 theorem Proposition5_21_1
     {n : ℕ} (N : ℕ) (μ : n.Partition) :
-    -- LHS: ∏_m p_m(x)^{i_m} (power-sum product indexed by partition μ)
-    -- RHS: Σ_λ χ_λ(C_μ) · S_λ(x)  (sum over partitions λ of n with ≤ N parts)
     ∃ (lams : Finset (BoundedPartition N n)),
       (MvPolynomial.psumPart (Fin N) ℚ μ : MvPolynomial (Fin N) ℚ) =
         ∑ lam ∈ lams,
@@ -385,7 +575,6 @@ theorem Proposition5_21_1
   -- Step 1: Cancel the Vandermonde determinant Δ from both sides (integral domain)
   have hΔ : (alternantMatrix N (vandermondeExps N)).det ≠ 0 := by
     obtain ⟨u, hu⟩ := alternant_det_associated_prod N
-    -- hu : det * ↑u = ∏ (X_j - X_i)
     intro h
     have hprod : ∏ i : Fin N, ∏ j ∈ Ioi i,
         (X j - X i : MvPolynomial (Fin N) ℚ) ≠ 0 :=
@@ -401,19 +590,67 @@ theorem Proposition5_21_1
     schurPoly_mul_vandermonde]
   -- Step 3: Antisymmetric basis decomposition
   -- Goal: Δ * p_μ = Σ_λ coeff_{λ+ρ}(Δ * p_μ) • D_λ
-  -- Proof sketch (not yet formalized):
-  --   Let F = Δ * p_μ and G = F - RHS. Then G is antisymmetric (rename σ G = sgn(σ) • G)
-  --   because both F and each D_λ are antisymmetric (by rename_alternant_det).
-  --   For any monomial m in G:
-  --   - If m has repeated entries (m i = m j for i ≠ j): coeff_m(G) = 0 by antisymmetry
-  --   - If m has distinct entries: sort m to get ν = λ+ρ for some BoundedPartition λ.
-  --     Then coeff_m(G) = sgn(σ) * coeff_ν(G) where σ sorts m.
-  --     But coeff_ν(G) = coeff_ν(F) - charValue(λ,μ) * 1 = 0 by construction.
-  --   So G = 0, i.e., F = RHS.
-  -- Key sub-lemmas needed:
-  --   (a) coeff_rename: coeff m (rename σ F) = coeff (Finsupp.equivMapDomain σ.symm m) F
-  --   (b) Alternant coefficient: coeff_{μ+ρ}(D_λ) = δ_{λ,μ} for partitions
-  --   (c) psum_isSymmetric: rename σ (psumPart μ) = psumPart μ
-  sorry
+  simp only [charValue]
+  rw [← sub_eq_zero]
+  apply antisym_eq_zero
+  · -- Antisymmetry of the difference
+    intro σ; rw [map_sub, smul_sub]; congr 1
+    · rw [map_mul, rename_alternant_det, (psumPart_isSymmetric N μ) σ, smul_mul_assoc]
+    · -- rename σ (∑ c • D) = sign σ • ∑ c • D
+      trans ∑ lam : BoundedPartition N n, Equiv.Perm.sign σ •
+        (MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (shiftedExps N lam.parts))
+          ((alternantMatrix N (vandermondeExps N)).det * psumPart (Fin N) ℚ μ) •
+         (alternantMatrix N (shiftedExps N lam.parts)).det)
+      · rw [map_sum]; apply Finset.sum_congr rfl; intro lam _
+        rw [AlgHom.map_smul_of_tower, rename_alternant_det, smul_comm]
+      · exact (Finset.smul_sum ..).symm
+  · -- Coefficient condition: for StrictAnti e, coeff_e(F - Σ c • D) = 0
+    intro e he
+    simp only [MvPolynomial.coeff_sub, MvPolynomial.coeff_sum, MvPolynomial.coeff_smul,
+      smul_eq_mul, sub_eq_zero]
+    simp_rw [alternant_coeff_kronecker (shiftedExps_strictAnti _) he, mul_ite, mul_one, mul_zero]
+    have hsub : ∀ lam : BoundedPartition N n,
+        (if shiftedExps N lam.parts = e
+         then MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (shiftedExps N lam.parts))
+                ((alternantMatrix N (vandermondeExps N)).det * psumPart (Fin N) ℚ μ) else 0) =
+        if shiftedExps N lam.parts = e
+        then MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+              ((alternantMatrix N (vandermondeExps N)).det * psumPart (Fin N) ℚ μ) else 0 :=
+      fun lam => by split_ifs with h <;> [rw [h]; rfl]
+    simp_rw [hsub]
+    rw [Finset.sum_ite, Finset.sum_const_zero, add_zero, Finset.sum_const]
+    set filt := Finset.univ.filter (fun lam : BoundedPartition N n =>
+      shiftedExps N lam.parts = e)
+    have hle : filt.card ≤ 1 := by
+      apply Finset.card_le_one.mpr
+      intro a ha b hb
+      have ha' := (Finset.mem_filter.mp ha).2
+      have hb' := (Finset.mem_filter.mp hb).2
+      have : a.parts = b.parts := by
+        funext j; have := congr_fun (ha'.trans hb'.symm) j; simp [shiftedExps] at this; omega
+      cases a; cases b; simp_all
+    rcases Nat.eq_zero_or_pos filt.card with hcard | hcard
+    · -- No matching partition → coeff_e(F) = 0 by homogeneity
+      rw [hcard, zero_nsmul]; symm
+      have hne : ∀ lam : BoundedPartition N n, shiftedExps N lam.parts ≠ e := by
+        intro lam hlam
+        have hmem : lam ∈ filt := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hlam⟩
+        rw [Finset.card_eq_zero.mp hcard] at hmem
+        exact absurd hmem (by simp)
+      by_contra h
+      have h' : MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+          ((alternantMatrix N (vandermondeExps N)).det * psumPart (Fin N) ℚ μ) ≠ 0 := by
+        intro heq; exact h heq.symm
+      have hF := (alternant_isHomogeneous (vandermondeExps N)).mul (psumPart_isHomogeneous N μ)
+      have hd := hF h'
+      have hweight : Finsupp.weight (1 : Fin N → ℕ) (Finsupp.equivFunOnFinite.symm e) =
+          ∑ j : Fin N, e j := by
+        simp [Finsupp.weight, Finsupp.linearCombination_apply, Finsupp.sum_fintype]
+      rw [hweight] at hd
+      obtain ⟨lam, hlam⟩ := exists_bp_of_strictAnti_sum e he (by exact_mod_cast hd)
+      exact hne lam hlam
+    · -- Matching partition exists, card = 1
+      have : filt.card = 1 := by omega
+      rw [this, one_nsmul]
 
 end Etingof
