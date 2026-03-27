@@ -307,8 +307,7 @@ theorem Etingof.Proposition6_6_7_sink
           rw [h_da, h_db]
           simp only []
           intro e' w Sa hw Sb hsubrep
-          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
-            LinearEquiv.refl_toLinearMap] at *
+          simp only [id, Submodule.map_id, LinearEquiv.refl_toLinearMap] at *
           exact hsubrep e' w hw
       have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'), ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
         intro a' b' e' x hx
@@ -347,8 +346,7 @@ theorem Etingof.Proposition6_6_7_sink
           rw [h_da, h_db]
           simp only []
           intro e' w Sa hw Sb hsubrep
-          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
-            LinearEquiv.refl_toLinearMap] at *
+          simp only [id, Submodule.map_id, LinearEquiv.refl_toLinearMap] at *
           exact hsubrep e' w hw
       have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
         intro v
@@ -847,8 +845,7 @@ theorem Etingof.Proposition6_6_7_source
           rw [h_da, h_db]
           simp only []
           intro e' w Sa hw Sb hsubrep
-          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
-            LinearEquiv.refl_toLinearMap] at *
+          simp only [id, Submodule.map_id, LinearEquiv.refl_toLinearMap] at *
           exact hsubrep e' w hw
       have hU₂_subrep : ∀ {a' b' : Q} (e' : a' ⟶ b'),
           ∀ x ∈ U₂ a', ρ.mapLinear e' x ∈ U₂ b' := by
@@ -879,8 +876,7 @@ theorem Etingof.Proposition6_6_7_source
           rw [h_da, h_db]
           simp only []
           intro e' w Sa hw Sb hsubrep
-          simp only [id, LinearEquiv.refl_apply, Submodule.map_id, LinearEquiv.coe_toLinearMap,
-            LinearEquiv.refl_toLinearMap] at *
+          simp only [id, Submodule.map_id, LinearEquiv.refl_toLinearMap] at *
           exact hsubrep e' w hw
       have hU_compl : ∀ v, IsCompl (U₁ v) (U₂ v) := by
         intro v
