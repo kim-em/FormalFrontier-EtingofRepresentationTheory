@@ -401,9 +401,19 @@ theorem Proposition5_21_1
     schurPoly_mul_vandermonde]
   -- Step 3: Antisymmetric basis decomposition
   -- Goal: Δ * p_μ = Σ_λ coeff_{λ+ρ}(Δ * p_μ) • D_λ
-  -- Uses: Δ*p_μ is antisymmetric (rename_alternant_det + psum symmetric),
-  --       alternant D_λ has coeff 1 at x^{λ+ρ} and 0 at x^{μ+ρ} for μ≠λ,
-  --       antisymmetric polynomials are determined by leading coefficients.
+  -- Proof sketch (not yet formalized):
+  --   Let F = Δ * p_μ and G = F - RHS. Then G is antisymmetric (rename σ G = sgn(σ) • G)
+  --   because both F and each D_λ are antisymmetric (by rename_alternant_det).
+  --   For any monomial m in G:
+  --   - If m has repeated entries (m i = m j for i ≠ j): coeff_m(G) = 0 by antisymmetry
+  --   - If m has distinct entries: sort m to get ν = λ+ρ for some BoundedPartition λ.
+  --     Then coeff_m(G) = sgn(σ) * coeff_ν(G) where σ sorts m.
+  --     But coeff_ν(G) = coeff_ν(F) - charValue(λ,μ) * 1 = 0 by construction.
+  --   So G = 0, i.e., F = RHS.
+  -- Key sub-lemmas needed:
+  --   (a) coeff_rename: coeff m (rename σ F) = coeff (Finsupp.equivMapDomain σ.symm m) F
+  --   (b) Alternant coefficient: coeff_{μ+ρ}(D_λ) = δ_{λ,μ} for partitions
+  --   (c) psum_isSymmetric: rename σ (psumPart μ) = psumPart μ
   sorry
 
 end Etingof
