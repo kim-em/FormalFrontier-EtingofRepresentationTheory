@@ -1079,124 +1079,315 @@ private theorem bilinExponent_sub_permExponentY (N : ℕ) (α' β : Fin N → �
     simp only [bilinExponent, permExponentY, Finsupp.equivFunOnFinite, Finsupp.tsub_apply]
     simp
 
-/-- The denominator product `∏_{i,j}(1-xᵢyⱼ)` times the full Cauchy product equals 1. -/
-private theorem denomProd_mul_fullCauchyProd (N : ℕ) :
-    (∏ p : Fin N × Fin N,
-      (1 - MvPowerSeries.X (Sum.inl p.1 : CauchyVars N) *
-           MvPowerSeries.X (Sum.inr p.2 : CauchyVars N) :
-        MvPowerSeries (CauchyVars N) ℂ)) *
-    fullCauchyProd N ℂ = 1 := by
-  rw [fullCauchyProd_eq_prod_pairs]
-  rw [← Finset.prod_mul_distrib]
-  apply Finset.prod_eq_one; intro p _
-  exact MvPowerSeries.mul_invOfUnit _ _ (by
-    change (MvPowerSeries.constantCoeff (σ := CauchyVars N) (R := ℂ))
-      (1 - MvPowerSeries.X (Sum.inl p.1) * MvPowerSeries.X (Sum.inr p.2)) = ↑(1 : ℂˣ)
-    rw [map_sub, map_one, map_mul, MvPowerSeries.constantCoeff_X, zero_mul, sub_zero]
-    exact Units.val_one.symm)
+/-! ### Denominator clearing and the Cauchy determinant
 
-/-- The full Cauchy product times the denominator product equals 1. -/
-private theorem fullCauchyProd_mul_denomProd (N : ℕ) :
-    fullCauchyProd N ℂ *
-    (∏ p : Fin N × Fin N,
-      (1 - MvPowerSeries.X (Sum.inl p.1 : CauchyVars N) *
-           MvPowerSeries.X (Sum.inr p.2 : CauchyVars N) :
-        MvPowerSeries (CauchyVars N) ℂ)) = 1 := by
-  rw [mul_comm]; exact denomProd_mul_fullCauchyProd N
+The proof of `vandermonde_mul_fullCauchyProd_eq_cauchyRHS` proceeds by clearing denominators.
+We multiply both sides by `D = ∏_{i,j}(1-xᵢyⱼ)` and use:
+1. `D * fullCauchyProd = 1` (each factor cancels its inverse)
+2. `D * cauchyRHS = det(B)` where `B_{ij} = ∏_{k≠j}(1-xᵢyₖ)` (cleared denominator matrix)
+3. `det(B) = V_x * V_y` (the key identity, proved by the Cauchy determinant formula)
+-/
 
-/-- The x-variables as elements of the FPS ring. -/
+/-- The x-variable `X(inl i)` as an MvPowerSeries element. -/
 private abbrev xVar (N : ℕ) (i : Fin N) : MvPowerSeries (CauchyVars N) ℂ :=
   MvPowerSeries.X (Sum.inl i)
 
-/-- The y-variables as elements of the FPS ring. -/
+/-- The y-variable `X(inr j)` as an MvPowerSeries element. -/
 private abbrev yVar (N : ℕ) (j : Fin N) : MvPowerSeries (CauchyVars N) ℂ :=
   MvPowerSeries.X (Sum.inr j)
 
-/-- The cleared-denominator matrix: `B(i,j) = ∏_{k ≠ j} (1 - xᵢ yₖ)`. -/
+/-- The denominator product `∏_{i,j}(1-xᵢyⱼ)`. -/
+private noncomputable def denomProd (N : ℕ) : MvPowerSeries (CauchyVars N) ℂ :=
+  ∏ i : Fin N, ∏ j : Fin N, (1 - xVar N i * yVar N j)
+
+/-- Each factor `(1-xy) * invOfUnit(1-xy, 1) = 1`. -/
+private theorem one_sub_xy_mul_invOfUnit (N : ℕ) (i j : Fin N) :
+    (1 - xVar N i * yVar N j) *
+      MvPowerSeries.invOfUnit (1 - xVar N i * yVar N j) (1 : ℂˣ) = 1 := by
+  have hconst : (MvPowerSeries.constantCoeff :
+      MvPowerSeries (CauchyVars N) ℂ →+* ℂ)
+      (1 - xVar N i * yVar N j) = ↑(1 : ℂˣ) := by
+    simp [xVar, yVar, map_sub, map_one, map_mul, MvPowerSeries.constantCoeff_X, Units.val_one]
+  exact MvPowerSeries.mul_invOfUnit _ _ hconst
+
+/-- `denomProd * fullCauchyProd = 1`. -/
+private theorem denomProd_mul_fullCauchyProd (N : ℕ) :
+    denomProd N * fullCauchyProd N ℂ = 1 := by
+  simp only [denomProd, fullCauchyProd, Finset.prod_mul_distrib.symm]
+  rw [show (∏ i : Fin N, ∏ j : Fin N,
+      ((1 - xVar N i * yVar N j) *
+        MvPowerSeries.invOfUnit (1 - xVar N i * yVar N j) (1 : ℂˣ))) =
+    ∏ i : Fin N, ∏ j : Fin N, (1 : MvPowerSeries (CauchyVars N) ℂ) from
+    Finset.prod_congr rfl fun i _ => Finset.prod_congr rfl fun j _ =>
+      one_sub_xy_mul_invOfUnit N i j]
+  simp
+
+/-- The cleared denominator matrix: `B_{ij} = ∏_{k≠j}(1-xᵢyₖ)`. -/
 private noncomputable def clearedDenomMatrix (N : ℕ) :
     Matrix (Fin N) (Fin N) (MvPowerSeries (CauchyVars N) ℂ) :=
-  Matrix.of (fun i j => ∏ k ∈ Finset.univ.erase j, (1 - xVar N i * yVar N k))
+  Matrix.of fun i j => ∏ k ∈ Finset.univ.erase j, (1 - xVar N i * yVar N k)
 
-/-- The determinant of the cleared-denominator matrix equals `V_x * V_y`.
-This follows from the matrix factorization `B = W_x · D` where `W_x` is the
-Vandermonde matrix in x-variables and `D(s,j) = (-1)^s e_s(y \ {y_j})`, giving
-`det(B) = det(W_x) · det(D) = V_x · V_y`. -/
+/-- Row product: `rᵢ = ∏_j(1-xᵢyⱼ)`. -/
+private noncomputable def rowProd (N : ℕ) (i : Fin N) : MvPowerSeries (CauchyVars N) ℂ :=
+  ∏ j : Fin N, (1 - xVar N i * yVar N j)
+
+/-- The cleared denominator matrix entry equals the row product times the Cauchy matrix entry:
+`B_{ij} = rᵢ * C_{ij}`, equivalently `∏_{k≠j}(1-xᵢyₖ) = ∏_k(1-xᵢyₖ) * invOfUnit(1-xᵢyⱼ, 1)`.
+This follows from `rᵢ = (1-xᵢyⱼ) * B_{ij}` and `(1-xy) * invOfUnit(1-xy,1) = 1`. -/
+private theorem clearedDenomMatrix_eq_rowProd_mul_cauchyEntry (N : ℕ) (i j : Fin N) :
+    clearedDenomMatrix N i j =
+      rowProd N i * cauchyMatrixEntry N ℂ i j := by
+  -- rowProd i = (1-xᵢyⱼ) * B_{ij}, so B_{ij} = rowProd i * invOfUnit(1-xᵢyⱼ, 1)
+  have h_key : rowProd N i =
+      (1 - xVar N i * yVar N j) * clearedDenomMatrix N i j := by
+    simp only [rowProd, clearedDenomMatrix, Matrix.of_apply, xVar, yVar]
+    exact (Finset.mul_prod_erase _ _ (Finset.mem_univ j)).symm
+  have h_cancel := one_sub_xy_mul_invOfUnit N i j
+  -- rowProd * invOfUnit = (1-xy) * B * invOfUnit = B * ((1-xy) * invOfUnit) = B * 1 = B
+  simp only [cauchyMatrixEntry]
+  rw [h_key, mul_assoc, mul_comm (clearedDenomMatrix N i j) _, ← mul_assoc, h_cancel, one_mul]
+
+/-- `det(B) = denomProd * det(C)`.
+Since `B = diag(rowProd) * C`, we have `det(B) = (∏ rowProd_i) * det(C) = denomProd * det(C)`. -/
 private theorem det_clearedDenomMatrix_eq (N : ℕ) :
-    (clearedDenomMatrix N).det = vandermondeFPS_x N * vandermondeFPS_y N := by
-  sorry
+    (clearedDenomMatrix N).det = denomProd N * (cauchyMatrix N ℂ).det := by
+  -- Factor: B = diag(rowProd) * cauchyMatrix
+  have h_factor : clearedDenomMatrix N =
+      Matrix.diagonal (rowProd N) * cauchyMatrix N ℂ := by
+    ext i j
+    simp only [Matrix.mul_apply, Matrix.diagonal_apply, cauchyMatrix, Matrix.of_apply]
+    rw [Finset.sum_eq_single i
+      (fun b _ hbi => by simp only [if_neg (Ne.symm hbi), zero_mul])
+      (by simp)]
+    simp only [ite_true]
+    congr 1
+    exact clearedDenomMatrix_eq_rowProd_mul_cauchyEntry N i j
+  rw [h_factor, Matrix.det_mul, Matrix.det_diagonal]
+  simp [denomProd, rowProd]
 
-/-- Clearing denominators: `cauchyRHS * denomProd = det(clearedDenomMatrix)`.
-Uses `det_mul_column` and the cancellation `(1-xᵢyⱼ) · 1/(1-xᵢyⱼ) = 1`. -/
-private theorem cauchyRHS_mul_denomProd_eq_det (N : ℕ) :
-    cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
-      (1 - xVar N p.1 * yVar N p.2 :
-        MvPowerSeries (CauchyVars N) ℂ)) =
-    (clearedDenomMatrix N).det := by
-  -- Step 1: cauchyRHS = det(cauchyMatrix)
-  rw [← Corollary5_15_4 (k := ℂ)]
-  -- Step 2: Reindex ∏_{(i,j)} as ∏_i (∏_j ...)
-  have hreindex : (∏ p : Fin N × Fin N,
-      (1 - xVar N p.1 * yVar N p.2 :
-        MvPowerSeries (CauchyVars N) ℂ)) =
-    ∏ i : Fin N, ∏ j : Fin N,
-      (1 - xVar N i * yVar N j) := by
-    rw [← Fintype.prod_prod_type']
-  rw [hreindex]
-  -- Step 3: Apply det_mul_column in reverse
-  rw [mul_comm, ← Matrix.det_mul_column]
-  -- Step 4: Show the scaled matrix = clearedDenomMatrix
-  apply congr_arg Matrix.det
-  funext i j
-  simp only [Matrix.of_apply, cauchyMatrix, cauchyMatrixEntry]
-  -- Goal: (∏_k (1-x_iy_k)) * invOfUnit(1-x_iy_j) = ∏_{k≠j}(1-x_iy_k)
-  -- Factor: ∏_k f_k = f_j * ∏_{k≠j} f_k
-  set f := fun k : Fin N => (1 - xVar N i * yVar N k :
-    MvPowerSeries (CauchyVars N) ℂ) with hf_def
-  have hprod : ∏ k : Fin N, f k = f j * ∏ k ∈ Finset.univ.erase j, f k :=
-    (Finset.mul_prod_erase Finset.univ f (Finset.mem_univ j)).symm
-  rw [hprod, mul_assoc, mul_comm (∏ k ∈ Finset.univ.erase j, f k), ← mul_assoc]
-  -- f j * invOfUnit(f j) = 1
-  have hcancel : f j * MvPowerSeries.invOfUnit (f j) 1 = 1 :=
-    MvPowerSeries.mul_invOfUnit (f j) 1 (by
-      change MvPowerSeries.constantCoeff (σ := CauchyVars N) (R := ℂ)
-        (1 - xVar N i * yVar N j) = ↑(1 : ℂˣ)
-      rw [map_sub, map_one, map_mul, MvPowerSeries.constantCoeff_X, zero_mul, sub_zero]
-      exact Units.val_one.symm)
-  rw [hcancel, one_mul]
-  rfl
+/-- `vandermondeFPS_x` equals the determinant of the Vandermonde matrix in x-variables. -/
+private theorem vandermondeFPS_x_eq_det (N : ℕ) :
+    vandermondeFPS_x N = (Matrix.vandermonde (fun i => xVar N i)).det := by
+  simp only [vandermondeFPS_x, Matrix.det_apply', Matrix.vandermonde, Matrix.of_apply]
+  congr 1; ext σ
+  simp only [MvPowerSeries.smul_eq_C_mul, MvPowerSeries.monomial_one_eq,
+    Finsupp.prod_fintype _ _ (fun i => pow_zero _), Fintype.prod_sum_type,
+    permExponentX_inr, pow_zero, Finset.prod_const_one, mul_one, permExponentX_inl,
+    map_intCast]
+  rw [show ∏ x : Fin N, MvPowerSeries.X (Sum.inl x) ^ ((σ⁻¹ x : Fin N) : ℕ) =
+    ∏ x : Fin N, xVar N (σ x) ^ (x : ℕ) from
+    Fintype.prod_equiv σ⁻¹ _ _ (fun i => by simp [xVar, Equiv.apply_symm_apply])]
+
+/-- `vandermondeFPS_y` equals the determinant of the Vandermonde matrix in y-variables. -/
+private theorem vandermondeFPS_y_eq_det (N : ℕ) :
+    vandermondeFPS_y N = (Matrix.vandermonde (fun j => yVar N j)).det := by
+  simp only [vandermondeFPS_y, Matrix.det_apply', Matrix.vandermonde, Matrix.of_apply]
+  congr 1; ext τ
+  simp only [MvPowerSeries.smul_eq_C_mul, MvPowerSeries.monomial_one_eq,
+    Finsupp.prod_fintype _ _ (fun i => pow_zero _), Fintype.prod_sum_type,
+    permExponentY_inl, pow_zero, Finset.prod_const_one, one_mul, permExponentY_inr,
+    map_intCast]
+  rw [show ∏ x : Fin N, MvPowerSeries.X (Sum.inr x) ^ ((τ⁻¹ x : Fin N) : ℕ) =
+    ∏ x : Fin N, yVar N (τ x) ^ (x : ℕ) from
+    Fintype.prod_equiv τ⁻¹ _ _ (fun j => by simp [yVar, Equiv.apply_symm_apply])]
+
+/-- Elementary symmetric polynomial matrix: `E_{sj} = (-1)^s e_s(y₀,...,ŷⱼ,...,y_{N-1})`,
+defined as `∑_{T ∈ (univ \ {j}).powersetCard s} ∏_{k∈T} (-yVar k)`. -/
+private noncomputable def espMatrix (N : ℕ) :
+    Matrix (Fin N) (Fin N) (MvPowerSeries (CauchyVars N) ℂ) :=
+  Matrix.of fun s j =>
+    ∑ T ∈ (Finset.univ.erase j).powersetCard s.val, ∏ k ∈ T, (-(yVar N k))
+
+/-- Helper: expanding a product over S as a sum grouped by cardinality. -/
+private theorem prod_one_sub_eq_sum_powersetCard
+    (S : Finset (Fin N)) (x : MvPowerSeries (CauchyVars N) ℂ) :
+    ∏ k ∈ S, (1 - x * yVar N k) =
+    ∑ s ∈ Finset.range (#S + 1),
+      x ^ s * ∑ T ∈ S.powersetCard s, ∏ k ∈ T, (-yVar N k) := by
+  -- Rewrite 1 - xy as 1 + x*(-y)
+  simp_rw [show ∀ k, (1 : MvPowerSeries _ ℂ) - x * yVar N k =
+    1 + (x * (-yVar N k)) from fun k => by ring]
+  rw [Finset.prod_one_add]
+  -- Factor: ∏(x * (-y)) = x^#T * ∏(-y)
+  simp_rw [show ∀ T : Finset (Fin N), ∏ k ∈ T, (x * (-yVar N k)) =
+    x ^ #T * ∏ k ∈ T, (-yVar N k) from fun T => by
+    rw [Finset.prod_mul_distrib, Finset.prod_const]]
+  -- Split by cardinality
+  rw [S.powerset_card_disjiUnion, Finset.sum_disjiUnion]
+  -- Use #T = s for T ∈ powersetCard s, then factor x^s out
+  refine Finset.sum_congr rfl fun s _ => ?_
+  trans (∑ T ∈ S.powersetCard s, x ^ s * ∏ k ∈ T, (-yVar N k))
+  · exact Finset.sum_congr rfl fun T hT => by
+      rw [(Finset.mem_powersetCard.mp hT).2]
+  · exact (Finset.mul_sum ..).symm
+
+/-- The cleared denominator matrix factors as `B = vandermonde(x) * E`. -/
+private theorem clearedDenom_eq_vanderm_mul_esp (N : ℕ) :
+    clearedDenomMatrix N =
+      Matrix.vandermonde (fun i => xVar N i) * espMatrix N := by
+  ext i j
+  simp only [Matrix.mul_apply, Matrix.vandermonde, Matrix.of_apply, espMatrix,
+    clearedDenomMatrix]
+  rw [prod_one_sub_eq_sum_powersetCard]
+  -- LHS: ∑ s ∈ range(#S+1), x^s * ∑_T ∏(-y)
+  -- RHS: ∑ s : Fin N, x^s * ∑_T ∏(-y)
+  -- Convert ∑_{s ∈ range(#S+1)} to ∑_{s : Fin N} using #S = N-1
+  have hN : 0 < N := Fin.pos j
+  rw [show #(Finset.univ.erase j) + 1 = N from by
+    rw [Finset.card_erase_of_mem (Finset.mem_univ j), Finset.card_univ, Fintype.card_fin]
+    omega]
+  rw [← Fin.sum_univ_eq_sum_range]
+
+/-- Full elementary symmetric polynomial: `e_s(y) = ∑_{T∈univ.powersetCard s} ∏_{k∈T}(-yₖ)`.
+Note: this is `(-1)^s` times the standard `e_s`. -/
+private noncomputable def signedEsp (N : ℕ) (s : ℕ) : MvPowerSeries (CauchyVars N) ℂ :=
+  ∑ T ∈ Finset.univ.powersetCard s, ∏ k ∈ T, (-(yVar N k))
+
+/-- Lower triangular matrix: `A_{sn} = signedEsp(s-n)` for `n ≤ s`, `0` otherwise.
+This satisfies `E = A * vandermonde(y)` and has determinant 1. -/
+private noncomputable def triA (N : ℕ) :
+    Matrix (Fin N) (Fin N) (MvPowerSeries (CauchyVars N) ℂ) :=
+  Matrix.of fun s n =>
+    if (n : ℕ) ≤ s then signedEsp N (s.val - n.val) else 0
+
+/-- Recurrence for elementary symmetric polynomials: splitting `univ.powersetCard (m+1)` by
+membership of `j`. Using `powersetCard_succ_insert` with `univ = insert j (univ\{j})`. -/
+private theorem signedEsp_split (N : ℕ) (j : Fin N) (m : ℕ) :
+    signedEsp N (m + 1) =
+      ∑ T ∈ (Finset.univ.erase j).powersetCard (m + 1), ∏ k ∈ T, (-(yVar N k)) +
+      (-(yVar N j)) * ∑ T ∈ (Finset.univ.erase j).powersetCard m, ∏ k ∈ T, (-(yVar N k)) := by
+  simp only [signedEsp]
+  set S := Finset.univ.erase j
+  have hj : j ∉ S := Finset.notMem_erase j Finset.univ
+  have h_univ : (Finset.univ : Finset (Fin N)) = insert j S :=
+    (Finset.insert_erase (Finset.mem_univ j)).symm
+  rw [h_univ, Finset.powersetCard_succ_insert hj]
+  -- Disjointness: subsets of S vs subsets containing j
+  have h_disj : Disjoint (S.powersetCard (m + 1))
+      ((S.powersetCard m).image (insert j)) := by
+    rw [Finset.disjoint_left]
+    intro T hT1 hT2
+    exact absurd (by rw [Finset.mem_image] at hT2; obtain ⟨_, _, rfl⟩ := hT2
+                     exact Finset.mem_insert_self j _)
+      (fun h => hj ((Finset.mem_powersetCard.mp hT1).1 h))
+  rw [Finset.sum_union h_disj]
+  congr 1
+  -- Sum over image = (-y_j) * sum over powersetCard
+  rw [Finset.sum_image]
+  · rw [Finset.mul_sum]
+    exact Finset.sum_congr rfl fun T hT => by
+      rw [Finset.prod_insert (fun hm => hj ((Finset.mem_powersetCard.1 hT).1 hm))]
+  · -- Injectivity of insert j on subsets not containing j
+    intro T₁ hT₁ T₂ hT₂ h
+    have h1 : j ∉ T₁ := fun hm => hj ((Finset.mem_powersetCard.1 (Finset.mem_coe.mp hT₁)).1 hm)
+    have h2 : j ∉ T₂ := fun hm => hj ((Finset.mem_powersetCard.1 (Finset.mem_coe.mp hT₂)).1 hm)
+    have := congr_arg (·.erase j) h
+    simp only at this
+    rwa [Finset.erase_insert h1, Finset.erase_insert h2] at this
+
+/-- The key identity: `e_s(univ\{j}) = ∑_{n=0}^{s} signedEsp(s-n) · yⱼ^n`.
+Proved by induction on `s` using the recurrence from `signedEsp_split`. -/
+private theorem esp_eq_sum_signedEsp (N : ℕ) (j : Fin N) :
+    ∀ s : ℕ,
+    ∑ T ∈ (Finset.univ.erase j).powersetCard s, ∏ k ∈ T, (-(yVar N k)) =
+    ∑ n ∈ Finset.range (s + 1), signedEsp N (s - n) * (yVar N j) ^ n := by
+  intro s; induction s with
+  | zero => simp [signedEsp, Finset.powersetCard_zero]
+  | succ s ih =>
+    -- Recurrence: esp(s+1,j) = signedEsp(s+1) - (-y_j) * esp(s,j)
+    have h_rec := signedEsp_split N j s
+    have h_esp : ∑ T ∈ (Finset.univ.erase j).powersetCard (s + 1),
+        ∏ k ∈ T, (-(yVar N k)) =
+      signedEsp N (s + 1) - (-(yVar N j)) *
+        ∑ T ∈ (Finset.univ.erase j).powersetCard s, ∏ k ∈ T, (-(yVar N k)) := by
+      linear_combination -h_rec
+    rw [h_esp, ih, neg_mul, sub_neg_eq_add, Finset.mul_sum,
+        Finset.sum_range_succ' (fun n => signedEsp N (s + 1 - n) * yVar N j ^ n)]
+    simp only [Nat.sub_zero, pow_zero, mul_one]
+    rw [add_comm (∑ _ ∈ _, _)]
+    congr 1
+    exact Finset.sum_congr rfl fun n hn => by
+      rw [show s + 1 - (n + 1) = s - n from by omega]; ring
+
+/-- The ESP matrix factors as `E = A * vandermonde(y)`. -/
+private theorem espMatrix_eq_triA_mul_vanderm (N : ℕ) :
+    espMatrix N = triA N * (Matrix.vandermonde (fun j => yVar N j)).transpose := by
+  funext ⟨s, hs⟩ j
+  simp only [espMatrix, triA, Matrix.mul_apply, Matrix.transpose_apply,
+    Matrix.vandermonde, Matrix.of_apply]
+  rw [esp_eq_sum_signedEsp N j s]
+  symm
+  -- Convert Fin N sum to range N sum
+  rw [Fin.sum_univ_eq_sum_range (fun n =>
+    (if n ≤ s then signedEsp N (s - n) else 0) * yVar N j ^ n)]
+  -- Step 1: ∑_{range N} g → ∑_{range(s+1)} g (extra terms vanish)
+  -- Step 2: ∑_{range(s+1)} g = ∑_{range(s+1)} f (if-condition true)
+  trans ∑ n ∈ Finset.range (s + 1),
+    (if n ≤ s then signedEsp N (s - n) else 0) * yVar N j ^ n
+  · symm
+    exact Finset.sum_subset (Finset.range_mono (by omega)) fun n _ hn => by
+      simp only [Finset.mem_range, not_lt] at hn
+      simp only [if_neg (by omega : ¬(n ≤ s)), zero_mul]
+  · exact Finset.sum_congr rfl fun n hn => by
+      simp only [Finset.mem_range] at hn
+      simp only [if_pos (by omega : n ≤ s)]
+
+/-- `triA` is lower triangular. -/
+private theorem triA_blockTriangular (N : ℕ) :
+    (triA N).BlockTriangular OrderDual.toDual := by
+  intro s n hsn
+  simp only [triA, Matrix.of_apply]
+  exact if_neg (not_le.mpr (by exact hsn))
+
+/-- Diagonal entries of `triA` are 1. -/
+private theorem triA_diag (N : ℕ) (s : Fin N) :
+    triA N s s = 1 := by
+  simp only [triA, Matrix.of_apply, le_refl, ite_true, Nat.sub_self, signedEsp]
+  simp [Finset.powersetCard_zero]
+
+/-- `det(triA) = 1` (lower triangular with 1s on diagonal). -/
+private theorem det_triA_eq_one (N : ℕ) : (triA N).det = 1 := by
+  rw [Matrix.det_of_lowerTriangular _ (triA_blockTriangular N)]
+  simp [triA_diag]
+
+/-- **Key identity**: `det(B) = V_x * V_y`.
+
+This is the cleared-denominator form of the Cauchy determinant formula:
+the determinant of the matrix `B_{ij} = ∏_{k≠j}(1-xᵢyₖ)` equals the product
+of the x-Vandermonde and y-Vandermonde determinants. -/
+private theorem det_clearedDenomMatrix_eq_vandermonde_prod (N : ℕ) :
+    (clearedDenomMatrix N).det = vandermondeFPS_x N * vandermondeFPS_y N := by
+  rw [vandermondeFPS_x_eq_det, vandermondeFPS_y_eq_det]
+  -- det(B) = det(vandermonde(x)) * det(vandermonde(y))
+  rw [clearedDenom_eq_vanderm_mul_esp, Matrix.det_mul]
+  -- det(E) = det(triA * vandermonde(y)) = det(triA) * det(vandermonde(y)) = 1 * det(y) = det(y)
+  rw [espMatrix_eq_triA_mul_vanderm, Matrix.det_mul, det_triA_eq_one, one_mul,
+      Matrix.det_transpose]
 
 /-- **FPS Cauchy identity**: the product of x- and y-Vandermonde polynomials with the full
 Cauchy product equals the Cauchy RHS (= determinant of the Cauchy matrix).
 
-This is the formal power series identity `Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS`.
-
-The proof reduces to the polynomial identity `V_x · V_y = cauchyRHS · denomProd`
-via the helper `denomProd · fullCauchyProd = 1`. The polynomial identity is
-`det(clearedDenomMatrix) = V_x · V_y`, proved by matrix factorization. -/
+This is the formal power series identity `Δ_x · Δ_y · ∏_{i,j} 1/(1-xᵢyⱼ) = cauchyRHS`. -/
 private theorem vandermonde_mul_fullCauchyProd_eq_cauchyRHS (N : ℕ) :
     vandermondeFPS_x N * vandermondeFPS_y N * fullCauchyProd N ℂ = cauchyRHS N ℂ := by
-  -- Reduce using denomProd * fullCauchyProd = 1
-  have h_inv : (∏ p : Fin N × Fin N,
-      (1 - xVar N p.1 * yVar N p.2 :
-        MvPowerSeries (CauchyVars N) ℂ)) *
-    fullCauchyProd N ℂ = 1 := denomProd_mul_fullCauchyProd N
-  -- V_x * V_y = cauchyRHS * denomProd
-  have hsuff : vandermondeFPS_x N * vandermondeFPS_y N =
-      cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
-        (1 - xVar N p.1 * yVar N p.2 :
-          MvPowerSeries (CauchyVars N) ℂ)) := by
-    rw [cauchyRHS_mul_denomProd_eq_det, det_clearedDenomMatrix_eq]
+  -- Strategy: det(B) = V_x * V_y, and det(B) = denomProd * det(cauchyMatrix),
+  -- and denomProd * fullCauchyProd = 1, and det(cauchyMatrix) = cauchyRHS.
+  have h1 := det_clearedDenomMatrix_eq_vandermonde_prod N
+  have h2 := det_clearedDenomMatrix_eq N
+  have h3 := denomProd_mul_fullCauchyProd N
+  have h4 := Corollary5_15_4 ℂ N
+  -- From h1 and h2: V_x * V_y = denomProd * det(cauchyMatrix)
+  -- From h4: det(cauchyMatrix) = cauchyRHS
+  -- So V_x * V_y = denomProd * cauchyRHS
+  -- Hence V_x * V_y * fullCauchyProd = denomProd * cauchyRHS * fullCauchyProd
+  --   = cauchyRHS * (denomProd * fullCauchyProd) = cauchyRHS * 1 = cauchyRHS
   calc vandermondeFPS_x N * vandermondeFPS_y N * fullCauchyProd N ℂ
-      = cauchyRHS N ℂ * (∏ p : Fin N × Fin N,
-          (1 - xVar N p.1 * yVar N p.2 :
-            MvPowerSeries (CauchyVars N) ℂ)) *
-        fullCauchyProd N ℂ := by rw [hsuff]
-    _ = cauchyRHS N ℂ * ((∏ p : Fin N × Fin N,
-          (1 - xVar N p.1 * yVar N p.2 :
-            MvPowerSeries (CauchyVars N) ℂ)) *
-        fullCauchyProd N ℂ) := by ring
-    _ = cauchyRHS N ℂ * 1 := by rw [h_inv]
-    _ = cauchyRHS N ℂ := mul_one _
+      = (clearedDenomMatrix N).det * fullCauchyProd N ℂ := by rw [h1]
+    _ = denomProd N * (cauchyMatrix N ℂ).det * fullCauchyProd N ℂ := by rw [h2]
+    _ = (cauchyMatrix N ℂ).det * (denomProd N * fullCauchyProd N ℂ) := by ring
+    _ = (cauchyMatrix N ℂ).det * 1 := by rw [h3]
+    _ = (cauchyMatrix N ℂ).det := by ring
+    _ = cauchyRHS N ℂ := h4
 
 /-- Coefficient extraction for a monomial-sum times a power series:
 if `V = ∑_π sign(π) • monomial(e(π)) 1` and `F` is an FPS, then
