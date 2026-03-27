@@ -111,9 +111,23 @@ private noncomputable def inducedRepV {G A : Type} [Group G] [CommGroup A] [Fint
         ext q; simp only [RingHom.id_apply, Pi.smul_apply]
         rw [LinearMap.map_smul, smul_comm] }
     map_one' := by
-      -- Action of (1,1) is identity:
-      -- χ(φ(q.out⁻¹)(1)) = 1, transition element = 1, U.ρ(1) = id
-      sorry
+      apply LinearMap.ext; intro f; funext q
+      -- f : (G ⧸ H) → ↥U, q : G ⧸ H
+      -- Goal: action of (1,1) on f at q = f q
+      -- Step 1: character factor = 1
+      have h1 : ((χ ((φ q.out⁻¹ : MulAut A) (1 : A ⋊[φ] G).left) : ℂˣ) : ℂ) = 1 := by
+        simp only [SemidirectProduct.one_left, map_one, Units.val_one]
+      -- Step 2: coset unchanged by identity
+      have h2 : (1 : A ⋊[φ] G).right⁻¹ • q = q := by
+        simp [SemidirectProduct.one_right]
+      -- Step 3: transition element is 1
+      have h3 : (⟨q.out⁻¹ * (1 : A ⋊[φ] G).right *
+          ((1 : A ⋊[φ] G).right⁻¹ • q).out,
+          transition_mem_stab φ χ (1 : A ⋊[φ] G).right q⟩ :
+          ↥(stabAux φ χ)) = 1 := by
+        ext
+        simp [SemidirectProduct.one_right, inv_mul_cancel]
+      simp only [h1, h2, h3, one_smul]
     map_mul' := fun ag₁ ag₂ => by
       -- This is the cocycle condition for the induced representation
       sorry }
