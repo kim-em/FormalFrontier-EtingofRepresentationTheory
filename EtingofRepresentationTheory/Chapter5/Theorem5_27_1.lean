@@ -127,9 +127,16 @@ private noncomputable def inducedRepV {G A : Type} [Group G] [CommGroup A] [Fint
           ↥(stabAux φ χ)) = 1 := by
         ext
         simp [SemidirectProduct.one_right, inv_mul_cancel]
-      simp only [h1, h2, h3, one_smul]
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, h1, h2, one_smul]
+      -- Goal: ρ_U(⟨q.out⁻¹ * 1 * q.out, _⟩)(f q) = f q
+      -- The subtype proof doesn't match after simp rewrote h2, so use congr/ext
+      have : ∀ (s : ↥(stabAux φ χ)) (hs : (s : G) = 1) (v : ↥U),
+          (FDRep.ρ U s) v = v := by
+        intro s hs v
+        have : s = 1 := Subtype.ext hs
+        rw [this, map_one, Module.End.one_apply]
+      exact this _ (by simp [SemidirectProduct.one_right, inv_mul_cancel]) _
     map_mul' := fun ag₁ ag₂ => by
-      -- This is the cocycle condition for the induced representation
       sorry }
 
 open Classical in
