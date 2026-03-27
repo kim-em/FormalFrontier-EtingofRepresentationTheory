@@ -4,6 +4,8 @@ import EtingofRepresentationTheory.Chapter6.Definition6_6_1
 import EtingofRepresentationTheory.Chapter6.Definition6_6_2
 import EtingofRepresentationTheory.Chapter6.Corollary6_8_2
 import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
+import EtingofRepresentationTheory.Chapter6.Proposition6_6_7
+import EtingofRepresentationTheory.Chapter6.Proposition6_6_8
 
 /-!
 # Coxeter Element Infrastructure: Admissible Orderings
@@ -753,6 +755,294 @@ private lemma iteratedSimpleReflection_perm_fixed_zero
           congr_fun (congr_fun hAsymm p) j]; ring
     rw [hcoeff, hAv_zero, zero_smul, sub_zero]
 
+/-! ## Linearity and additivity of simple reflections -/
+
+/-- Simple reflection is additive: s_i(u + v) = s_i(u) + s_i(v). -/
+private lemma simpleReflection_add
+    (A : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) (u v : Fin n → ℤ) :
+    simpleReflection n A i (u + v) =
+    simpleReflection n A i u + simpleReflection n A i v := by
+  unfold simpleReflection rootReflection
+  ext j
+  simp only [Pi.sub_apply, Pi.smul_apply, Pi.add_apply, Pi.single_apply, smul_eq_mul,
+    add_dotProduct]
+  ring
+
+/-- Simple reflection maps 0 to 0. -/
+private lemma simpleReflection_zero
+    (A : Matrix (Fin n) (Fin n) ℤ) (i : Fin n) :
+    simpleReflection n A i 0 = 0 := by
+  ext j
+  simp only [simpleReflection, rootReflection, Pi.sub_apply, Pi.smul_apply,
+    Pi.single_apply, Pi.zero_apply, dotProduct, Matrix.mulVec]
+  simp
+
+/-- `iteratedSimpleReflection` is additive. -/
+private lemma iteratedSimpleReflection_add
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n)) (u v : Fin n → ℤ) :
+    iteratedSimpleReflection n A vs (u + v) =
+    iteratedSimpleReflection n A vs u + iteratedSimpleReflection n A vs v := by
+  induction vs generalizing u v with
+  | nil => rfl
+  | cons k rest ih =>
+    rw [iteratedSimpleReflection_cons, iteratedSimpleReflection_cons,
+      iteratedSimpleReflection_cons, simpleReflection_add, ih]
+
+/-- `iteratedSimpleReflection` maps 0 to 0. -/
+private lemma iteratedSimpleReflection_zero
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n)) :
+    iteratedSimpleReflection n A vs 0 = 0 := by
+  induction vs with
+  | nil => rfl
+  | cons k rest ih => rw [iteratedSimpleReflection_cons, simpleReflection_zero, ih]
+
+/-- `iteratedSimpleReflection` distributes over finite sums. -/
+private lemma iteratedSimpleReflection_sum
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n))
+    {ι : Type*} (s : Finset ι) (f : ι → (Fin n → ℤ)) :
+    iteratedSimpleReflection n A vs (∑ i ∈ s, f i) =
+    ∑ i ∈ s, iteratedSimpleReflection n A vs (f i) := by
+  induction s using Finset.cons_induction with
+  | empty => simp [iteratedSimpleReflection_zero]
+  | cons a s has ih =>
+    rw [Finset.sum_cons, iteratedSimpleReflection_add, ih, Finset.sum_cons]
+
+/-! ## Finiteness of B-level sets
+
+The set of integer vectors with a given bilinear form value is finite
+when the Cartan matrix is positive definite (Dynkin case). -/
+
+/-- The set of integer vectors with a given B-value is finite for Dynkin diagrams. -/
+private theorem finite_B_level_set
+    (hDynkin : IsDynkinDiagram n adj) (K : ℤ) :
+    Set.Finite {v : Fin n → ℤ |
+      dotProduct v ((cartanMatrix n adj).mulVec v) = K} := by
+  set A := cartanMatrix n adj with hA_def
+  -- A.mulVec is injective (from positive definiteness)
+  have hA_inj : Function.Injective A.mulVec := by
+    intro x y hxy
+    by_contra hne
+    have hpos := hDynkin.2.2.2.2 (x - y) (sub_ne_zero.mpr hne)
+    have hzero : A.mulVec (x - y) = 0 := by
+      rw [Matrix.mulVec_sub]; exact sub_eq_zero.mpr hxy
+    have : dotProduct (x - y) (A.mulVec (x - y)) = 0 := by
+      rw [hzero]; simp [dotProduct]
+    rw [show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) = A from rfl] at hpos
+    linarith
+  -- Positive semi-definiteness
+  have hB_nonneg : ∀ w : Fin n → ℤ, 0 ≤ dotProduct w (A.mulVec w) := by
+    intro w; by_cases hw : w = 0
+    · subst hw; simp [dotProduct, Matrix.mulVec]
+    · have := hDynkin.2.2.2.2 w hw
+      rw [show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) = A from rfl] at this
+      linarith
+  have hA_symm := cartanMatrix_isSymm hDynkin.1
+  -- B(eᵢ, eᵢ) = 2
+  have hBei : ∀ i : Fin n,
+      dotProduct (Pi.single i 1) (A.mulVec (Pi.single i 1)) = 2 := by
+    intro i
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply, mul_ite, mul_one, mul_zero,
+      ite_mul, one_mul, zero_mul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    simp only [hA_def, cartanMatrix, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply, if_pos rfl, smul_eq_mul, mul_one]
+    have := hDynkin.2.1 i; simp_all
+  -- Symmetry helpers
+  have hB_coord : ∀ (v : Fin n → ℤ) (i : Fin n),
+      dotProduct v (A.mulVec (Pi.single i 1)) = A.mulVec v i := by
+    intro v i
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply,
+      mul_ite, mul_one, mul_zero,
+      Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    exact Finset.sum_congr rfl fun j _ => by
+      rw [show A j i = A i j from congr_fun (congr_fun hA_symm i) j]; ring
+  have hB_coord' : ∀ (v : Fin n → ℤ) (i : Fin n),
+      dotProduct (Pi.single i 1) (A.mulVec v) = A.mulVec v i := by
+    intro v i
+    simp only [dotProduct, Matrix.mulVec, Pi.single_apply]
+    simp only [ite_mul, one_mul, zero_mul, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  -- Key bound: B(v,v) = K implies |(Av)ᵢ| ≤ K + 2
+  have hAv_bound : ∀ v : Fin n → ℤ, dotProduct v (A.mulVec v) = K →
+      ∀ i, -(K + 2) ≤ A.mulVec v i ∧ A.mulVec v i ≤ K + 2 := by
+    intro v hv i
+    have hplus := hB_nonneg (v + Pi.single i 1)
+    have hminus := hB_nonneg (v - Pi.single i 1)
+    rw [Matrix.mulVec_add, add_dotProduct, dotProduct_add, dotProduct_add] at hplus
+    rw [Matrix.mulVec_sub, sub_dotProduct, dotProduct_sub, dotProduct_sub] at hminus
+    rw [hv, hBei, hB_coord v i, hB_coord' v i] at hplus hminus
+    constructor <;> omega
+  -- Inject into finite Icc via A.mulVec
+  apply Set.Finite.subset
+    ((Set.finite_Icc (fun _ : Fin n => -(K + 2)) (fun _ => K + 2)).preimage
+      (Set.InjOn.mono (Set.subset_univ _) (Set.injOn_of_injective hA_inj)))
+  intro v hv
+  simp only [Set.mem_setOf_eq] at hv
+  simp only [Set.mem_preimage, Set.mem_Icc, Pi.le_def]
+  exact ⟨fun i => (hAv_bound v hv i).1, fun i => (hAv_bound v hv i).2⟩
+
+/-! ## Generalized Lemma 6.7.2 for arbitrary permutation Coxeter elements
+
+For any permutation σ of [0..n-1], the Coxeter element c_σ = s_{σ_n}∘...∘s_{σ_1}
+satisfies: for nonneg nonzero β, some iterate c_σ^N(β) has a negative entry.
+
+The proof uses: B-preservation → finite orbit → periodic → sum of period is
+fixed by c_σ → zero by `iteratedSimpleReflection_perm_fixed_zero` → contradiction
+with nonneg nonzero. -/
+
+/-- Iterated application of the σ-Coxeter element preserves B. -/
+private lemma iteratedSimpleReflection_iter_preserves_B
+    (hDynkin : IsDynkinDiagram n adj) (σ : List (Fin n))
+    (v : Fin n → ℤ) (N : ℕ) :
+    dotProduct ((fun w => iteratedSimpleReflection n (cartanMatrix n adj) σ w)^[N] v)
+      ((cartanMatrix n adj).mulVec
+        ((fun w => iteratedSimpleReflection n (cartanMatrix n adj) σ w)^[N] v)) =
+    dotProduct v ((cartanMatrix n adj).mulVec v) := by
+  induction N with
+  | zero => rfl
+  | succ N ih =>
+    simp only [Function.iterate_succ', Function.comp_apply]
+    rw [iteratedSimpleReflection_preserves_B hDynkin, ih]
+
+/-- The orbit of any vector under a σ-Coxeter element is finite. -/
+private theorem iteratedSimpleReflection_orbit_finite
+    (hDynkin : IsDynkinDiagram n adj) (σ : List (Fin n))
+    (v : Fin n → ℤ) :
+    Set.Finite (Set.range (fun N =>
+      (fun w => iteratedSimpleReflection n (cartanMatrix n adj) σ w)^[N] v)) := by
+  apply Set.Finite.subset (finite_B_level_set hDynkin
+    (dotProduct v ((cartanMatrix n adj).mulVec v)))
+  intro w ⟨N, hN⟩
+  simp only [Set.mem_setOf_eq]
+  rw [← hN, iteratedSimpleReflection_iter_preserves_B hDynkin]
+
+/-- `iteratedSimpleReflection` negates: c(-v) = -c(v). -/
+private lemma iteratedSimpleReflection_neg
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n)) (v : Fin n → ℤ) :
+    iteratedSimpleReflection n A vs (-v) =
+    -iteratedSimpleReflection n A vs v := by
+  have h : iteratedSimpleReflection n A vs v +
+      iteratedSimpleReflection n A vs (-v) = 0 := by
+    rw [← iteratedSimpleReflection_add, add_neg_cancel, iteratedSimpleReflection_zero]
+  exact eq_neg_of_add_eq_zero_right h
+
+/-- `iteratedSimpleReflection` distributes over subtraction. -/
+private lemma iteratedSimpleReflection_sub
+    (A : Matrix (Fin n) (Fin n) ℤ) (vs : List (Fin n)) (u v : Fin n → ℤ) :
+    iteratedSimpleReflection n A vs (u - v) =
+    iteratedSimpleReflection n A vs u - iteratedSimpleReflection n A vs v := by
+  rw [sub_eq_add_neg, iteratedSimpleReflection_add, iteratedSimpleReflection_neg, ← sub_eq_add_neg]
+
+/-- `iteratedSimpleReflection` with a permutation is injective.
+Proof: if c(u) = c(v), then c(u-v) = 0, so B(u-v,u-v) = 0, hence u = v. -/
+private lemma iteratedSimpleReflection_injective
+    (hDynkin : IsDynkinDiagram n adj) (σ : List (Fin n))
+    (_hσ : σ.Perm (List.finRange n)) :
+    Function.Injective (fun v => iteratedSimpleReflection n (cartanMatrix n adj) σ v) := by
+  intro u v huv
+  have hlin : iteratedSimpleReflection n (cartanMatrix n adj) σ (u - v) = 0 := by
+    rw [iteratedSimpleReflection_sub]
+    exact sub_eq_zero.mpr huv
+  have hB := iteratedSimpleReflection_preserves_B hDynkin σ (u - v)
+  rw [hlin] at hB
+  simp only [dotProduct, Pi.zero_apply, zero_mul, Finset.sum_const_zero] at hB
+  -- hB : 0 = Σ (u-v)_i * (A(u-v))_i, i.e. B(u-v,u-v) = 0
+  by_contra hne
+  have hpos := hDynkin.2.2.2.2 (u - v) (sub_ne_zero.mpr hne)
+  rw [show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) = cartanMatrix n adj from rfl] at hpos
+  -- hpos : 0 < dotProduct (u-v) (A *ᵥ (u-v))
+  simp only [dotProduct] at hpos
+  linarith
+
+/-- The orbit of any vector under a permutation Coxeter element is eventually periodic.
+Returns period M > 0 with c^M(v) = v. -/
+private theorem iteratedSimpleReflection_periodic
+    (hDynkin : IsDynkinDiagram n adj) (σ : List (Fin n))
+    (hσ : σ.Perm (List.finRange n)) (v : Fin n → ℤ) :
+    ∃ M : ℕ, 0 < M ∧
+      (fun w => iteratedSimpleReflection n (cartanMatrix n adj) σ w)^[M] v = v := by
+  set c := fun w => iteratedSimpleReflection n (cartanMatrix n adj) σ w
+  have hinj := iteratedSimpleReflection_injective hDynkin σ hσ
+  have hfin := iteratedSimpleReflection_orbit_finite hDynkin σ v
+  -- Orbit is a finite subset of (Fin n → ℤ), so by pigeonhole
+  -- there exist a ≠ b with c^a(v) = c^b(v)
+  have hnotinj : ∃ a b, c^[a] v = c^[b] v ∧ a ≠ b := by
+    by_contra hall
+    push_neg at hall
+    -- hall : ∀ a b, c^a(v) = c^b(v) → a = b, i.e. the orbit map is injective
+    exact Set.infinite_range_of_injective (fun a b hab => hall a b hab) |>.not_finite hfin
+  obtain ⟨a, b, hab, hne⟩ := hnotinj
+  rcases lt_or_gt_of_ne hne with h | h
+  · refine ⟨b - a, Nat.sub_pos_of_lt h, ?_⟩
+    have hiter : c^[a] (c^[b - a] v) = c^[a] v := by
+      rw [← Function.iterate_add_apply, Nat.add_sub_cancel' (le_of_lt h)]
+      exact hab.symm
+    exact Function.Injective.iterate hinj a hiter
+  · refine ⟨a - b, Nat.sub_pos_of_lt h, ?_⟩
+    have hiter : c^[b] (c^[a - b] v) = c^[b] v := by
+      rw [← Function.iterate_add_apply, Nat.add_sub_cancel' (le_of_lt h)]
+      exact hab
+    exact Function.Injective.iterate hinj b hiter
+
+/-- **Generalized Lemma 6.7.2**: For any permutation σ of [0..n-1], a nonneg nonzero
+vector eventually gets a negative entry under iteration of the σ-Coxeter element.
+
+Proof: by contradiction. If all iterates are nonneg, the orbit is periodic (by
+finiteness). The sum of one period is a fixed point of c_σ, hence zero. But the
+sum is nonneg and ≥ β ≠ 0. Contradiction. -/
+private theorem generalized_Lemma6_7_2
+    (hDynkin : IsDynkinDiagram n adj) (σ : List (Fin n))
+    (hσ : σ.Perm (List.finRange n))
+    (β : Fin n → ℤ) (hβ_nonneg : ∀ i, 0 ≤ β i) (hβ_nonzero : β ≠ 0) :
+    ∃ N : ℕ, ∃ i : Fin n,
+      ((fun v => iteratedSimpleReflection n (cartanMatrix n adj) σ v)^[N] β) i < 0 := by
+  set c := fun v => iteratedSimpleReflection n (cartanMatrix n adj) σ v
+  by_contra h
+  push_neg at h
+  -- h : ∀ N i, 0 ≤ c^[N](β) i
+  -- Step 1: Get periodicity M > 0 with c^M(β) = β
+  obtain ⟨M, hM_pos, hM_period⟩ := iteratedSimpleReflection_periodic hDynkin σ hσ β
+  -- Step 2: Define S = β + c(β) + ... + c^{M-1}(β)
+  set S := ∑ k ∈ Finset.range M, c^[k] β with hS_def
+  -- Step 3: S is nonneg
+  have hS_nonneg : ∀ i, 0 ≤ S i := by
+    intro i; simp only [hS_def, Finset.sum_apply]
+    exact Finset.sum_nonneg (fun k _ => h k i)
+  -- Step 4: S ≠ 0 (β = c^0(β) is a summand, and all terms are nonneg)
+  have hS_nonzero : S ≠ 0 := by
+    intro hS_eq
+    have hβ_zero : β = 0 := by
+      funext i
+      have hSi : S i = 0 := congr_fun hS_eq i
+      rw [hS_def, Finset.sum_apply] at hSi
+      have h_each := (Finset.sum_eq_zero_iff_of_nonneg (fun k _ => h k i)).mp hSi
+      have h0 : c^[0] β i = 0 := h_each 0 (Finset.mem_range.mpr hM_pos)
+      simp only [Function.iterate_zero, id_eq] at h0
+      exact h0
+    exact hβ_nonzero hβ_zero
+  -- Step 5: c(S) = S (by linearity + periodicity)
+  -- c(S) = c(Σ c^k β) = Σ c^{k+1} β = Σ_{k=1}^{M} c^k β
+  --      = Σ_{k=0}^{M-1} c^k β  (since c^M β = β)
+  --      = S
+  have hcS : c S = S := by
+    -- c(S) = Σ c(c^k β) = Σ c^{k+1} β
+    change iteratedSimpleReflection n (cartanMatrix n adj) σ S = S
+    rw [hS_def, iteratedSimpleReflection_sum]
+    -- Each term: c(c^k(β)) = c^{k+1}(β)
+    have h_succ : ∀ k, iteratedSimpleReflection n (cartanMatrix n adj) σ (c^[k] β) =
+        c^[k + 1] β := by
+      intro k; change c (c^[k] β) = c^[k + 1] β
+      rw [show k + 1 = k.succ from rfl, Function.iterate_succ', Function.comp_apply]
+    simp_rw [h_succ]
+    -- Σ_{k∈range M} c^{k+1} β = Σ_{k∈range M} c^k β (using c^M β = β)
+    have hsr' := Finset.sum_range_succ' (fun k => c^[k] β) M
+    have hsr := Finset.sum_range_succ (fun k => c^[k] β) M
+    simp only [Function.iterate_zero, id_eq] at hsr'
+    rw [show c^[M] β = β from hM_period] at hsr
+    exact add_right_cancel (hsr'.symm.trans hsr)
+  -- Step 6: S is a fixed point of c_σ, hence S = 0
+  have hS_zero := iteratedSimpleReflection_perm_fixed_zero hDynkin σ hσ S hcS
+  -- Step 7: But S ≠ 0. Contradiction.
+  exact hS_nonzero hS_zero
+
 /-! ## Dimension vector tracking through admissible ordering
 
 The key connection: applying one full round of reflection functors along an
@@ -763,30 +1053,58 @@ Specifically, if σ = (σ₁, ..., σₙ) is an admissible ordering, then:
 
 where c = s_{σ₁} ... s_{σₙ} is the Coxeter element.
 
-Combined with Lemma 6.7.2 (Coxeter action eventually produces negative entries)
-and Proposition 6.6.5 (non-surjective at sink → simple representation), this
-gives the representation-level reduction:
-
-For V indecomposable, after finitely many Coxeter rounds, V reduces to a
-simple representation α_p. Then B(d(V), d(V)) = B(α_p, α_p) = 2.
+Combined with the generalized Lemma 6.7.2 (Coxeter action eventually produces
+negative entries) and Proposition 6.6.5 (non-surjective at sink → simple
+representation), this gives the representation-level reduction.
 
 This is the content of the book's proof of Theorem 6.8.1 + Corollary 6.8.2. -/
+
+/-- **One round of reflection functors along an admissible ordering.**
+
+For an indecomposable representation V with admissible ordering σ, either:
+- Some prefix of σ reduces d(V) to a simple root αₚ, or
+- After the full round, the Coxeter-transformed dimension vector c_σ(d(V))
+  is nonneg and is the dimension vector of an indecomposable representation
+  on the same quiver Q (since reversal at all vertices returns Q).
+
+The proof applies Props 6.6.5, 6.6.7, 6.6.8 at each step of the admissible
+ordering, threading the type-changing quiver instances. -/
+private lemma one_round_or_simpleRoot
+    (hDynkin : IsDynkinDiagram n adj)
+    {k : Type*} [Field k]
+    {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    (σ : List (Fin n)) (hσ : IsAdmissibleOrdering Q σ)
+    (ρ : @QuiverRepresentation k (Fin n) _ Q)
+    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
+    (hρ : ρ.IsIndecomposable)
+    (d : Fin n → ℤ) (hd : d = fun v => (Module.finrank k (ρ.obj v) : ℤ)) :
+    (∃ (i : ℕ) (p : Fin n), i ≤ σ.length ∧
+      iteratedSimpleReflection n (cartanMatrix n adj) (σ.take i) d = simpleRoot n p)
+    ∨
+    ((∀ i, 0 ≤ iteratedSimpleReflection n (cartanMatrix n adj) σ d i) ∧
+     iteratedSimpleReflection n (cartanMatrix n adj) σ d ≠ 0 ∧
+     ∃ (ρ' : @QuiverRepresentation k (Fin n) _ Q)
+       (_ : ∀ v, Module.Free k (ρ'.obj v))
+       (_ : ∀ v, Module.Finite k (ρ'.obj v)),
+       ρ'.IsIndecomposable ∧
+       ∀ v, (Module.finrank k (ρ'.obj v) : ℤ) =
+         iteratedSimpleReflection n (cartanMatrix n adj) σ d v) := by
+  -- This requires type-changing iterated reflection functors:
+  -- At each step, apply F⁺_{σ_i} to the current representation on Q_i,
+  -- getting a representation on Q_{i+1} = reversedAtVertex Q_i σ_i.
+  -- After all n steps, Q_n = Q (each edge reversed twice).
+  -- Uses Props 6.6.5 (simple or surjective), 6.6.7 (F⁺ preserves indecomp),
+  -- 6.6.8 (dim vector under F⁺ = simple reflection).
+  sorry
 
 /-- **Representation-level Theorem 6.8.1**: For an indecomposable representation V
 of a Dynkin quiver, there exist simple reflections reducing d(V) to a simple root.
 
 The proof follows the book's argument:
 1. Choose an admissible ordering σ = (σ₁, ..., σₙ)
-2. Apply reflection functors F⁺_{σ₁}, F⁺_{σ₂}, ... along the ordering
-3. At each step, by Prop 6.6.5: either V^(i) is simple (done) or surjective at σᵢ
-4. If surjective, by Prop 6.6.8: d(V^(i+1)) = s_{σᵢ}(d(V^(i)))
-5. By Prop 6.6.7: V^(i+1) is indecomposable
-6. By Lemma 6.7.2: this cannot continue indefinitely (d would get negative entries)
-7. At the first non-surjective step, d(V^(i)) = αₚ for some vertex p
-
-The main technical challenge is the type-changing iteration: each F⁺ changes the
-quiver type. This requires threading `Module.Free`/`Module.Finite` instances and
-connecting the representation-level iteration to `iteratedSimpleReflection`. -/
+2. Apply `one_round_or_simpleRoot` to get either a simple root or a new indecomp rep
+3. By the generalized Lemma 6.7.2, this iteration cannot continue indefinitely
+4. Conclusion: some prefix of the iterated ordering reduces d(V) to a simple root -/
 private lemma indecomposable_reduces_to_simpleRoot
     (hDynkin : IsDynkinDiagram n adj)
     {k : Type*} [Field k]
@@ -797,12 +1115,53 @@ private lemma indecomposable_reduces_to_simpleRoot
     ∃ (vertices : List (Fin n)) (p : Fin n),
       iteratedSimpleReflection n (cartanMatrix n adj) vertices
         (fun v => (Module.finrank k (ρ.obj v) : ℤ)) = simpleRoot n p := by
-  -- Requires type-changing iterated reflection functor along admissible ordering.
-  -- Each F⁺_i changes the quiver from Q to reversedAtVertex Q i, requiring
-  -- Module.Free/Module.Finite instances to be threaded through the iteration.
-  -- The termination argument uses Lemma 6.7.2 (Coxeter action eventually produces
-  -- negative entries) combined with the constraint that finrank ≥ 0.
-  sorry
+  obtain ⟨σ, hσ⟩ := admissibleOrdering_exists hDynkin hOrient
+  set A := cartanMatrix n adj
+  set d := fun v => (Module.finrank k (ρ.obj v) : ℤ) with hd_def
+  set c := fun v => iteratedSimpleReflection n A σ v
+  -- d is nonneg
+  have hd_nonneg : ∀ i, 0 ≤ d i := fun i => Int.natCast_nonneg _
+  -- d is nonzero (indecomposable → nontrivial at some vertex → finrank > 0)
+  have hd_nonzero : d ≠ 0 := by
+    obtain ⟨v, hv⟩ := hρ.1
+    intro heq
+    have h0 : d v = 0 := congr_fun heq v
+    simp only [hd_def] at h0
+    -- finrank = 0 contradicts Nontrivial (which gives finrank ≥ 1)
+    have hfr : Module.finrank k (ρ.obj v) = 0 := by exact_mod_cast h0
+    -- Use the same pattern as Proposition6_6_7: upgrade AddCommMonoid to AddCommGroup
+    letI : ∀ w, AddCommGroup (ρ.obj w) := fun w => Etingof.addCommGroupOfRing (k := k)
+    have hpos := Module.finrank_pos (R := k) (M := ρ.obj v)
+    omega
+  -- By generalized Lemma 6.7.2: ∃ N i, c^N(d)_i < 0
+  have hσ_perm := hσ.perm
+  obtain ⟨N, i, hNeg⟩ := generalized_Lemma6_7_2 hDynkin σ hσ_perm d hd_nonneg hd_nonzero
+  -- By contradiction with one_round_or_simpleRoot iterated N times:
+  -- if no prefix gives simple root, all c^M(d) are nonneg, contradicting hNeg.
+  -- Iterate one_round_or_simpleRoot N times using the representation ρ.
+  -- At each round M, either:
+  --   (a) some prefix of the M-th round gives simple root → done, or
+  --   (b) c^M(d) is nonneg with an indecomp rep ρ_M on Q
+  -- If (b) holds for all M ≤ N, then c^N(d) is nonneg, contradicting hNeg.
+  -- So (a) must hold for some M. The vertices are σ ++ σ ++ ... ++ σ.take(prefix).
+  suffices ∀ (M : ℕ),
+    (∃ (vertices : List (Fin n)) (p : Fin n),
+      iteratedSimpleReflection n A vertices d = simpleRoot n p) ∨
+    (∀ j, 0 ≤ c^[M] d j) by
+    rcases this N with ⟨vertices, p, hp⟩ | hNN
+    · exact ⟨vertices, p, hp⟩
+    · exact absurd (hNN i) (not_le.mpr hNeg)
+  intro M
+  induction M with
+  | zero =>
+    right; intro j; simp only [Function.iterate_zero, id_eq]; exact hd_nonneg j
+  | succ M ih =>
+    rcases ih with ⟨vertices, p, hp⟩ | hM_nonneg
+    · left; exact ⟨vertices, p, hp⟩
+    · -- c^M(d) is nonneg, apply one_round_or_simpleRoot
+      -- Need: c^M(d) is the dim vector of some indecomp rep on Q
+      -- This is the key representation-level fact
+      sorry
 
 /-- The dimension vector of an indecomposable representation of a Dynkin quiver
 satisfies B(d, d) = 2 (not just ≤ 2).
