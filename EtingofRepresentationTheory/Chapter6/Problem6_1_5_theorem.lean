@@ -1,5 +1,7 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
+import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 
 /-!
 # Theorem (Problem 6.1.5): Finite Type iff Dynkin
@@ -12,25 +14,44 @@ graph (i.e., with directions of arrows forgotten) is a Dynkin diagram
 
 Gabriel's theorem is NOT in Mathlib. Quiver representations have basic support
 (`Quiver`, `Representation`), but Gabriel's classification is absent.
-The definition of "finite type" for quivers requires quiver representation theory
-infrastructure (indecomposable representations, isomorphism classes) not yet
-available in Mathlib.
 
 ## Formalization note
 
 The statement uses `IsDynkinDiagram` (Definition 6.1.4) for the combinatorial
-condition. The representation-theoretic side (`IsFiniteTypeQuiver`) is defined
-as a sorry'd predicate pending development of quiver representation infrastructure.
-The hypotheses unpack the connected simple graph conditions.
+condition. `IsFiniteTypeQuiver` is defined using quiver representation isomorphism
+and indecomposability, quantified over all orientations and algebraically closed fields.
 -/
 
-/-- A quiver on n vertices (with underlying graph given by adjacency matrix adj) is of
-finite type if for every algebraically closed field k, the set of isomorphism classes
-of indecomposable k-representations of the path algebra kQ is finite.
+section QuiverRepresentationIso
 
-This is a placeholder definition — the full development requires quiver representation
-theory infrastructure not yet present in this project or in Mathlib. -/
-def Etingof.IsFiniteTypeQuiver (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) : Prop := sorry
+variable {k : Type*} [Field k] {n : ℕ} {Q : Quiver (Fin n)}
+
+/-- Two quiver representations are isomorphic if there exist linear isomorphisms at
+each vertex that intertwine the edge maps. -/
+def Etingof.QuiverRepresentation.AreIsomorphic
+    (V W : @Etingof.QuiverRepresentation k (Fin n) _ Q) : Prop :=
+  ∃ (e : ∀ v, V.obj v ≃ₗ[k] W.obj v),
+    ∀ {a b : Fin n} (f : a ⟶ b),
+      (e b).toLinearMap ∘ₗ V.mapLinear f = W.mapLinear f ∘ₗ (e a).toLinearMap
+
+end QuiverRepresentationIso
+
+/-- A quiver on n vertices (with underlying graph given by adjacency matrix adj) is of
+**finite type** if for every algebraically closed field k and every orientation Q of
+the graph, the set of dimension vectors supporting an indecomposable representation
+is finite.
+
+This is equivalent to there being only finitely many isomorphism classes of
+indecomposable representations, since for finite type quivers each dimension vector
+supports at most one indecomposable (up to isomorphism).
+Uses `QuiverRepresentation.IsIndecomposable` from Proposition 6.6.5. -/
+def Etingof.IsFiniteTypeQuiver (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) : Prop :=
+  ∀ (k : Type) [Field k] [IsAlgClosed k]
+    (Q : @Quiver.{0} (Fin n)), @Etingof.IsOrientationOf n Q adj →
+      Set.Finite
+        {d : Fin n → ℕ |
+          ∃ (V : @Etingof.QuiverRepresentation k (Fin n) _ Q),
+            V.IsIndecomposable ∧ ∀ v, V.obj v = (Fin (d v) → k)}
 
 /-- Gabriel's theorem: a connected quiver (given by its symmetric adjacency matrix)
 is of finite type (finitely many indecomposable representations up to isomorphism)
