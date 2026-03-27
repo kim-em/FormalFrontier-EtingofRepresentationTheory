@@ -62,6 +62,62 @@ private def stabAux {G A : Type} [Group G] [CommGroup A]
       rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply]] at h
     exact congrArg Units.val h.symm
 
+-- Helper: for s ∈ stabAux, χ(φ(s)(a)) = χ(a) (stabilizer invariance of character)
+private lemma stab_char_inv {G A : Type} [Group G] [CommGroup A]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ) {s : G} (hs : s ∈ stabAux φ χ) (a : A) :
+    χ ((φ s : MulAut A) a) = χ a := by
+  have hs' : dualSmulAux φ s χ = χ := hs
+  have h := DFunLike.ext_iff.mp hs' ((φ s : MulAut A) a)
+  simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at h
+  rw [show (φ s⁻¹ : MulAut A) ((φ s : MulAut A) a) = a from by
+    rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply]] at h
+  exact h.symm
+
+-- Helper: the transition element q.out⁻¹ * g * (g⁻¹ • q).out is in the stabilizer
+open Classical in
+private lemma transition_mem_stab {G A : Type} [Group G] [CommGroup A]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ) (g : G) (q : G ⧸ (stabAux φ χ)) :
+    q.out⁻¹ * g * (g⁻¹ • q).out ∈ stabAux φ χ := by
+  -- g⁻¹ • q.out and (g⁻¹ • q).out are in the same left coset of stabAux φ χ
+  -- because both project to g⁻¹ • q in the quotient
+  set gi := g⁻¹
+  have h1 := MulAction.Quotient.coe_smul_out (H := stabAux φ χ) gi q
+  -- h1 : ↑(gi • q.out) = gi • q
+  have h2 : (↑(gi • q).out : G ⧸ (stabAux φ χ)) = gi • q := Quotient.out_eq' _
+  have hmem := QuotientGroup.leftRel_apply.mp (Quotient.exact' (h1.trans h2.symm))
+  -- hmem : (gi • q.out)⁻¹ * (gi • q).out ∈ stabAux φ χ
+  simp only [gi, smul_eq_mul, mul_inv_rev, inv_inv] at hmem
+  exact hmem
+
+-- The induced representation V(χ, U) = Ind_{G_χ ⋉ A}^{G ⋉ A} (U ⊗ ℂ_χ)
+-- Underlying space: (G ⧸ stabAux φ χ) → U (functions from cosets to U's space)
+-- Action of (a, g') on f: permute cosets by g' and twist by χ and U
+open Classical in
+private noncomputable def inducedRepV {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ)) :
+    FDRep ℂ (A ⋊[φ] G) :=
+  FDRep.of (V := (G ⧸ (stabAux φ χ)) → ↥U) <|
+  { toFun := fun ag =>
+    { toFun := fun f q =>
+        let tq := q.out
+        let q' := ag.right⁻¹ • q
+        let s : ↥(stabAux φ χ) := ⟨tq⁻¹ * ag.right * q'.out,
+          transition_mem_stab φ χ ag.right q⟩
+        ((χ ((φ tq⁻¹ : MulAut A) ag.left) : ℂˣ) : ℂ) •
+          (FDRep.ρ U s (f q'))
+      map_add' := fun f₁ f₂ => by ext q; simp [smul_add]
+      map_smul' := fun c f => by
+        ext q; simp only [RingHom.id_apply, Pi.smul_apply]
+        rw [LinearMap.map_smul, smul_comm] }
+    map_one' := by
+      -- Action of (1,1) is identity:
+      -- χ(φ(q.out⁻¹)(1)) = 1, transition element = 1, U.ρ(1) = id
+      sorry
+    map_mul' := fun ag₁ ag₂ => by
+      -- This is the cocycle condition for the induced representation
+      sorry }
+
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
 via the orbit method: they are parametrized by pairs (O, U) where O is a
@@ -109,13 +165,10 @@ theorem Etingof.Theorem5_27_1
                 then (χ ((φ h : MulAut A) a) : ℂ) *
                   U.character ⟨h * g * h⁻¹, hh⟩
                 else 0) := by
-  -- Provide the dual action and stabilizer constructions
+  -- Provide the dual action, stabilizer, and induced representation constructions
   refine ⟨dualSmulAux φ, fun g χ a => rfl, stabAux φ, fun χ g => Iff.rfl, ?_⟩
-  -- The representation construction V(χ, U) = Ind_{G_χ ⋉ A}^{G ⋉ A} (U ⊗ ℂ_χ)
-  -- requires induced representation infrastructure for semidirect products
-  -- (Mackey machine / Clifford theory) which is not yet available in Mathlib.
-  -- Sorry the construction and the four properties (i)-(iv).
-  refine ⟨fun _ _ => sorry, ?_, ?_, ?_, ?_⟩
+  -- Use the concrete induced representation V(χ, U) = Ind_{G_χ ⋉ A}^{G ⋉ A} (U ⊗ ℂ_χ)
+  refine ⟨fun χ U => inducedRepV φ χ U, ?_, ?_, ?_, ?_⟩
   -- (i) Irreducibility: V(χ, U) is irreducible when U is irreducible
   · exact fun _ _ _ => sorry
   -- (ii) Orbit injectivity: iso implies same G-orbit
