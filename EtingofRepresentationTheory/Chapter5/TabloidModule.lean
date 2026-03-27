@@ -370,6 +370,98 @@ theorem toTabloid_eq_of_tabloidRowVec_eq (σ₁ σ₂ : Equiv.Perm (Fin n))
   rw [toTabloid_eq_iff_rowAssign]
   intro k; exact congr_fun h k
 
+/-! ### Column-increasing property of standard tableaux -/
+
+/-- In a standard tableau, entries in the same column are ordered by their row positions:
+if entries k₁ and k₂ are in the same column and k₁ has a strictly smaller row index,
+then k₁ < k₂. This is the column-increasing property. -/
+private theorem syt_entry_lt_of_row_lt (T : StandardYoungTableau n la) (k₁ k₂ : Fin n)
+    (hcol : colOfPos la.sortedParts (sytPerm n la T k₁).val =
+            colOfPos la.sortedParts (sytPerm n la T k₂).val)
+    (hrow : rowOfPos la.sortedParts (sytPerm n la T k₁).val <
+            rowOfPos la.sortedParts (sytPerm n la T k₂).val) :
+    k₁ < k₂ := by
+  set e := Equiv.ofBijective T.val T.prop.1
+  have hcell : ∀ k : Fin n, e.symm k = (canonicalFilling n la) (sytPerm n la T k) := by
+    intro k
+    simp only [e, sytPerm, Equiv.trans_apply, Equiv.apply_symm_apply]
+  -- Same column for the cells
+  have hcol' : (e.symm k₁).val.2 = (e.symm k₂).val.2 := by
+    rw [hcell k₁, hcell k₂]; exact hcol
+  -- k₁'s row < k₂'s row for the cells
+  have hrow' : (e.symm k₁).val.1 < (e.symm k₂).val.1 := by
+    rw [hcell k₁, hcell k₂]; exact hrow
+  -- Apply standard column-increasing property
+  have h := T.prop.2.2 (e.symm k₁) (e.symm k₂) hcol' hrow'
+  rwa [show T.val (e.symm k₁) = k₁ from e.apply_symm_apply k₁,
+       show T.val (e.symm k₂) = k₂ from e.apply_symm_apply k₂] at h
+
+/-! ### Column permutations decrease dominance -/
+
+/-- Within a column of a standard tableau, entries in earlier rows (smaller row index)
+have smaller values. Consequence: the entries in the first i rows of a column are
+exactly the smallest entries of that column. -/
+private theorem syt_col_entry_le_of_row_le (T : StandardYoungTableau n la)
+    (e₁ e₂ : Fin n)
+    (hcol : colOfPos la.sortedParts (sytPerm n la T e₁).val =
+            colOfPos la.sortedParts (sytPerm n la T e₂).val)
+    (hrow : rowOfPos la.sortedParts (sytPerm n la T e₁).val ≤
+            rowOfPos la.sortedParts (sytPerm n la T e₂).val) :
+    e₁ ≤ e₂ := by
+  rcases eq_or_lt_of_le hrow with hr | hr
+  · -- Same row and same column in T implies same position, hence same entry
+    have hsum : la.sortedParts.sum = n := sortedParts_sum_eq n la
+    have h₁ : (sytPerm n la T e₁).val < la.sortedParts.sum := by omega
+    have h₂ : (sytPerm n la T e₂).val < la.sortedParts.sum := by omega
+    have := rowOfPos_colOfPos_injective la.sortedParts
+      (sytPerm n la T e₁).val (sytPerm n la T e₂).val h₁ h₂ hr hcol
+    have := (sytPerm n la T).injective (Fin.ext this)
+    omega
+  · exact le_of_lt (syt_entry_lt_of_row_lt T e₁ e₂ hcol hr)
+
+/-- Abstract counting lemma: for a finset B ⊆ A, filtering B by P gives at most
+min(|B|, |filter P A|) elements. -/
+private theorem card_filter_le_min {α : Type*}
+    (A B : Finset α) (hB : B ⊆ A) (P : α → Prop) [DecidablePred P] :
+    (B.filter P).card ≤ min B.card (A.filter P).card :=
+  le_min (Finset.card_filter_le B P)
+    (Finset.card_le_card (Finset.filter_subset_filter P hB))
+
+/-- Column permutations preserve or decrease dominance for standard tableaux.
+
+For T a standard Young tableau and q ∈ Q_λ (position-level column subgroup), the
+tabloid of σ_T dominates the tabloid of q⁻¹ · σ_T. The key insight: within each
+column, the standard filling places the smallest entries in the earliest rows,
+maximizing the cumulative count. Any column permutation can only rearrange entries
+within columns, which cannot increase the count of small entries in early rows. -/
+theorem column_perm_dominance (T : StandardYoungTableau n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    tabloidDominates la (sytPerm n la T) (q⁻¹ * sytPerm n la T) := by
+  intro k i
+  simp only [tabloidCumulCount, Equiv.Perm.coe_mul, Function.comp_apply]
+  -- Define the entry-level column permutation g = σ_T⁻¹ * q⁻¹ * σ_T
+  set σ_T := sytPerm n la T
+  -- Key identity: q⁻¹(σ_T(e)) = σ_T(g(e)) where g = σ_T⁻¹ * q⁻¹ * σ_T
+  -- Rewrite LHS filter in terms of g
+  -- |{e ≤ k : row(q⁻¹(σ_T(e))) < i}| ≤ |{e ≤ k : row(σ_T(e)) < i}|
+  -- Use bijection: map e ↦ g(e) transforms the LHS set
+  -- Since g is a bijection, |{e ≤ k : row(q⁻¹(σ_T(e))) < i}|
+  --   = |{e' : row(σ_T(e')) < i ∧ g⁻¹(e') ≤ k}| (where e' = g(e), e = g⁻¹(e'))
+  -- We need: |{e' : row(σ_T(e')) < i ∧ g⁻¹(e') ≤ k}| ≤ |{e' : row(σ_T(e')) < i ∧ e' ≤ k}|
+  -- Per column: g⁻¹ permutes entries within each column, and entries in early rows
+  -- are the smallest in each column (standardness). So filtering A = {row < i} by
+  -- (· ≤ k) gives ≥ filtering by (g⁻¹(·) ≤ k), since A ∩ col_c is the initial segment.
+  sorry
+
+/-- A non-identity column permutation strictly decreases dominance: for q ∈ Q_λ
+with q ≠ 1, the tabloid of σ_T strictly dominates the tabloid of q⁻¹ · σ_T.
+This is the key lemma for polytabloid linear independence. -/
+theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) (hne : q ≠ 1) :
+    tabloidStrictDominates la (sytPerm n la T) (q⁻¹ * sytPerm n la T) :=
+  ⟨column_perm_dominance T q hq,
+   (ColumnSubgroup_ne_tabloid T q hq hne).symm⟩
+
 end
 
 end Etingof
