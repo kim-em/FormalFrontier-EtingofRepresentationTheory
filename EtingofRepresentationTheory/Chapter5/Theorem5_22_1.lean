@@ -354,12 +354,58 @@ noncomputable def formalCharacter (k : Type*) [Field k] [IsAlgClosed k] (N : ℕ
 
 variable (k : Type*) [Field k] [IsAlgClosed k]
 
+/-! ### Coefficient extraction for formal character -/
+
+/-- The coefficient of `x^μ` in the formal character equals the dimension of the weight space. -/
+theorem formalCharacter_coeff (N : ℕ)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (μ : Fin N →₀ ℕ) :
+    (formalCharacter k N M).coeff μ =
+      (Module.finrank k (glWeightSpace k N M (fun i => μ i)) : ℚ) := by
+  unfold formalCharacter
+  have key : ∀ (S : Finset (Fin N →₀ ℕ)) (c : (Fin N →₀ ℕ) → ℚ),
+      (S.sum fun ν => c ν • MvPolynomial.monomial ν (1 : ℚ)).coeff μ =
+        if μ ∈ S then c μ else 0 := by
+    intro S c
+    simp only [MvPolynomial.coeff_sum]
+    simp_rw [MvPolynomial.coeff_smul, MvPolynomial.coeff_monomial, smul_eq_mul,
+      mul_ite, mul_one, mul_zero]
+    split_ifs with h
+    · rw [Finset.sum_eq_single μ]
+      · simp
+      · intro ν _ hne; exact if_neg hne
+      · intro h'; exact absurd h h'
+    · exact Finset.sum_eq_zero fun ν hν => by
+        rw [if_neg]; exact fun heq => h (heq ▸ hν)
+  rw [key]
+  split_ifs with hmem
+  · rfl
+  · have hbot : glWeightSpace k N M (fun i => μ i) = ⊥ := by
+      by_contra h
+      exact hmem ((glWeightSpace_finite_support k N M).mem_toFinset.mpr h)
+    rw [hbot]; simp
+
+/-! ### Weight multiplicity equals Schur polynomial coefficient -/
+
+/-- **Key helper**: The dimension of the weight space for weight `μ` in the Schur module `L_λ`
+equals the coefficient of `x^μ` in the Schur polynomial `S_λ`.
+
+This is the core content of the Weyl character formula at the coefficient level:
+`dim(L_λ)_μ = [x^μ] S_λ(x)`. -/
+theorem schurModule_weight_eq_schurPoly_coeff
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (μ : Fin N →₀ ℕ) :
+    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
+      (schurPoly N lam).coeff μ := by
+  sorry
+
 /-- **Weyl character formula for GL(V)**: the formal character of the Schur module
 `L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
 (Etingof Theorem 5.22.1) -/
 theorem Theorem5_22_1
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
-  sorry
+  ext μ
+  rw [formalCharacter_coeff, schurModule_weight_eq_schurPoly_coeff k N lam hlam]
 
 end Etingof
