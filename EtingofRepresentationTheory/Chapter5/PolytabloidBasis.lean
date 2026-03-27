@@ -20,7 +20,8 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 
 * `Etingof.polytabloid_mem_spechtModule` — polytabloids lie in the Specht module
 * `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry)
-* `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma (sorry)
+* `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma
+  (proved via WF induction on column inversions; depends on two sorry'd helpers)
 * `Etingof.polytabloid_span` — polytabloids span the Specht module (proved from straightening)
 * `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)| (proved from independence + span)
 
@@ -374,22 +375,86 @@ theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
   sorry
 
+/-! ### Straightening infrastructure: row absorption and column inversions -/
+
+/-- Left multiplication by a row permutation is absorbed by the Young symmetrizer:
+of(p) · c_λ = c_λ for p ∈ P_λ. This follows from of(p) · a_λ = a_λ. -/
+private theorem of_row_mul_youngSymmetrizer' (n : ℕ) (la : Nat.Partition n)
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
+    MonoidAlgebra.of ℂ _ p * YoungSymmetrizer n la = YoungSymmetrizer n la := by
+  unfold YoungSymmetrizer
+  rw [← mul_assoc, of_row_mul_RowSymmetrizer p hp]
+
+/-- The number of "column inversions" in the filling defined by σ. -/
+private def columnInvCount' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) : ℕ :=
+  (Finset.univ.filter fun pp : Fin n × Fin n =>
+    colOfPos la.sortedParts pp.1.val = colOfPos la.sortedParts pp.2.val ∧
+    rowOfPos la.sortedParts pp.1.val < rowOfPos la.sortedParts pp.2.val ∧
+    σ.symm pp.2 < σ.symm pp.1).card
+
+/-- A filling is column-standard if all columns are increasing. -/
+private def isColumnStandard' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) : Prop :=
+  ∀ p₁ p₂ : Fin n,
+    colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val →
+    rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val →
+    σ.symm p₁ < σ.symm p₂
+
+/-- Row-sorting a column-standard filling produces a standard Young tableau.
+Given a column-standard σ, there exists p ∈ P_λ such that sytPerm T = σ * p
+for some SYT T. -/
+private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ) :
+    ∃ T : StandardYoungTableau n la,
+      ∃ p ∈ RowSubgroup n la, sytPerm n la T = σ * p := by
+  sorry
+
+/-- A column-standard filling gives a standard polytabloid. -/
+private theorem column_standard_in_span' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ) :
+    MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la ∈
+      Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+        (polytabloidInSpecht n la T : SymGroupAlgebra n))) := by
+  obtain ⟨T, p, hp, hperm⟩ := column_standard_coset_has_syt' n la σ hcs
+  have hσ : σ = sytPerm n la T * p⁻¹ := by rw [hperm]; group
+  rw [hσ, map_mul, mul_assoc,
+      of_row_mul_youngSymmetrizer' n la p⁻¹ ((RowSubgroup n la).inv_mem hp)]
+  exact Submodule.subset_span ⟨T, rfl⟩
+
+/-- Garnir reduction: for a non-column-standard filling, of(σ) · c_λ
+can be expressed as a combination of of(τᵢ) · c_λ with fewer column inversions. -/
+private theorem garnir_reduction' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
+    ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
+      (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
+      MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
+        S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) := by
+  sorry
+
 /-- **Straightening lemma**: any permutation applied to the Young symmetrizer
-lies in the ℂ-span of standard polytabloids. This is the key step that
-requires the Garnir relations and dominance order on tabloids.
+lies in the ℂ-span of standard polytabloids.
 
-For any σ ∈ Sₙ, the element σ · cλ can be expressed as a ℂ-linear combination
-of the standard polytabloids {σ_T · cλ : T ∈ SYT(λ)} by the straightening
-algorithm: non-standard tabloids are rewritten using Garnir relations until
-all tabloids are standard.
-
-TODO: requires Garnir relations, dominance order, and straightening algorithm. -/
+Proved by well-founded induction on column inversions:
+- Base case (0 inversions): σ is column-standard → row-sort within right
+  P_λ-coset to get an SYT, using row absorption of c_λ.
+- Inductive step: Garnir reduction expresses σ · c_λ as a combination
+  of terms with fewer column inversions. -/
 theorem perm_mul_youngSymmetrizer_mem_span_polytabloids (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la ∈
       Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
         (polytabloidInSpecht n la T : SymGroupAlgebra n))) := by
-  sorry
+  induction h : columnInvCount' n la σ using Nat.strongRecOn generalizing σ with
+  | ind m ih =>
+  by_cases hcs : isColumnStandard' n la σ
+  · exact column_standard_in_span' n la σ hcs
+  · obtain ⟨S, c, hlt, heq⟩ := garnir_reduction' n la σ hcs
+    rw [heq]
+    apply Submodule.sum_mem
+    intro τ hτ
+    apply Submodule.smul_mem
+    exact ih (columnInvCount' n la τ) (h ▸ hlt τ hτ) τ rfl
 
 /-- The polytabloids {e_T : T ∈ SYT(λ)} span V_λ.
 
