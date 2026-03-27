@@ -95,8 +95,8 @@ theorem Etingof.Proposition6_6_8_sink
           ∑ a : Etingof.ArrowsInto V v, Module.finrank k (ρ.obj a.1) := by
         haveI : DecidableEq (Etingof.ArrowsInto V v) := Classical.decEq _
         letI : AddCommGroup (DirectSum (Etingof.ArrowsInto V v) (fun a => ρ.obj a.1)) :=
-          Etingof.addCommGroupOfField (k := k)
-        letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfField (k := k)
+          Etingof.addCommGroupOfRing (k := k)
+        letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfRing (k := k)
         have h := LinearMap.finrank_range_add_finrank_ker (ρ.sinkMap v)
         have hrange : LinearMap.range (ρ.sinkMap v) = ⊤ := LinearMap.range_eq_top.mpr hsurj
         rw [hrange, finrank_top] at h
@@ -156,8 +156,8 @@ theorem Etingof.Proposition6_6_8_source
       -- Provide AddCommGroup instances needed for quotient type
       haveI : DecidableEq (Etingof.ArrowsOutOf V v) := Classical.decEq _
       letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) :=
-        Etingof.addCommGroupOfField (k := k)
-      letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfField (k := k)
+        Etingof.addCommGroupOfRing (k := k)
+      letI : AddCommGroup (ρ.obj v) := Etingof.addCommGroupOfRing (k := k)
       -- Goal: finrank of the cokernel (quotient by range of sourceMap)
       change (Module.finrank k ((DirectSum (Etingof.ArrowsOutOf V v) (fun a => ρ.obj a.1)) ⧸
           LinearMap.range (ρ.sourceMap v)) : ℤ) =

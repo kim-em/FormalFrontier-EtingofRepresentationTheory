@@ -150,7 +150,7 @@ private lemma Etingof.simpleRepresentation_indecomposable
     have : W₁ p = ⊥ ∨ W₂ p = ⊥ := by
       -- upgrade to AddCommGroup for Submodule API
       letI : ∀ v, AddCommGroup ((Etingof.simpleRepresentation k p (Q := Q)).obj v) :=
-        fun v => Etingof.addCommGroupOfField (k := k)
+        fun v => Etingof.addCommGroupOfRing (k := k)
       by_contra h
       push_neg at h
       obtain ⟨h1, h2⟩ := h

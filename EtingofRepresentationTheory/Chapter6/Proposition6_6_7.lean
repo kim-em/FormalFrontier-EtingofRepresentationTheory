@@ -136,7 +136,7 @@ theorem Etingof.Proposition6_6_7_sink
       (Etingof.reflectionFunctorPlus Q i hi ρ) := by
   -- Case split: either V is simple at i (→ F⁺(V) is zero) or sinkMap is surjective
   -- Upgrade to AddCommGroup (needed for finrank_pos and complements)
-  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfField (k := k)
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
   rcases Etingof.Proposition6_6_5_sink hi hρ with hsimple | hsurj
   · -- V is simple at i → F⁺(V) is zero
     right
