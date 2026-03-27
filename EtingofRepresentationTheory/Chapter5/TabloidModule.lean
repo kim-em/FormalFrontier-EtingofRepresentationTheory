@@ -427,6 +427,21 @@ private theorem card_filter_le_min {α : Type*}
   le_min (Finset.card_filter_le B P)
     (Finset.card_le_card (Finset.filter_subset_filter P hB))
 
+/-- Within a column of a standard tableau, entry order implies row order.
+This is the converse of `syt_col_entry_le_of_row_le`: if e₁ ≤ e₂ and they
+are in the same column, then row(σ e₁) ≤ row(σ e₂). -/
+private theorem syt_row_le_of_entry_le (T : StandardYoungTableau n la)
+    (e₁ e₂ : Fin n)
+    (hcol : colOfPos la.sortedParts (sytPerm n la T e₁).val =
+            colOfPos la.sortedParts (sytPerm n la T e₂).val)
+    (hle : e₁ ≤ e₂) :
+    rowOfPos la.sortedParts (sytPerm n la T e₁).val ≤
+    rowOfPos la.sortedParts (sytPerm n la T e₂).val := by
+  by_contra h
+  push_neg at h
+  have := syt_entry_lt_of_row_lt T e₂ e₁ hcol.symm h
+  omega
+
 /-- A single column transposition preserves dominance: if positions p₁ and p₂ are in the
 same column with row(p₁) < row(p₂), and σ assigns a smaller entry to p₁ than p₂
 (column-increasing property), then σ dominates (swap p₁ p₂) * σ. -/
@@ -533,10 +548,110 @@ private theorem swap_column_dominance (σ : Equiv.Perm (Fin n))
 theorem column_perm_dominance (T : StandardYoungTableau n la)
     (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
     tabloidDominates la (sytPerm n la T) (q⁻¹ * sytPerm n la T) := by
-  -- Strategy: decompose q into transpositions within columns using swap_induction.
-  -- Each transposition preserves dominance by swap_column_dominance.
-  -- By transitivity, the full permutation preserves dominance.
-  sorry
+  set σ := sytPerm n la T with hσ_def
+  have hq_inv : ∀ p : Fin n, colOfPos la.sortedParts (q⁻¹ p).val =
+      colOfPos la.sortedParts p.val := (ColumnSubgroup n la).inv_mem hq
+  have hq_fwd : ∀ p : Fin n, colOfPos la.sortedParts (q p).val =
+      colOfPos la.sortedParts p.val := hq
+  intro k i
+  simp only [tabloidCumulCount, Equiv.Perm.coe_mul, Function.comp_apply]
+  set A := Finset.univ.filter (fun e : Fin n =>
+    e ≤ k ∧ rowOfPos la.sortedParts (σ e).val < i)
+  set B := Finset.univ.filter (fun e : Fin n =>
+    e ≤ k ∧ rowOfPos la.sortedParts (q⁻¹ (σ e)).val < i)
+  set ecol : Fin n → ℕ := fun e => colOfPos la.sortedParts (σ e).val
+  -- Reduce to per-column inequality via sum decomposition
+  suffices hcol : ∀ c, (B.filter (fun e => ecol e = c)).card ≤
+      (A.filter (fun e => ecol e = c)).card by
+    have hmaps : ∀ (S : Finset (Fin n)), (S : Set (Fin n)).MapsTo ecol
+        (↑(Finset.univ.image ecol)) :=
+      fun _ e _ => Finset.mem_coe.mpr (Finset.mem_image.mpr ⟨e, Finset.mem_univ e, rfl⟩)
+    rw [Finset.card_eq_sum_card_fiberwise (hmaps B),
+        Finset.card_eq_sum_card_fiberwise (hmaps A)]
+    exact Finset.sum_le_sum (fun c _ => hcol c)
+  intro c
+  -- Per column c: case split on whether all entries ≤ k in col c have row < i
+  by_cases hall : ∀ e : Fin n, ecol e = c → e ≤ k →
+      rowOfPos la.sortedParts (σ e).val < i
+  · -- Case 1: all entries ≤ k in col c have row < i.
+    -- A_c = {ecol=c ∧ e≤k}, and B_c ⊆ A_c.
+    have hAeq : A.filter (fun e => ecol e = c) =
+        Finset.univ.filter (fun e : Fin n => e ≤ k ∧ ecol e = c) := by
+      ext e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, A]
+      exact ⟨fun ⟨⟨h1, _⟩, h2⟩ => ⟨h1, h2⟩,
+             fun ⟨h1, h2⟩ => ⟨⟨h1, hall e h2 h1⟩, h2⟩⟩
+    rw [hAeq]
+    apply Finset.card_le_card
+    intro e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, B]
+    exact fun ⟨⟨h1, _⟩, h2⟩ => ⟨h1, h2⟩
+  · -- Case 2: some entry e₀ ≤ k in col c has row ≥ i.
+    -- By SYT monotonicity, row < i in col c implies ≤ k.
+    push_neg at hall
+    obtain ⟨e₀, hecol₀, hle₀, hrow₀⟩ := hall
+    have hrow_imp : ∀ e : Fin n, ecol e = c →
+        rowOfPos la.sortedParts (σ e).val < i → e ≤ k := by
+      intro e hec hri
+      by_contra hgt; push_neg at hgt
+      have he₀_le : e₀ ≤ e := by omega
+      have hcol_eq : colOfPos la.sortedParts (sytPerm n la T e₀).val =
+          colOfPos la.sortedParts (sytPerm n la T e).val := by
+        change ecol e₀ = ecol e; rw [hecol₀, hec]
+      have hrow_le := syt_row_le_of_entry_le T e₀ e hcol_eq he₀_le
+      simp only [← hσ_def] at hrow_le; omega
+    -- A_c = {ecol=c ∧ row(σ·)<i} since ≤k is automatic
+    have hAeq : A.filter (fun e => ecol e = c) =
+        Finset.univ.filter (fun e : Fin n =>
+          rowOfPos la.sortedParts (σ e).val < i ∧ ecol e = c) := by
+      ext e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, A]
+      exact ⟨fun ⟨⟨_, h2⟩, h3⟩ => ⟨h2, h3⟩,
+             fun ⟨h1, h2⟩ => ⟨⟨hrow_imp e h2 h1, h1⟩, h2⟩⟩
+    rw [hAeq]
+    -- |B_c| ≤ |{ecol=c, row(q⁻¹(σ·))<i}| = |{ecol=c, row(σ·)<i}| = |A_c|
+    calc (B.filter (fun e => ecol e = c)).card
+        ≤ (Finset.univ.filter (fun e : Fin n =>
+            rowOfPos la.sortedParts (q⁻¹ (σ e)).val < i ∧ ecol e = c)).card := by
+          apply Finset.card_le_card
+          intro e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, B]
+          exact fun ⟨⟨_, h2⟩, h3⟩ => ⟨h2, h3⟩
+      _ = (Finset.univ.filter (fun e : Fin n =>
+            rowOfPos la.sortedParts (σ e).val < i ∧ ecol e = c)).card := by
+          -- Bijection: ψ(e) = σ⁻¹(q⁻¹(σ e)) maps LHS→RHS,
+          --            ψ⁻¹(e) = σ⁻¹(q(σ e)) maps RHS→LHS
+          apply Finset.card_nbij'
+            (fun e => σ.symm ((q : Equiv.Perm (Fin n))⁻¹ (σ e)))
+            (fun e => σ.symm (q (σ e)))
+          · -- ψ maps {row(q⁻¹(σ·))<i, ecol=c} into {row(σ·)<i, ecol=c}
+            intro e he
+            simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ,
+              true_and] at he ⊢
+            refine ⟨?_, ?_⟩
+            · -- row(σ(σ⁻¹(q⁻¹(σ e)))) = row(q⁻¹(σ e)) < i
+              simp only [Equiv.apply_symm_apply]; exact he.1
+            · -- ecol(σ⁻¹(q⁻¹(σ e))) = col(q⁻¹(σ e)) = col(σ e) = c
+              show ecol (σ.symm ((q : Equiv.Perm (Fin n))⁻¹ (σ e))) = c
+              simp only [ecol, Equiv.apply_symm_apply, hq_inv]; exact he.2
+          · -- ψ⁻¹ maps {row(σ·)<i, ecol=c} into {row(q⁻¹(σ·))<i, ecol=c}
+            intro e he
+            simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ,
+              true_and] at he ⊢
+            refine ⟨?_, ?_⟩
+            · -- row(q⁻¹(σ(σ⁻¹(q(σ e))))) = row(q⁻¹(q(σ e))) = row(σ e) < i
+              rw [Equiv.apply_symm_apply]
+              change rowOfPos la.sortedParts (q.symm (q (σ e))).val < i
+              rw [Equiv.symm_apply_apply]; exact he.1
+            · -- ecol(σ⁻¹(q(σ e))) = col(q(σ e)) = col(σ e) = c
+              show ecol (σ.symm (q (σ e))) = c
+              simp only [ecol, Equiv.apply_symm_apply, hq_fwd]; exact he.2
+          · -- Left inverse: ψ⁻¹(ψ(e)) = e
+            intro e _
+            dsimp only
+            rw [Equiv.apply_symm_apply, Equiv.Perm.apply_inv_self,
+                Equiv.symm_apply_apply]
+          · -- Right inverse: ψ(ψ⁻¹(e)) = e
+            intro e _
+            dsimp only
+            rw [Equiv.apply_symm_apply, Equiv.Perm.inv_apply_self,
+                Equiv.symm_apply_apply]
 
 /-- A non-identity column permutation strictly decreases dominance: for q ∈ Q_λ
 with q ≠ 1, the tabloid of σ_T strictly dominates the tabloid of q⁻¹ · σ_T.
