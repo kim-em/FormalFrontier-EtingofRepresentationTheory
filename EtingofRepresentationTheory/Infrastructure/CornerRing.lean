@@ -160,4 +160,128 @@ theorem finrank_le [Module.Finite k A] :
 
 end CornerRing
 
+/-! ### Endomorphism algebra of left ideal Ae ≅ (eAe)ᵒᵖ
+
+For an idempotent `e` in a `k`-algebra `A`, the `A`-module endomorphism ring of the
+left ideal `Ae = Submodule.span A {e}` is anti-isomorphic to the corner ring `eAe`.
+The isomorphism sends `φ ↦ φ(e)` and the inverse sends `c ∈ eAe` to right
+multiplication by `c`. -/
+
+section EndLeftIdeal
+
+variable {e : A} (he : IsIdempotentElem e)
+include he
+
+/-- Elements of the left ideal Ae satisfy `x * e = x` when `e` is idempotent. -/
+lemma leftIdealAe_right_mul {x : A}
+    (hx : x ∈ Submodule.span A ({e} : Set A)) : x * e = x := by
+  rw [Submodule.mem_span_singleton] at hx
+  obtain ⟨a, rfl⟩ := hx
+  rw [smul_eq_mul, mul_assoc, he.eq]
+
+/-- For an A-endomorphism φ of Ae, the value φ(e) lies in the corner submodule eAe. -/
+lemma eval_e_mem_cornerSubmodule (φ : Module.End A ↥(Submodule.span A ({e} : Set A))) :
+    (φ ⟨e, Submodule.subset_span rfl⟩).val ∈ cornerSubmodule (k := k) e := by
+  -- φ(e) ∈ Ae, so φ(e) = b * e for some b
+  obtain ⟨b, hb⟩ := Submodule.mem_span_singleton.mp (φ ⟨e, Submodule.subset_span rfl⟩).prop
+  rw [smul_eq_mul] at hb
+  -- e * φ(e) = φ(e) by A-linearity and e² = e
+  have he_mem : (⟨e, Submodule.subset_span rfl⟩ : ↥(Submodule.span A ({e} : Set A))) =
+      e • ⟨e, Submodule.subset_span rfl⟩ := by
+    ext; simp [smul_eq_mul, he.eq]
+  have key : φ ⟨e, Submodule.subset_span rfl⟩ =
+      e • φ ⟨e, Submodule.subset_span rfl⟩ := by
+    conv_lhs => rw [he_mem]
+    exact φ.map_smul e ⟨e, Submodule.subset_span rfl⟩
+  rw [mem_cornerSubmodule_iff]
+  refine ⟨b, ?_⟩
+  have := congr_arg Subtype.val key
+  simp only [SetLike.val_smul, smul_eq_mul] at this
+  -- this : (φ ⟨e, _⟩).val = e * (φ ⟨e, _⟩).val
+  -- goal : e * b * e = (φ ⟨e, _⟩).val
+  rw [mul_assoc, hb, ← this]
+
+/-- Right multiplication by `c ∈ eAe` sends `Ae` to `Ae`. -/
+private lemma rightMul_mem_leftIdeal {c : A} (hc : c ∈ cornerSubmodule (k := k) e) (x : A) :
+    x * c ∈ Submodule.span A ({e} : Set A) := by
+  rw [Submodule.mem_span_singleton]
+  exact ⟨x * c, by rw [smul_eq_mul, mul_assoc, cornerSubmodule_right_mul he hc]⟩
+
+/-- Right multiplication by `c ∈ eAe` gives an `A`-endomorphism of `Ae`. -/
+noncomputable def rightMulEnd (c : CornerRing (k := k) e) :
+    Module.End A ↥(Submodule.span A ({e} : Set A)) where
+  toFun x := ⟨x.val * c.val, rightMul_mem_leftIdeal he c.prop x.val⟩
+  map_add' x y := by ext; simp [add_mul]
+  map_smul' a x := by ext; simp [smul_eq_mul, mul_assoc]
+
+/-- The ring anti-isomorphism `End_A(Ae) ≃+* (eAe)ᵒᵖ`.
+
+The forward map sends `φ ↦ MulOpposite.op(φ(e))` and the inverse sends
+`MulOpposite.op(c) ↦ (x ↦ x * c)` (right multiplication by `c`). -/
+noncomputable def endLeftIdealRingEquivCornerRingOp :
+    letI := CornerRing.instRing (k := k) he
+    Module.End A ↥(Submodule.span A ({e} : Set A)) ≃+*
+      (CornerRing (k := k) e)ᵐᵒᵖ := by
+  letI := CornerRing.instRing (k := k) he
+  exact {
+    toFun := fun φ => MulOpposite.op
+      ⟨(φ ⟨e, Submodule.subset_span rfl⟩).val, eval_e_mem_cornerSubmodule he φ⟩
+    invFun := fun c => rightMulEnd he c.unop
+    left_inv := by
+      intro φ
+      ext ⟨x, hx⟩
+      obtain ⟨a, ha⟩ := Submodule.mem_span_singleton.mp hx
+      rw [smul_eq_mul] at ha; subst ha
+      -- Goal: (a * e) * φ(e).val = φ(⟨a * e, _⟩).val
+      simp only [rightMulEnd, MulOpposite.unop_op, LinearMap.coe_mk, AddHom.coe_mk]
+      rw [mul_assoc, cornerSubmodule_left_mul (k := k) he (eval_e_mem_cornerSubmodule he φ)]
+      exact (congr_arg Subtype.val (φ.map_smul a ⟨e, Submodule.subset_span rfl⟩)).symm
+    right_inv := by
+      intro c_op
+      simp only []
+      congr 1
+      ext
+      -- Goal: (rightMulEnd he c_op.unop)(⟨e, _⟩).val = c_op.unop.val
+      simp only [rightMulEnd]
+      -- Goal: e * c_op.unop.val = c_op.unop.val
+      exact cornerSubmodule_left_mul he c_op.unop.prop
+    map_mul' := by
+      intro φ ψ
+      -- Goal: Θ(φ * ψ) = Θ(φ) * Θ(ψ) in (eAe)^op
+      -- i.e., op((φ ∘ ψ)(e)) = op(φ(e)) * op(ψ(e)) = op(ψ(e) * φ(e))
+      apply MulOpposite.unop_injective
+      ext
+      -- Goal: (φ(ψ(e))).val = ψ(e).val * φ(e).val  (in CornerRing mul)
+      -- Use: ψ(e) = b • e for some b (since ψ(e) ∈ Ae)
+      -- Then φ(ψ(e)) = φ(b • e) = b • φ(e), so (φ(ψ(e))).val = b * φ(e).val
+      -- And ψ(e).val * φ(e).val = (b * e) * φ(e).val = b * (e * φ(e).val) = b * φ(e).val ✓
+      obtain ⟨b, hb⟩ := Submodule.mem_span_singleton.mp
+        (ψ ⟨e, Submodule.subset_span rfl⟩).prop
+      rw [smul_eq_mul] at hb
+      -- hb : b * e = ψ(e).val
+      change (φ (ψ ⟨e, Submodule.subset_span rfl⟩)).val =
+        (ψ ⟨e, Submodule.subset_span rfl⟩).val * (φ ⟨e, Submodule.subset_span rfl⟩).val
+      -- LHS: φ(⟨b * e, _⟩) = φ(b • ⟨e, _⟩) = b • φ(⟨e, _⟩) = ⟨b * φ(e).val, _⟩
+      have hlhs : (φ (ψ ⟨e, Submodule.subset_span rfl⟩)).val =
+          b * (φ ⟨e, Submodule.subset_span rfl⟩).val := by
+        have h1 : ψ ⟨e, Submodule.subset_span rfl⟩ = b • ⟨e, Submodule.subset_span rfl⟩ := by
+          ext; simp [smul_eq_mul, hb]
+        rw [h1, map_smul]
+        simp [smul_eq_mul]
+      -- RHS: (b * e) * φ(e).val = b * (e * φ(e).val) = b * φ(e).val
+      have hrhs : (ψ ⟨e, Submodule.subset_span rfl⟩).val *
+          (φ ⟨e, Submodule.subset_span rfl⟩).val =
+          b * (φ ⟨e, Submodule.subset_span rfl⟩).val := by
+        rw [← hb, mul_assoc]
+        congr 1
+        exact cornerSubmodule_left_mul (k := k) he (eval_e_mem_cornerSubmodule he φ)
+      rw [hlhs, hrhs]
+    map_add' := by
+      intro φ ψ
+      simp only [LinearMap.add_apply]
+      rfl
+  }
+
+end EndLeftIdeal
+
 end Etingof
