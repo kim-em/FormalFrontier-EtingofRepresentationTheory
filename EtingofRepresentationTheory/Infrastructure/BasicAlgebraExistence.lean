@@ -8,6 +8,7 @@ import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.CategoryTheory.Equivalence
 import Mathlib.RingTheory.Morita.Matrix
 import Mathlib.LinearAlgebra.TensorProduct.Defs
+import Mathlib.RingTheory.Idempotents
 
 /-!
 # Basic algebra existence
@@ -38,8 +39,23 @@ The proof is decomposed into two helper lemmas:
 
 * `morita_equiv_of_full_idempotent`: The Morita equivalence between `A` and
   the corner ring `eAe` for a full idempotent `e` (one with `AeA = A`). This
-  is the deep part of the proof, requiring construction of the functors
-  `M ↦ eM` and `N ↦ Ae ⊗_{eAe} N` and verification they form an equivalence.
+  uses faithfulness (proven), fullness and essential surjectivity (both via the
+  evaluation isomorphism `Ae ⊗_{eAe} eM ≅ M`) of the corner functor `M ↦ eM`.
+
+## Proof status
+
+Three sorrys remain, each requiring substantial algebraic infrastructure:
+
+1. `exists_full_idempotent_basic_corner`: Decomposed into sub-steps (Artinian,
+   Wedderburn–Artin, idempotent extraction, lifting, fullness + basicness).
+   Steps 1-4 use available Mathlib infrastructure; steps 5-6 need manual work.
+
+2. `cornerFunctor_full`: Requires constructing the lift of an eAe-linear map
+   eM → eN to an A-linear map M → N. Standard proof goes through the
+   evaluation isomorphism `Ae ⊗_{eAe} eM ≅ M`.
+
+3. `cornerFunctor_essSurj`: Requires showing `e(A ⊗_{eAe} N) ≅ N`, the other
+   direction of the evaluation isomorphism.
 -/
 
 universe u
@@ -59,13 +75,17 @@ def IsFullIdempotent {A : Type*} [Ring A] (e : A) : Prop :=
 For a finite-dimensional algebra `A` over an algebraically closed field `k`,
 there exists a full idempotent `e ∈ A` such that the corner ring `eAe` is basic.
 
-Construction:
-- A/Rad(A) is semisimple (Artinian + semiprimary)
-- By Wedderburn–Artin: A/Rad(A) ≅ ∏ Mat_{n_i}(k)
-- Pick one diagonal idempotent E_{11} per block → complete orthogonal system
-- Lift to A via `CompleteOrthogonalIdempotents.lift_of_isNilpotent_ker`
-- Sum of lifted idempotents gives a full idempotent e
-- eAe is basic: its simple modules correspond to k-lines (one per block) -/
+### Proof strategy (uses available Mathlib infrastructure)
+
+1. `IsArtinianRing.of_finite k A` — A is Artinian
+2. `IsSemiprimaryRing` instance (automatic from Artinian) — rad(A) nilpotent,
+   A/rad(A) semisimple
+3. `IsSemisimpleRing.exists_algEquiv_pi_matrix_of_isAlgClosed` — Wedderburn–Artin
+   decomposition of A/rad(A) ≅ ∏ Mₙᵢ(k)
+4. Extract one diagonal idempotent E₁₁ per matrix block → complete orthogonal
+   idempotents in A/rad(A)
+5. `CompleteOrthogonalIdempotents.lift_of_isNilpotent_ker` — lift to A
+6. Sum of lifted idempotents is full (AeA = A) and eAe is basic -/
 private lemma exists_full_idempotent_basic_corner
     (k : Type u) [Field k] [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] :
@@ -193,10 +213,72 @@ private lemma cornerFunctor_faithful {e : A} (he : IsFullIdempotent e) :
   | add x y _ _ ihx ihy => simp [map_add, ihx, ihy]
   | smul a x _ ihx => simp [map_smul, ihx]
 
-/-! ## Fullness of the corner functor -/
+/-! ## Corner projection helpers -/
 
-/-- The corner functor is full when `e` is a full idempotent: every eAe-linear
-map `eM → eN` lifts to an A-linear map `M → N`. -/
+/-- Composing e with itself gives the same action (idempotency on modules). -/
+private lemma eCorner_smul_of_idem {e : A} (he : IsIdempotentElem e)
+    {M : Type u} [AddCommGroup M] [Module A M] (m : M) :
+    e • (e • m) = e • m := by
+  rw [← mul_smul, he.eq]
+
+/-- The "projection" map m ↦ e•m lands in the e-corner. -/
+private def toECorner {e : A} (he : IsIdempotentElem e)
+    {M : Type u} [AddCommGroup M] [Module A M] (m : M) :
+    eCorner he M :=
+  ⟨e • m, eCorner_smul_of_idem he m⟩
+
+/-- The projection m ↦ e•m is additive. -/
+private lemma toECorner_add {e : A} (he : IsIdempotentElem e)
+    {M : Type u} [AddCommGroup M] [Module A M] (m₁ m₂ : M) :
+    toECorner he (m₁ + m₂) = toECorner he m₁ + toECorner he m₂ :=
+  Subtype.ext (smul_add e m₁ m₂)
+
+/-- Projection on elements already in eM is the identity. -/
+private lemma toECorner_of_mem {e : A} {he : IsIdempotentElem e}
+    {M : Type u} [AddCommGroup M] [Module A M] (m : eCorner he M) :
+    toECorner he (m : M) = m :=
+  Subtype.ext (eCorner_prop m)
+
+/-- The projection interacts with eAe-multiplication:
+    e • (r • m) = (r : A) • (e • m) when r ∈ eAe and m is any element. -/
+private lemma toECorner_cornerRing_smul {e : A} (he : IsIdempotentElem e)
+    {M : Type u} [AddCommGroup M] [Module A M]
+    (r : CornerRing (k := k) e) (m : M) :
+    toECorner he ((r : A) • m) =
+      letI := eCornerModule (k := k) he M
+      r • toECorner he m := by
+  apply Subtype.ext
+  change e • ((r : A) • m) = (r : A) • (e • m)
+  rw [← mul_smul, ← mul_smul]
+  congr 1
+  rw [cornerSubmodule_left_mul he r.prop, cornerSubmodule_right_mul he r.prop]
+
+/-! ## Fullness of the corner functor
+
+The proof of fullness requires constructing, for each eAe-linear map φ : eM → eN,
+an A-linear lift f : M → N. The standard approach uses the evaluation isomorphism
+`Ae ⊗_{eAe} eM ≅ M`. Since AeA = A, every module element can be written as a
+finite sum Σ aᵢ • (e • mᵢ), and the lift is determined by A-linearity and
+agreement with φ on eM.
+
+### Detailed proof strategy
+
+The evaluation map `eval_M : Ae ⊗_{eAe} eM → M` sending `ae ⊗ m ↦ a · m` is an
+isomorphism when e is full. Then:
+
+* **Fullness**: `Hom_A(M, N) ≅ Hom_A(Ae ⊗ eM, Ae ⊗ eN) ≅ Hom_{eAe}(eM, eN)`
+  via the tensor-hom adjunction.
+
+* **Essential surjectivity**: For any eAe-module N, the A-module
+  `M := A ⊗_{eAe} N` has `eM ≅ N` (by the evaluation isomorphism applied
+  to `Ae ⊗_{eAe} N`).
+
+Both proofs reduce to showing `eval_M` is an isomorphism:
+- Surjectivity of eval_M follows from `eCorner_spans` (already proved).
+- Injectivity of eval_M requires showing the balanced tensor product
+  relations are the only kernel, which uses the fullness of e.
+-/
+
 private lemma cornerFunctor_full {e : A} (he : IsFullIdempotent e) :
     letI := CornerRing.instRing (k := k) he.1
     (cornerFunctor (k := k) he.1).Full := by
@@ -230,6 +312,8 @@ private lemma cornerFunctor_essSurj {e : A} (he : IsFullIdempotent e) :
   -- Q = T/S has A-module structure
   let M : ModuleCat.{u} A := ModuleCat.of A (TensorProduct k A Nty ⧸ S)
   -- Claim: eM ≅ N as CornerRing-modules
+  -- Forward: ⟨e • [a ⊗ n], _⟩ ↦ (eae-part of a) • n
+  -- Inverse: n ↦ ⟨e • [e ⊗ n], _⟩
   exact ⟨M, ⟨sorry⟩⟩
 
 /-! ## Helper: Morita equivalence via full idempotent
