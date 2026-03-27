@@ -70,6 +70,7 @@ import EtingofRepresentationTheory.Chapter5.PowerSumCauchyIdentity
 -- Section 5.17: Hook Length Formula
 import EtingofRepresentationTheory.Chapter5.SYTFintype
 import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
+import EtingofRepresentationTheory.Chapter5.TabloidModule
 import EtingofRepresentationTheory.Chapter5.Theorem5_17_1
 
 -- Section 5.18: Schur-Weyl Duality
