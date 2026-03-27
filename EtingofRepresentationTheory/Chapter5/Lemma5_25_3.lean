@@ -854,22 +854,7 @@ private lemma Etingof.induced_normSq_sum_elliptic
     -- ∑_{K\F_q×} (1 + ν^{1-q}(k)) = q(q-1) + (-(q-1)) = (q-1)²
     -- Result: |GL₂|·|K|·(q-1)²
     --
-    -- Implementation plan for removing this sorry:
-    -- 1. Use simp_rw [map_sum, Finset.sum_mul, Finset.mul_sum] to expand
-    --    |S(g)|² into a triple sum ∑_g ∑_x ∑_y
-    -- 2. Use Finset.sum_comm to reorder, then Fintype.sum_bijective with
-    --    the map g ↦ x⁻¹gx (for fixed x) and y ↦ x⁻¹y to change variables
-    --    to (k, x, z) where k = x⁻¹gx ∈ K\F_q×, z = x⁻¹y
-    -- 3. Factor out free variable x via Finset.sum_const
-    -- 4. For each non-scalar k ∈ K, prove {z : z⁻¹kz ∈ K} = N_{GL₂}(K)
-    --    (requires: K ∩ zKz⁻¹ = F_q× for z ∉ N, using that K is a maximal torus)
-    -- 5. Decompose N(K) = K ∪ σK where σ is a Frobenius lift, using |N/K| = 2
-    -- 6. For z ∈ K: ν(k)*conj(ν(k)) = 1 (by normSq_monoidHom_val_eq_one)
-    --    For z ∈ σK: ν(k)*conj(ν(k^q)) = (qm1_char p n nu k)⁻¹
-    -- 7. Apply sum_nontrivial_char_eq_zero with qm1_char_nontrivial (uses hnu_ne)
-    --    and qm1_char_on_scalar to evaluate ∑_{K\F_q×} ψ = -(q-1)
-    -- Steps 4-5 require the deepest algebraic infrastructure (normalizer theory).
-    -- Use the two helper lemmas: algebraic core + character orthogonality
+    -- Implementation: use the two helper lemmas (algebraic core + character orthogonality)
     rw [Etingof.elliptic_sum_algebraic_core p n hp2 nu hn hnu_ne,
         Etingof.nonscalar_char_sum p n hp2 nu hn hnu_ne]
   rw [hraw]
