@@ -1,6 +1,7 @@
 import EtingofRepresentationTheory.Chapter6.Definition6_6_3
 import EtingofRepresentationTheory.Chapter6.Definition6_6_4
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
+import EtingofRepresentationTheory.Chapter6.ReflectionFunctorInfrastructure
 
 /-!
 # Proposition 6.6.7: Reflection Preserves Indecomposability
@@ -647,11 +648,13 @@ theorem Etingof.reversedArrow_arrowOut_eq
   obtain ⟨j, e⟩ := a
   show Etingof.reversedArrow_ne_eq _ (Etingof.arrowOutToReversed hi ⟨j, e⟩) = e
   have ha : j ≠ i := fun heq => (hi i).false (heq ▸ e)
-  -- Both reversedArrow_ne_eq and arrowOutToReversed are identity-like casts,
-  -- but Lean 4's Decidable.casesOn dependent types prevent definitional reduction.
-  -- The composition is propositionally obvious but requires matching on Decidable instances
-  -- that are entangled with the type of the reversed arrow.
-  sorry
+  -- reversedArrow_ne_eq is a cast (by reversedArrow_ne_eq_is_cast), and
+  -- arrowOutToReversed is cast of the inverse equality. Their composition is identity.
+  rw [Etingof.reversedArrow_ne_eq_is_cast]
+  show cast (Etingof.ReversedAtVertexHom_ne_eq ha rfl)
+    (Etingof.arrowOutToReversed hi ⟨j, e⟩) = e
+  unfold Etingof.arrowOutToReversed
+  simp only [cast_cast, cast_eq]
 
 /-- Reflection functors preserve indecomposability at a source:
 F⁻ᵢ(V) is either indecomposable or zero.
@@ -905,14 +908,144 @@ theorem Etingof.Proposition6_6_7_source
             exact hinj (hψ.trans (map_zero ψ).symm)
           · -- Codisjoint: ⨅ comap W₁_at + ⨅ comap W₂_at = ⊤
             rw [codisjoint_iff, eq_top_iff]; intro x _
-            -- Codisjointness at the source vertex v:
-            -- Proof outline: decompose each ρ.mapLinear(a.2)(x) = y₁(a) + y₂(a) via IsCompl,
-            -- form z₁, z₂ in direct sum, show mkQ(z₁) + mkQ(z₂) = 0,
-            -- mkQ(z₁) ∈ W₁(v) and mkQ(z₂) ∈ W₂(v), so mkQ(z₁) = 0 by disjointness,
-            -- extract x₁ from ker(mkQ) = range(sourceMap), show x = x₁ + (x - x₁) ∈ U₁ + U₂.
-            -- Blocked by: Decidable.casesOn in reflectionFunctorMinus prevents type class
-            -- synthesis (AddCommGroup, Neg) for the quotient space at the source vertex.
-            sorry
+            -- Note: after `subst hv`, the vertex `i` has been replaced by `v` in the context.
+            -- We use local bindings (ψ, W₁_at, etc.) which already refer to the right vertex.
+            -- Step 1: Decompose each ρ.mapLinear(a.2)(x) via IsCompl of W₁_at, W₂_at
+            have hdecomp : ∀ a, ∃ y₁ ∈ W₁_at a, ∃ y₂ ∈ W₂_at a,
+                ρ.mapLinear a.2 x = y₁ + y₂ := by
+              intro a
+              obtain ⟨y₁, hy₁, y₂, hy₂, heq⟩ :=
+                Submodule.mem_sup.mp ((hW_at_compl a).2.eq_top ▸ Submodule.mem_top)
+              exact ⟨y₁, hy₁, y₂, hy₂, heq.symm⟩
+            choose y₁ hy₁ y₂ hy₂ hsum using hdecomp
+            -- Step 2: Form z₁, z₂ in the direct sum
+            let DS := DirectSum (Etingof.ArrowsOutOf Q v) (fun a => ρ.obj a.1)
+            let lof : ∀ a : Etingof.ArrowsOutOf Q v, ρ.obj a.1 →ₗ[k] DS :=
+              DirectSum.lof k _ _
+            let z₁ : DS := ∑ a, lof a (y₁ a)
+            let z₂ : DS := ∑ a, lof a (y₂ a)
+            let mkQ := Etingof.reflFunctorMinus_mkQ hi ρ
+            -- Step 3: mkQ(z₁) + mkQ(z₂) = 0, proved directly via the sourceMap lemma
+            have hmkQ_sum : mkQ z₁ + mkQ z₂ = 0 := by
+              rw [← map_add]
+              show mkQ (∑ a, lof a (y₁ a) + ∑ a, lof a (y₂ a)) = 0
+              rw [← Finset.sum_add_distrib]
+              simp_rw [show ∀ a, lof a (y₁ a) + lof a (y₂ a) =
+                lof a (y₁ a + y₂ a) from fun a => (map_add (lof a) _ _).symm,
+                show ∀ a, y₁ a + y₂ a = ρ.mapLinear a.2 x from fun a => (hsum a).symm]
+              exact Etingof.reflFunctorMinus_mkQ_kills_sourceMap hi ρ x
+            -- Step 4-5: mkQ(z₁) ∈ W₁ v
+            have hmkQ_z₁_W₁ : mkQ z₁ ∈ W₁ v := by
+              change mkQ (∑ a, lof a (y₁ a)) ∈ W₁ v
+              rw [map_sum]
+              exact Submodule.sum_mem _ fun ⟨j, ej⟩ _ => by
+                have hj : j ≠ v := arrow_ne ⟨j, ej⟩
+                let ea := Etingof.arrowOutToReversed hi ⟨j, ej⟩
+                obtain ⟨w, hw_mem, hw_eq⟩ := Submodule.mem_map.mp (hy₁ ⟨j, ej⟩)
+                have hmem := hW₁ ea w hw_mem
+                rw [Etingof.reflFunctorMinus_mapLinear_ne_eq hi ρ hj ea w] at hmem
+                have hw_val : (Etingof.reflFunctorMinus_equivAt_ne hi ρ j hj) w =
+                    y₁ ⟨j, ej⟩ := hw_eq
+                rw [hw_val] at hmem
+                have hrev : Etingof.reversedArrow_ne_eq hj ea = ej :=
+                  Etingof.reversedArrow_arrowOut_eq hi ⟨j, ej⟩
+                exact hrev ▸ hmem
+            -- Step 6: mkQ(z₂) ∈ W₂ v
+            have hmkQ_z₂_W₂ : mkQ z₂ ∈ W₂ v := by
+              change mkQ (∑ a, lof a (y₂ a)) ∈ W₂ v
+              rw [map_sum]
+              exact Submodule.sum_mem _ fun ⟨j, ej⟩ _ => by
+                have hj : j ≠ v := arrow_ne ⟨j, ej⟩
+                let ea := Etingof.arrowOutToReversed hi ⟨j, ej⟩
+                obtain ⟨w, hw_mem, hw_eq⟩ := Submodule.mem_map.mp (hy₂ ⟨j, ej⟩)
+                have hmem := hW₂ ea w hw_mem
+                rw [Etingof.reflFunctorMinus_mapLinear_ne_eq hi ρ hj ea w] at hmem
+                have hw_val : (Etingof.reflFunctorMinus_equivAt_ne hi ρ j hj) w =
+                    y₂ ⟨j, ej⟩ := hw_eq
+                rw [hw_val] at hmem
+                have hrev : Etingof.reversedArrow_ne_eq hj ea = ej :=
+                  Etingof.reversedArrow_arrowOut_eq hi ⟨j, ej⟩
+                exact hrev ▸ hmem
+            -- Step 7: mkQ(z₁) = (-1) • mkQ(z₂) (module arithmetic)
+            have hmkQ_z₁_neg : mkQ z₁ = (-1 : k) • mkQ z₂ :=
+              calc mkQ z₁ = mkQ z₁ + 0 := (add_zero _).symm
+                _ = mkQ z₁ + ((1 : k) • mkQ z₂ + (-1 : k) • mkQ z₂) := by
+                    rw [← add_smul, add_neg_cancel, zero_smul]
+                _ = mkQ z₁ + mkQ z₂ + (-1 : k) • mkQ z₂ := by rw [← add_assoc, one_smul]
+                _ = 0 + (-1 : k) • mkQ z₂ := by rw [hmkQ_sum]
+                _ = (-1 : k) • mkQ z₂ := zero_add _
+            -- Step 8: mkQ(z₁) ∈ W₁ v ∩ W₂ v = ⊥, so mkQ(z₁) = 0
+            have hmkQ_z₁_zero : mkQ z₁ = 0 := by
+              have hmem : mkQ z₁ ∈ W₁ v ⊓ W₂ v :=
+                ⟨hmkQ_z₁_W₁, hmkQ_z₁_neg ▸ Submodule.smul_mem _ _ hmkQ_z₂_W₂⟩
+              rw [(hcompl v).1.eq_bot, Submodule.mem_bot] at hmem
+              exact hmem
+            -- Step 9: z₁ ∈ range(ψ), extract x₁
+            have hz₁_range : z₁ ∈ LinearMap.range ψ := by
+              have h_di : ‹DecidableEq Q› v v = .isTrue rfl := by
+                cases ‹DecidableEq Q› v v with | isTrue _ => rfl | isFalse h => exact absurd rfl h
+              have hmkQ_eq : mkQ z₁ = mkQ 0 := by rw [hmkQ_z₁_zero, map_zero]
+              revert hmkQ_eq
+              show Etingof.reflFunctorMinus_mkQ hi ρ z₁ =
+                Etingof.reflFunctorMinus_mkQ hi ρ 0 →
+                z₁ ∈ LinearMap.range (ρ.sourceMap v)
+              unfold Etingof.reflFunctorMinus_mkQ Etingof.reflectionFunctorMinus
+                Etingof.QuiverRepresentation.sourceMap
+              simp only []
+              dsimp only [id]
+              rw [h_di]
+              simp only []
+              intro hmkQ_eq
+              letI : ∀ w, AddCommGroup (ρ.obj w) := fun w => Etingof.addCommGroupOfRing (k := k)
+              letI : AddCommGroup DS := Etingof.addCommGroupOfRing (k := k)
+              rw [Submodule.mkQ_apply, map_zero, Submodule.Quotient.mk_eq_zero] at hmkQ_eq
+              exact hmkQ_eq
+            obtain ⟨x₁, hx₁⟩ := hz₁_range
+            -- Step 10: Extract component equality: ρ.mapLinear a.2 x₁ = y₁ a
+            have hcomp₁ : ∀ a, ρ.mapLinear a.2 x₁ = y₁ a := by
+              intro a
+              -- ψ x₁ = z₁ means they agree at each component
+              -- ψ x₁ = ∑ b, lof b (mapLinear b.2 x₁) and z₁ = ∑ b, lof b (y₁ b)
+              -- By DirectSum injectivity: mapLinear a.2 x₁ = y₁ a
+              have hψ_eq : ψ x₁ = ∑ b, lof b (ρ.mapLinear b.2 x₁) := by
+                show (ρ.sourceMap v) x₁ = _
+                unfold Etingof.QuiverRepresentation.sourceMap
+                simp only [LinearMap.sum_apply, LinearMap.comp_apply,
+                  DirectSum.lof_eq_of]
+                rfl
+              have hz₁_eq : z₁ = ∑ b, lof b (y₁ b) := rfl
+              -- Both are sums of lof, so they're DFinsupp.single sums
+              -- Use DirectSum.lof injectivity at each component
+              have h_eq_ds : ∑ c, lof c (ρ.mapLinear c.2 x₁) =
+                  ∑ c, lof c (y₁ c) := hψ_eq ▸ hz₁_eq ▸ hx₁
+              -- Two sums of DFinsupp.single agree iff each summand agrees
+              have h_eq : ∀ b, ρ.mapLinear b.2 x₁ = y₁ b := by
+                intro b
+                have h_apply := DFunLike.congr_fun h_eq_ds b
+                -- h_apply : (∑ c, lof c (mapLinear c.2 x₁)) b = (∑ c, lof c (y₁ c)) b
+                -- Unfold the sums at index b
+                change (∑ c, lof c (ρ.mapLinear c.2 x₁)) b = (∑ c, lof c (y₁ c)) b at h_apply
+                rw [DFinsupp.finset_sum_apply, DFinsupp.finset_sum_apply] at h_apply
+                -- (lof a (f a)) b unfolds to (DFinsupp.single a (f a)) b
+                simp_rw [show ∀ (a : Etingof.ArrowsOutOf Q v) (x : ρ.obj a.1),
+                    (lof a x : DS) b = (DFinsupp.single a x : DS) b from
+                    fun a x => by rfl] at h_apply
+                simp only [DFinsupp.single_apply, Finset.sum_dite_eq',
+                  Finset.mem_univ, ite_true] at h_apply
+                exact h_apply
+              exact h_eq a
+            -- Step 11: x = x₁ + (x - x₁), with x₁ ∈ U₁ and (x - x₁) ∈ U₂
+            -- Note: AddCommGroup on ρ.obj is available from the theorem-level letI
+            rw [show x = x₁ + (x - x₁) from by abel]
+            refine Submodule.add_mem_sup ?_ ?_
+            · -- x₁ ∈ ⨅ a, comap (mapLinear a.2) (W₁_at a)
+              rw [Submodule.mem_iInf]
+              intro a; rw [Submodule.mem_comap, hcomp₁ a]; exact hy₁ a
+            · -- x - x₁ ∈ ⨅ a, comap (mapLinear a.2) (W₂_at a)
+              rw [Submodule.mem_iInf]
+              intro a; rw [Submodule.mem_comap, map_sub, hcomp₁ a, hsum a,
+                add_sub_cancel_left]
+              exact hy₂ a
         · -- At v ≠ i: same as sink case
           simp only [U₁, U₂, dif_neg hv]
           have hc := hcompl v
