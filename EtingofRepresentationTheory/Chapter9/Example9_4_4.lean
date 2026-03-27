@@ -2,8 +2,11 @@ import EtingofRepresentationTheory.Chapter9.Definition9_4_3
 import Mathlib.Algebra.MvPolynomial.CommRing
 import Mathlib.Algebra.MvPolynomial.Equiv
 import Mathlib.Algebra.Category.ModuleCat.Projective
+import Mathlib.Algebra.Category.ModuleCat.ChangeOfRings
 import Mathlib.Data.ENat.Lattice
 import Mathlib.RingTheory.SimpleModule.InjectiveProjective
+import Mathlib.CategoryTheory.Abelian.Exact
+import Mathlib.CategoryTheory.Preadditive.Projective.Preserves
 
 /-!
 # Example 9.4.4: Homological dimension of polynomial algebra (Hilbert syzygies)
@@ -18,7 +21,7 @@ The Hilbert syzygy theorem is not yet in Mathlib.
 
 universe u
 
-open Etingof CategoryTheory
+open Etingof CategoryTheory Limits
 
 /-- Over a semisimple ring, every module is projective and hence has projective dimension ≤ 0. -/
 theorem hasHomologicalDimensionLE_zero_of_isSemisimpleRing
@@ -28,6 +31,73 @@ theorem hasHomologicalDimensionLE_zero_of_isSemisimpleRing
   have : Module.Projective R M := Module.projective_of_isSemisimpleRing R M
   have : Projective M := M.projective_of_categoryTheory_projective
   infer_instance
+
+section EquivalencePreservesProjectiveDimension
+
+variable {C : Type*} [Category C] [Abelian C] [EnoughProjectives C]
+variable {D : Type*} [Category D] [Abelian D]
+
+/-- An equivalence of abelian categories with enough projectives preserves
+projective dimension (upper bound). The proof is by induction on n, using
+the kernel short exact sequence from a projective presentation. -/
+theorem hasProjectiveDimensionLT_of_equivalence (E : C ≌ D) {X : C} :
+    ∀ {n : ℕ}, HasProjectiveDimensionLT X n →
+      HasProjectiveDimensionLT (E.functor.obj X) n := by
+  intro n
+  induction n generalizing X with
+  | zero =>
+    intro h
+    exact (E.functor.map_isZero
+      (isZero_of_hasProjectiveDimensionLT_zero X)).hasProjectiveDimensionLT_zero
+  | succ n ih =>
+    intro h
+    cases n with
+    | zero =>
+      have hproj : Projective X := (projective_iff_hasProjectiveDimensionLT_one X).mpr h
+      have : Projective (E.functor.obj X) := (E.map_projective_iff X).mpr hproj
+      exact (projective_iff_hasProjectiveDimensionLT_one _).mp this
+    | succ m =>
+      obtain ⟨pp⟩ := EnoughProjectives.presentation X
+      let S : ShortComplex C := ShortComplex.mk (kernel.ι pp.f) pp.f (by simp)
+      have hSE : S.ShortExact := { exact := ShortComplex.exact_kernel pp.f }
+      have hK : HasProjectiveDimensionLT (kernel pp.f) (m + 1) :=
+        hSE.hasProjectiveDimensionLT_X₁ (m + 1)
+          (hasProjectiveDimensionLT_of_ge pp.p 1 (m + 1) (by omega)) h
+      have hEK := ih hK
+      have hEP : Projective (E.functor.obj pp.p) := (E.map_projective_iff pp.p).mpr pp.projective
+      have hEP_pd : HasProjectiveDimensionLT (E.functor.obj pp.p) (m + 2) :=
+        hasProjectiveDimensionLT_of_ge (E.functor.obj pp.p) 1 (m + 2) (by omega)
+      exact (hSE.map_of_exact E.functor).hasProjectiveDimensionLT_X₃ (m + 1) hEK hEP_pd
+
+end EquivalencePreservesProjectiveDimension
+
+/-- Ring isomorphisms preserve homological dimension. -/
+theorem hasHomologicalDimensionLE_of_ringEquiv {R S : Type u} [Ring R] [Ring S]
+    (e : R ≃+* S) (d : ℕ) (h : Etingof.HasHomologicalDimensionLE S d) :
+    Etingof.HasHomologicalDimensionLE R d := by
+  intro M
+  -- restrictScalarsEquivalenceOfRingEquiv e : ModuleCat S ≌ ModuleCat R
+  -- functor: ModuleCat S ⥤ ModuleCat R, inverse: ModuleCat R ⥤ ModuleCat S
+  let E := ModuleCat.restrictScalarsEquivalenceOfRingEquiv e
+  -- E.inverse.obj M : ModuleCat S, has pd ≤ d by hypothesis
+  have hN : HasProjectiveDimensionLE (E.inverse.obj M) d := h (E.inverse.obj M)
+  -- The equivalence preserves projective dimension: E.functor sends it back to ModuleCat R
+  have hFN := hasProjectiveDimensionLT_of_equivalence E hN
+  -- E.counitIso.app M : (E.inverse ⋙ E.functor).obj M ≅ (𝟭 _).obj M
+  -- which is E.functor.obj (E.inverse.obj M) ≅ M
+  exact @hasProjectiveDimensionLT_of_iso _ _ _ _ _ (E.counitIso.app M) (d + 1) hFN
+
+/-- The polynomial ring extension theorem for global dimension: if every R-module has
+projective dimension ≤ d, then every R[x]-module has projective dimension ≤ d + 1.
+
+The proof constructs the standard short exact sequence for any R[x]-module M:
+  0 → R[x] ⊗_R M|_R → R[x] ⊗_R M|_R → M → 0
+and uses dimension shifting. Neither this SES nor the flat base change theorem
+for projective dimension is yet in Mathlib. -/
+theorem hasHomologicalDimensionLE_polynomial {R : Type u} [CommRing R] [Small.{u} R] (d : ℕ)
+    (h : Etingof.HasHomologicalDimensionLE R d) :
+    Etingof.HasHomologicalDimensionLE (Polynomial R) (d + 1) := by
+  sorry
 
 /-- The Hilbert syzygy theorem (upper bound): every module over k[x₁, …, xₙ] has
 projective dimension ≤ n.
@@ -44,10 +114,15 @@ theorem mvPolynomial_hasHomologicalDimensionLE (k : Type u) [Field k] :
     ∀ n, HasHomologicalDimensionLE (MvPolynomial (Fin n) k) n
   | 0 => hasHomologicalDimensionLE_zero_of_isSemisimpleRing _
   | n + 1 => by
-    -- The inductive step requires: gl.dim(R[x]) ≤ gl.dim(R) + 1
-    -- This uses the exact sequence 0 → R[x] ⊗_R M → R[x] ⊗_R M → M → 0
-    -- and is the core of the Hilbert syzygy theorem. Not yet in Mathlib.
-    sorry
+    -- By induction, MvPolynomial (Fin n) k has homological dimension ≤ n
+    have ih := mvPolynomial_hasHomologicalDimensionLE k n
+    -- MvPolynomial (Fin (n+1)) k ≃ₐ Polynomial (MvPolynomial (Fin n) k)
+    have e := (MvPolynomial.finSuccEquiv k n).toRingEquiv
+    -- By the polynomial extension theorem, Polynomial (MvPolynomial (Fin n) k)
+    -- has homological dimension ≤ n + 1
+    have h_poly := hasHomologicalDimensionLE_polynomial n ih
+    -- Transfer across the ring isomorphism
+    exact hasHomologicalDimensionLE_of_ringEquiv e (n + 1) h_poly
 
 /-- The Hilbert syzygy theorem (lower bound): if every module over k[x₁, …, xₙ] has
 projective dimension ≤ d, then n ≤ d. Equivalently, the residue field
