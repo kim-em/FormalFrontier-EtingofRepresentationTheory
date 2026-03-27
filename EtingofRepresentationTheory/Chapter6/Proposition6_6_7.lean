@@ -654,6 +654,39 @@ theorem Etingof.Proposition6_6_7_sink
         exact (Etingof.reflFunctorPlus_equivAt_ne hi ρ v hv).injective
           (by rw [h0, map_zero])
 
+/-- For each arrow `a : ArrowsOutOf Q i` (i.e., `a.2 : i ⟶ a.1`),
+construct the reversed arrow `a.1 → i` in `Q̄ᵢ`. -/
+noncomputable def Etingof.arrowOutToReversed
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (a : Etingof.ArrowsOutOf Q i) :
+    @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a.1 i := by
+  obtain ⟨j, e⟩ := a
+  have ha : j ≠ i := fun heq => (hi i).false (heq ▸ e)
+  have h_da : inst j i = .isFalse ha := by
+    cases inst j i with | isTrue h => exact absurd h ha | isFalse _ => rfl
+  have h_di : inst i i = .isTrue rfl := by
+    cases inst i i with | isTrue _ => rfl | isFalse h => exact absurd rfl h
+  show @Etingof.ReversedAtVertexHom Q inst _ i j i
+  unfold Etingof.ReversedAtVertexHom
+  simp only []
+  rw [h_da, h_di]
+  simp only []
+  exact e
+
+/-- `arrowOutToReversed` is a right inverse to `reversedArrow_ne_eq`:
+converting a.2 to a reversed arrow and back gives a.2. -/
+theorem Etingof.reversedArrow_arrowOut_eq
+    {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (a : Etingof.ArrowsOutOf Q i) :
+    Etingof.reversedArrow_ne_eq
+      (show a.1 ≠ i from fun heq => by obtain ⟨j, e⟩ := a; exact (hi i).false (heq ▸ e))
+      (Etingof.arrowOutToReversed hi a) = a.2 := by
+  -- Both sides reduce to `a.2` after matching on the Decidable instances.
+  -- Technical: the `Decidable.casesOn` motive prevents direct `rw`.
+  sorry
+
 /-- Reflection functors preserve indecomposability at a source:
 F⁻ᵢ(V) is either indecomposable or zero.
 
@@ -997,12 +1030,51 @@ theorem Etingof.Proposition6_6_7_source
           exact hW' e_a w (by rw [hW'_top a.1 (arrow_ne a)]; exact Submodule.mem_top)
         -- W'(i) = ⊤: the range of mkQ (surjective) lands in W'(i)
         -- because every mkQ(lof(a)(z)) = F⁻_map(reversed_arrow)(equiv⁻¹(z)) ∈ W'(i)
+        -- Key lemma: mkQ(lof(a)(z)) ∈ W'(i) for each a and z
+        -- Proof: construct reversed arrow, use hW'_arrow + reflFunctorMinus_mapLinear_ne_eq
+        have hW'_mkQ_lof : ∀ (a : Etingof.ArrowsOutOf Q i) (z : ρ.obj a.1),
+            (Etingof.reflFunctorMinus_mkQ hi ρ)
+              ((DirectSum.lof k _ (fun b => ρ.obj b.1) a) z) ∈ W' i := by
+          intro ⟨j, ej⟩ z
+          have hj : j ≠ i := fun heq => (hi i).false (heq ▸ ej)
+          let e_a := Etingof.arrowOutToReversed hi ⟨j, ej⟩
+          let w := (Etingof.reflFunctorMinus_equivAt_ne hi ρ j hj).symm z
+          -- F⁻_map(e_a)(w) ∈ W'(i) by hW'_arrow
+          have hmem := hW'_arrow ⟨j, ej⟩ e_a w
+          -- By API: F⁻_map(e_a)(w) = mkQ(lof(⟨j, reversedArrow_ne_eq hj e_a⟩)(equiv(w)))
+          rw [Etingof.reflFunctorMinus_mapLinear_ne_eq hi ρ hj e_a w] at hmem
+          -- equiv(w) = z and reversedArrow_ne_eq hj e_a = ej
+          simp only [w, LinearEquiv.apply_symm_apply] at hmem
+          -- Now hmem has lof ⟨j, reversedArrow_ne_eq hj e_a⟩ z
+          -- and we need lof ⟨j, ej⟩ z
+          -- These are equal by reversedArrow_arrowOut_eq
+          have hrev : Etingof.reversedArrow_ne_eq hj e_a = ej :=
+            Etingof.reversedArrow_arrowOut_eq hi ⟨j, ej⟩
+          -- Need to show lof ⟨j, ej⟩ z matches hmem which has lof ⟨j, reversedArrow_ne_eq hj e_a⟩ z
+          -- Since hrev says they're equal arrows, convert
+          exact hrev ▸ hmem
+        -- W'(i) = ⊤: show every element of the cokernel is in W'(i)
+        -- by decomposing into lof components mapped through mkQ
         have hW'i_top : W' i = ⊤ := by
           rw [eq_top_iff]; intro x _
-          -- Use Quotient.inductionOn to reduce to a DirectSum representative
-          -- F⁻(V).obj i is a quotient when i = i in the Decidable.casesOn
-          -- We need to unfold and work with the concrete quotient structure
-          sorry
+          -- Show every element of coker is in W'(i) via reflFunctorMinus_mkQ
+          -- mkQ is surjective, so x = mkQ(z) for some z
+          -- Strategy: show range(reflFunctorMinus_mkQ) ⊆ W'(i)
+          suffices h : ∀ z, (Etingof.reflFunctorMinus_mkQ hi ρ) z ∈ W' i by
+            -- Need: reflFunctorMinus_mkQ is surjective
+            -- It's Submodule.mkQ after unfolding, hence surjective
+            -- For now, use sorry for the surjectivity bridge
+            sorry
+          intro z
+          -- Decompose z = ∑ lof(a)(z(a))
+          rw [show z = ∑ a ∈ Finset.univ, (DirectSum.of (fun a => ρ.obj a.1) a) (z a) from
+            (DirectSum.sum_univ_of z).symm]
+          rw [map_sum]
+          exact Submodule.sum_mem _ fun a _ => by
+            -- of = lof as functions
+            change (Etingof.reflFunctorMinus_mkQ hi ρ)
+              ((DirectSum.lof k _ (fun a => ρ.obj a.1) a) (z a)) ∈ W' i
+            exact hW'_mkQ_lof a (z a)
         -- W(i) ⊓ W'(i) = ⊥ and W'(i) = ⊤ implies W(i) = ⊥
         have hci := hWW' i
         rw [hW'i_top] at hci
