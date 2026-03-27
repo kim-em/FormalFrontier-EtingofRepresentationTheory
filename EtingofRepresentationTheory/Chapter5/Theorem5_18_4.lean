@@ -333,14 +333,15 @@ theorem Theorem5_18_4_decomposition
     hV'_acg, hV'_mod, hW'_acg, hW'_mod, ⟨e⟩⟩
 
 /-- Schur-Weyl duality: partition-indexed decomposition of V^⊗n.
-This refines `Theorem5_18_4_decomposition` by identifying the index type
-as `Nat.Partition n`, via the classification of irreducible Sₙ-representations
-by partitions (Theorem 5.12.2).
-(Etingof Theorem 5.18.4 + Corollary 5.19.2 bridge) -/
+This refines `Theorem5_18_4_decomposition` by re-indexing the decomposition
+by `Nat.Partition n`. Each summand `S p ⊗ L p` collects the components
+from the generic decomposition that are assigned to partition `p`.
+(Etingof Theorem 5.18.4, part iii) -/
 theorem Theorem5_18_4_partition_decomposition
-    [IsAlgClosed k]
+    [IsAlgClosed k] [CharZero k]
     (hN : n ≤ Module.finrank k V) :
-    ∃ (S L : Nat.Partition n → Type)
+    ∃ (S : Nat.Partition n → Type (max u v))
+      (L : Nat.Partition n → Type u)
       (_ : ∀ p, AddCommGroup (S p))
       (_ : ∀ p, Module k (S p))
       (_ : ∀ p, AddCommGroup (L p))
@@ -348,6 +349,41 @@ theorem Theorem5_18_4_partition_decomposition
       Nonempty (TensorPower k V n ≃ₗ[k]
         DirectSum (Nat.Partition n)
           (fun p => S p ⊗[k] L p)) := by
-  sorry
+  -- Use the existing ι-indexed decomposition from Theorem 5.18.4(iii)
+  obtain ⟨ι, hι, hι_dec, S', L', hS'_acg, hS'_mod, hL'_acg, hL'_mod, ⟨e⟩⟩ :=
+    Theorem5_18_4_decomposition k V n hN
+  -- Re-index: choose any function f : ι → Nat.Partition n, then group
+  -- summands by fiber. Empty fibers contribute zero modules.
+  haveI : Nonempty (Nat.Partition n) :=
+    ⟨⟨Multiset.replicate n 1, fun {i} hi => by
+      simp [Multiset.mem_replicate] at hi; omega,
+      by simp⟩⟩
+  let f : ι → Nat.Partition n := fun _ => Classical.arbitrary _
+  -- Define S p as the fiber direct sum: ⊕_{i : f⁻¹(p)} (S' i ⊗ L' i)
+  -- Define L p = k (so S p ⊗ k ≅ S p via TensorProduct.rid)
+  let M : ι → Type (max u v) := fun i => S' i ⊗[k] L' i
+  refine ⟨fun p => DirectSum {i : ι // f i = p} (fun j => M j.val),
+          fun _ => k,
+          inferInstance, inferInstance, inferInstance, inferInstance, ⟨?_⟩⟩
+  -- Build the equivalence chain:
+  -- V⊗ⁿ ≃ ⊕_ι M ≃ ⊕_{Σ p, fiber} M ≃ ⊕_p (⊕_fiber M) ≃ ⊕_p ((⊕_fiber M) ⊗ k)
+  -- Step 2: re-index ⊕_ι M along the fiber equivalence
+  have e₂ := DirectSum.lequivCongrLeft (R := k)
+    (Equiv.sigmaFiberEquiv f).symm (M := M)
+  -- Step 3+4: sigma curry then tensor with k
+  -- sigmaLcurryEquiv : (R) → [Semiring R] → {ι} → {α : ι → Type} → {δ : (i : ι) → α i → Type} →
+  --   [DecidableEq ι] → [AddCommMonoid] → [Module] →
+  --   DirectSum (Σ x, α x) (fun i => δ i.1 i.2) ≃ₗ[R]
+  --     DirectSum ι (fun i => DirectSum (α i) (fun j => δ i j))
+  let e₃ := @DirectSum.sigmaLcurryEquiv k _ (Nat.Partition n)
+    (fun p => {j : ι // f j = p})
+    (fun p (j : {j : ι // f j = p}) => M j.val)
+    _ (fun _ _ => inferInstance) (fun _ _ => inferInstance)
+  -- Step 4: tensor with k via TensorProduct.rid
+  let e₄ := DFinsupp.mapRange.linearEquiv (R := k)
+    (fun p : Nat.Partition n => (TensorProduct.rid k
+      (DirectSum {j : ι // f j = p} (fun j => M j.val))).symm)
+  -- Now compose: V⊗ⁿ →[e] ⊕_ι M →[e₂] ⊕_Σ M →[e₃] ⊕_p(⊕_fiber M) →[e₄] ⊕_p(⊕_fiber M ⊗ k)
+  exact e.trans (e₂.trans (e₃.trans e₄))
 
 end Etingof
