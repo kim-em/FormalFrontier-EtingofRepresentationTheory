@@ -243,6 +243,61 @@ private lemma coset_fixed_iff {G : Type*} [Group G] [Fintype G]
     exact Quotient.sound' (QuotientGroup.leftRel_apply.mpr (by
       simpa [mul_inv_rev, inv_inv] using hmem))
 
+-- Helper: for a right-H-invariant function f on G, ∑ g, f g = |H| * ∑ q : G/H, f q.out
+-- This is a standard result: the sum over G decomposes into fibers over G/H,
+-- each fiber having |H| elements, all contributing f(q.out) by right-invariance.
+open Classical in
+private lemma sum_right_invariant_eq {G : Type*} [Group G] [Fintype G]
+    (H : Subgroup G)
+    (f : G → ℂ) (hf : ∀ (h : G) (s : H), f (h * s) = f h) :
+    ∑ h : G, f h = (Fintype.card H : ℂ) * ∑ q : G ⧸ H, f q.out := by
+  -- Every element g ∈ G satisfies f(g) = f(q.out) where q = gH
+  have key : ∀ g : G, f g = f (QuotientGroup.mk g : G ⧸ H).out := by
+    intro g
+    set q := (QuotientGroup.mk g : G ⧸ H)
+    have hmem : q.out⁻¹ * g ∈ H := by
+      rw [← QuotientGroup.leftRel_apply]
+      exact Quotient.exact' (Quotient.out_eq' q)
+    calc f g = f (q.out * (⟨q.out⁻¹ * g, hmem⟩ : H)) := by simp
+      _ = f q.out := hf q.out ⟨q.out⁻¹ * g, hmem⟩
+  -- Rewrite each term, then use fiber decomposition
+  conv_lhs => arg 2; ext h; rw [key h]
+  -- Now: ∑ h, f((hH).out) = |H| * ∑ q, f(q.out)
+  -- The function h ↦ f((hH).out) factors through G/H
+  -- Decompose by fibers of the quotient map
+  have : ∀ q : G ⧸ H,
+      (Finset.univ.filter (fun h : G => (h : G ⧸ H) = q)).card = Fintype.card H := by
+    intro q
+    -- The fiber over q has |H| elements by QuotientGroup.card_preimage_mk
+    rw [show (Finset.univ.filter (fun h : G => (h : G ⧸ H) = q)).card =
+        Fintype.card (QuotientGroup.mk (s := H) ⁻¹' {q}) from by
+      rw [Fintype.card_ofFinset]
+      congr 1; ext h; simp [Finset.mem_filter]]
+    rw [show Fintype.card (QuotientGroup.mk (s := H) ⁻¹' {q}) =
+        Nat.card (QuotientGroup.mk (s := H) ⁻¹' {q}) from by
+      rw [Nat.card_eq_fintype_card]]
+    rw [QuotientGroup.card_preimage_mk, Nat.card_eq_fintype_card (α := ↥H)]
+    have : Nat.card ({q} : Set (G ⧸ H)) = 1 := by
+      rw [Nat.card_eq_fintype_card]; simp
+    rw [this, mul_one]
+  -- ∑ h : G, f((hH).out) = ∑ q, ∑ h in fiber(q), f((hH).out)
+  --                       = ∑ q, ∑ h in fiber(q), f(q.out)
+  --                       = ∑ q, |fiber(q)| • f(q.out)
+  --                       = ∑ q, |H| • f(q.out)
+  --                       = |H| * ∑ q, f(q.out)
+  -- Fiber decomposition: ∑_h f((hH).out) = ∑_q ∑_{h:hH=q} f(q.out) = ∑_q |H|*f(q.out)
+  have step : ∀ q : G ⧸ H,
+      ∑ h ∈ Finset.univ.filter (fun h : G => (h : G ⧸ H) = q), f ((h : G ⧸ H).out) =
+      (Fintype.card H : ℂ) * f q.out := by
+    intro q
+    rw [show ∑ h ∈ Finset.univ.filter (fun h : G => (h : G ⧸ H) = q), f ((h : G ⧸ H).out) =
+      ∑ _h ∈ Finset.univ.filter (fun h : G => (h : G ⧸ H) = q), f q.out from
+      Finset.sum_congr rfl (fun h hm => congrArg (f ·.out) (Finset.mem_filter.mp hm).2)]
+    rw [Finset.sum_const, this q, nsmul_eq_mul]
+  rw [← Finset.sum_fiberwise_of_maps_to
+      (g := fun h : G => (h : G ⧸ H)) (fun _ _ => Finset.mem_univ _)]
+  simp_rw [step, ← Finset.mul_sum]
+
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
 via the orbit method: they are parametrized by pairs (O, U) where O is a
@@ -305,7 +360,6 @@ theorem Etingof.Theorem5_27_1
     classical
     change (LinearMap.trace ℂ ((G ⧸ stabAux φ χ) → ↥U))
         ((inducedRepV φ χ U).ρ ⟨a, g⟩) = _
-    haveI : Fintype (G ⧸ stabAux φ χ) := Quotient.fintype _
     -- The action has twisted permutation form: T f q = L q (f (σ q))
     have hTwist : ∀ (f : G ⧸ stabAux φ χ → ↥U) (q : G ⧸ stabAux φ χ),
         (inducedRepV φ χ U).ρ ⟨a, g⟩ f q =
@@ -361,6 +415,61 @@ theorem Etingof.Theorem5_27_1
         -- (C) g := f∘inv is right-H-invariant (from A)
         -- (D) ∑ h, g(h) = |H| * ∑ q, g(q.out) by groupEquivQuotientProdSubgroup
         -- (E) g(q.out) = f(q.out⁻¹) = F(q) since q.out⁻¹*g*(q.out⁻¹)⁻¹ = q.out⁻¹*g*q.out
-        sorry
+        -- Define g(h) = the "inverted" summand, which is right-H-invariant
+        -- g(h) = if h⁻¹*g*h ∈ H then χ(φ(h⁻¹)(a))*char(h⁻¹*g*h) else 0
+        -- Note: h⁻¹*g*(h⁻¹)⁻¹ = h⁻¹*g*h, so g(h) = f(h⁻¹) where f is the original
+        -- ∑ h, f(h) = ∑ h, g(h) by reindexing
+        -- g is right-H-invariant ⟹ ∑ h, g(h) = |H| * ∑ q, g(q.out) = |H| * ∑ q, F(q)
+        let H := stabAux φ χ
+        -- Define g directly to avoid `set`/`dif` issues
+        let gfun : G → ℂ := fun h =>
+          if hh : h⁻¹ * g * h ∈ H then
+            ((χ ((φ h⁻¹ : MulAut A) a) : ℂˣ) : ℂ) *
+              U.character ⟨h⁻¹ * g * h, hh⟩
+          else 0
+        -- Step 1: ∑ h, (original summand) = ∑ h, gfun h (by h ↦ h⁻¹)
+        have sum_reindex : (∑ h : G, (if hh : h * g * h⁻¹ ∈ H then
+              ((χ ((φ h : MulAut A) a) : ℂˣ) : ℂ) *
+                U.character ⟨h * g * h⁻¹, hh⟩
+            else 0)) = ∑ h : G, gfun h := by
+          apply Fintype.sum_equiv (Equiv.inv G)
+          intro h; simp only [Equiv.inv_apply, gfun, inv_inv]
+        -- Step 2: gfun is right-H-invariant
+        have gfun_right_inv : ∀ (h : G) (s : ↥H), gfun (h * ↑s) = gfun h := by
+          intro h s; simp only [gfun]
+          -- (h*s)⁻¹ * g * (h*s) = s⁻¹ * (h⁻¹ * g * h) * s
+          have heq : (h * ↑s)⁻¹ * g * (h * ↑s) = (↑s)⁻¹ * (h⁻¹ * g * h) * ↑s := by group
+          -- H-membership equivalence under conjugation
+          have hmem_iff : (h * ↑s)⁻¹ * g * (h * ↑s) ∈ H ↔ h⁻¹ * g * h ∈ H := by
+            rw [heq]
+            constructor
+            · intro ht
+              have h1 := H.mul_mem (H.mul_mem s.2 ht) (H.inv_mem s.2)
+              rwa [show ↑s * ((↑s)⁻¹ * (h⁻¹ * g * h) * ↑s) *
+                (↑s)⁻¹ = h⁻¹ * g * h from by group] at h1
+            · exact fun ht =>
+                H.mul_mem (H.mul_mem (H.inv_mem s.2) ht) s.2
+          by_cases hmem : h⁻¹ * g * h ∈ H
+          · rw [dif_pos hmem, dif_pos (hmem_iff.mpr hmem)]
+            congr 1
+            · -- χ part: χ(φ((h*s)⁻¹)(a)) = χ(φ(h⁻¹)(a))
+              -- (h*s)⁻¹ = s⁻¹*h⁻¹, so φ((h*s)⁻¹)(a) = φ(s⁻¹)(φ(h⁻¹)(a))
+              -- Then χ(φ(s⁻¹)(x)) = χ(x) by stab_char_inv since s⁻¹ ∈ H
+              congr 1
+              rw [mul_inv_rev, map_mul, MulAut.mul_apply]
+              exact stab_char_inv φ χ (H.inv_mem s.2) _
+            · -- character part: char(s⁻¹*(h⁻¹*g*h)*s) = char(h⁻¹*g*h)
+              -- Rewrite the subtype element as a conjugate
+              have key : (⟨(h * ↑s)⁻¹ * g * (h * ↑s), hmem_iff.mpr hmem⟩ : ↥H) =
+                  ⟨(↑s)⁻¹, H.inv_mem s.2⟩ * ⟨h⁻¹ * g * h, hmem⟩ *
+                    ⟨(↑s)⁻¹, H.inv_mem s.2⟩⁻¹ := by
+                ext; simp [Subgroup.coe_mul]; group
+              rw [key]
+              exact FDRep.char_conj U ⟨h⁻¹ * g * h, hmem⟩ ⟨(↑s)⁻¹, H.inv_mem s.2⟩
+          · rw [dif_neg hmem, dif_neg (hmem_iff.not.mpr hmem)]
+        -- Step 3: decompose ∑ h, gfun h = |H| * ∑ q, gfun q.out
+        have sum_decomp := sum_right_invariant_eq H gfun gfun_right_inv
+        -- Step 4: gfun(q.out) = F(q) since q.out⁻¹ * g * q.out matches
+        rw [mul_comm, sum_reindex, sum_decomp]
       · -- Need: |H| ≠ 0
         exact Nat.cast_ne_zero.mpr (Fintype.card_pos.ne')
