@@ -340,13 +340,13 @@ noncomputable def charValue {n : ℕ} (N : ℕ) (lam : BoundedPartition N n)
 /-! ## Infrastructure for the Frobenius character formula -/
 
 /-- DecidableEq for BoundedPartition: two bounded partitions are equal iff their parts agree. -/
-private instance boundedPartition_decEq {N n : ℕ} : DecidableEq (BoundedPartition N n) :=
+instance boundedPartition_decEq {N n : ℕ} : DecidableEq (BoundedPartition N n) :=
   fun a b => decidable_of_iff (a.parts = b.parts) ⟨
     fun h => by cases a; cases b; simp_all,
     fun h => by subst h; rfl⟩
 
 /-- BoundedPartition N n is finite: each part is ≤ n, so we inject into Fin N → Fin (n+1). -/
-private noncomputable instance boundedPartition_fintype {N n : ℕ} :
+noncomputable instance boundedPartition_fintype {N n : ℕ} :
     Fintype (BoundedPartition N n) := by
   classical
   exact Fintype.ofInjective
@@ -360,7 +360,7 @@ private noncomputable instance boundedPartition_fintype {N n : ℕ} :
 
 /-- The alternant determinant is antisymmetric: `rename σ (det M) = sgn(σ) • det M`.
 This is the key algebraic fact underlying the Frobenius character formula. -/
-private theorem rename_alternant_det {N : ℕ} (e : Fin N → ℕ) (σ : Equiv.Perm (Fin N)) :
+theorem rename_alternant_det {N : ℕ} (e : Fin N → ℕ) (σ : Equiv.Perm (Fin N)) :
     (MvPolynomial.rename σ) (alternantMatrix N e).det =
       Equiv.Perm.sign σ • (alternantMatrix N e).det := by
   rw [AlgHom.map_det]
@@ -376,7 +376,7 @@ private theorem rename_alternant_det {N : ℕ} (e : Fin N → ℕ) (σ : Equiv.P
 /-! ## Helper lemmas for the antisymmetric basis decomposition -/
 
 /-- A strictly monotone permutation of `Fin N` must be the identity. -/
-private lemma perm_eq_one_of_strictMono {N : ℕ} {σ : Equiv.Perm (Fin N)}
+lemma perm_eq_one_of_strictMono {N : ℕ} {σ : Equiv.Perm (Fin N)}
     (h : StrictMono (⇑σ : Fin N → Fin N)) : σ = 1 := by
   rcases N with _ | n
   · exact Subsingleton.elim _ _
@@ -398,7 +398,7 @@ private lemma perm_eq_one_of_strictMono {N : ℕ} {σ : Equiv.Perm (Fin N)}
       Fintype.sum_equiv σ (fun j => ((σ j) : ℕ)) (fun j => (j : ℕ)) (fun _ => rfl)]
 
 /-- A product of `X_i ^ f_i` equals the corresponding monomial. -/
-private lemma prod_X_pow_eq_monomial' {N : ℕ} (f : Fin N → ℕ) :
+lemma prod_X_pow_eq_monomial' {N : ℕ} (f : Fin N → ℕ) :
     ∏ i : Fin N, (X i : MvPolynomial (Fin N) ℚ) ^ f i =
     monomial (Finsupp.equivFunOnFinite.symm f) 1 := by
   set s := Finsupp.equivFunOnFinite.symm f
@@ -408,7 +408,7 @@ private lemma prod_X_pow_eq_monomial' {N : ℕ} (f : Fin N → ℕ) :
     fun i _ hi => by rw [Finsupp.notMem_support_iff.mp hi, pow_zero]
 
 /-- Power-sum symmetric polynomials are symmetric. -/
-private theorem psumPart_isSymmetric {n : ℕ} (N : ℕ) (μ : n.Partition) :
+theorem psumPart_isSymmetric {n : ℕ} (N : ℕ) (μ : n.Partition) :
     (MvPolynomial.psumPart (Fin N) ℚ μ).IsSymmetric := by
   unfold MvPolynomial.psumPart
   induction μ.parts using Multiset.induction with
@@ -417,7 +417,7 @@ private theorem psumPart_isSymmetric {n : ℕ} (N : ℕ) (μ : n.Partition) :
                    exact (MvPolynomial.psum_isSymmetric _ ℚ a).mul ih
 
 /-- Antisymmetric polynomial has zero coefficient at multi-indices with repeated entries. -/
-private theorem coeff_zero_of_antisym_repeated {N : ℕ}
+theorem coeff_zero_of_antisym_repeated {N : ℕ}
     (p : MvPolynomial (Fin N) ℚ)
     (hp : ∀ σ : Equiv.Perm (Fin N), MvPolynomial.rename σ p = Equiv.Perm.sign σ • p)
     (d : (Fin N) →₀ ℕ) {i j : Fin N} (hij : i ≠ j) (hd : d i = d j) :
@@ -437,12 +437,12 @@ private theorem coeff_zero_of_antisym_repeated {N : ℕ}
     MvPolynomial.coeff_neg] at h3; linarith
 
 /-- The shifted exponent sequence is strictly anti-monotone. -/
-private theorem shiftedExps_strictAnti {N n : ℕ} (lam : BoundedPartition N n) :
+theorem shiftedExps_strictAnti {N n : ℕ} (lam : BoundedPartition N n) :
     StrictAnti (shiftedExps N lam.parts) := by
   intro i j hij; simp only [shiftedExps]; have := lam.decreasing (le_of_lt hij); omega
 
 /-- Kronecker delta property: `coeff_{e'}(D_e) = δ_{e,e'}` for strictly anti exponents. -/
-private theorem alternant_coeff_kronecker {N : ℕ}
+theorem alternant_coeff_kronecker {N : ℕ}
     {e e' : Fin N → ℕ} (he : StrictAnti e) (he' : StrictAnti e') :
     MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e') (alternantMatrix N e).det =
     if e = e' then 1 else 0 := by
@@ -481,7 +481,7 @@ private theorem alternant_coeff_kronecker {N : ℕ}
 
 /-- An antisymmetric polynomial whose coefficients at all strictly anti multi-indices
 are zero must be the zero polynomial. -/
-private theorem antisym_eq_zero {N : ℕ} (p : MvPolynomial (Fin N) ℚ)
+theorem antisym_eq_zero {N : ℕ} (p : MvPolynomial (Fin N) ℚ)
     (hp : ∀ σ : Equiv.Perm (Fin N), MvPolynomial.rename σ p = Equiv.Perm.sign σ • p)
     (hc : ∀ e : Fin N → ℕ, StrictAnti e →
       MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e) p = 0) :
@@ -505,7 +505,7 @@ private theorem antisym_eq_zero {N : ℕ} (p : MvPolynomial (Fin N) ℚ)
     exact coeff_zero_of_antisym_repeated p hp d hij_ne hij_val
 
 /-- For StrictAnti `e`, the entry `e j` is at least `N - 1 - j`. -/
-private theorem strictAnti_ge_rev {N : ℕ} {e : Fin N → ℕ} (he : StrictAnti e) (j : Fin N) :
+theorem strictAnti_ge_rev {N : ℕ} {e : Fin N → ℕ} (he : StrictAnti e) (j : Fin N) :
     N - 1 - (j : ℕ) ≤ e j := by
   suffices ∀ m : ℕ, ∀ j : Fin N, m = N - 1 - (j : ℕ) → m ≤ e j by exact this _ j rfl
   intro m; induction m with
@@ -528,7 +528,7 @@ private theorem strictAnti_gap {N : ℕ} {e : Fin N → ℕ} (he : StrictAnti e)
     have := he (show j' < j from by simp [j', Fin.lt_def]; omega); omega
 
 /-- The alternant determinant is homogeneous of degree `∑ e_j`. -/
-private theorem alternant_isHomogeneous {N : ℕ} (e : Fin N → ℕ) :
+theorem alternant_isHomogeneous {N : ℕ} (e : Fin N → ℕ) :
     (alternantMatrix N e).det.IsHomogeneous (∑ j : Fin N, e j) := by
   rw [Matrix.det_apply, show ∑ j : Fin N, e j = ∑ j : Fin N, 1 * e j by simp]
   apply MvPolynomial.IsHomogeneous.sum; intro σ _ d hd
@@ -537,7 +537,7 @@ private theorem alternant_isHomogeneous {N : ℕ} (e : Fin N → ℕ) :
     (MvPolynomial.isHomogeneous_X ℚ (σ j)).pow (e j))) (right_ne_zero_of_mul hd)
 
 /-- Power-sum symmetric polynomials are homogeneous of degree `n`. -/
-private theorem psumPart_isHomogeneous {n : ℕ} (N : ℕ) (μ : n.Partition) :
+theorem psumPart_isHomogeneous {n : ℕ} (N : ℕ) (μ : n.Partition) :
     (MvPolynomial.psumPart (Fin N) ℚ μ).IsHomogeneous n := by
   unfold MvPolynomial.psumPart
   suffices h : (Multiset.map (psum (Fin N) ℚ) μ.parts).prod.IsHomogeneous μ.parts.sum by
@@ -551,7 +551,7 @@ private theorem psumPart_isHomogeneous {n : ℕ} (N : ℕ) (μ : n.Partition) :
       convert (MvPolynomial.isHomogeneous_X ℚ i).pow a using 1; ring)).mul ih
 
 /-- If `e` is StrictAnti with the right sum, it comes from a BoundedPartition. -/
-private theorem exists_bp_of_strictAnti_sum {N n : ℕ}
+theorem exists_bp_of_strictAnti_sum {N n : ℕ}
     (e : Fin N → ℕ) (he : StrictAnti e)
     (hsum : ∑ j : Fin N, e j = (∑ j : Fin N, vandermondeExps N j) + n) :
     ∃ lam : BoundedPartition N n, shiftedExps N lam.parts = e := by

@@ -638,6 +638,61 @@ theorem formalCharacter_schurModule_eq_sum_permTracePoly
           permTracePoly N σ := by
   sorry
 
+/-! #### Bridge: cycle type partition and power sum connection -/
+
+/-- The full cycle type of σ forms a partition of n. -/
+noncomputable def fullCycleTypePartition {n : ℕ} (σ : Equiv.Perm (Fin n)) : Nat.Partition n where
+  parts := fullCycleType n σ
+  parts_pos hi := fullCycleType_pos σ _ hi
+  parts_sum := fullCycleType_sum n σ
+
+/-- `powerSumCycleProduct` equals `psumPart` of the full cycle type partition. -/
+theorem powerSumCycleProduct_eq_psumPart {n : ℕ} (N : ℕ) (σ : Equiv.Perm (Fin n)) :
+    powerSumCycleProduct N σ = MvPolynomial.psumPart (Fin N) ℚ (fullCycleTypePartition σ) := by
+  unfold powerSumCycleProduct MvPolynomial.psumPart fullCycleTypePartition
+  rfl
+
+/-- Convert a weight `lam : Fin N → ℕ` with `Antitone lam` to a `BoundedPartition`. -/
+def weightToBP (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    BoundedPartition N (∑ i, lam i) where
+  parts := lam
+  decreasing := hlam
+  sum_eq := rfl
+
+/-! #### Character orthogonality for the Young symmetrizer
+
+This is the key representation-theoretic identity: the Young symmetrizer
+paired with the Frobenius character values gives a Kronecker delta.
+Mathematically, it states that `c_λ` acts as a rank-1 projector (up to
+scalar α) on the irreducible S_n-representation indexed by λ, and as
+zero on all other irreducibles.
+
+Proof would require the theory of Specht modules and the structure of
+Young symmetrizers in the group algebra decomposition. -/
+
+/-- **Character orthogonality for the Young symmetrizer**: The Young-symmetrizer-weighted
+sum of character values gives `α` for the matching partition and `0` otherwise.
+
+This is the key identity: ∑_σ c_λ(σ) · χ_{λ'}(σ) = α · δ_{λ,λ'}
+where χ_{λ'} is the character value at the conjugacy class of σ.
+
+The proof requires the decomposition of c_λ in the Wedderburn decomposition
+of ℚ[S_n]: the Young symmetrizer c_λ maps to a scalar multiple of a
+rank-1 idempotent in the λ-isotypic component and to 0 in all other
+components. This is a fundamental result in the representation theory
+of the symmetric group. -/
+theorem youngSym_charValue_orthogonality
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam))
+    (lam' : BoundedPartition N (∑ i, lam i)) :
+    ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+      (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
+        charValue N lam' (fullCycleTypePartition σ) =
+      if lam'.parts = lam then α else 0 := by
+  sorry
+
 /-! #### Step 2: Young symmetrizer weighted sum of permTracePoly equals α · schurPoly
 
 This is the combinatorial/representation-theoretic identity: grouping the sum
@@ -645,26 +700,139 @@ This is the combinatorial/representation-theoretic identity: grouping the sum
 applying the Frobenius formula (Proposition 5.21.1) plus character orthogonality
 for S_n yields `α · s_λ(x)`. -/
 
+set_option maxHeartbeats 1600000 in -- Frobenius + orthogonality proof needs extended heartbeats
 /-- **Frobenius + orthogonality**: The Young-symmetrizer-weighted sum of
-permutation trace polynomials equals `α · schurPoly N lam`.
-
-Proof strategy: Group the sum by conjugacy class (= cycle type μ ⊢ n).
-For each conjugacy class, `permTracePoly` is constant (= power sum product `p_μ`
-by `permTracePoly_eq_powerSumCycleProduct`). The coefficient becomes
-`∑_{σ of type μ} c_λ(σ)`, which is the character `χ^λ(μ)` of `S_n` at μ
-times the size of the conjugacy class divided by appropriate normalization.
-By the Frobenius formula (`Proposition5_21_1`), `s_λ = ∑_μ (1/z_μ) χ^λ(μ) p_μ`.
-Character orthogonality for `S_n` then collapses the sum to `α · s_λ`. -/
+permutation trace polynomials equals `α · schurPoly N lam`. -/
 theorem sum_youngSym_permTracePoly_eq_alpha_schurPoly
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
-    (α : ℚ) (hα : α ≠ 0)
+    (α : ℚ) (_hα : α ≠ 0)
     (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
       YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
       α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam)) :
     ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
       (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) •
         permTracePoly N σ = α • schurPoly N lam := by
-  sorry
+  set n := ∑ i, lam i with hn
+  set la := weightToPartition N lam
+  set c := YoungSymmetrizerK ℚ n la
+  set Δ := (alternantMatrix N (vandermondeExps N)).det
+  set F := ∑ σ : Equiv.Perm (Fin n), (c σ : ℚ) • permTracePoly N σ
+  -- Cancel the Vandermonde determinant (nonzero in MvPolynomial integral domain)
+  have hΔ : Δ ≠ 0 := alternantMatrix_vandermondeExps_det_ne_zero N
+  apply mul_right_cancel₀ hΔ
+  rw [smul_mul_assoc, schurPoly_mul_vandermonde]
+  -- Goal: F * Δ = α • (alternantMatrix N (shiftedExps N lam)).det
+  -- Show F * Δ - α • A_{λ+δ} = 0 by the antisymmetric basis argument
+  rw [← sub_eq_zero]
+  apply antisym_eq_zero
+  · -- F * Δ - α • A_{λ+δ} is antisymmetric
+    intro σ
+    rw [map_sub, smul_sub]
+    congr 1
+    · -- F * Δ is antisymmetric: F is symmetric, Δ is antisymmetric
+      rw [map_mul, rename_alternant_det]
+      -- Goal: (rename σ) F * (sign σ • Δ) = sign σ • (F * Δ)
+      have hF_sym : (MvPolynomial.rename σ) F = F := by
+        simp only [F, map_sum]
+        apply Finset.sum_congr rfl
+        intro τ _
+        rw [AlgHom.map_smul_of_tower]
+        congr 1
+        rw [permTracePoly_eq_powerSumCycleProduct N τ, powerSumCycleProduct_eq_psumPart N τ]
+        exact (psumPart_isSymmetric N (fullCycleTypePartition τ)) σ
+      rw [hF_sym, mul_comm F (Equiv.Perm.sign σ • Δ), smul_mul_assoc, mul_comm]
+    · -- α • A_{λ+δ} is antisymmetric
+      rw [AlgHom.map_smul_of_tower, rename_alternant_det, smul_comm]
+  · -- All alternant coefficients of F * Δ - α • A_{λ+δ} are zero
+    intro e he
+    rw [MvPolynomial.coeff_sub]
+    -- Coefficient of A_{λ+δ} at strictly anti e
+    rw [MvPolynomial.coeff_smul, smul_eq_mul]
+    -- Goal now has: α * coeff e (alternantMatrix N (shiftedExps N lam)).det
+    -- Need to change shiftedExps N lam to shiftedExps N (weightToBP N lam hlam).parts
+    change MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e) (F * Δ) -
+      α * MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+        (alternantMatrix N (shiftedExps N (weightToBP N lam hlam).parts)).det = 0
+    rw [alternant_coeff_kronecker (shiftedExps_strictAnti (weightToBP N lam hlam)) he]
+    -- Coefficient of F * Δ at e
+    -- F * Δ = ∑_σ c(σ) • (permTracePoly σ * Δ)
+    -- The coefficient is ∑_σ c(σ) * coeff_e(Δ * permTracePoly σ)
+    -- = ∑_σ c(σ) * charValue(N, lam', type(σ))  when e = shiftedExps N lam'.parts
+    -- By character orthogonality, this equals α if lam' = lam, 0 otherwise
+    -- We need to handle two cases:
+    -- (a) e = shiftedExps N lam'.parts for some BP lam'
+    -- (b) e does not come from any BP (wrong total degree)
+    show MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e) (F * Δ) -
+      α * (if shiftedExps N (weightToBP N lam hlam).parts = e then 1 else 0) = 0
+    -- Compute F * Δ coefficient using linearity
+    have hF_coeff : MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e) (F * Δ) =
+        ∑ σ : Equiv.Perm (Fin n),
+          (c σ : ℚ) * MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+            (Δ * permTracePoly N σ) := by
+      show MvPolynomial.coeff _ (F * Δ) = _
+      simp only [F, Finset.sum_mul, MvPolynomial.coeff_sum]
+      apply Finset.sum_congr rfl; intro σ _
+      rw [smul_mul_assoc, MvPolynomial.coeff_smul, smul_eq_mul, mul_comm (permTracePoly N σ) Δ]
+    rw [hF_coeff]
+    -- Replace permTracePoly by psumPart and use charValue definition
+    conv_lhs =>
+      arg 1; arg 2; ext σ
+      rw [permTracePoly_eq_powerSumCycleProduct N σ, powerSumCycleProduct_eq_psumPart N σ]
+    -- Now the sum is ∑_σ c(σ) * charValue(N, ?, type(σ))
+    -- Handle degree case: if e doesn't come from a BP, both sides are 0
+    by_cases hbp : ∃ lam' : BoundedPartition N n, shiftedExps N lam'.parts = e
+    · -- Case (a): e = shiftedExps N lam'.parts for some BP
+      obtain ⟨lam', hlam'⟩ := hbp
+      -- The coefficient is charValue by definition
+      have h_cv : ∀ σ,
+          MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+            (Δ * MvPolynomial.psumPart (Fin N) ℚ (fullCycleTypePartition σ)) =
+          charValue N lam' (fullCycleTypePartition σ) := by
+        intro σ; rw [← hlam']; rfl
+      simp_rw [h_cv]
+      -- Apply character orthogonality
+      have horth := youngSym_charValue_orthogonality N lam hlam α hα_sq lam'
+      rw [horth]
+      -- Now need: if (lam'.parts = lam) then α else 0 -
+      --           α * if (shiftedExps N (weightToBP N lam hlam).parts = e) then 1 else 0 = 0
+      simp only [weightToBP]
+      by_cases heq : lam'.parts = lam
+      · -- lam' matches lam
+        rw [if_pos heq, if_pos (by rw [← hlam']; congr 1; exact heq.symm), mul_one, sub_self]
+      · -- lam' doesn't match lam
+        rw [if_neg heq]
+        rw [if_neg (by intro h; exact heq (by
+          have : shiftedExps N lam = e := h
+          have : shiftedExps N lam = shiftedExps N lam'.parts := this.trans hlam'.symm
+          funext j; have := congr_fun this j; simp [shiftedExps] at this; omega))]
+        simp
+    · -- Case (b): e doesn't come from any BP → coefficient is 0 by homogeneity
+      -- The if-condition is false since shiftedExps lam IS a BP
+      have hne : shiftedExps N (weightToBP N lam hlam).parts ≠ e := by
+        intro h; exact hbp ⟨weightToBP N lam hlam, h⟩
+      rw [if_neg hne, mul_zero, sub_zero]
+      -- Each coeff_e(Δ * psumPart σ) = 0 since e doesn't come from any BP
+      -- The antisymmetric polynomial Δ * psumPart σ has nonzero coefficients only at
+      -- strictly anti exponents of the form shiftedExps N lam'.parts
+      apply Finset.sum_eq_zero; intro σ _
+      suffices h : MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+          (Δ * MvPolynomial.psumPart (Fin N) ℚ (fullCycleTypePartition σ)) = 0 by
+        rw [h, mul_zero]
+      -- By homogeneity: if coeff ≠ 0 then ∑ e_j = ∑ vandermondeExps_j + n,
+      -- then exists_bp_of_strictAnti_sum gives a BP. Contradicts hbp.
+      by_contra h'
+      have h'' : MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm e)
+          (Δ * MvPolynomial.psumPart (Fin N) ℚ (fullCycleTypePartition σ)) ≠ 0 := by
+        exact fun heq => h' heq
+      have hF := (alternant_isHomogeneous (vandermondeExps N)).mul
+        (psumPart_isHomogeneous N (fullCycleTypePartition σ))
+      have hd := hF h''
+      have hweight : Finsupp.weight (1 : Fin N → ℕ) (Finsupp.equivFunOnFinite.symm e) =
+          ∑ j : Fin N, e j := by
+        simp [Finsupp.weight, Finsupp.linearCombination_apply, Finsupp.sum_fintype]
+      rw [hweight] at hd
+      obtain ⟨lam', hlam'⟩ := exists_bp_of_strictAnti_sum e he (by exact_mod_cast hd)
+      exact hbp ⟨lam', hlam'⟩
 
 set_option maxHeartbeats 800000 in
 /-- The trace of left multiplication by `c` in `MonoidAlgebra ℚ G` equals `|G| · c(1)`. -/
