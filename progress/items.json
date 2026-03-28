@@ -3695,7 +3695,7 @@
     "end_page": "124",
     "start_line": 5,
     "end_line": 16,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false,
     "notes": "Triage 2026-03-18: All 3 parts (centralizers, semisimple, decomposition) have sorry. No active claimed issue. Depends on Double Centralizer Theorem (5.18.1). Ready for feature issue once 5.18.1 parts are proved."
   },
