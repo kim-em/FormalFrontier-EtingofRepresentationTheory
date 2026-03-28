@@ -9,6 +9,8 @@ import Mathlib.CategoryTheory.Equivalence
 import Mathlib.RingTheory.Morita.Matrix
 import Mathlib.LinearAlgebra.TensorProduct.Defs
 import Mathlib.RingTheory.Idempotents
+import Mathlib.RingTheory.Jacobson.Semiprimary
+import Mathlib.Data.Matrix.Basis
 
 /-!
 # Basic algebra existence
@@ -86,13 +88,109 @@ there exists a full idempotent `e ∈ A` such that the corner ring `eAe` is basi
    idempotents in A/rad(A)
 5. `CompleteOrthogonalIdempotents.lift_of_isNilpotent_ker` — lift to A
 6. Sum of lifted idempotents is full (AeA = A) and eAe is basic -/
+/-! ### Helper lemmas for the main proof -/
+
+/-- The sum of orthogonal idempotents is idempotent. -/
+private lemma isIdempotentElem_sum_orthogonal {R : Type*} [Ring R] {n : ℕ}
+    {e : Fin n → R} (he : OrthogonalIdempotents e) :
+    IsIdempotentElem (∑ i, e i) := by
+  simp only [IsIdempotentElem, Finset.sum_mul, Finset.mul_sum]
+  rw [show ∑ i, e i = ∑ i, ∑ j, if i = j then e i else 0 by
+    simp [Finset.sum_ite_eq]]
+  rw [Finset.sum_comm]
+  congr 1; ext j
+  congr 1; ext i
+  split_ifs with hij
+  · subst hij; exact (he.idem _).eq
+  · exact he.ortho hij
+
+/-- For a finite-dimensional algebra over an algebraically closed field, the quotient
+by the Jacobson radical is a semisimple finite-dimensional algebra, and by Wedderburn-Artin
+it decomposes as a product of matrix algebras. This gives us orthogonal idempotents
+(one primitive per block) which can be lifted to A. The sum is a full idempotent with
+basic corner ring.
+
+This is the key construction: we sorry the existence statement but decompose
+the proof obligations clearly. -/
 lemma exists_full_idempotent_basic_corner
     (k : Type u) [Field k] [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] :
     ∃ (e : A) (he : IsFullIdempotent e),
       @IsBasicAlgebra k _ (CornerRing (k := k) e) (CornerRing.instRing he.1)
         (CornerRing.instAlgebra he.1) := by
-  sorry
+  -- Step 1: A is Artinian (finite-dim over a field)
+  haveI : IsArtinianRing A := IsArtinianRing.of_finite k A
+  -- Step 2: A is semiprimary (automatic from Artinian)
+  haveI : IsSemiprimaryRing A := inferInstance
+  -- Step 3: A/J(A) is semisimple and finite-dimensional
+  set J := Ring.jacobson A
+  haveI : IsSemisimpleRing (A ⧸ J) := IsSemiprimaryRing.isSemisimpleRing
+  -- Step 4: Wedderburn-Artin decomposition of A/J(A) ≅ ∏ Mat_{n_i}(k)
+  -- The quotient algebra is finite-dimensional over k
+  letI : Algebra k (A ⧸ J) := Ideal.Quotient.algebra k
+  haveI : Module.Finite k (A ⧸ J) := Module.Finite.of_surjective
+    (Ideal.Quotient.mkₐ k J).toLinearMap (Ideal.Quotient.mkₐ_surjective k J)
+  obtain ⟨numBlocks, blockSize, hne, ⟨φ⟩⟩ :=
+    IsSemisimpleRing.exists_algEquiv_pi_matrix_of_isAlgClosed k (A ⧸ J)
+  -- Step 5: Extract orthogonal idempotents E₁₁ in each block of the product
+  -- In ∏ Mat_{n_i}(k), define ēᵢ = Pi.single i (Matrix.single 0 0 1)
+  let ē : Fin numBlocks → (∀ i, Matrix (Fin (blockSize i)) (Fin (blockSize i)) k) :=
+    fun i => Pi.single i (Matrix.single 0 0 1)
+  -- These are orthogonal idempotents in the product
+  have hē_orth : OrthogonalIdempotents ē := by
+    constructor
+    · intro i
+      change ē i * ē i = ē i
+      simp only [ē, ← Pi.single_mul]
+      congr 1
+      rw [Matrix.single_mul_single_same]
+      simp
+    · intro i j hij
+      change ē i * ē j = 0
+      simp only [ē]
+      ext t : 1
+      simp only [Pi.mul_apply, Pi.zero_apply]
+      by_cases hi : i = t
+      · subst hi
+        simp [Pi.single_apply, hij]
+      · simp [Pi.single_apply, hi]
+  -- Transport to A/J(A) via the isomorphism
+  let ē_AJ : Fin numBlocks → (A ⧸ J) := fun i => φ.symm (ē i)
+  have hē_AJ_orth : OrthogonalIdempotents ē_AJ := by
+    constructor
+    · intro i
+      change ē_AJ i * ē_AJ i = ē_AJ i
+      simp only [ē_AJ, ← map_mul, hē_orth.idem i |>.eq]
+    · intro i j hij
+      change ē_AJ i * ē_AJ j = 0
+      simp only [ē_AJ, ← map_mul, hē_orth.ortho hij, map_zero]
+  -- Step 6: Lift to A using nilpotency of J
+  have hJ_nil : IsNilpotent J := IsSemiprimaryRing.isNilpotent
+  have hker_nil : ∀ x ∈ RingHom.ker (Ideal.Quotient.mk J), IsNilpotent x := by
+    intro x hx
+    rw [RingHom.mem_ker, Ideal.Quotient.eq_zero_iff_mem] at hx
+    obtain ⟨n, hn⟩ := hJ_nil
+    exact ⟨n, Ideal.pow_eq_zero_of_mem hn le_rfl hx⟩
+  obtain ⟨e_lifted, he_orth, he_comp⟩ := OrthogonalIdempotents.lift_of_isNilpotent_ker
+    (Ideal.Quotient.mk J) hker_nil hē_AJ_orth
+    (fun i => Ideal.Quotient.mk_surjective (ē_AJ i))
+  -- Step 7: Set e = ∑ e_lifted i
+  let e := ∑ i, e_lifted i
+  have he_idem : IsIdempotentElem e := isIdempotentElem_sum_orthogonal he_orth
+  -- Step 8: Show e is full (AeA = A) and eAe is basic
+  -- Fullness: In A/J, the images ē_AJ i generate A/J as a two-sided ideal.
+  -- Since J is nilpotent, this lifts to fullness in A.
+  -- Basicness: eAe/rad(eAe) ≅ k^n (one copy per block), so all simple eAe-modules
+  -- are 1-dimensional.
+  have he_full : IsFullIdempotent e := by
+    constructor
+    · exact he_idem
+    · -- AeA = A because the images in A/J generate the quotient
+      sorry
+  have he_basic : @IsBasicAlgebra k _ (CornerRing (k := k) e)
+      (CornerRing.instRing he_full.1) (CornerRing.instAlgebra he_full.1) := by
+    sorry
+  exact ⟨e, he_full, he_basic⟩
 
 /-! ## Corner module infrastructure for Morita equivalence
 
