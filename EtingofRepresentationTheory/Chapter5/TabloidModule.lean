@@ -354,12 +354,172 @@ theorem tabloidDominates_antisymm_toTabloid {σ₁ σ₂ σ₃ : Equiv.Perm (Fin
     (h₁₂ : tabloidDominates la σ₁ σ₂) (h₂₃ : tabloidDominates la σ₂ σ₃)
     (heq : toTabloid n la σ₁ = toTabloid n la σ₃) :
     toTabloid n la σ₂ = toTabloid n la σ₃ := by
-  -- tabloidCumulCount is squeezed: count(σ₃) ≤ count(σ₂) ≤ count(σ₁) = count(σ₃)
-  -- So count(σ₂) = count(σ₃), which implies same row assignment.
-  -- Squeeze argument: equal cumulative counts at endpoints force equality in middle
-  -- count(σ₃) ≤ count(σ₂) ≤ count(σ₁) = count(σ₃), so count(σ₂) = count(σ₃)
-  -- Then use cumulative count differences to show row assignments match
-  sorry
+  -- Squeeze: count(σ₃) ≤ count(σ₂) ≤ count(σ₁) = count(σ₃), so count(σ₂) = count(σ₃)
+  have hcount : ∀ k : Fin n, ∀ i : ℕ,
+      tabloidCumulCount la σ₂ k i = tabloidCumulCount la σ₃ k i := by
+    intro k i
+    have h1 := h₁₂ k i
+    have h2 := h₂₃ k i
+    have h3 := tabloidCumulCount_eq_of_toTabloid_eq σ₁ σ₃ heq k i
+    omega
+  -- Equal cumulative counts imply equal row assignments
+  rw [toTabloid_eq_iff_rowAssign]
+  intro k
+  by_contra hne
+  -- Either row(σ₂(k)) < row(σ₃(k)) or row(σ₃(k)) < row(σ₂(k))
+  have hlt : rowOfPos la.sortedParts (σ₂ k).val <
+      rowOfPos la.sortedParts (σ₃ k).val := by
+    rcases Nat.lt_or_ge (rowOfPos la.sortedParts (σ₂ k).val)
+        (rowOfPos la.sortedParts (σ₃ k).val) with h | h
+    · exact h
+    · rcases Nat.eq_or_lt_of_le h with heq' | hlt'
+      · exact absurd heq'.symm hne
+      · -- row(σ₃(k)) < row(σ₂(k)): derive contradiction using symmetric argument
+        -- count(σ₂, k, row(σ₂(k))) should include entry k for σ₃ but not σ₂
+        -- This contradicts hcount. We'll prove it below, so for now use the
+        -- general argument in the reverse direction.
+        exfalso
+        -- At i = row(σ₂(k)): σ₃ counts entry k (row(σ₃(k)) < row(σ₂(k)))
+        -- but σ₂ does not (row(σ₂(k)) = row(σ₂(k)), not <)
+        set r' := rowOfPos la.sortedParts (σ₂ k).val
+        rcases k with ⟨_ | m', hk'⟩
+        · -- k = 0
+          have : tabloidCumulCount la σ₃ ⟨0, hk'⟩ r' = 1 := by
+            simp only [tabloidCumulCount]
+            rw [show (Finset.univ.filter fun e : Fin n =>
+                e ≤ ⟨0, hk'⟩ ∧ rowOfPos la.sortedParts (σ₃ e).val < r') =
+              {⟨0, hk'⟩} from by
+              ext ⟨e, he⟩
+              simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Finset.mem_singleton, Fin.mk_le_mk, Fin.ext_iff]
+              constructor
+              · intro ⟨hle, _⟩; omega
+              · intro heq'; subst heq'; exact ⟨le_refl _, hlt'⟩]
+            exact Finset.card_singleton _
+          have : tabloidCumulCount la σ₂ ⟨0, hk'⟩ r' = 0 := by
+            simp only [tabloidCumulCount]
+            apply Finset.card_eq_zero.mpr
+            rw [Finset.filter_eq_empty_iff]
+            intro ⟨e, he⟩ _
+            simp only [not_and, Fin.mk_le_mk]
+            intro hle hrow
+            have : e = 0 := by omega
+            subst this; exact Nat.lt_irrefl _ hrow
+          linarith [hcount ⟨0, hk'⟩ r']
+        · -- k = m'+1
+          have hm' : m' < n := by omega
+          have h2d : tabloidCumulCount la σ₃ ⟨m' + 1, hk'⟩ r' =
+              tabloidCumulCount la σ₃ ⟨m', hm'⟩ r' + 1 := by
+            simp only [tabloidCumulCount]
+            rw [show (Finset.univ.filter fun e : Fin n =>
+                e ≤ ⟨m' + 1, hk'⟩ ∧ rowOfPos la.sortedParts (σ₃ e).val < r') =
+              (Finset.univ.filter fun e : Fin n =>
+                e ≤ ⟨m', hm'⟩ ∧ rowOfPos la.sortedParts (σ₃ e).val < r') ∪
+              {⟨m' + 1, hk'⟩} from by
+              ext ⟨e, he⟩
+              simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Finset.mem_union, Finset.mem_singleton, Fin.mk_le_mk, Fin.ext_iff]
+              constructor
+              · intro ⟨hle, hrow⟩
+                by_cases heq' : e = m' + 1
+                · right; exact heq'
+                · left; exact ⟨by omega, hrow⟩
+              · intro hh
+                rcases hh with ⟨hle, hrow⟩ | heq'
+                · exact ⟨by omega, hrow⟩
+                · subst heq'; exact ⟨le_refl _, hlt'⟩]
+            rw [Finset.card_union_of_disjoint (by
+              rw [Finset.disjoint_left]
+              intro ⟨e, he⟩ hmem hsing
+              simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+                Fin.mk_le_mk] at hmem
+              simp only [Finset.mem_singleton, Fin.ext_iff] at hsing
+              omega)]
+            simp
+          have h3d : tabloidCumulCount la σ₂ ⟨m' + 1, hk'⟩ r' =
+              tabloidCumulCount la σ₂ ⟨m', hm'⟩ r' := by
+            simp only [tabloidCumulCount]
+            congr 1; ext ⟨e, he⟩
+            simp only [Finset.mem_filter, Finset.mem_univ, true_and, Fin.mk_le_mk]
+            constructor
+            · intro ⟨hle, hrow⟩
+              constructor
+              · by_contra hgt; push_neg at hgt
+                have : e = m' + 1 := by omega
+                subst this; exact Nat.lt_irrefl _ hrow
+              · exact hrow
+            · intro ⟨hle, hrow⟩; exact ⟨by omega, hrow⟩
+          linarith [hcount ⟨m' + 1, hk'⟩ r', hcount ⟨m', hm'⟩ r']
+  -- row(σ₂(k)) < row(σ₃(k))
+  set r := rowOfPos la.sortedParts (σ₃ k).val
+  rcases k with ⟨_ | m, hk⟩
+  · -- k = 0: count(σ, 0, r) counts only entry 0
+    have h2 : tabloidCumulCount la σ₂ ⟨0, hk⟩ r = 1 := by
+      simp only [tabloidCumulCount]
+      rw [show (Finset.univ.filter fun e : Fin n =>
+          e ≤ ⟨0, hk⟩ ∧ rowOfPos la.sortedParts (σ₂ e).val < r) =
+        {⟨0, hk⟩} from by
+        ext ⟨e, he⟩
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton,
+          Fin.mk_le_mk, Fin.ext_iff]
+        constructor
+        · intro ⟨hle, _⟩; omega
+        · intro heq; subst heq; exact ⟨le_refl _, hlt⟩]
+      exact Finset.card_singleton _
+    have h3 : tabloidCumulCount la σ₃ ⟨0, hk⟩ r = 0 := by
+      simp only [tabloidCumulCount]
+      apply Finset.card_eq_zero.mpr
+      rw [Finset.filter_eq_empty_iff]
+      intro ⟨e, he⟩ _
+      simp only [not_and, Fin.mk_le_mk]
+      intro hle hrow
+      have : e = 0 := by omega
+      subst this; exact Nat.lt_irrefl _ hrow
+    linarith [hcount ⟨0, hk⟩ r]
+  · -- k = m+1: use predecessor count at ⟨m, _⟩
+    have hm : m < n := by omega
+    -- count(σ₂, m+1, r) = count(σ₂, m, r) + 1 (entry m+1 contributes since row < r)
+    have h2_diff : tabloidCumulCount la σ₂ ⟨m + 1, hk⟩ r =
+        tabloidCumulCount la σ₂ ⟨m, hm⟩ r + 1 := by
+      simp only [tabloidCumulCount]
+      rw [show (Finset.univ.filter fun e : Fin n =>
+          e ≤ ⟨m + 1, hk⟩ ∧ rowOfPos la.sortedParts (σ₂ e).val < r) =
+        (Finset.univ.filter fun e : Fin n =>
+          e ≤ ⟨m, hm⟩ ∧ rowOfPos la.sortedParts (σ₂ e).val < r) ∪ {⟨m + 1, hk⟩} from by
+        ext ⟨e, he⟩
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and,
+          Finset.mem_union, Finset.mem_singleton, Fin.mk_le_mk, Fin.ext_iff]
+        constructor
+        · intro ⟨hle, hrow⟩
+          by_cases heq : e = m + 1
+          · right; exact heq
+          · left; exact ⟨by omega, hrow⟩
+        · intro h
+          rcases h with ⟨hle, hrow⟩ | heq
+          · exact ⟨by omega, hrow⟩
+          · subst heq; exact ⟨le_refl _, hlt⟩]
+      rw [Finset.card_union_of_disjoint (by
+        rw [Finset.disjoint_left]
+        intro ⟨e, he⟩ hmem hsing
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Fin.mk_le_mk] at hmem
+        simp only [Finset.mem_singleton, Fin.ext_iff] at hsing
+        omega)]
+      simp
+    -- count(σ₃, m+1, r) = count(σ₃, m, r) (entry m+1 does NOT contribute since row = r)
+    have h3_diff : tabloidCumulCount la σ₃ ⟨m + 1, hk⟩ r =
+        tabloidCumulCount la σ₃ ⟨m, hm⟩ r := by
+      simp only [tabloidCumulCount]
+      congr 1; ext ⟨e, he⟩
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Fin.mk_le_mk]
+      constructor
+      · intro ⟨hle, hrow⟩
+        constructor
+        · by_contra hgt; push_neg at hgt
+          have : e = m + 1 := by omega
+          subst this; exact Nat.lt_irrefl _ hrow
+        · exact hrow
+      · intro ⟨hle, hrow⟩; exact ⟨by omega, hrow⟩
+    linarith [hcount ⟨m + 1, hk⟩ r, hcount ⟨m, hm⟩ r]
 
 /-! ### Last-letter total order -/
 
