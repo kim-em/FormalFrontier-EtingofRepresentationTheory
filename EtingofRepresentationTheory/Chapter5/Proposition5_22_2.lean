@@ -1,5 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Theorem5_22_1
+import EtingofRepresentationTheory.Chapter5.FormalCharacterIso
 
 /-!
 # Proposition 5.22.2: Twisting by Determinant
@@ -89,16 +90,6 @@ theorem schurPoly_shift (N : ℕ) (lam : Fin N → ℕ) :
   rw [mul_assoc, schurPoly_mul_vandermonde, schurPoly_mul_vandermonde,
       ← alternant_det_shift, shiftedExps_shift]
 
-/-! ### Character theory for the determinant twist -/
-
-/-- The determinant of `diagUnit k N i t` is `t`. -/
-private lemma det_diagUnit (N : ℕ) (i : Fin N) (t : kˣ) :
-    (Matrix.GeneralLinearGroup.det (diagUnit k N i t) : k) = t := by
-  change Matrix.det (Matrix.diagonal (Function.update 1 i (t : k))) = t
-  rw [Matrix.det_diagonal]
-  simp only [Finset.prod_update_of_mem (Finset.mem_univ i), Pi.one_apply, Finset.prod_const_one,
-    mul_one]
-
 /-- The formal character of `L_{λ+(1,…,1)}` equals `(∏ Xᵢ) · char(L_λ)`.
 This follows from Theorem 5.22.1 (Weyl character formula) and schurPoly_shift. -/
 theorem formalCharacter_schurModule_shift (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
@@ -106,6 +97,20 @@ theorem formalCharacter_schurModule_shift (N : ℕ) (lam : Fin N → ℕ) (hlam 
       (∏ i : Fin N, MvPolynomial.X i) * formalCharacter k N (SchurModule k N lam) := by
   have hlam' : Antitone (fun i => lam i + 1) := fun i j hij => Nat.add_le_add_right (hlam hij) 1
   rw [Theorem5_22_1 k N _ hlam', Theorem5_22_1 k N lam hlam, schurPoly_shift]
+
+/-- The formal character of the det-twisted Schur module equals that of the shifted
+Schur module `L_{λ+(1,…,1)}`. Both equal `(∏ Xᵢ) · char(L_λ)`.
+
+The proof requires showing that weight spaces of the det-twisted representation at
+weights with some zero component are trivial. This follows from the polynomial nature
+of the representation: the eigenvalue `t⁻¹` arising from the zero-weight condition
+cannot occur for a polynomial representation (it's not a root of the characteristic
+polynomial of `diagUnit(i,t)` acting on `V^{⊗n}` for generic `t`). -/
+private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ)
+    (hlam : Antitone lam) :
+    formalCharacter k N (FDRep.of (detTwistedSchurModuleRep k N lam)) =
+      formalCharacter k N (SchurModule k N (fun i => lam i + 1)) := by
+  sorry
 
 /-- Key isomorphism: the Schur module `L_{λ+(1,…,1)}` is isomorphic (as a GL_N-representation)
 to the determinant-twisted Schur module `det ⊗ L_λ`.
@@ -116,7 +121,7 @@ This is the core mathematical content of Proposition 5.22.2. -/
 theorem schurModule_shift_iso_detTwist (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     Nonempty (FDRep.of (schurModuleRep k N (fun i => lam i + 1)) ≅
       FDRep.of (detTwistedSchurModuleRep k N lam)) := by
-  sorry
+  exact iso_of_formalCharacter_eq k N _ _ (formalCharacter_detTwist_eq_shift k N lam hlam).symm
 
 /-- The `TensorProduct.rid` intertwines the tensor action `rep(g) ⊗ det(g)·id` with
 the determinant-twisted action `det(g) · rep(g)`. -/
