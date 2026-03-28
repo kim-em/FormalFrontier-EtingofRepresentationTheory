@@ -285,6 +285,33 @@ private lemma sum_rightInvariant {G : Type*} [Group G] [Fintype G]
   simp_rw [hval]
   rw [Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
 
+-- Helper: distinct cosets of stabAux φ χ produce distinct A-characters.
+-- Coset q has character a ↦ χ(φ(q.out⁻¹)(a)). If these agree for all a, then
+-- q₁.out and q₂.out differ by a stabilizer element, so q₁ = q₂.
+open Classical in
+private lemma coset_chars_ne {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    {q₁ q₂ : G ⧸ stabAux φ χ} (hq : q₁ ≠ q₂) :
+    ∃ a : A, χ ((φ q₁.out⁻¹ : MulAut A) a) ≠ χ ((φ q₂.out⁻¹ : MulAut A) a) := by
+  by_contra h
+  push_neg at h
+  apply hq
+  -- Show q₁.out⁻¹ * q₂.out ∈ stabAux φ χ, i.e., dualSmulAux φ (q₁.out⁻¹ * q₂.out) χ = χ
+  have hmem : q₁.out⁻¹ * q₂.out ∈ stabAux φ χ := by
+    show dualSmulAux φ (q₁.out⁻¹ * q₂.out) χ = χ
+    ext a
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom]
+    -- Need: χ(φ((q₁.out⁻¹ * q₂.out)⁻¹)(a)) = χ(a)
+    -- Expand: φ((q₁.out⁻¹ * q₂.out)⁻¹) = φ(q₂.out⁻¹ * q₁.out) = φ(q₂.out⁻¹) ∘ φ(q₁.out)
+    rw [mul_inv_rev, inv_inv, map_mul, MulAut.mul_apply]
+    -- Now: χ(φ(q₂.out⁻¹)(φ(q₁.out)(a))) = χ(a)
+    -- Use h with a' = φ(q₁.out)(a): χ(φ(q₁.out⁻¹)(a')) = χ(φ(q₂.out⁻¹)(a'))
+    rw [← h ((φ q₁.out : MulAut A) a)]
+    -- Now: χ(φ(q₁.out⁻¹)(φ(q₁.out)(a))) = χ(a)
+    rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply]
+  rw [← QuotientGroup.out_eq' q₁, ← QuotientGroup.out_eq' q₂]
+  exact Quotient.sound' (QuotientGroup.leftRel_apply.mpr hmem)
+
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
 via the orbit method: they are parametrized by pairs (O, U) where O is a
