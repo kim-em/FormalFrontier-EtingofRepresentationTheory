@@ -123,30 +123,62 @@ lemma MoritaEquivalent.trans' {A : Type u} [Ring A] {B : Type u} [Ring B]
     MoritaEquivalent A C := by
   obtain ⟨e₁⟩ := h₁; obtain ⟨e₂⟩ := h₂; exact ⟨e₁.trans e₂⟩
 
+/-! ## Idempotent lemmas -/
+
+/-- An idempotent element that differs from 1 by a nilpotent element must equal 1.
+
+If `e² = e` and `1 - e` is nilpotent, then `e = 1`. This is a key step in
+showing that full idempotents in basic algebras equal the identity. -/
+theorem IsIdempotentElem.eq_one_of_isNilpotent_one_sub
+    {R : Type*} [Ring R] {e : R}
+    (he : IsIdempotentElem e) (hnil : IsNilpotent (1 - e)) : e = 1 := by
+  -- If 1 - e is nilpotent, then e = 1 - (1 - e) is a unit
+  have h_unit : IsUnit e := by
+    have h := hnil.isUnit_one_sub
+    rwa [sub_sub_cancel] at h
+  -- An idempotent unit must be 1: e² = e implies e(e - 1) = 0,
+  -- and since e is a unit, e - 1 = 0.
+  obtain ⟨u, rfl⟩ := h_unit
+  have h_mul : (↑u : R) * (↑u - 1) = 0 := by
+    rw [mul_sub, mul_one, he.eq, sub_self]
+  -- Left-multiply by u⁻¹: u⁻¹ * (u * (u - 1)) = u⁻¹ * 0 = 0
+  -- Simplifies to: (u⁻¹ * u) * (u - 1) = 0, i.e., 1 * (u - 1) = 0
+  have key : (↑u : R) - 1 = 0 := by
+    have h1 : (↑u⁻¹ : R) * ↑u = 1 := u.inv_mul
+    calc (↑u : R) - 1
+        = 1 * (↑u - 1) := (one_mul _).symm
+      _ = ↑u⁻¹ * ↑u * (↑u - 1) := by rw [h1]
+      _ = ↑u⁻¹ * (↑u * (↑u - 1)) := by rw [mul_assoc]
+      _ = ↑u⁻¹ * 0 := by rw [h_mul]
+      _ = 0 := mul_zero _
+  exact sub_eq_zero.mp key
+
 /-! ## Morita structural theorem -/
 
 variable {k : Type u} [Field k]
 
 /-- Two basic algebras that are Morita equivalent are isomorphic as `k`-algebras.
 
-This is the uniqueness component of the Morita structural theorem. The proof
-requires showing that a categorical equivalence `ModuleCat B₁ ≌ ModuleCat B₂`
-between basic algebras induces a `k`-algebra isomorphism.
+This is the uniqueness component of the Morita structural theorem.
 
-### Proof outline
+### Proof strategy (endomorphism ring approach)
 
-An equivalence `F : ModuleCat B₁ ≌ ModuleCat B₂` sends simples to simples
-(by `simple_of_equivalence`). Since both algebras are basic, all simples are
-1-dimensional. The equivalence preserves Hom-space dimensions (by full
-faithfulness), so the Cartan matrices agree. Since basic algebras are determined
-up to isomorphism by their Cartan matrices and quiver with relations, `B₁ ≅ B₂`.
+Given an equivalence `F : ModuleCat B₁ ≌ ModuleCat B₂`:
 
-Alternatively: the equivalence sends the free `B₁`-module (a progenerator with
-one copy of each indecomposable projective) to the free `B₂`-module (also a
-progenerator with one copy of each indecomposable projective). The endomorphism
-rings of these progenerators give back the algebras: `B₁^op ≅ End(B₁) ≅ End(F(B₁))
-≅ End(B₂) ≅ B₂^op`, hence `B₁ ≅ B₂`. -/
-private lemma basic_morita_algEquiv
+1. **End preserving**: `F` induces `End_{B₁}(B₁) ≃* End_{B₂}(F(B₁))` (fully faithful).
+2. **Regular module preserved**: For basic algebras, `F(B₁) ≅ B₂` as `B₂`-modules.
+   This is because both regular modules decompose (Krull-Schmidt) into one copy of
+   each indecomposable projective, and `F` bijects indecomposable projectives.
+3. **Endomorphism = opposite**: `End_B(B) ≅ Bᵒᵖ` (right multiplication).
+4. **Assembly**: `B₁ᵒᵖ ≅ End_{B₁}(B₁) ≅ End_{B₂}(F(B₁)) ≅ End_{B₂}(B₂) ≅ B₂ᵒᵖ`,
+   hence `B₁ ≅ B₂`.
+
+### Blocked by
+
+Step 2 requires the Krull-Schmidt theorem (unique decomposition of modules into
+indecomposables), which is not yet available in Mathlib. All non-circular proof
+strategies for this lemma require either Krull-Schmidt or progenerator theory. -/
+private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
