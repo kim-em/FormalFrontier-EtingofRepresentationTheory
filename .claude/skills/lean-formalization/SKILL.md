@@ -33,6 +33,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
    - `basic_morita_algEquiv` (basic + Morita equivalent ⟹ isomorphic) — fundamental circularity: all non-circular approaches require Krull-Schmidt theorem or progenerator theory, neither in Mathlib.
    - Right-multiplication dominance for polytabloids — `column_perm_dominance` proves LEFT multiplication dominance, but linear independence needs RIGHT multiplication. Left permutes positions, right permutes entries — fundamentally different. Blocks `polytabloid_linearIndependent'`.
+   - Young symmetrizer character orthogonality (`youngSym_charValue_orthogonality`) — requires Specht module theory: showing ℚ[S_n]·c_λ is a simple module isomorphic to S^λ. Mathlib has Maschke/IsSemisimpleModule but NOT the identification of Young symmetrizers as primitive idempotents. Semisimplicity alone is insufficient (need minimality, not just complementedness). Blocks Theorem5_22_1 Sorry 2 and equivalently `sum_youngSym_permTracePoly_eq_alpha_schurPoly`.
    - Non-commutative `TensorProduct` — Mathlib requires `CommSemiring`. Balanced tensor product `A ⊗_{eAe} N` must be built as a manual quotient (~100 lines boilerplate). Blocks corner ring Morita equivalence and BasicAlgebraExistence.
 
 2. **Search for existing definitions and infrastructure.** Before defining any concept or building any equivalence/isomorphism, search the codebase:
