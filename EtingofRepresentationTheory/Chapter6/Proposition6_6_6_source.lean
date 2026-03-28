@@ -559,14 +559,31 @@ private theorem Etingof.equivAt_eq_source_naturality
   dsimp only [id]
   intro e x h_sym
   simp only [LinearEquiv.refl_apply, Submodule.coe_subtype]
-  dsimp at h_sym ⊢
-  dsimp [LinearMap.inverse] at h_sym ⊢
+  -- Use a single dsimp pass to ensure h_sym and goal reduce consistently
+  dsimp [LinearMap.inverse, LinearMap.codRestrict] at h_sym ⊢
   -- h_sym : codRestrict(f_ds)(surjInv(x)) = x
   -- Extract val: f_ds(surjInv(x)) = ↑x
   have h_val := congr_arg Subtype.val h_sym
   dsimp [LinearMap.codRestrict] at h_val
-  rw [← h_val]
-  sorry
+  conv_lhs => rw [← h_val]
+  -- Push application into sum, then push component through sum
+  simp only [LinearMap.sum_apply, LinearMap.comp_apply, LinearEquiv.coe_toLinearMap]
+  rw [map_sum]
+  -- Use conv to rewrite inside equivAt_ne arg (avoids dependent type motive issue)
+  conv_lhs =>
+    arg 2
+    rw [Finset.sum_eq_single
+      ⟨b, @Etingof.reversedArrow_eq_ne Q inst_dec
+        (@Etingof.reversedAtVertex Q _ inst i) i b hb
+        ((@Etingof.reversedAtVertex_twice Q inst_dec inst i).symm ▸ e)⟩
+      (fun c _ hc => by
+        erw [DirectSum.component.of]
+        exact dif_neg hc)
+      (fun h => absurd (@Finset.mem_univ _
+        (Fintype.ofEquiv _ (@Etingof.arrowReindexEquivSource Q inst_dec inst i hi)) _) h)]
+  erw [DirectSum.component.lof_self]
+  erw [LinearEquiv.apply_symm_apply,
+    @Etingof.reversedArrow_eq_ne_ne_eq_twice Q inst_dec inst i hi b hb e]
 
 end Helpers
 
