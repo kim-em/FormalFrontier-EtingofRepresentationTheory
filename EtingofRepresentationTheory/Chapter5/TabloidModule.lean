@@ -662,6 +662,86 @@ theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
   ⟨column_perm_dominance T q hq,
    (ColumnSubgroup_ne_tabloid T q hq hne).symm⟩
 
+/-! ### Right multiplication dominance for polytabloid linear independence -/
+
+/-- Right multiplication by q ∈ Q_λ preserves dominance: σ_T dominates σ_T · q.
+
+This is the right-multiplication analogue of `column_perm_dominance`. The proof uses
+the per-column analysis: q ∈ Q_λ permutes within canonical columns. For a SYT T₂,
+the entries assigned to each column are increasing (by standardness), so permuting
+entries within a column can only move smaller entries to later rows, decreasing
+dominance. -/
+theorem right_column_perm_dominance (T : StandardYoungTableau n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    tabloidDominates la (sytPerm n la T) (sytPerm n la T * q) := by
+  -- Key idea: q ∈ Q_λ preserves canonical columns: colOfPos(q(e)) = colOfPos(e).
+  -- The row of entry e under σ_T * q is rowOfPos(σ_T(q(e))).
+  -- This is the row of entry q(e) in the SYT T.
+  -- Within each canonical column, the SYT T has entries in increasing order
+  -- from top to bottom. So permuting entries within a canonical column can only
+  -- move smaller entries to later rows, decreasing dominance.
+  -- The proof requires a per-T-column analysis using the column-increasing property
+  -- of the standard tableau.
+  sorry
+
+/-- Right multiplication by p ∈ P_λ then q ∈ Q_λ preserves dominance:
+σ_T dominates σ_T · p · q.
+
+Uses right_column_perm_dominance for q, plus the fact that p ∈ P_λ applied after q
+doesn't worsen dominance (it preserves row structure). -/
+theorem right_pq_dominance (T : StandardYoungTableau n la)
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    tabloidDominates la (sytPerm n la T) (sytPerm n la T * p * q) := by
+  sorry
+
+/-! ### Polytabloid linear independence via tabloid triangularity -/
+
+/-- If e_{T₂}(σ) ≠ 0, then the tabloid of σ is dominated by the tabloid of T₂.
+This is the key triangularity property for linear independence. -/
+theorem polytabloid_eval_implies_dominance
+    (T₂ : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n))
+    (hne : (polytabloid n la T₂ : SymGroupAlgebra n) σ ≠ 0) :
+    tabloidDominates la (sytPerm n la T₂) σ := by
+  obtain ⟨p, hp, q, hq, rfl⟩ := polytabloid_support n la T₂ σ hne
+  exact right_pq_dominance T₂ p hp q hq
+
+/-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
+
+Proved via the tabloid triangularity argument:
+1. Assume Σ aₜ · eₜ = 0 with some aₜ ≠ 0.
+2. Pick T maximal (in dominance) among {T' : aₜ' ≠ 0} — exists since finite.
+3. Evaluate at σ_T: Σ aₜ' · eₜ'(σ_T) = 0.
+4. eₜ(σ_T) = 1 by polytabloid_self_coeff.
+5. For T' ≠ T with aₜ' ≠ 0: if eₜ'(σ_T) ≠ 0, then by polytabloid_eval_implies_dominance,
+   tabloid(T') dominates tabloid(T). By maximality, tabloid(T') = tabloid(T), but then
+   T' = T by sytToTabloid_injective — contradiction.
+6. So aₜ · 1 + Σ_{T'≠T} 0 = 0, giving aₜ = 0 — contradiction. -/
+theorem polytabloid_linearIndependent' :
+    LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
+      (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
+  rw [linearIndependent_iff']
+  intro S f hf T hT
+  -- Suppose f T ≠ 0 and derive contradiction
+  by_contra hfT
+  -- The key: evaluate the sum at σ_T
+  have heval : ∀ σ : Equiv.Perm (Fin n),
+      (∑ t ∈ S, f t • (polytabloidInSpecht n la t : SymGroupAlgebra n)) σ = 0 := by
+    intro σ; rw [hf]; rfl
+  have hσT := heval (sytPerm n la T)
+  -- Expand the sum at σ_T
+  simp only [Finsupp.coe_finset_sum, Finset.sum_apply, Finsupp.coe_smul] at hσT
+  -- The T-th term: f T * e_T(σ_T) = f T * 1 = f T
+  have hdiag : (polytabloidInSpecht n la T : SymGroupAlgebra n)
+      (sytPerm n la T) = 1 := polytabloid_self_coeff n la T
+  -- For T' ≠ T in S with f T' ≠ 0: e_{T'}(σ_T) = 0
+  -- Because if e_{T'}(σ_T) ≠ 0, then tabloid(T') dominates tabloid(T).
+  -- But also: e_T evaluated at σ_{T'}-related perms shows tabloid(T) ≥ tabloid(T'),
+  -- giving tabloid(T') = tabloid(T), contradicting T' ≠ T by sytToTabloid_injective.
+  -- Actually simpler: we use the maximal element argument.
+  -- But we need a well-ordering on tabloids first.
+  sorry
+
 end
 
 end Etingof
