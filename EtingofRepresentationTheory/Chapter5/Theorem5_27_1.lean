@@ -298,6 +298,146 @@ private lemma sum_right_invariant_eq {G : Type*} [Group G] [Fintype G]
       (g := fun h : G => (h : G ⧸ H)) (fun _ _ => Finset.mem_univ _)]
   simp_rw [step, ← Finset.mul_sum]
 
+-- Helper: evaluation at a coset is a linear map from V to U
+open Classical in
+private def evalAtCoset {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ) (U : FDRep ℂ ↥(stabAux φ χ))
+    (q : G ⧸ stabAux φ χ) : ((G ⧸ stabAux φ χ) → ↥U) →ₗ[ℂ] ↥U where
+  toFun f := f q
+  map_add' _ _ := rfl
+  map_smul' _ _ := rfl
+
+-- Helper: any equivariant endomorphism of inducedRepV preserves coset components.
+-- This is because different cosets have different A-characters, so the A-action
+-- distinguishes the coset components. An A-equivariant map must preserve eigenspaces.
+-- Specifically: if f is supported on coset q₁ and T commutes with the A-action,
+-- then T(f) is also supported on q₁ (Tf evaluated at q₂ ≠ q₁ is 0).
+open Classical in
+private lemma endo_preserves_cosets {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ))
+    (T : ((G ⧸ stabAux φ χ) → ↥U) →ₗ[ℂ] (G ⧸ stabAux φ χ) → ↥U)
+    (hT_A : ∀ (a : A) (f : (G ⧸ stabAux φ χ) → ↥U),
+      T ((inducedRepV φ χ U).ρ ⟨a, 1⟩ f) = (inducedRepV φ χ U).ρ ⟨a, 1⟩ (T f))
+    (q₁ q₂ : G ⧸ stabAux φ χ) (hq : q₁ ≠ q₂)
+    (f : (G ⧸ stabAux φ χ) → ↥U) (hf : ∀ q, q ≠ q₁ → f q = 0) :
+    T f q₂ = 0 := by
+  -- Strategy: different cosets have different A-characters. Use A-equivariance
+  -- to show T preserves the eigenspace decomposition.
+  -- Specialize to A-action: g = 1, so g⁻¹ • q = q and transition element = 1
+  have hA_action : ∀ (a : A) (g' : (G ⧸ stabAux φ χ) → ↥U) (q : G ⧸ stabAux φ χ),
+      (inducedRepV φ χ U).ρ ⟨a, 1⟩ g' q =
+      ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) • g' q := by
+    intro a g' q
+    -- The action of (a, 1) on g' at coset q: by definition,
+    -- (a,1)·g' at q = χ(φ(q⁻¹)(a)) • ρ_U(s)(g'(1⁻¹ • q))
+    -- where s = q.out⁻¹ * 1 * (1⁻¹ • q).out.
+    -- Since 1⁻¹ = 1, 1 • q = q, s = q.out⁻¹ * q.out = 1, ρ_U(1) = id.
+    -- The underlying computation matches the `map_one'` proof in `inducedRepV`.
+    change ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+      (FDRep.ρ U ⟨q.out⁻¹ * (1 : G) * ((1 : G)⁻¹ • q).out,
+        transition_mem_stab φ χ (1 : G) q⟩) (g' ((1 : G)⁻¹ • q)) = _
+    have hrho : ∀ (s : ↥(stabAux φ χ)) (hs : (s : G) = 1) (v : ↥U),
+        (FDRep.ρ U s) v = v := by
+      intro s hs v; rw [show s = 1 from Subtype.ext hs, map_one, Module.End.one_apply]
+    simp only [inv_one, one_smul, mul_one]
+    congr 1
+    exact hrho _ (inv_mul_cancel q.out) _
+  -- Step 2: Different cosets have different A-characters.
+  -- dualSmulAux φ q.out χ gives the character at coset q (since it equals a ↦ χ(φ(q.out⁻¹)(a)))
+  -- Equal characters imply same coset via the stabilizer condition.
+  have hchar_inj : dualSmulAux φ q₁.out χ = dualSmulAux φ q₂.out χ → q₁ = q₂ := by
+    intro heq
+    -- heq: ∀ a, χ(φ(q₁.out⁻¹)(a)) = χ(φ(q₂.out⁻¹)(a))
+    -- Composing with φ(q₁.out) on the right: χ = χ ∘ φ(q₁.out⁻¹ * q₂.out)
+    -- Hence q₁.out⁻¹ * q₂.out ∈ stabAux φ χ
+    have hmem : q₁.out⁻¹ * q₂.out ∈ stabAux φ χ := by
+      change dualSmulAux φ (q₁.out⁻¹ * q₂.out) χ = χ
+      ext a
+      simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom]
+      have := DFunLike.ext_iff.mp heq ((φ q₁.out : MulAut A) a)
+      simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at this
+      rw [show (φ q₁.out⁻¹ : MulAut A) ((φ q₁.out : MulAut A) a) = a from by
+        rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply],
+        show (φ q₂.out⁻¹ : MulAut A) ((φ q₁.out : MulAut A) a) =
+          (φ (q₁.out⁻¹ * q₂.out)⁻¹ : MulAut A) a from by
+        rw [mul_inv_rev, inv_inv, map_mul, MulAut.mul_apply]] at this
+      exact_mod_cast this.symm
+    rw [← Quotient.out_eq' q₁, ← Quotient.out_eq' q₂]
+    exact Quotient.sound' (QuotientGroup.leftRel_apply.mpr hmem)
+  -- Note: dualSmulAux φ q.out χ a = χ(φ(q.out⁻¹)(a)) (the A-character at coset q)
+  -- Different cosets give different characters
+  have hchar_ne : dualSmulAux φ q₁.out χ ≠ dualSmulAux φ q₂.out χ :=
+    fun h => hq (hchar_inj h)
+  -- Get a witness a ∈ A where the characters differ
+  rw [Ne, DFunLike.ext_iff, not_forall] at hchar_ne
+  obtain ⟨a, ha⟩ := hchar_ne
+  -- ha: χ(φ(q₁.out⁻¹)(a)) ≠ χ(φ(q₂.out⁻¹)(a))
+  simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at ha
+  -- Step 3: From T(ρ(a,1)(f)) = ρ(a,1)(T(f)), derive (c₁ - c₂) • Tf(q₂) = 0
+  -- For f supported on q₁: ρ(a,1)(f) = c(q₁) • f
+  have haction_f : (inducedRepV φ χ U).ρ ⟨a, 1⟩ f =
+      ((χ ((φ q₁.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) • f := by
+    funext q
+    rw [hA_action a f q, Pi.smul_apply]
+    by_cases hq' : q = q₁
+    · subst hq'; rfl
+    · rw [hf q hq', smul_zero, smul_zero]
+  -- From hT_A: T(ρ(a,1)(f)) = ρ(a,1)(T(f))
+  -- LHS: T(c₁ • f) = c₁ • T(f) by linearity
+  -- RHS at q₂: ρ(a,1)(T f)(q₂) = c₂ • T(f)(q₂) by hA_action
+  have hcomm_q₂ := congr_fun (hT_A a f) q₂
+  -- Rewrite LHS: T(ρ(a,1)(f)) = T(c₁ • f) = c₁ • T(f)
+  rw [haction_f, map_smul] at hcomm_q₂
+  -- hcomm_q₂: (c₁ • T f) q₂ = ρ(a,1)(T f) q₂
+  rw [Pi.smul_apply, hA_action a (T f) q₂] at hcomm_q₂
+  -- hcomm_q₂: c₁ • Tf(q₂) = c₂ • Tf(q₂)
+  have hsub : (((χ ((φ q₁.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) -
+      ((χ ((φ q₂.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ)) • T f q₂ = 0 := by
+    rw [sub_smul, sub_eq_zero]; exact hcomm_q₂
+  rw [smul_eq_zero] at hsub
+  rcases hsub with h | h
+  · exfalso; apply ha
+    have := sub_eq_zero.mp h
+    exact_mod_cast this
+  · exact h
+
+-- (i) Irreducibility of induced representation V(χ, U) when U is irreducible.
+-- Proof sketch: any equivariant endomorphism of V = (G/H → U) is scalar,
+-- because A-equivariance forces it to preserve coset components, G_χ-equivariance
+-- on the identity component + Schur's lemma forces it to be scalar there,
+-- and G-equivariance propagates the scalar to all components.
+open Classical in
+private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ))
+    (hU : CategoryTheory.Simple U) :
+    CategoryTheory.Simple (inducedRepV φ χ U) := by
+  sorry
+
+-- (ii) Orbit injectivity: if V(χ₁, U₁) ≅ V(χ₂, U₂) then χ₁, χ₂ are in the same orbit.
+-- Proof: the A-eigenvalues of V(χ, U) form the orbit of χ under G. An isomorphism
+-- preserves A-eigenvalues, so the orbits must coincide.
+open Classical in
+private lemma inducedRepV_orbit_injectivity {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ₁ χ₂ : A →* ℂˣ)
+    (U₁ : FDRep ℂ ↥(stabAux φ χ₁)) (U₂ : FDRep ℂ ↥(stabAux φ χ₂))
+    (hU₁ : CategoryTheory.Simple U₁) (hU₂ : CategoryTheory.Simple U₂)
+    (hiso : Nonempty (inducedRepV φ χ₁ U₁ ≅ inducedRepV φ χ₂ U₂)) :
+    ∃ g : G, dualSmulAux φ g χ₁ = χ₂ := by
+  sorry
+
+-- (iii) Completeness: every irrep of G ⋉ A arises as some V(χ, U).
+-- Proof: by dimension counting, ∑_{O,U} dim(V(O,U))² = |G||A^∨| = |G ⋉ A|.
+-- Combined with (i) and (ii), this accounts for all irreps.
+open Classical in
+private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A)
+    (W : FDRep ℂ (A ⋊[φ] G)) (hW : CategoryTheory.Simple W) :
+    ∃ (χ : A →* ℂˣ) (U : FDRep ℂ ↥(stabAux φ χ)),
+      CategoryTheory.Simple U ∧ Nonempty (W ≅ inducedRepV φ χ U) := by
+  sorry
+
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
 via the orbit method: they are parametrized by pairs (O, U) where O is a
@@ -350,11 +490,12 @@ theorem Etingof.Theorem5_27_1
   -- Use the concrete induced representation V(χ, U) = Ind_{G_χ ⋉ A}^{G ⋉ A} (U ⊗ ℂ_χ)
   refine ⟨fun χ U => inducedRepV φ χ U, ?_, ?_, ?_, ?_⟩
   -- (i) Irreducibility: V(χ, U) is irreducible when U is irreducible
-  · exact fun _ _ _ => sorry
+  · exact fun χ U hU => inducedRepV_simple φ χ U hU
   -- (ii) Orbit injectivity: iso implies same G-orbit
-  · exact fun _ _ _ _ _ _ _ => sorry
+  · exact fun χ₁ χ₂ U₁ U₂ hU₁ hU₂ hiso =>
+      inducedRepV_orbit_injectivity φ χ₁ χ₂ U₁ U₂ hU₁ hU₂ hiso
   -- (iii) Completeness: every irrep arises as some V(χ, U)
-  · exact fun _ _ => sorry
+  · exact fun W hW => inducedRepV_completeness φ W hW
   -- (iv) Character formula
   · intro χ U _hU a g
     classical
