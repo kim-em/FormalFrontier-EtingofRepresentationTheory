@@ -1,4 +1,5 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_4_3
+import EtingofRepresentationTheory.Chapter9.ShapiroLemma
 import Mathlib.Algebra.MvPolynomial.CommRing
 import Mathlib.Algebra.MvPolynomial.Equiv
 import Mathlib.Algebra.Category.ModuleCat.Projective
@@ -9,6 +10,9 @@ import Mathlib.CategoryTheory.Abelian.Exact
 import Mathlib.CategoryTheory.Preadditive.Projective.Preserves
 import Mathlib.RingTheory.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Module.AEval
+import Mathlib.Algebra.Homology.DerivedCategory.Ext.ExactSequences
+import Mathlib.Algebra.Homology.DerivedCategory.Ext.Linear
+import Mathlib.Algebra.Category.ModuleCat.Ext.HasExt
 
 /-!
 # Example 9.4.4: Homological dimension of polynomial algebra (Hilbert syzygies)
@@ -23,7 +27,7 @@ The Hilbert syzygy theorem is not yet in Mathlib.
 
 universe u
 
-open Etingof CategoryTheory Limits
+open Etingof CategoryTheory Limits Abelian
 
 /-- Over a semisimple ring, every module is projective and hence has projective dimension ≤ 0. -/
 theorem hasHomologicalDimensionLE_zero_of_isSemisimpleRing
@@ -128,7 +132,7 @@ theorem mvPolynomial_hasHomologicalDimensionLE (k : Type u) [Field k] :
 
 section PolynomialLowerBound
 
-open Polynomial
+open Polynomial ChangeOfRings
 
 /-! ### Polynomial ring has positive global dimension
 
@@ -202,27 +206,99 @@ private theorem not_hasHomologicalDimensionLE_zero_polynomial
       (h.trans (map_zero (Module.AEval'.of φ)).symm))
   exact this (hall_zero one_A)
 
+/-! ### SES construction and Ext vanishing via X-action
+
+For any R-module M, we construct the short exact sequence
+  0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → M₀ → 0
+where M₀ = M with trivial X-action, and use the contravariant LES of Ext
+to show that Ext^i_{R[X]}(R[X] ⊗ M, Y₀) = 0 for i ≥ d+1 when Y₀ has
+trivial X-action and gldim(R[X]) ≤ d+1. Combined with Shapiro's lemma,
+this proves pd_R(M) ≤ d. -/
+
+/-- The R-linear map M → (restrictScalars C).obj M₀ used to define the augmentation.
+    Bridges the module instance diamond between Module.AEval.instModuleOrig and
+    Module.compHom ... Polynomial.C. -/
+private def augMapR {R : Type u} [CommRing R] (M : ModuleCat.{u} R) :
+    M ⟶ (ModuleCat.restrictScalars (Polynomial.C : R →+* R[X])).obj
+      (ModuleCat.of (Polynomial R) (Module.AEval' (0 : ↥M →ₗ[R] ↥M))) :=
+  ModuleCat.ofHom
+    (Y := (ModuleCat.restrictScalars (Polynomial.C : R →+* R[X])).obj
+      (ModuleCat.of (Polynomial R) (Module.AEval' (0 : ↥M →ₗ[R] ↥M))))
+    { toFun := fun m => Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) m
+      map_add' := fun x y => map_add _ x y
+      map_smul' := fun r x => by
+        simp only [RingHom.id_apply]
+        change Module.AEval'.of _ (r • x) =
+          (Polynomial.C r : R[X]) • Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) x
+        rw [Module.AEval.C_smul, LinearEquiv.map_smul] }
+
+/-- The augmentation map R[X] ⊗_R M → M₀ sending p ⊗ m to p • of(m).
+    Defined via the extend-restrict adjunction from `augMapR`. -/
+private noncomputable def augMap {R : Type u} [CommRing R] (M : ModuleCat.{u} R) :
+    (ModuleCat.extendScalars (Polynomial.C : R →+* R[X])).obj M ⟶
+    ModuleCat.of (Polynomial R) (Module.AEval' (0 : ↥M →ₗ[R] ↥M)) :=
+  ModuleCat.ExtendRestrictScalarsAdj.HomEquiv.fromExtendScalars Polynomial.C (augMapR M)
+
+/-- augMap sends 1 ⊗ m to of(m). -/
+private theorem augMap_one_tmul {R : Type u} [CommRing R] (M : ModuleCat.{u} R) (m : ↥M) :
+    augMap M ((1 : R[X]) ⊗ₜ[R, Polynomial.C] m) =
+    Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) m := by
+  change (1 : R[X]) • Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) m =
+    Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) m
+  rw [one_smul]
+
+/-- The polynomial SES: 0 → N →^{X·} N →^{aug} M₀ → 0 -/
+private noncomputable def polySES {R : Type u} [CommRing R] (M : ModuleCat.{u} R) :
+    ShortComplex (ModuleCat.{u} (Polynomial R)) :=
+  ShortComplex.mk
+    ((Polynomial.X : R[X]) • CategoryTheory.CategoryStruct.id
+      ((ModuleCat.extendScalars (Polynomial.C : R →+* R[X])).obj M))
+    (augMap M)
+    (by
+      apply ModuleCat.ExtendScalars.hom_ext
+      intro m
+      simp only []
+      -- augMap(X • (1 ⊗ m)) = augMap((X * 1) ⊗ m) = augMap(X ⊗ m) = X • of(m) = 0
+      change augMap M ((X : R[X]) • (1 : R[X]) ⊗ₜ[R, Polynomial.C] m) = 0
+      rw [ModuleCat.ExtendScalars.smul_tmul, mul_one]
+      -- augMap(X ⊗ m) = X • augMapR(m) = X • of(m) = 0
+      change (X : R[X]) • Module.AEval'.of (0 : ↥M →ₗ[R] ↥M) m = 0
+      rw [Module.AEval'.X_smul_of, LinearMap.zero_apply, map_zero])
+
+private theorem polySES_shortExact {R : Type u} [CommRing R] (M : ModuleCat.{u} R) :
+    (polySES M).ShortExact := by
+  refine ShortComplex.ShortExact.mk' ?_ ?_ ?_
+  · -- Exactness: ker(aug) = im(X·)
+    sorry
+  · -- Mono: X-multiplication is injective on R[X] ⊗ M
+    sorry
+  · -- Epi: augmentation is surjective
+    rw [ModuleCat.epi_iff_surjective]
+    intro y
+    refine ⟨(1 : R[X]) ⊗ₜ[R, Polynomial.C] ((Module.AEval'.of (0 : ↥M →ₗ[R] ↥M)).symm y), ?_⟩
+    change (1 : R[X]) • Module.AEval'.of (0 : ↥M →ₗ[R] ↥M)
+      ((Module.AEval'.of (0 : ↥M →ₗ[R] ↥M)).symm y) = y
+    rw [one_smul, LinearEquiv.apply_symm_apply]
+
+/-- X acts as zero on the identity morphism of a module with trivial X-action. -/
+private theorem X_smul_id_trivialModule {R : Type u} [CommRing R] (M : ModuleCat.{u} R) :
+    (Polynomial.X : R[X]) • CategoryTheory.CategoryStruct.id
+      (ModuleCat.of (Polynomial R) (Module.AEval' (0 : ↥M →ₗ[R] ↥M))) = 0 := by
+  ext m
+  change (X : R[X]) • m = 0
+  obtain ⟨m₀, rfl⟩ := (Module.AEval'.of (0 : ↥M →ₗ[R] ↥M)).surjective m
+  rw [Module.AEval'.X_smul_of, LinearMap.zero_apply, map_zero]
+
 /-- For any R-module M, if gldim(R[X]) ≤ d + 1, then pd_R(M) ≤ d.
 
-The proof combines three ingredients, none of which are currently in Mathlib:
+Uses the SES 0 → N →^{X·} N → M₀ → 0, the contravariant LES of Ext,
+the X-action vanishing argument, and Shapiro's lemma.
 
-1. **SES construction**: For any R-module M, there is a short exact sequence
-   0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → M₀ → 0
-   where M₀ is M with trivial X-action (X acts as 0).
-
-2. **X-action vanishing**: From the contravariant LES of Ext applied to this SES,
-   the map f* = precomp with X-multiplication is surjective on Ext^i(R[X]⊗M, Y)
-   for i ≥ d+1. By `smul_comp` and `mk₀_id_comp`, f* equals scalar multiplication
-   by X on Ext. Taking Y with trivial X-action (X · 𝟙_Y = 0), `smul_eq_comp_mk₀`
-   gives f* = 0, hence Ext^i_{R[X]}(R[X]⊗M, Y₀) = 0 for i ≥ d+1.
-
-3. **Shapiro's lemma**: The extension-restriction adjunction
-   (`extendRestrictScalarsAdj Polynomial.C`) plus the fact that `extendScalars`
-   preserves projective objects (from `preservesProjectiveObjects_of_adjunction` +
-   `restrictScalars` preserves epimorphisms) gives:
-     Ext^i_{R[X]}(R[X] ⊗_R M, Y₀) ≅ Ext^i_R(M, Y₀|_R)
-   Since every R-module Z equals Y₀|_R for Y₀ = Z with trivial action,
-   step 2 gives Ext^i_R(M, Z) = 0 for all Z and i ≥ d+1. -/
+Remaining infrastructure needed:
+1. `polySES_shortExact`: the SES is exact (2 sorries: exactness + mono)
+2. `(extendScalars C).PreservesHomology`: R[X] is flat over R (for Shapiro)
+3. An iso `G(Y₀) ≅ Y` bridging the module instance diamond (via
+   `restrictScalarsComp'App` + `restrictScalarsId'App`) -/
 private theorem pd_le_of_polynomial_gldim (R : Type u) [CommRing R] (d : ℕ)
     (M : ModuleCat.{u} R)
     (h : Etingof.HasHomologicalDimensionLE (Polynomial R) (d + 1)) :
