@@ -90,6 +90,57 @@ there exists a full idempotent `e ∈ A` such that the corner ring `eAe` is basi
 6. Sum of lifted idempotents is full (AeA = A) and eAe is basic -/
 /-! ### Helper lemmas for the main proof -/
 
+/-- In `Mat_n(k)`, the matrix unit `E₀₀` generates the whole ring as a two-sided ideal.
+Proof: `E_{r,s} = E_{r,0} · E_{0,0} · E_{0,s}`, so every matrix unit is in the ideal
+of `E₀₀`, and every matrix is a sum of matrix units. -/
+private lemma matrix_single_generates_ideal (k : Type u) [Field k]
+    {n : ℕ} [NeZero n] :
+    Ideal.span {a * Matrix.single (0 : Fin n) (0 : Fin n) (1 : k) * b |
+      (a : Matrix (Fin n) (Fin n) k) (b : Matrix (Fin n) (Fin n) k)} = ⊤ := by
+  rw [eq_top_iff]
+  intro x _
+  -- Each matrix unit E_{r,s} = E_{r,0} · E_{0,0} · E_{0,s} is in the ideal of E₀₀.
+  -- Every matrix x is a k-linear combination of matrix units.
+  -- We show each scaled matrix unit c • E_{r,s} is in the ideal.
+  -- c • E_{r,s} = (c • E_{r,0}) · E_{0,0} · E_{0,s}
+  -- For each (r, s) entry of x, show that x r s • E_{r,s} is in the ideal.
+  -- x r s • E_{r,s} = (x r s • E_{r,0}) · E_{0,0} · E_{0,s}, which is in the ideal of E₀₀.
+  -- Then x = ∑ r s, x r s • E_{r,s} is in the ideal.
+  -- We use that Matrix.single r s c · Matrix.single 0 0 1 · Matrix.single 0 s' 1
+  -- follows from Matrix.single_mul_single_same.
+  let I := Ideal.span {a * Matrix.single (0 : Fin n) (0 : Fin n) (1 : k) * b |
+      (a : Matrix (Fin n) (Fin n) k) (b : Matrix (Fin n) (Fin n) k)}
+  suffices h : ∀ (r s : Fin n) (c : k), Matrix.single r s c ∈ I by
+    have hx : x = ∑ r, ∑ s, Matrix.single r s (x r s) := by
+      ext i j
+      simp only [Matrix.sum_apply]
+      rw [Finset.sum_eq_single i
+        (fun b _ hb => by simp [Matrix.single_apply, hb])
+        (by simp)]
+      rw [Finset.sum_eq_single j
+        (fun b _ hb => by simp [Matrix.single_apply, hb])
+        (by simp)]
+      simp [Matrix.single_apply]
+    rw [hx]
+    exact Ideal.sum_mem _ fun r _ => Ideal.sum_mem _ fun s _ => h r s _
+  intro r s c
+  -- Matrix.single r s c = (Matrix.single r 0 c) · E₀₀ · (Matrix.single 0 s 1)
+  have : Matrix.single r (0 : Fin n) c * Matrix.single 0 0 1 *
+      Matrix.single (0 : Fin n) s 1 = Matrix.single r s c := by
+    rw [Matrix.single_mul_single_same, Matrix.single_mul_single_same]
+    simp [mul_one]
+  rw [← this]
+  exact Ideal.subset_span ⟨_, _, rfl⟩
+
+/-- In a product of matrix algebras, the sum of matrix units E₁₁ in each factor
+generates the whole product ring as a two-sided ideal. -/
+private lemma pi_matrix_single_generates_ideal (k : Type u) [Field k]
+    {n : ℕ} (d : Fin n → ℕ) [∀ i, NeZero (d i)] :
+    let R := ∀ i, Matrix (Fin (d i)) (Fin (d i)) k
+    Ideal.span {a * (∑ i, (Pi.single i (Matrix.single 0 0 1) : R)) * b |
+      (a : R) (b : R)} = ⊤ := by
+  sorry
+
 /-- The sum of orthogonal idempotents is idempotent. -/
 private lemma isIdempotentElem_sum_orthogonal {R : Type*} [Ring R] {n : ℕ}
     {e : Fin n → R} (he : OrthogonalIdempotents e) :
