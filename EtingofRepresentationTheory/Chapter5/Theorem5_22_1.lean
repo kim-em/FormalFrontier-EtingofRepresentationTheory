@@ -666,10 +666,28 @@ theorem sum_youngSym_permTracePoly_eq_alpha_schurPoly
         permTracePoly N σ = α • schurPoly N lam := by
   sorry
 
-/-- The scalar `α` from `c_λ² = α · c_λ` is nonzero. This follows from the
-fact that `c_λ(1) = 1` (`YoungSymmetrizerZ_apply_one`): evaluating `c_λ² = α · c_λ`
-at the identity gives `(c_λ * c_λ)(1) = α · c_λ(1) = α · 1 = α`, and
-`(c_λ * c_λ)(1) ≠ 0` because `c_λ` is nonzero (its identity coefficient is 1). -/
+set_option maxHeartbeats 800000 in
+/-- The trace of left multiplication by `c` in `MonoidAlgebra ℚ G` equals `|G| · c(1)`. -/
+private theorem monoidAlgebra_trace_mulLeft_eq
+    {G : Type*} [Group G] [DecidableEq G] [Fintype G]
+    (c : MonoidAlgebra ℚ G) :
+    LinearMap.trace ℚ _ (LinearMap.mulLeft ℚ c) =
+      Fintype.card G * c 1 := by
+  set b := MonoidAlgebra.basis G ℚ
+  rw [LinearMap.trace_eq_matrix_trace ℚ b]
+  simp only [Matrix.trace, Matrix.diag, LinearMap.toMatrix_apply]
+  have hdiag : ∀ σ : G, b.repr (LinearMap.mulLeft ℚ c (b σ)) σ = c 1 := by
+    intro σ
+    -- b.repr is identity, b σ = single σ 1, (c * single σ 1)(σ) = c(σσ⁻¹) = c(1)
+    rw [LinearMap.mulLeft_apply, MonoidAlgebra.basis_apply]
+    -- b.repr is identity for MonoidAlgebra.basis
+    have hrepr : ∀ (x : MonoidAlgebra ℚ G) (g : G), b.repr x g = x g := fun _ _ => rfl
+    rw [hrepr, MonoidAlgebra.mul_single_apply, mul_one, mul_inv_cancel]
+  simp_rw [hdiag, Finset.sum_const, Finset.card_univ, nsmul_eq_mul]
+
+set_option maxHeartbeats 800000 in
+/-- The scalar `α` from `c_λ² = α · c_λ` is nonzero. If `α = 0` then `c² = 0`,
+so left multiplication by `c` is nilpotent with trace 0, but the trace equals `n!`. -/
 theorem YoungSymmetrizerK_sq_scalar_ne_zero
     (n : ℕ) (la : Nat.Partition n)
     (α : ℚ)
@@ -678,26 +696,23 @@ theorem YoungSymmetrizerK_sq_scalar_ne_zero
     α ≠ 0 := by
   intro h0
   rw [h0, zero_smul] at hα_sq
-  -- c_λ * c_λ = 0, but c_λ(1) = 1 so (c_λ * c_λ)(1) should be computable
-  -- Evaluate both sides at identity
-  have h1 := Finsupp.ext_iff.mp hα_sq 1
-  simp only [Finsupp.zero_apply] at h1
-  -- LHS: (c_λ * c_λ)(1) involves a convolution sum including the c_λ(1)² term
-  -- We know c_λ(1) = 1 over ℤ, hence over ℚ
-  have hone : YoungSymmetrizerK ℚ n la 1 = 1 := by
-    have := YoungSymmetrizerZ_apply_one n la
-    rw [YoungSymmetrizerK_eq_mapRange ℚ n la]
-    simp [MonoidAlgebra.mapRangeRingHom_apply, this]
-  -- From hα_sq with α = 0: c_λ² = 0, so (c_λ²)(1) = 0
-  -- But c_λ² = α · c_λ with α ≠ 0 leads to contradiction via identity coefficient
-  -- Actually we need: if c² = 0 in k[G] and c(1) = 1, contradiction
-  -- (c²)(1) = ∑_g c(g) * c(g⁻¹) includes term c(1)*c(1) = 1
-  -- But we only know the full sum is 0, not that individual terms are positive
-  -- Instead: use that over ℚ, c_λ ≠ 0 (since c_λ(1) = 1), but c_λ² = 0
-  -- implies c_λ acts as zero on any module, contradicting that the Schur module
-  -- is nonzero for valid partitions. Simpler: use the ℂ result.
-  -- Transfer: α_ℂ from Lemma5_13_3 maps to α_ℚ via the argument in YoungSymmetrizerK_sq_scalar
-  sorry
+  set c := YoungSymmetrizerK ℚ n la with hc_def
+  -- c² = 0, so left multiplication by c is nilpotent
+  have hnil : IsNilpotent (LinearMap.mulLeft ℚ c) := by
+    refine ⟨2, LinearMap.ext fun x => ?_⟩
+    change (LinearMap.mulLeft ℚ c) ((LinearMap.mulLeft ℚ c) x) = 0
+    simp only [LinearMap.mulLeft_apply, ← mul_assoc, hα_sq, zero_mul]
+  -- Nilpotent trace is nilpotent, hence 0 in ℚ (reduced ring)
+  have htr_nil := LinearMap.isNilpotent_trace_of_isNilpotent hnil
+  rw [isNilpotent_iff_eq_zero] at htr_nil
+  -- But trace = n! · c(1) = n!
+  rw [monoidAlgebra_trace_mulLeft_eq] at htr_nil
+  have hone : c 1 = 1 := by
+    rw [hc_def, YoungSymmetrizerK_eq_mapRange ℚ n la]
+    simp [MonoidAlgebra.mapRangeRingHom_apply, YoungSymmetrizerZ_apply_one]
+  rw [hone, mul_one] at htr_nil
+  exact (Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n))
+    (by rwa [Fintype.card_perm, Fintype.card_fin] at htr_nil)
 
 /-- **Weyl character formula (polynomial level)**: The formal character of the Schur module
 `L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
