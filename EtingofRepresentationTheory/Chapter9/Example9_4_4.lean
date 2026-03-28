@@ -15,6 +15,7 @@ import Mathlib.Algebra.Polynomial.Inductions
 import Mathlib.Algebra.Homology.DerivedCategory.Ext.ExactSequences
 import Mathlib.Algebra.Homology.DerivedCategory.Ext.Linear
 import Mathlib.LinearAlgebra.Finsupp.VectorSpace
+import EtingofRepresentationTheory.Chapter9.KoszulHelpers
 
 /-!
 # Example 9.4.4: Homological dimension of polynomial algebra (Hilbert syzygies)
@@ -151,6 +152,7 @@ private noncomputable def xActionAsRLinear {R : Type u} [CommRing R]
   (ModuleCat.restrictScalars (Polynomial.C (R := R))).map
     ((Polynomial.X : Polynomial R) • (𝟙 M))
 
+set_option maxHeartbeats 800000 in
 /-- The Koszul short exact sequence for an R[X]-module M:
   0 → R[X] ⊗_R M|_R →^d R[X] ⊗_R M|_R →^ε M → 0
 where d(p ⊗ m) = Xp ⊗ m - p ⊗ (X·m) and ε(p ⊗ m) = p·m. -/
@@ -170,9 +172,281 @@ private theorem koszulSES_shortExact {R : Type u} [CommRing R]
       -- d ≫ ε = 0 by counit naturality:
       -- d = X•𝟙 - F(G(X•𝟙_M)), and by naturality of counit,
       -- F(G(X•𝟙_M)) ≫ ε = ε ≫ X•𝟙_M = X•ε, so d ≫ ε = X•ε - X•ε = 0
-      sorry
+      show d ≫ adj.counit.app M = 0
+      show (Polynomial.X • 𝟙 FGM - F.map (xActionAsRLinear M)) ≫ adj.counit.app M = 0
+      rw [Preadditive.sub_comp, Linear.smul_comp, Category.id_comp,
+        show F.map (xActionAsRLinear M) = F.map (G.map (Polynomial.X • 𝟙 M)) from rfl,
+        nat, Linear.comp_smul]
+      erw [Category.comp_id]; exact sub_self _
       )).ShortExact := by
-  sorry
+  set C := Polynomial.C (R := R) with C_def
+  set F := ModuleCat.extendScalars.{u, u, u} C with F_def
+  set G := ModuleCat.restrictScalars.{u} C with G_def
+  set FGM := F.obj (G.obj M) with FGM_def
+  set adj := ModuleCat.extendRestrictScalarsAdj.{u} C
+  set ε := adj.counit.app M
+  set d := (Polynomial.X : Polynomial R) • (𝟙 FGM) - F.map (xActionAsRLinear M)
+  set N := (G.obj M : Type u)
+  intro C' F' G' FGM' ε' d'
+  -- Prove mono (injectivity of d')
+  haveI : Mono d' := by
+    rw [ModuleCat.mono_iff_injective, ← LinearMap.ker_eq_bot, Submodule.eq_bot_iff]
+    intro t ht
+    have hdt : d'.hom t = 0 := LinearMap.mem_ker.mp ht
+    -- Use coordinate map injectivity: suffices to show coordMapCH t = 0
+    suffices h : coordMapCH N t = 0 from coordMapCH_injective N h
+    -- Show coordinates satisfy the shift relation f(k) = xAct(f(k+1))
+    set f := coordMapCH N t with f_def
+    apply finsupp_shift_eq_zero (xActionAsRLinear M).hom (map_zero (xActionAsRLinear M).hom) f
+    intro k
+    -- From d'(t) = 0, extract the shift relation at each coordinate
+    -- coordMapCH(d'(t))(k+1) = f(k) - xAct(f(k+1)) for ALL t, not just kernel elements
+    -- So d'(t) = 0 implies f(k) = xAct(f(k+1))
+    have hshift_gen : ∀ (s : ↑FGM'),
+        (coordMapCH N (d'.hom s)) (k + 1) =
+        (coordMapCH N s) k - (xActionAsRLinear M).hom ((coordMapCH N s) (k + 1)) := by
+      intro s
+      refine TensorProduct.induction_on s ?_ ?_ ?_
+      · simp [map_zero]
+      · intro p m
+        -- d'.hom decomposes: (X • 𝟙 - F.map xAct).hom = X • id - F.map(xAct).hom
+        have hd_sub : d'.hom (p ⊗ₜ[R] m) =
+            ((Polynomial.X : Polynomial R) • 𝟙 FGM').hom (p ⊗ₜ[R] m) -
+            (F'.map (xActionAsRLinear M)).hom (p ⊗ₜ[R] m) := by
+          show (((Polynomial.X : Polynomial R) • 𝟙 FGM' -
+            F'.map (xActionAsRLinear M)).hom) (p ⊗ₜ[R] m) = _
+          exact LinearMap.sub_apply _ _ _
+        -- Reduce each morphism application to a pure tensor (definitional)
+        have h_smul : (ModuleCat.Hom.hom ((Polynomial.X : Polynomial R) • 𝟙 FGM'))
+            (p ⊗ₜ[R] m) = ((Polynomial.X : Polynomial R) • p) ⊗ₜ[R] m := rfl
+        have h_map : (ModuleCat.Hom.hom (F'.map (xActionAsRLinear M)))
+            (p ⊗ₜ[R] m) = p ⊗ₜ[R] ((xActionAsRLinear M).hom m) := rfl
+        rw [hd_sub, map_sub, h_smul, h_map]
+        simp only [coordMapCH, TensorProduct.lift.tmul, LinearMap.coe_mk,
+          AddHom.coe_mk, Finsupp.mapRange_apply, Finsupp.sub_apply]
+        -- Goal: (X • p).toFinsupp(k+1) • m - p.toFinsupp(k+1) • xAct(m)
+        --     = p.toFinsupp(k) • m - xAct(p.toFinsupp(k+1) • m)
+        congr 1
+        · -- (X • p).toFinsupp(k+1) = p.toFinsupp(k) by coeff_X_mul
+          congr 1
+          exact Polynomial.coeff_X_mul (show Polynomial R from p) k
+        · -- xAct(r • m) = r • xAct(m) by map_smul
+          exact (map_smul (xActionAsRLinear M).hom _ _).symm
+      · intro s₁ s₂ ih₁ ih₂
+        simp only [map_add, Finsupp.add_apply] at ih₁ ih₂ ⊢
+        simp only [ih₁, ih₂]; abel
+    have h1 := hshift_gen t
+    simp only [hdt, map_zero, Finsupp.zero_apply] at h1
+    -- h1 : 0 = f k - xAct(f(k+1))
+    exact sub_eq_zero.mp h1.symm
+  -- Prove epi (surjectivity of ε')
+  haveI : Epi ε' := by
+    rw [ModuleCat.epi_iff_surjective]
+    intro m
+    refine ⟨(1 : Polynomial R) ⊗ₜ[R] (m : (G'.obj M : Type u)), ?_⟩
+    erw [ModuleCat.ExtendRestrictScalarsAdj.Counit.map_hom_apply]
+    simp [TensorProduct.lift.tmul, one_smul]
+  -- Prove exactness: ker(ε') ⊆ im(d')
+  -- Use coordinate bijection: coordMapCH is a bijection FGM' ≃ (ℕ →₀ N)
+  -- coordMapCH(d'(s))(k+1) = coordMapCH(s)(k) - xAct(coordMapCH(s)(k+1))  [shift]
+  -- Given f = coordMapCH(x₂), construct g with g(k) - xAct(g(k+1)) = f(k+1)
+  -- and -xAct(g(0)) = f(0) (from ε(x₂)=0)
+  -- Then s = coordMapCHInv(g) is the preimage
+  constructor
+  rw [ShortComplex.moduleCat_exact_iff]
+  intro x₂ hx₂
+  set xAct := (xActionAsRLinear M).hom with xAct_def
+  set f := coordMapCH N x₂ with f_def
+  -- The shift relation (already proved for mono, reuse the same structure)
+  have hshift_gen : ∀ (s : ↑FGM') (k : ℕ),
+      (coordMapCH N (d'.hom s)) (k + 1) =
+      (coordMapCH N s) k - xAct ((coordMapCH N s) (k + 1)) := by
+    intro s k
+    refine TensorProduct.induction_on s ?_ ?_ ?_
+    · simp [map_zero]
+    · intro p m
+      have hd_sub : d'.hom (p ⊗ₜ[R] m) =
+          ((Polynomial.X : Polynomial R) • 𝟙 FGM').hom (p ⊗ₜ[R] m) -
+          (F'.map (xActionAsRLinear M)).hom (p ⊗ₜ[R] m) := by
+        show (((Polynomial.X : Polynomial R) • 𝟙 FGM' -
+          F'.map (xActionAsRLinear M)).hom) (p ⊗ₜ[R] m) = _
+        exact LinearMap.sub_apply _ _ _
+      have h_smul : (ModuleCat.Hom.hom ((Polynomial.X : Polynomial R) • 𝟙 FGM'))
+          (p ⊗ₜ[R] m) = ((Polynomial.X : Polynomial R) • p) ⊗ₜ[R] m := rfl
+      have h_map : (ModuleCat.Hom.hom (F'.map (xActionAsRLinear M)))
+          (p ⊗ₜ[R] m) = p ⊗ₜ[R] (xAct m) := rfl
+      rw [hd_sub, map_sub, h_smul, h_map]
+      simp only [coordMapCH, TensorProduct.lift.tmul, LinearMap.coe_mk,
+        AddHom.coe_mk, Finsupp.mapRange_apply, Finsupp.sub_apply]
+      congr 1
+      · congr 1
+        exact Polynomial.coeff_X_mul (show Polynomial R from p) k
+      · exact (map_smul xAct _ _).symm
+    · intro s₁ s₂ ih₁ ih₂
+      simp only [map_add, Finsupp.add_apply] at ih₁ ih₂ ⊢
+      simp only [ih₁, ih₂]; abel
+  -- Index-0 relation: coordMapCH(d'(s))(0) = -xAct(coordMapCH(s)(0))
+  have hshift_zero : ∀ (s : ↑FGM'),
+      (coordMapCH N (d'.hom s)) 0 = -xAct ((coordMapCH N s) 0) := by
+    intro s
+    refine TensorProduct.induction_on s ?_ ?_ ?_
+    · simp [map_zero]
+    · intro p m
+      have hd_sub : d'.hom (p ⊗ₜ[R] m) =
+          ((Polynomial.X : Polynomial R) • 𝟙 FGM').hom (p ⊗ₜ[R] m) -
+          (F'.map (xActionAsRLinear M)).hom (p ⊗ₜ[R] m) := by
+        show (((Polynomial.X : Polynomial R) • 𝟙 FGM' -
+          F'.map (xActionAsRLinear M)).hom) (p ⊗ₜ[R] m) = _
+        exact LinearMap.sub_apply _ _ _
+      have h_smul : (ModuleCat.Hom.hom ((Polynomial.X : Polynomial R) • 𝟙 FGM'))
+          (p ⊗ₜ[R] m) = ((Polynomial.X : Polynomial R) • p) ⊗ₜ[R] m := rfl
+      have h_map : (ModuleCat.Hom.hom (F'.map (xActionAsRLinear M)))
+          (p ⊗ₜ[R] m) = p ⊗ₜ[R] (xAct m) := rfl
+      rw [hd_sub, map_sub, h_smul, h_map]
+      simp only [coordMapCH, TensorProduct.lift.tmul, LinearMap.coe_mk,
+        AddHom.coe_mk, Finsupp.mapRange_apply, Finsupp.sub_apply]
+      -- LHS: (X • p).toFinsupp 0 • m - p.toFinsupp 0 • xAct(m)
+      -- (X • p).toFinsupp 0 = coeff(X * p, 0) = 0
+      have h_zero : ((Polynomial.X : Polynomial R) • (p : _)).toFinsupp 0 = 0 := by
+        show Polynomial.coeff ((Polynomial.X : Polynomial R) * (show Polynomial R from p)) 0 = _
+        exact Polynomial.coeff_X_mul_zero _
+      rw [h_zero, zero_smul, zero_sub, neg_inj]
+      exact (map_smul xAct _ _).symm
+    · intro s₁ s₂ ih₁ ih₂
+      simp only [map_add, Finsupp.add_apply, map_add, neg_add] at ih₁ ih₂ ⊢
+      rw [ih₁, ih₂]
+  -- Construct g: g(k) = Σ_{j≥0} xAct^j(f(k+1+j)), a finite sum since f has finite support
+  -- This satisfies g(k) = f(k+1) + xAct(g(k+1))
+  -- Define the underlying function
+  set B := if h : f.support.Nonempty then f.support.max' h + 1 else 0 with B_def
+  -- g_fun k = Σ_{j=0}^{B} xAct^j (f(k+1+j))
+  set g_fun : ℕ → N := fun k =>
+    (Finset.range (B + 1)).sum (fun j => (xAct ^ j) (f (k + 1 + j))) with g_fun_def
+  -- g_fun is zero for k ≥ B (since f(k+1+j) = 0 for all j when k+1 > max support)
+  have g_fun_zero : ∀ k, B ≤ k → g_fun k = 0 := by
+    intro k hk
+    simp only [g_fun_def]
+    apply Finset.sum_eq_zero
+    intro j _
+    have : f (k + 1 + j) = 0 := by
+      by_contra hmem_ne
+      have hmem := Finsupp.mem_support_iff.mpr hmem_ne
+      simp only [B_def] at hk
+      split_ifs at hk with h
+      · exact Nat.not_succ_le_self (f.support.max' h)
+          (le_trans (Nat.succ_le_of_lt (by omega))
+            (Finset.le_max' _ _ hmem))
+      · exact h ⟨_, hmem⟩
+    rw [this, map_zero]
+  -- Build g as a Finsupp
+  set g := Finsupp.onFinset (Finset.range B) g_fun (fun k hk => by
+    simp only [Finset.mem_range]
+    by_contra h
+    push_neg at h
+    exact hk (g_fun_zero k h)) with g_def
+  -- g satisfies the recurrence: g(k) = f(k+1) + xAct(g(k+1))
+  have g_rec : ∀ k, g k = f (k + 1) + xAct (g (k + 1)) := by
+    intro k
+    show g_fun k = f (k + 1) + xAct (g_fun (k + 1))
+    simp only [g_fun_def]
+    -- Split off j=0 from the sum, then shift index
+    -- g(k) = Σ_{j ∈ range(B+1)} xAct^j(f(k+1+j))
+    -- We show this equals f(k+1) + xAct(g(k+1))
+    -- = f(k+1) + xAct(Σ_{j ∈ range(B+1)} xAct^j(f(k+2+j)))
+    -- = f(k+1) + Σ_{j ∈ range(B+1)} xAct^{j+1}(f(k+2+j))
+    -- = f(k+1) + Σ_{j ∈ range(B+1)} xAct^{j+1}(f(k+1+(j+1)))
+    -- Strategy: show g(k) = f(k+1) + Σ_{j ∈ range B} xAct^{j+1}(f(k+1+(j+1)))
+    --           and xAct(g(k+1)) = Σ_{j ∈ range B} xAct^{j+1}(f(k+1+(j+1)))
+    -- because the j=B term in the xAct sum is xAct^{B+1}(f(k+2+B)) = xAct^{B+1}(0) = 0
+    rw [Finset.sum_range_succ' (fun j => (xAct ^ j) (f (k + 1 + j)))]
+    have h0 : (xAct ^ 0) (f (k + 1 + 0)) = f (k + 1) := by simp [pow_zero]
+    rw [h0, add_comm]
+    congr 1
+    -- LHS: Σ_{j ∈ range B} xAct^{j+1}(f(k+1+(j+1)))
+    -- RHS: xAct(Σ_{j ∈ range(B+1)} xAct^j(f(k+2+j)))
+    -- First peel off the last term of the RHS sum
+    rw [map_sum, Finset.sum_range_succ]
+    -- Now RHS = Σ_{j ∈ range B} xAct(xAct^j(f(k+2+j))) + xAct(xAct^B(f(k+2+B)))
+    -- The last term is 0
+    have hB_zero : xAct ((xAct ^ B) (f (k + 2 + B))) = 0 := by
+      have : f (k + 2 + B) = 0 := by
+        by_contra hmem_ne
+        have hmem := Finsupp.mem_support_iff.mpr hmem_ne
+        have hB_bound : ∀ n ∈ f.support, n < B := by
+          intro n hn
+          simp only [B_def]
+          split_ifs with h
+          · exact Nat.lt_succ_of_le (Finset.le_max' _ _ hn)
+          · exact absurd ⟨n, hn⟩ h
+        exact absurd (hB_bound _ hmem) (by omega)
+      rw [this, map_zero, map_zero]
+    rw [hB_zero, add_zero]
+    apply Finset.sum_congr rfl
+    intro j _
+    have h1 : k + 1 + (j + 1) = k + 2 + j := by omega
+    have h2 : k + 1 + 1 + j = k + 2 + j := by omega
+    rw [h1, h2, pow_succ' xAct j]; rfl
+  -- Now show d'(coordMapCHInv(g)) = x₂
+  -- It suffices to show coordMapCH(d'(coordMapCHInv(g))) = coordMapCH(x₂) = f
+  refine ⟨coordMapCHInv N g, ?_⟩
+  apply coordMapCH_injective N
+  -- Show coordMapCH(d'(coordMapCHInv(g))) = f pointwise
+  ext k
+  -- Use right inverse: coordMapCH(coordMapCHInv(g)) = g
+  have hg_coord : coordMapCH N (coordMapCHInv N (R := R) g) = g :=
+    coordMapCH_rightInverse (R := R) N g
+  cases k with
+  | zero =>
+    -- At index 0: coordMapCH(d'(s))(0) = -xAct(coordMapCH(s)(0))
+    rw [hshift_zero]
+    rw [show coordMapCH N (coordMapCHInv N g) = g from hg_coord]
+    -- Need: -xAct(g 0) = f 0
+    -- Use finsupp_eval_sum + counit identity + hx₂
+    -- Step 1: x₂ = coordMapCHInv(f) by left inverse
+    have hx₂_eq : x₂ = coordMapCHInv N (R := R) f :=
+      (coordMapCH_leftInverse (R := R) N x₂).symm
+    rw [hx₂_eq] at hx₂
+    -- Step 2: X^k • m = xAct^k(m)
+    have hXpow : ∀ (k : ℕ) (m : (G'.obj M : Type u)),
+        ((Polynomial.X : Polynomial R) ^ k) • m = (xAct ^ k) m := by
+      intro k; induction k with
+      | zero => intro m; simp [pow_zero, one_smul]
+      | succ k ih =>
+        intro m; rw [pow_succ, mul_smul, ih, pow_succ xAct k]
+        -- Goal: (xAct^k)(X • m) = (xAct^k * xAct)(m) = (xAct^k)(xAct(m))
+        -- Since xAct(m) = X • m definitionally, both sides are (xAct^k)(xAct(m))
+        rfl
+    -- Step 3: ε'(coordMapCHInv(f)) = f.sum(xAct^k)
+    have hcounit_inv : ε'.hom (coordMapCHInv N (R := R) f) =
+        f.sum (fun k m => (xAct ^ k) m) := by
+      simp only [coordMapCHInv, LinearMap.coe_mk, AddHom.coe_mk, Finsupp.sum]
+      rw [map_sum]
+      apply Finset.sum_congr rfl; intro k _
+      erw [ModuleCat.ExtendRestrictScalarsAdj.Counit.map_hom_apply]
+      simp only [TensorProduct.lift.tmul, LinearMap.coe_mk, AddHom.coe_mk]
+      exact hXpow k (f k)
+    -- Step 4: f.sum(xAct^k) = 0
+    have hsum_zero : f.sum (fun k m => (xAct ^ k) m) = 0 := by
+      rw [← hcounit_inv]; exact hx₂
+    -- Step 5: f 0 + xAct(g 0) = f.sum(xAct^k) via finsupp_eval_sum
+    have hB_bound : ∀ n ∈ f.support, n < B := by
+      intro n hn; simp only [B_def]
+      split_ifs with h
+      · exact Nat.lt_succ_of_le (Finset.le_max' _ _ hn)
+      · exact absurd ⟨n, hn⟩ h
+    rw [neg_eq_iff_eq_neg, eq_neg_iff_add_eq_zero, add_comm, ← f_def]
+    show f 0 + xAct (g_fun 0) = 0
+    rw [show xAct (g_fun 0) = xAct ((Finset.range (B + 1)).sum
+        (fun j => (xAct ^ j) (f (0 + 1 + j)))) from rfl]
+    rw [finsupp_eval_sum xAct f B hB_bound]
+    exact hsum_zero
+  | succ k =>
+    -- At index k+1: coordMapCH(d'(s))(k+1) = coordMapCH(s)(k) - xAct(coordMapCH(s)(k+1))
+    rw [hshift_gen]
+    rw [show coordMapCH N (coordMapCHInv N g) = g from hg_coord]
+    -- Need: g(k) - xAct(g(k+1)) = f(k+1)
+    rw [g_rec k]
+    abel
 
 theorem hasHomologicalDimensionLE_polynomial {R : Type u} [CommRing R] [Small.{u} R] (d : ℕ)
     (h : Etingof.HasHomologicalDimensionLE R d) :
