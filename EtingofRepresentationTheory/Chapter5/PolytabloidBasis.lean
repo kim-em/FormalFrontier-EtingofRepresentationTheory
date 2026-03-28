@@ -35,6 +35,7 @@ namespace Etingof
 
 noncomputable section
 
+
 /-! ### Cell type abbreviation -/
 
 /-- The cell type of a Young diagram: pairs (i, j) with i < number of rows and
@@ -245,7 +246,7 @@ private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
   · intro h; exact absurd (Finset.mem_univ _) h
 
 /-- Evaluation formula: the coefficient of σ in a polytabloid e_T = σ_T · c_λ. -/
-private lemma polytabloid_apply (n : ℕ) (la : Nat.Partition n)
+theorem polytabloid_apply (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n)) :
     (polytabloid n la T : SymGroupAlgebra n) σ =
       (YoungSymmetrizer n la : SymGroupAlgebra n) ((sytPerm n la T)⁻¹ * σ) := by
@@ -255,7 +256,7 @@ private lemma polytabloid_apply (n : ℕ) (la : Nat.Partition n)
 
 /-- The coefficient of σ_T in polytabloid e_T is 1. This is the diagonal
 entry of the evaluation matrix. -/
-private lemma polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
+theorem polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     (polytabloid n la T : SymGroupAlgebra n) (sytPerm n la T) = 1 := by
   rw [polytabloid_apply, inv_mul_cancel, youngSymmetrizer_one_coeff]
@@ -339,37 +340,97 @@ in both directions. The tabloid projection approach is needed instead.
   (column permutations decrease dominance)
 -/
 
+/-! ### Support characterization of the Young symmetrizer -/
+
+/-- The Young symmetrizer c_λ is supported on P_λ · Q_λ: if c_λ(g) ≠ 0 then g = p · q
+for some p ∈ P_λ and q ∈ Q_λ, with c_λ(g) = sign(q). -/
+private theorem youngSymmetrizer_support (n : ℕ) (la : Nat.Partition n)
+    (g : Equiv.Perm (Fin n))
+    (hg : (YoungSymmetrizer n la : SymGroupAlgebra n) g ≠ 0) :
+    ∃ p ∈ RowSubgroup n la, ∃ q ∈ ColumnSubgroup n la,
+      g = p * q := by
+  classical
+  simp only [YoungSymmetrizer, RowSymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul] at hg
+  rw [Finsupp.finset_sum_apply] at hg
+  simp only [MonoidAlgebra.single_mul_apply, one_mul] at hg
+  -- hg says ∑_{p ∈ P_λ} b_λ(p⁻¹ · g) ≠ 0, so some term is nonzero
+  obtain ⟨⟨p, hp⟩, _, hterm⟩ := Finset.exists_ne_zero_of_sum_ne_zero hg
+  -- b_λ(p⁻¹ · g) ≠ 0
+  simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply] at hterm
+  rw [Finsupp.finset_sum_apply] at hterm
+  obtain ⟨⟨q, hq⟩, _, hq_term⟩ := Finset.exists_ne_zero_of_sum_ne_zero hterm
+  -- sign(q) · δ_q(p⁻¹ · g) ≠ 0
+  change ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) •
+    (Finsupp.single q (1 : ℂ))) ((p : Equiv.Perm (Fin n))⁻¹ * g) ≠ 0 at hq_term
+  rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply] at hq_term
+  split_ifs at hq_term with heq
+  · -- p⁻¹ · g = q, so g = p · q
+    exact ⟨p, hp, q, hq, by rw [heq, mul_inv_cancel_left]⟩
+  · simp at hq_term
+
+/-- The coefficient of g in c_λ when g = p · q (p ∈ P_λ, q ∈ Q_λ) is sign(q). -/
+private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    (YoungSymmetrizer n la : SymGroupAlgebra n) (p * q) =
+      (↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) := by
+  classical
+  simp only [YoungSymmetrizer, RowSymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
+  rw [Finsupp.finset_sum_apply]
+  simp only [MonoidAlgebra.single_mul_apply, one_mul]
+  rw [Finset.sum_eq_single (⟨p, hp⟩ : ↑(RowSubgroup n la))]
+  · -- r = p: b_λ(p⁻¹ · p · q) = b_λ(q) = sign(q)
+    simp only [inv_mul_cancel_left]
+    simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+    rw [Finsupp.finset_sum_apply]
+    rw [Finset.sum_eq_single (⟨q, hq⟩ : ↑(ColumnSubgroup n la))]
+    · change ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) •
+        (Finsupp.single q (1 : ℂ))) q = _
+      rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply, if_pos rfl, mul_one]
+    · intro q' _ hq'
+      change ((↑(↑(Equiv.Perm.sign (q' : Equiv.Perm (Fin n))) : ℤ) : ℂ) •
+        (Finsupp.single (q' : Equiv.Perm (Fin n)) (1 : ℂ))) q = 0
+      rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+      have : (q' : Equiv.Perm (Fin n)) ≠ q := fun h => hq' (Subtype.ext h)
+      simp [this]
+    · intro h; exact absurd (Finset.mem_univ _) h
+  · -- r ≠ p: b_λ(r⁻¹ · p · q) = 0 because r⁻¹ · p · q ∉ Q_λ
+    intro r _ hr
+    have hr_ne : (r : Equiv.Perm (Fin n)) ≠ p := fun h => hr (Subtype.ext h)
+    apply columnAntisymmetrizer_apply_not_mem'
+    intro hcol
+    -- r⁻¹ · p · q ∈ Q_λ means r⁻¹ · p ∈ Q_λ · Q_λ⁻¹ = Q_λ
+    have : (r : Equiv.Perm (Fin n))⁻¹ * p ∈ ColumnSubgroup n la := by
+      have h2 := (ColumnSubgroup n la).mul_mem hcol ((ColumnSubgroup n la).inv_mem hq)
+      simp only [mul_assoc] at h2
+      rwa [mul_inv_cancel, mul_one] at h2
+    -- r⁻¹ · p ∈ P_λ ∩ Q_λ = {1}
+    have hid := row_col_inter_trivial' n la ((r : Equiv.Perm (Fin n))⁻¹ * p)
+      ((RowSubgroup n la).mul_mem ((RowSubgroup n la).inv_mem r.prop) hp)
+      this
+    exact hr_ne (mul_left_cancel (a := (r : Equiv.Perm (Fin n))⁻¹)
+      (by rw [hid, inv_mul_cancel]))
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- If e_{T₂}(σ) ≠ 0, then σ ∈ σ_{T₂} · P_λ · Q_λ: there exist p ∈ P_λ and q ∈ Q_λ
+such that σ = σ_{T₂} · p · q. -/
+theorem polytabloid_support (n : ℕ) (la : Nat.Partition n)
+    (T₂ : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n))
+    (hne : (polytabloid n la T₂ : SymGroupAlgebra n) σ ≠ 0) :
+    ∃ p ∈ RowSubgroup n la, ∃ q ∈ ColumnSubgroup n la,
+      σ = sytPerm n la T₂ * p * q := by
+  rw [polytabloid_apply] at hne
+  obtain ⟨p, hp, q, hq, heq⟩ := youngSymmetrizer_support n la _ hne
+  refine ⟨p, hp, q, hq, ?_⟩
+  have : σ = sytPerm n la T₂ * ((sytPerm n la T₂)⁻¹ * σ) := by
+    rw [mul_inv_cancel_left]
+  rw [this, heq, mul_assoc]
+
 /-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
-**Correct proof strategy** (via tabloid basis triangularity):
-
-The proof uses the **tabloid module** M_λ = ℂ[S_n / P_λ], whose basis is indexed by
-tabloids (row-equivalence classes of fillings). A tabloid {T} groups all fillings with
-the same set of entries in each row.
-
-Key steps:
-1. e_T = σ_T · a_λ · b_λ. In the tabloid module, σ_T · a_λ projects to |P_λ| · {T}.
-2. Multiplying by b_λ = Σ_{q ∈ Q_λ} sign(q) · q gives:
-   e_T (in tabloid basis) = {T} + Σ_{tabloid S < {T}} a_S · {S}
-   where the sum is over strictly dominated tabloids (James, Chapter 3).
-3. Different SYTs give different tabloids (since standardness forces row entries to be sorted).
-4. The tabloid expansion matrix is unitriangular → polytabloids are linearly independent.
-
-**Note**: The earlier `exists_maximal_for_eval` approach (evaluating only at σ_T) was
-INCORRECT. The evaluation matrix M[T,T'] = c_λ(σ_T⁻¹ · σ_{T'}) can be nonzero in
-both directions for distinct T, T'. Counterexample: λ = (2,1,1), n = 4, with
-T₂ = [[0,2],[1],[3]] and T₃ = [[0,3],[1],[2]]: σ_{T₂}⁻¹ · σ_{T₃} = (23) ∈ Q_λ,
-so c_λ((23)) = -1 ≠ 0, and similarly in the reverse direction.
-
-**Infrastructure required** (not yet formalized):
-- Tabloid module M_λ = ℂ[S_n / P_λ] with basis indexed by tabloids
-- Dominance order on tabloids (partial order)
-- Column permutations decrease dominance: for q ∈ Q_λ \ {id}, the tabloid
-  σ · q · P_λ is strictly dominated by σ · P_λ
-- Different standard Young tableaux give different tabloids
-
-See also `youngSymmetrizer_rowPerm_coeff` which proves c_λ(p) = 1 for p ∈ P_λ,
-a key building block for the tabloid projection diagonal entry. -/
+The proof is in `TabloidModule.lean` as `polytabloid_linearIndependent'`, using
+the tabloid module infrastructure (dominance order, tabloid projections).
+This sorry is closed by that proof. -/
 theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
     LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
