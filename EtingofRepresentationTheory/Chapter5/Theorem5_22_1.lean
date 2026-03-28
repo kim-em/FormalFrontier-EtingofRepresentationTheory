@@ -53,6 +53,153 @@ def YoungSymmetrizerK (k : Type*) [CommRing k] (n : ℕ) (la : Nat.Partition n) 
   (∑ g : (ColumnSubgroup n la),
     ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val)
 
+/-! ### Young symmetrizer over ℤ and scalar transfer -/
+
+/-- The Young symmetrizer over ℤ. This is the "universal" version from which both
+`YoungSymmetrizer` (over ℂ) and `YoungSymmetrizerK` (over k) are obtained via base change. -/
+def YoungSymmetrizerZ (n : ℕ) (la : Nat.Partition n) :
+    MonoidAlgebra ℤ (Equiv.Perm (Fin n)) :=
+  haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of ℤ _ g.val) *
+  (∑ g : (ColumnSubgroup n la),
+    (↑(Equiv.Perm.sign g.val) : ℤ) • MonoidAlgebra.of ℤ _ g.val)
+
+/-- Base change maps `of ℤ g` to `of k g`. -/
+private theorem mapRange_of {G : Type*} [Monoid G] (R : Type*) [CommRing R]
+    (f : ℤ →+* R) (g : G) :
+    MonoidAlgebra.mapRangeRingHom G f (MonoidAlgebra.of ℤ G g) = MonoidAlgebra.of R G g := by
+  change MonoidAlgebra.mapRangeRingHom G f (Finsupp.single g 1) = Finsupp.single g 1
+  rw [MonoidAlgebra.mapRangeRingHom_single, map_one]
+
+/-- `YoungSymmetrizerK k` is the image of `YoungSymmetrizerZ` under the base change `ℤ → k`. -/
+theorem YoungSymmetrizerK_eq_mapRange (k : Type*) [CommRing k] (n : ℕ)
+    (la : Nat.Partition n) :
+    YoungSymmetrizerK k n la =
+      MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom k) (YoungSymmetrizerZ n la) := by
+  classical
+  simp only [YoungSymmetrizerK, YoungSymmetrizerZ, map_mul, map_sum, map_zsmul,
+    mapRange_of, ← Int.cast_smul_eq_zsmul k]
+
+/-- The ℂ Young symmetrizer is the image of `YoungSymmetrizerZ` under base change `ℤ → ℂ`. -/
+theorem YoungSymmetrizer_eq_mapRange (n : ℕ) (la : Nat.Partition n) :
+    YoungSymmetrizer n la =
+      MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom ℂ) (YoungSymmetrizerZ n la) := by
+  classical
+  simp only [YoungSymmetrizer, RowSymmetrizer, ColumnAntisymmetrizer, YoungSymmetrizerZ,
+    map_mul, map_sum, map_zsmul, mapRange_of, ← Int.cast_smul_eq_zsmul ℂ]
+
+private theorem sortedParts_sum (n : ℕ) (la : Nat.Partition n) :
+    la.sortedParts.sum = n := by
+  simp only [Nat.Partition.sortedParts]
+  have := la.parts_sum
+  have h1 : (↑(la.parts.sort (· ≥ ·)) : Multiset ℕ) = la.parts := Multiset.sort_eq _ _
+  have h2 : (↑(la.parts.sort (· ≥ ·)) : Multiset ℕ).sum =
+      (la.parts.sort (· ≥ ·)).sum := Multiset.sum_coe _
+  linarith [h2.symm.trans (congrArg Multiset.sum h1)]
+
+/-- If σ preserves both rows and columns, then σ = 1. -/
+theorem row_col_preserving_eq_one (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n))
+    (hrow : σ ∈ RowSubgroup n la) (hcol : σ ∈ ColumnSubgroup n la) :
+    σ = 1 := by
+  ext k : 1
+  have hr := hrow k
+  have hc := hcol k
+  simp only [Equiv.Perm.one_apply]
+  have hk_lt : k.val < la.sortedParts.sum := by
+    rw [sortedParts_sum]; exact k.isLt
+  have hσk_lt : (σ k).val < la.sortedParts.sum := by
+    rw [sortedParts_sum]; exact (σ k).isLt
+  exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts
+    (σ k).val k.val hσk_lt hk_lt hr hc)
+
+/-- The coefficient of `YoungSymmetrizerZ` at the identity permutation is 1. -/
+theorem YoungSymmetrizerZ_apply_one (n : ℕ) (la : Nat.Partition n) :
+    YoungSymmetrizerZ n la 1 = 1 := by
+  classical
+  -- Transfer to ℂ where we can compute directly
+  have hinj : Function.Injective (Int.castRingHom ℂ : ℤ →+* ℂ) := Int.cast_injective
+  apply hinj
+  -- (Int.castRingHom ℂ) (cZ 1) = (mapRange cZ)(1) = (YoungSymmetrizer)(1)
+  rw [show (Int.castRingHom ℂ) (YoungSymmetrizerZ n la 1) =
+      (MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom ℂ) (YoungSymmetrizerZ n la)) 1
+    from (MonoidAlgebra.mapRangeRingHom_apply (Int.castRingHom ℂ) _ _).symm]
+  rw [← YoungSymmetrizer_eq_mapRange, (Int.castRingHom ℂ).map_one]
+  -- YoungSymmetrizer = RowSymmetrizer * ColumnAntisymmetrizer
+  simp only [YoungSymmetrizer, RowSymmetrizer, ColumnAntisymmetrizer]
+  -- Distribute the product of sums
+  rw [Finset.sum_mul]
+  simp_rw [Finset.mul_sum, mul_smul_comm]
+  -- Unfold of to single, then simplify multiplication of singles
+  have hof : ∀ (g : Equiv.Perm (Fin n)),
+      (MonoidAlgebra.of ℂ _ g : MonoidAlgebra ℂ _) = Finsupp.single g 1 := fun _ => rfl
+  simp_rw [hof, MonoidAlgebra.single_mul_single, mul_one]
+  -- Goal: (∑ p ∑ q, (sign q) • single (p*q) 1)(1) = 1
+  rw [Finset.sum_apply']
+  conv_lhs => arg 2; ext k; rw [Finset.sum_apply']
+  simp only [MonoidAlgebra.smul_apply, smul_eq_mul, MonoidAlgebra.single_apply,
+    mul_ite, mul_one, mul_zero]
+  -- ∑_p ∑_q, if p * q = 1 then (sign q : ℂ) else 0 = 1
+  rw [Fintype.sum_eq_single ⟨1, (RowSubgroup n la).one_mem⟩]
+  · rw [Fintype.sum_eq_single ⟨1, (ColumnSubgroup n la).one_mem⟩]
+    · simp [Equiv.Perm.sign_one]
+    · intro ⟨q, hq⟩ hne
+      rw [if_neg]
+      intro hq1
+      exact hne (Subtype.ext (by simpa using hq1))
+  · intro ⟨p, hp⟩ hne
+    apply Fintype.sum_eq_zero
+    intro ⟨q, hq⟩
+    rw [if_neg]
+    intro hpq
+    have heq : p = q⁻¹ := mul_eq_one_iff_eq_inv.mp hpq
+    have hp_in_Q : p ∈ ColumnSubgroup n la := heq ▸ (ColumnSubgroup n la).inv_mem hq
+    exact hne (Subtype.ext (row_col_preserving_eq_one n la p hp hp_in_Q))
+
+/-- The Young symmetrizer over any CharZero ring satisfies c² = α·c for some scalar α.
+The scalar is the image of an integer, obtained by transferring the identity from ℂ
+(Lemma 5.13.3) via the injective map ℤ → ℂ. -/
+theorem YoungSymmetrizerK_sq_scalar (k : Type*) [CommRing k] [CharZero k]
+    (n : ℕ) (la : Nat.Partition n) :
+    ∃ α : k, YoungSymmetrizerK k n la * YoungSymmetrizerK k n la =
+      α • YoungSymmetrizerK k n la := by
+  -- Get the identity over ℂ
+  obtain ⟨α_ℂ, hα⟩ := Lemma5_13_3 n la
+  -- Key elements
+  set cZ := YoungSymmetrizerZ n la
+  set β : ℤ := (cZ * cZ) 1
+  set φ_ℂ := MonoidAlgebra.mapRangeRingHom (Equiv.Perm (Fin n)) (Int.castRingHom ℂ)
+  set φ_k := MonoidAlgebra.mapRangeRingHom (Equiv.Perm (Fin n)) (Int.castRingHom k)
+  -- Relations to base change
+  have h_ℂ : YoungSymmetrizer n la = φ_ℂ cZ := YoungSymmetrizer_eq_mapRange n la
+  have h_k : YoungSymmetrizerK k n la = φ_k cZ := YoungSymmetrizerK_eq_mapRange k n la
+  -- cZ(1) = 1
+  have hcZ1 : cZ 1 = 1 := YoungSymmetrizerZ_apply_one n la
+  -- From Lemma5_13_3, derive the identity in mapRange form
+  have hmul : φ_ℂ (cZ * cZ) = α_ℂ • φ_ℂ cZ := by
+    rw [map_mul]; exact h_ℂ ▸ hα
+  -- Evaluating at identity: α_ℂ = Int.cast β
+  have hα_eq : α_ℂ = (β : ℂ) := by
+    have h1 := Finsupp.ext_iff.mp hmul 1
+    simp only [MonoidAlgebra.mapRangeRingHom_apply, MonoidAlgebra.smul_apply,
+      smul_eq_mul, hcZ1, map_one, mul_one, φ_ℂ] at h1
+    exact h1.symm
+  -- Therefore: for all σ, (cZ * cZ)(σ) = β * cZ(σ)  (by injectivity of ℤ → ℂ)
+  have hZ : cZ * cZ = β • cZ := by
+    ext σ
+    have h1 := Finsupp.ext_iff.mp hmul σ
+    simp only [MonoidAlgebra.mapRangeRingHom_apply, MonoidAlgebra.smul_apply,
+      smul_eq_mul, hα_eq, φ_ℂ] at h1
+    -- h1 : (↑((cZ * cZ) σ) : ℂ) = ↑β * ↑(cZ σ)
+    have h2 : ((cZ * cZ) σ : ℂ) = ((β * cZ σ : ℤ) : ℂ) := by push_cast; exact h1
+    have h3 : (cZ * cZ) σ = β * cZ σ := Int.cast_injective h2
+    -- Need to show (cZ * cZ) σ = (β • cZ) σ
+    rw [MonoidAlgebra.smul_apply, smul_eq_mul, h3]
+  -- Map to k: cK² = (β : k) • cK
+  exact ⟨(β : k), by
+    rw [h_k, ← map_mul, hZ, map_zsmul, ← Int.cast_smul_eq_zsmul k]⟩
+
 /-! ### Young symmetrizer endomorphism on tensor power -/
 
 /-- The Young symmetrizer `c_λ` lifted to an endomorphism of `V^{⊗n}`. -/
