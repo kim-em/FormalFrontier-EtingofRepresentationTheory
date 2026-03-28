@@ -1546,6 +1546,31 @@ theorem my_theorem
 
 **Evidence:** Universe pinning resolved issues in Theorem5_18_4 (SchurModule universe annotations), IsFiniteTypeQuiver (pinned to `Type` to avoid universe mismatch), and BasicAlgebraExistence (explicit `Type u` throughout).
 
+## Section Variable Auto-Inclusion Gotcha
+
+Lean 4 section variables declared with `variable (h : P)` are only auto-included
+in declarations where they appear **syntactically** in the type or proof body.
+Dot notation like `h.eq` may not trigger auto-inclusion — Lean's variable scanner
+doesn't always resolve dot notation to find the underlying variable.
+
+**Symptom**: "Unknown identifier `h.eq`" or "Unknown identifier `h`" inside a
+proof in a `section` block, even though `h` is declared as a `variable`.
+
+**Fix**: Add `include h` after the `variable` declaration to force inclusion in
+all subsequent declarations in the section:
+```lean
+section Foo
+variable {e : A} (he : IsIdempotentElem e)
+include he  -- forces he into all declarations in this section
+
+lemma bar ... := by
+  ... he.eq ...  -- works now
+end Foo
+```
+
+**Alternative**: Explicitly add the parameter to each declaration (the pattern
+used in this project's `cornerSubmodule_left_mul` etc.).
+
 ## When to Decompose vs. Attempt Directly
 
 **Decompose immediately** when:
