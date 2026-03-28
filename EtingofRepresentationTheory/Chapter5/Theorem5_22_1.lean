@@ -608,6 +608,51 @@ This is the central content of the Weyl character formula:
 - Lemma 5.13.1 sandwich property over ℚ (not yet generalized from ℂ)
 - Character orthogonality for S_n (not yet formalized) -/
 
+/-! #### Young symmetrizer endomorphism: idempotent property -/
+
+/-- The Young symmetrizer endomorphism satisfies `E² = α • E` over any field k. -/
+theorem youngSymEndomorphism_sq_scalar (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (α : k)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam)) :
+    youngSymEndomorphism k N lam * youngSymEndomorphism k N lam =
+      α • youngSymEndomorphism k N lam := by
+  unfold youngSymEndomorphism
+  rw [← map_mul, hα_sq, map_smul]
+
+/-- The SchurModuleSubmodule equals the range of `youngSymEndomorphism` composed with itself
+(up to scalar), since E² = α • E means im(E) = im(E²) = im(α • E). -/
+theorem youngSymEndomorphism_range_eq_sq_range (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (α : k) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam)) :
+    SchurModuleSubmodule k N lam = LinearMap.range (youngSymEndomorphism k N lam *
+      youngSymEndomorphism k N lam) := by
+  unfold SchurModuleSubmodule
+  rw [show youngSymEndomorphism k N lam * youngSymEndomorphism k N lam =
+    α • youngSymEndomorphism k N lam from youngSymEndomorphism_sq_scalar k N lam α hα_sq]
+  ext v; simp [LinearMap.mem_range, LinearMap.smul_apply]
+  constructor
+  · rintro ⟨w, rfl⟩; exact ⟨α⁻¹ • w, by rw [map_smul, smul_comm, inv_smul_smul₀ hα]⟩
+  · rintro ⟨w, rfl⟩; exact ⟨α • w, by rw [map_smul]⟩
+
+/-- On the image of the Young symmetrizer, the endomorphism acts as scalar multiplication
+by α. That is, for v ∈ im(E), E(v) = α • v. -/
+theorem youngSymEndomorphism_apply_on_range (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (α : k)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam))
+    (v : TensorPower k (Fin N → k) (∑ i, lam i))
+    (hv : v ∈ SchurModuleSubmodule k N lam) :
+    youngSymEndomorphism k N lam v = α • v := by
+  obtain ⟨w, rfl⟩ := hv
+  show (youngSymEndomorphism k N lam * youngSymEndomorphism k N lam) w = α • youngSymEndomorphism k N lam w
+  rw [youngSymEndomorphism_sq_scalar k N lam α hα_sq]
+  rfl
+
 /-! #### Step 1: Formal character via trace of Young symmetrizer
 
 The Schur module `L_λ = Im(c_λ)` where `c_λ² = α · c_λ`. So `(1/α) · c_λ` is
