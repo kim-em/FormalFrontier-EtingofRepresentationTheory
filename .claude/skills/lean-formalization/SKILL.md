@@ -31,6 +31,9 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - `Submodule.map` of complementary submodules through non-injective maps — does NOT preserve complementarity. Problem6_9_1 IsCompl conditions hit this fundamental gap.
    - `Lemma5_13_3` (Young symmetrizer idempotency) over general fields — currently only works over ℂ. Blocks the trace-based approach to Weyl character formula.
    - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
+   - `basic_morita_algEquiv` (basic + Morita equivalent ⟹ isomorphic) — fundamental circularity: all non-circular approaches require Krull-Schmidt theorem or progenerator theory, neither in Mathlib.
+   - Right-multiplication dominance for polytabloids — `column_perm_dominance` proves LEFT multiplication dominance, but linear independence needs RIGHT multiplication. Left permutes positions, right permutes entries — fundamentally different. Blocks `polytabloid_linearIndependent'`.
+   - Non-commutative `TensorProduct` — Mathlib requires `CommSemiring`. Balanced tensor product `A ⊗_{eAe} N` must be built as a manual quotient (~100 lines boilerplate). Blocks corner ring Morita equivalence and BasicAlgebraExistence.
 
 2. **Search for existing definitions and infrastructure.** Before defining any concept or building any equivalence/isomorphism, search the codebase:
    ```bash
@@ -495,6 +498,10 @@ If the same gap blocks 3+ items (e.g., column orthogonality blocking all charact
 | FDRep ↔ LinearMap plumbing | `.hom` unwrapping | Distributing `.hom.hom` over sums, Schur at LinearMap level | Prop 5.3.2 | Workaround: non-categorical pattern |
 | Quiver representations | `Quiver`, `PathAlgebra` | `QuiverRepresentation`, hom, subobjects | Ch6 items | Workaround: concrete constructions |
 | Pigeonhole transposition | `Finset` API | Row/column counting for Young tableaux | Lemmas 5.13.1, 5.13.2 | Issues #776, #777 |
+| Non-commutative TensorProduct | `TensorProduct` (CommSemiring only) | Balanced tensor product `A ⊗_{eAe} N` for non-commutative rings | BasicAlgebraExistence, MoritaStructural | Manual quotient construction needed |
+| Krull-Schmidt theorem | None | Unique decomposition of modules into indecomposables | basic_morita_algEquiv (#1877) | Not in Mathlib, blocks Morita isomorphism |
+| Clifford theory | None | Semidirect product orbit method, coset representations | Theorem5_27_1 (Mackey machine) | ~500 lines new theory needed |
+| Right-multiplication dominance | Left-mult dominance proved | Right `σ · e_T` ≠ left `σ · e_T` for polytabloids | PolytabloidBasis (#1884) | Fundamentally different from left case |
 
 ## Proof Chain Completion Strategy
 
@@ -636,40 +643,62 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 38)
+## Endgame Priorities (Wave 40, 2026-03-28)
 
-With **27 sorries** across 19 files, the remaining work is concentrated in hard items. All definition-level sorries are resolved. Easy wins are exhausted — future progress is slower per sorry.
+With **29 sorries** across 20 files, the remaining work is concentrated in hard items. All definition-level sorries are resolved (verified by scan on 2026-03-28). Easy wins are exhausted — future progress is slower per sorry.
 
-**Trajectory:** 66 sorries (wave 28, Mar 22) → 33 (wave 37) → 27 (wave 38, Mar 27). Rate: ~8 sorries/day declining.
+**Trajectory:** 66 sorries (wave 28, Mar 22) → 33 (wave 37) → 27 (wave 38) → 29 (wave 40, Mar 28). Note: sorry count can increase when decomposition adds new sub-goals.
 
-**Recently completed (Waves 37-38, PRs #1780–#1824):**
-- Proposition6_6_7 sorry-free (#1800) — Decidable.casesOn workarounds
-- Proposition5_21_1 sorry-free (#1808) — Antisymmetric basis decomposition
-- Theorem5_18_4 reduced 4→1 sorry (#1817, #1781) — Centralizer proved
-- Theorem5_22_1 reduced 2→1 sorry (#1815, #1806) — Weight-to-Schur-poly coefficient identity
-- Problem6_9_1 decomposed (#1807) — 6/8 sub-goals proved
-- Mackey machine infrastructure (#1804, #1822) — coset_fixed_iff, LHS simplification
-- Cauchy identity reduced to polynomial determinant (#1801, #1812)
-- Theorem5_23_2_i proved (#1824) — trivial by inferInstance
+**Recently completed (Waves 38-40, PRs #1824–#1897):**
+- Hilbert syzygy lower bound: Shapiro's lemma proved from scratch (#1870, #1880), Ext^n result (#1887)
+- Hilbert syzygy upper bound: Koszul SES infrastructure + extendScalars preserves projective dim (#1897)
+- Morita/corner ring: exists_full_idempotent_basic_corner fullness proved (#1881)
+- Weyl character formula: trace formula sub-lemmas decomposed (#1883)
+- Peter-Weyl: directSum_rank_ge_aleph0 proved (#1896, pending CI)
+- Polytabloid: false theorem (tabloid expansion) identified and fixed (#1888)
+- Determinant identity: det_clearedDenomMatrix_eq proved (#1845)
 
-**Tier 1 — Achievable (3 sorries):**
-- PowerSumCauchyBilinear (1) — orbit-stabilizer for element bicolorings
-- PolytabloidBasis (2) — linear independence + straightening lemma
+**Dependency DAG — strategic priority order:**
 
-**Tier 2 — Hard but tractable (4 sorries):**
-- Proposition6_6_6_source (2) — finrank equality + source naturality
-- Problem6_9_1 (2) — IsCompl conditions for projected subspaces
+```
+Proposition6_6_6_source (1 sorry) ← KEYSTONE: unblocks ~11 downstream
+├─→ Corollary6_8_3 (1) → Problem6_1_5_theorem (1) → Theorem_Dynkin_classification (1)
+├─→ Corollary6_8_4 (1)
+└─→ Theorem2_1_2 (1)
 
-**Tier 3 — Significant infrastructure (7 sorries):**
-- Mackey machine Theorem5_27_1 (4) — needs Clifford theory (~500 lines)
-- BasicAlgebraExistence (2) — corner ring Morita equivalence (~200-300 lines)
-- CoxeterInfrastructure (1) — admissible ordering existence
+Theorem5_22_1 (3 sorrys) ← unblocks character formula completion
+├─→ Theorem5_23_2 (1)
+└─→ Proposition5_22_2 (1)
 
-**Tier 4 — Deep blockers (~13 sorries):**
-- Weyl character formula core (`formalCharacter_schurModule_mul_vandermonde`)
-- Schur-Weyl partition decomposition
-- Theorem5_23_2_ii (needs infinitely many nonzero SchurModules)
-- Various Ch5/Ch6 items dependent on above
+CoxeterInfrastructure (2 sorrys) ← enables Corollary6_8_3 inductive step
+
+Theorem5_27_1 (3 sorrys) [Independent — Mackey machine]
+PolytabloidBasis (3 sorrys) + TabloidModule (3 sorrys) [Isolated cluster]
+BasicAlgebraExistence (2 sorrys) → MoritaStructural (1)
+Problem6_9_1 (2 sorrys) [Isolated]
+Example9_4_4 (2 sorrys) [Isolated]
+Theorem2_1_2 (1 sorry) [Blocked on Gabriel chain]
+```
+
+**Priority tiers:**
+
+**Tier 1 — Highest strategic value:**
+- Proposition6_6_6_source (1 sorry) — reflection functor naturality. Unblocks 5+ downstream theorems with 11+ sorrys total. Very hard (dependent type rewriting).
+- Theorem5_22_1 (3 sorrys) — Cauchy identity / Vandermonde. Unblocks character formula completion (2 downstream).
+
+**Tier 2 — Hard but tractable:**
+- CoxeterInfrastructure (2 sorrys) — type-changing quiver iteration
+- Problem6_9_1 (2 sorrys) — IsCompl conditions for projected subspaces
+- Theorem5_27_1 (3 sorrys) — Mackey machine (needs Clifford theory ~500 lines)
+
+**Tier 3 — Significant infrastructure:**
+- BasicAlgebraExistence (2 sorrys) — corner ring Morita equivalence (~200-300 lines), non-commutative tensor products
+- MoritaStructural (1 sorry) — basic_morita_algEquiv has fundamental circularity; all non-circular approaches require Krull-Schmidt or progenerator theory
+- Example9_4_4 (2 sorrys) — Koszul SES exactness for polynomial rings
+
+**Tier 4 — Isolated / lower priority:**
+- PolytabloidBasis (3 sorrys) + TabloidModule (3 sorrys) — right-multiplication dominance needed (left was proved, right is fundamentally different)
+- Theorem2_1_2 (1 sorry) — blocked on full Gabriel chain
 
 **Key endgame insights:**
 1. **All definitions are constructed.** Every remaining sorry is a pure proof obligation.
@@ -679,6 +708,33 @@ With **27 sorries** across 19 files, the remaining work is concentrated in hard 
 5. **False theorems can hide in conjugation/action directions.** Verify statement correctness with concrete examples.
 6. **Missing infrastructure is the primary blocker**, not tactic difficulty. Remaining sorrys need new mathematical developments (Clifford theory, Morita, tensor algebra isomorphisms).
 7. **Circular dependencies between sorry'd theorems** exist (e.g., Prop 5.22.2 needs Thm 5.22.1). When both ends of a circle have sorrys, focus on the one with fewer prerequisites.
+8. **Non-commutative tensor products are a recurring wall.** Mathlib's `TensorProduct` requires `CommSemiring`. Morita theory needs `A ⊗_{eAe} N` over non-commutative corner rings. Multiple agents have hit this — see "Non-Commutative Ring Workarounds" below.
+9. **Multi-PR iteration is normal for hard items.** Complex theorems (Hilbert syzygy, Morita) routinely require 2-4 PRs: restructure → build infrastructure → prove. Plan for this.
+
+## Non-Commutative Ring Workarounds
+
+Mathlib's `TensorProduct` requires `CommSemiring`. Multiple agents across 4+ sessions have hit this wall when working on Morita theory and corner rings. Here are the known workarounds:
+
+### The Problem
+`TensorProduct R M N` requires `[CommSemiring R]`. But Morita equivalence needs `A ⊗_{eAe} N` where `eAe` is a corner ring (non-commutative in general).
+
+### Workaround 1: Balanced Tensor Product as Quotient
+Construct `A ⊗_{eAe} N` as a quotient of `A ⊗_k N` by the balanced submodule:
+```lean
+-- The balanced submodule: generated by (a · r) ⊗ n - a ⊗ (r · n) for r ∈ eAe
+def balancedSubmodule : Submodule k (TensorProduct k A N) := ...
+def BalancedTensorProduct := (TensorProduct k A N) ⧸ balancedSubmodule
+```
+This construction appeared in BasicAlgebraExistence and was used in 3+ sessions.
+
+### Workaround 2: Use `isUnit_of_sub_one_mem_jacobson_bot` alternatives
+The `isUnit_of_sub_one_mem_jacobson_bot` API requires `CommRing`. For non-commutative rings, use `IsNilpotent.isUnit_one_sub` instead (only requires `Ring`).
+
+### Workaround 3: Avoid `linarith`/`linear_combination` over non-commutative rings
+These tactics need `CommSemiring`. Use manual algebra (`calc` blocks with `mul_assoc`, `mul_comm` where applicable, or `ring_nf` after establishing commutativity of specific elements).
+
+### Status
+Non-commutative tensor products remain the hardest infrastructure gap. No clean resolution exists in Mathlib. The balanced quotient approach works but requires ~100 lines of boilerplate per use site.
 
 ## Type-Level If/Else Diamond Issue
 
@@ -1432,29 +1488,31 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 36, 2026-03-27)
-The project has ~36 sorries across 21 files (down from 43 at wave 33). Sorry-free rate: ~97.4% (568/583 items). This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
+### Current Status (as of Wave 40, 2026-03-28)
+The project has 29 sorries across 20 files (down from 66 at wave 28). Sorry-free rate: 249/271 files (91.9%). This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
 
-**Chapter status (Wave 38):** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry. Ch5 has 12 sorries across 7 files (down from 18). Ch6 has 9 sorries across 7 files (down from 10). Ch9 has 2 sorries across 2 files. Infrastructure has 3 sorries across 2 files.
+**Chapter status (Wave 40):** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry (Theorem2_1_2). Ch5 has 14 sorries across 7 files. Ch6 has 9 sorries across 7 files. Ch9 has 3 sorries across 3 files. Infrastructure has 2 sorries across 1 file.
 
 **Major milestones since wave 33:**
 - **All definition-level sorries resolved** (wave 37) — every mathematical object is constructed
 - **SchurModule constructed** (PR #1740) — the mega-blocker is resolved
+- **Shapiro's lemma proved from scratch** (#1870, #1880) — was missing from Mathlib, built locally
+- **Hilbert syzygy theorem infrastructure** (#1897) — extendScalars preserves projective dimension, Koszul SES setup
+- **Peter-Weyl decomposition** (#1896) — directSum_rank_ge_aleph0 via infinite linear independence
+- **Morita idempotent fullness** (#1881) — exists_full_idempotent_basic_corner fullness step proved
+- **Weyl character trace formula** (#1883) — decomposed into sub-lemmas
+- **False polytabloid expansion identified** (#1888) — tabloid expansion convention was wrong
 - **Proposition6_6_7 sorry-free** (#1800) — Decidable.casesOn workarounds succeeded
-- **Proposition5_21_1 sorry-free** (#1808) — antisymmetric basis decomposition
-- **Theorem5_18_4 reduced to 1 sorry** (#1817) — centralizer theorem proved
-- **Theorem5_22_1 reduced to 1 sorry** (#1815) — weight-to-Schur-poly coefficient identity
-- **False theorem removed** (#1786) — `RelColumnSubgroup_ne_tabloid` was false for partition (2,2)
-- **Formalization defect identified** — Theorem5_23_2_ii is false for n=0 due to spurious `1/det` variable in `GLCoordinateRing`
+- **Determinant identity** (#1845) — det_clearedDenomMatrix_eq proved (V_x * V_y)
 
-**Major blocker clusters (updated wave 38):**
-1. **Weyl character formula core** (1 sorry): `formalCharacter_schurModule_mul_vandermonde` — needs either generalized Young symmetrizer idempotency (over arbitrary fields) OR sorry-free Schur-Weyl duality
-2. **Gabriel's theorem chain** (~9 sorries): Prop6_6_6_source (2), Problem6_9_1 (2), plus downstream
-3. **Mackey machine / Clifford theory** (4 sorries): Theorem5_27_1 — needs ~500 lines new theory
-4. **Morita/Basic algebra** (2 sorries): Corner ring Morita equivalence (~200-300 lines)
-5. **Polytabloid basis** (2 sorries): linear independence + straightening lemma
+**Major blocker clusters (updated wave 40):**
+1. **Gabriel's theorem chain** (~5+ files, 11+ downstream sorries): Prop6_6_6_source (1 sorry) is the keystone — unblocks Corollary6_8_3, 6_8_4, Problem6_1_5_theorem, Theorem_Dynkin_classification
+2. **Character formula chain** (5 sorries): Theorem5_22_1 (3) → Theorem5_23_2 (1) + Proposition5_22_2 (1)
+3. **Mackey machine / Clifford theory** (3 sorries): Theorem5_27_1 — needs ~500 lines new theory
+4. **Morita/Basic algebra** (3 sorries): Non-commutative tensor products + circularity in basic_morita_algEquiv
+5. **Polytabloid basis** (6 sorries across 2 files): right-multiplication dominance needed (left proved, right fundamentally different)
 
-**Velocity trend:** 66 → 43 → 36 → 27 sorries over waves 28-38 (−59% total). Rate decelerating as remaining items are increasingly hard — 48% of remaining sorries are "deep blockers" requiring substantial new infrastructure.
+**Velocity trend:** 66 → 43 → 36 → 27 → 29 sorries over waves 28-40. Rate decelerating as remaining items are increasingly hard. Sorry count increased from 27 to 29 due to decomposition adding structured sub-goals (net positive: better scoped work items).
 
 **Key velocity insight:** Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
 
