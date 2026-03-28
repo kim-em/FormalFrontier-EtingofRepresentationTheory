@@ -173,29 +173,90 @@ private theorem directSum_rank_le_aleph0 (n : ℕ) :
         · exact h_sup
     _ = Cardinal.aleph0 := Cardinal.aleph0_mul_aleph0
 
--- The direct sum ⊕_λ L*_λ ⊗ L_λ has rank ≥ ℵ₀: infinitely many Schur modules are
--- nonzero. For each m ∈ ℕ, the weight (m, 0, ..., 0) gives the symmetric power
--- Sym^m(V), which is nonzero for n ≥ 1. Proving this requires showing the Young
--- symmetrizer is nonzero on tensor powers, which needs the fact that the Young
--- symmetrizer is a nonzero idempotent (up to scalar) — ultimately from
--- Lemma 5.13.3 (c_λ² = d(λ)/n! · c_λ with d(λ) ≠ 0).
-private theorem directSum_rank_ge_aleph0 (n : ℕ) :
-    Cardinal.aleph0 ≤ Module.rank k (DirectSum (DominantWeight n) fun lam =>
-      (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)) := by
+-- The Schur module (image of Young symmetrizer on V^{⊗n}) is nonzero for any
+-- weight when the partition has at most dim(V) parts. Since `weightToPartition N lam`
+-- produces a partition with at most N parts, and V = k^N, this always holds.
+-- The proof uses a canonical tensor (placing basis vector e_i in row i) and showing
+-- the Young symmetrizer does not annihilate it: row symmetrization gives ∏(lamᵢ!) ≠ 0
+-- (char 0), and column antisymmetrization of distinct basis vectors is nonzero.
+private theorem schurModuleSubmodule_ne_bot [CharZero k] {N : ℕ} (hN : 0 < N)
+    (lam : Fin N → ℕ) :
+    SchurModuleSubmodule k N lam ≠ ⊥ := by
   sorry
 
-private theorem peterWeyl_rank_eq (n : ℕ) :
+-- The direct sum ⊕_λ L*_λ ⊗ L_λ has rank ≥ ℵ₀: for n ≥ 1, every summand is
+-- nontrivial (the Schur module for any partition with ≤ n parts on k^n is nonzero
+-- in characteristic 0), and `DominantWeight n` is infinite.
+set_option maxHeartbeats 800000 in
+private theorem directSum_rank_ge_aleph0 [CharZero k] (n : ℕ) (hn : 0 < n) :
+    Cardinal.aleph0 ≤ Module.rank k (DirectSum (DominantWeight n) fun lam =>
+      (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)) := by
+  set F := fun lam : DominantWeight n =>
+    (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)
+  -- Each summand is nontrivial (both tensor factors are nonzero)
+  have h_nt : ∀ lam : DominantWeight n, Nontrivial (F lam) := by
+    intro lam
+    haveI : Module.Finite k (AlgIrrepGLDual n lam k) := AlgIrrepGL.finite n lam.w0Twist k
+    haveI : Module.Finite k (AlgIrrepGL n lam k) := AlgIrrepGL.finite n lam k
+    haveI : Module.Free k (AlgIrrepGL n lam k) := Module.Free.of_divisionRing k _
+    haveI : Module.Free k (AlgIrrepGLDual n lam k) := Module.Free.of_divisionRing k _
+    haveI : IsScalarTower k k (AlgIrrepGLDual n lam k) := IsScalarTower.left _
+    have h1 := schurModuleSubmodule_ne_bot (k := k) hn lam.toNatWeight
+    have h2 := schurModuleSubmodule_ne_bot (k := k) hn lam.w0Twist.toNatWeight
+    haveI : Nontrivial (AlgIrrepGL n lam k) :=
+      Submodule.nontrivial_iff_ne_bot.mpr h1
+    haveI : Nontrivial (AlgIrrepGLDual n lam k) :=
+      Submodule.nontrivial_iff_ne_bot.mpr h2
+    have hr1 := Module.finrank_pos (R := k) (M := AlgIrrepGL n lam k)
+    have hr2 := Module.finrank_pos (R := k) (M := AlgIrrepGLDual n lam k)
+    have hfr : 0 < Module.finrank k (F lam) := by
+      rw [@Module.finrank_tensorProduct k k]
+      exact Nat.mul_pos hr2 hr1
+    exact Module.nontrivial_of_finrank_pos hfr
+  -- DominantWeight n is infinite for n ≥ 1 (constant functions ℤ → DominantWeight n)
+  haveI : Infinite (DominantWeight n) := by
+    apply Infinite.of_injective
+      (fun z : ℤ => (⟨fun _ => z, fun _ _ _ => le_refl z⟩ : DominantWeight n))
+    intro a b hab
+    have := congr_arg Subtype.val hab
+    exact congr_fun this ⟨0, hn⟩
+  -- For each lam, choose a nonzero element of F(lam)
+  have h_ne_zero : ∀ lam, ∃ y : F lam, y ≠ 0 := fun lam => @exists_ne _ (h_nt lam) 0
+  choose x hx using h_ne_zero
+  -- The direct sum inclusions of nonzero elements are linearly independent:
+  -- elements supported on different indices in a direct sum are independent.
+  classical
+  have hli : LinearIndependent k (fun lam : DominantWeight n =>
+      DirectSum.lof k _ F lam (x lam)) := by
+    rw [linearIndependent_iff']
+    intro s g hg i hi
+    -- Project the zero sum to component i
+    have h_zero : DirectSum.component k _ F i
+        (∑ j ∈ s, g j • DirectSum.lof k _ F j (x j)) = 0 := by
+      rw [hg, map_zero]
+    simp only [map_sum, map_smul] at h_zero
+    -- Isolate the i-th term: for j ≠ i, component i (lof j _) = 0
+    rw [Finset.sum_eq_single i (fun j _ hji => by
+        rw [DirectSum.component.of, dif_neg hji, smul_zero])
+      (fun h => absurd hi h)] at h_zero
+    -- Now h_zero : g i • component i (lof i (x i)) = 0
+    rw [DirectSum.component.lof_self] at h_zero
+    exact (smul_eq_zero.mp h_zero).resolve_right (hx i)
+  -- Infinite linearly independent family gives rank ≥ ℵ₀
+  exact hli.aleph0_le_rank
+
+private theorem peterWeyl_rank_eq [CharZero k] (n : ℕ) (hn : 0 < n) :
     Module.rank k (GLCoordinateRing n k) =
       Module.rank k (DirectSum (DominantWeight n) fun lam =>
         (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)) := by
   rw [glCoordinateRing_rank]
-  exact le_antisymm (directSum_rank_le_aleph0 n) (directSum_rank_ge_aleph0 n) |>.symm
+  exact le_antisymm (directSum_rank_le_aleph0 n) (directSum_rank_ge_aleph0 n hn) |>.symm
 
-theorem Theorem5_23_2_ii
-    (n : ℕ) :
+theorem Theorem5_23_2_ii [CharZero k]
+    (n : ℕ) (hn : 0 < n) :
     Nonempty (GLCoordinateRing n k ≃ₗ[k]
       (DirectSum (DominantWeight n) fun lam =>
         (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k))) :=
-  nonempty_linearEquiv_of_rank_eq (peterWeyl_rank_eq n)
+  nonempty_linearEquiv_of_rank_eq (peterWeyl_rank_eq n hn)
 
 end Etingof
