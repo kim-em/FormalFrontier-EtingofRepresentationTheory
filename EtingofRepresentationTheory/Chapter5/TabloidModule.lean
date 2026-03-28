@@ -32,9 +32,15 @@ The T-relative column subgroup C_T = σ_T⁻¹ Q_λ σ_T (NOT σ_T Q_λ σ_T⁻�
 the entry-level column stabilizer: π ∈ C_T iff π preserves the column sets of T.
 Explicitly, for entry e, col_T(π(e)) = col_T(e) where col_T(e) = colOfPos(σ_T(e)).
 
-The polytabloid expansion in the tabloid module is:
-  e_T ↝ |P_λ| · Σ_{q ∈ Q_λ} sign(q) · toTabloid(q⁻¹ · σ_T)
-where q⁻¹ · σ_T gives the tabloid {π · T} for π = σ_T⁻¹ q σ_T ∈ C_T.
+**Warning on polytabloid tabloid expansion**: The naïve claim that
+  Φ(e_T) = |P_λ| · Σ_{q ∈ Q_λ} sign(q) · toTabloid(σ_T · q)
+requires σ_T P_λ σ_T⁻¹ = P_λ (P_λ normalized by σ_T). This is FALSE in general
+since P_λ permutes within rows of the CANONICAL filling, while σ_T maps entries
+to positions via the SYT T, which has different row assignments.
+
+The correct approach for polytabloid linear independence uses direct evaluation
+in the group algebra (polytabloid_self_coeff, column_perm_strict_dominance)
+rather than the tabloid module expansion.
 
 ## References
 
@@ -661,6 +667,57 @@ theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
     tabloidStrictDominates la (sytPerm n la T) (q⁻¹ * sytPerm n la T) :=
   ⟨column_perm_dominance T q hq,
    (ColumnSubgroup_ne_tabloid T q hq hne).symm⟩
+
+/-! ### Tabloid module linear map -/
+
+/-- The tabloid projection: sends a permutation σ to the indicator function of its
+tabloid toTabloid(σ) in the free ℂ-module on tabloids. -/
+def tabloidIndicator (n : ℕ) (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) :
+    Tabloid n la →₀ ℂ :=
+  Finsupp.single (toTabloid n la σ) 1
+
+/-- The tabloid module linear map: extends tabloidIndicator ℂ-linearly from the
+group algebra ℂ[S_n] to the free ℂ-module on tabloids.
+
+This sends `Σ aᵢ · σᵢ` to `Σ aᵢ · δ_{toTabloid(σᵢ)}`. -/
+def tabloidProjection (n : ℕ) (la : Nat.Partition n) :
+    SymGroupAlgebra n →ₗ[ℂ] (Tabloid n la →₀ ℂ) :=
+  Finsupp.lsum ℂ (fun σ => Finsupp.lsingle (toTabloid n la σ))
+
+/-- The tabloid projection sends a basis element to the indicator of its tabloid. -/
+theorem tabloidProjection_single (σ : Equiv.Perm (Fin n)) :
+    tabloidProjection n la (MonoidAlgebra.of ℂ _ σ) =
+      Finsupp.single (toTabloid n la σ) 1 := by
+  classical
+  ext t
+  show (Finsupp.lsum ℂ (fun σ => Finsupp.lsingle (toTabloid n la σ))
+    (Finsupp.single σ 1)) t = (Finsupp.single (toTabloid n la σ) (1 : ℂ)) t
+  rw [Finsupp.lsum_single]
+  simp [Finsupp.lsingle_apply]
+
+/-! ### Left multiplication by row subgroup -/
+
+/-- Left multiplication by a row permutation preserves the tabloid:
+toTabloid(p * σ) = toTabloid(σ) for p ∈ P_λ.
+
+This is because two permutations give the same tabloid iff they differ by a
+left P_λ element: (p * σ) * σ⁻¹ = p ∈ P_λ. -/
+theorem toTabloid_rowPerm_mul (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (σ : Equiv.Perm (Fin n)) :
+    toTabloid n la (p * σ) = toTabloid n la σ := by
+  rw [toTabloid_eq_iff]
+  simp only [mul_assoc, mul_inv_cancel, mul_one]
+  exact hp
+
+/-! ### Left multiplication corollaries -/
+
+/-- The tabloid of p * q * σ where p ∈ P_λ equals the tabloid of q * σ:
+toTabloid(p * (q * σ)) = toTabloid(q * σ) since left P_λ acts trivially on tabloids. -/
+theorem toTabloid_pq_eq_q (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (q σ : Equiv.Perm (Fin n)) :
+    toTabloid n la (p * q * σ) = toTabloid n la (q * σ) := by
+  rw [mul_assoc]
+  exact toTabloid_rowPerm_mul p hp (q * σ)
 
 end
 
