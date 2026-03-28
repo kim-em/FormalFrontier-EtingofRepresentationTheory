@@ -578,7 +578,7 @@ theorem alternantMatrix_vandermondeExps_det_ne_zero (N : ℕ) :
 
 /-! ### Helper lemma for the Weyl character formula -/
 
-/-- **Core identity**: The formal character of the Schur module equals the Schur polynomial.
+/- **Core identity**: The formal character of the Schur module equals the Schur polynomial.
 
 This is the central content of the Weyl character formula:
   `ch(L_λ) = s_λ(x₁, …, x_N)`
@@ -607,10 +607,116 @@ This is the central content of the Weyl character formula:
 - `Proposition5_21_1` (Frobenius formula, proved)
 - Lemma 5.13.1 sandwich property over ℚ (not yet generalized from ℂ)
 - Character orthogonality for S_n (not yet formalized) -/
+
+/-! #### Step 1: Formal character via trace of Young symmetrizer
+
+The Schur module `L_λ = Im(c_λ)` where `c_λ² = α · c_λ`. So `(1/α) · c_λ` is
+an idempotent projector, and the formal character equals the trace of this
+projector against the diagonal GL action:
+
+  `ch(L_λ) = (1/α) · ∑_{σ ∈ S_n} c_λ(σ) · Tr(σ acting on V^{⊗n} restricted to diagonal)`
+
+where the trace of σ acting on `V^{⊗n}` restricted to a diagonal matrix `diag(x₁,…,x_N)`
+gives `permTracePoly N σ`. -/
+
+/-- **Trace formula**: The formal character of the Schur module equals
+`α⁻¹ · ∑_{σ ∈ S_n} c_λ(σ) · permTracePoly(N, σ)`.
+
+This follows from `L_λ = Im(c_λ)` where `(1/α) · c_λ` is an idempotent
+projector onto `L_λ`, and the trace of a projector gives the character
+of its image. The trace of each permutation σ acting on the tensor power
+`V^{⊗n}` evaluated on diagonal matrices gives `permTracePoly N σ`. -/
+theorem formalCharacter_schurModule_eq_sum_permTracePoly
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam)) :
+    formalCharacter k N (SchurModule k N lam) =
+      α⁻¹ • ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) •
+          permTracePoly N σ := by
+  sorry
+
+/-! #### Step 2: Young symmetrizer weighted sum of permTracePoly equals α · schurPoly
+
+This is the combinatorial/representation-theoretic identity: grouping the sum
+`∑_σ c_λ(σ) · permTracePoly(N, σ)` by conjugacy class (= cycle type) and
+applying the Frobenius formula (Proposition 5.21.1) plus character orthogonality
+for S_n yields `α · s_λ(x)`. -/
+
+/-- **Frobenius + orthogonality**: The Young-symmetrizer-weighted sum of
+permutation trace polynomials equals `α · schurPoly N lam`.
+
+Proof strategy: Group the sum by conjugacy class (= cycle type μ ⊢ n).
+For each conjugacy class, `permTracePoly` is constant (= power sum product `p_μ`
+by `permTracePoly_eq_powerSumCycleProduct`). The coefficient becomes
+`∑_{σ of type μ} c_λ(σ)`, which is the character `χ^λ(μ)` of `S_n` at μ
+times the size of the conjugacy class divided by appropriate normalization.
+By the Frobenius formula (`Proposition5_21_1`), `s_λ = ∑_μ (1/z_μ) χ^λ(μ) p_μ`.
+Character orthogonality for `S_n` then collapses the sum to `α · s_λ`. -/
+theorem sum_youngSym_permTracePoly_eq_alpha_schurPoly
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam)) :
+    ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+      (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) •
+        permTracePoly N σ = α • schurPoly N lam := by
+  sorry
+
+/-- The scalar `α` from `c_λ² = α · c_λ` is nonzero. This follows from the
+fact that `c_λ(1) = 1` (`YoungSymmetrizerZ_apply_one`): evaluating `c_λ² = α · c_λ`
+at the identity gives `(c_λ * c_λ)(1) = α · c_λ(1) = α · 1 = α`, and
+`(c_λ * c_λ)(1) ≠ 0` because `c_λ` is nonzero (its identity coefficient is 1). -/
+theorem YoungSymmetrizerK_sq_scalar_ne_zero
+    (n : ℕ) (la : Nat.Partition n)
+    (α : ℚ)
+    (hα_sq : YoungSymmetrizerK ℚ n la * YoungSymmetrizerK ℚ n la =
+      α • YoungSymmetrizerK ℚ n la) :
+    α ≠ 0 := by
+  intro h0
+  rw [h0, zero_smul] at hα_sq
+  -- c_λ * c_λ = 0, but c_λ(1) = 1 so (c_λ * c_λ)(1) should be computable
+  -- Evaluate both sides at identity
+  have h1 := Finsupp.ext_iff.mp hα_sq 1
+  simp only [Finsupp.zero_apply] at h1
+  -- LHS: (c_λ * c_λ)(1) involves a convolution sum including the c_λ(1)² term
+  -- We know c_λ(1) = 1 over ℤ, hence over ℚ
+  have hone : YoungSymmetrizerK ℚ n la 1 = 1 := by
+    have := YoungSymmetrizerZ_apply_one n la
+    rw [YoungSymmetrizerK_eq_mapRange ℚ n la]
+    simp [MonoidAlgebra.mapRangeRingHom_apply, this]
+  -- From hα_sq with α = 0: c_λ² = 0, so (c_λ²)(1) = 0
+  -- But c_λ² = α · c_λ with α ≠ 0 leads to contradiction via identity coefficient
+  -- Actually we need: if c² = 0 in k[G] and c(1) = 1, contradiction
+  -- (c²)(1) = ∑_g c(g) * c(g⁻¹) includes term c(1)*c(1) = 1
+  -- But we only know the full sum is 0, not that individual terms are positive
+  -- Instead: use that over ℚ, c_λ ≠ 0 (since c_λ(1) = 1), but c_λ² = 0
+  -- implies c_λ acts as zero on any module, contradicting that the Schur module
+  -- is nonzero for valid partitions. Simpler: use the ℂ result.
+  -- Transfer: α_ℂ from Lemma5_13_3 maps to α_ℚ via the argument in YoungSymmetrizerK_sq_scalar
+  sorry
+
+/-- **Weyl character formula (polynomial level)**: The formal character of the Schur module
+`L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
+
+Proved by combining the trace formula (Step 1) with the Frobenius-orthogonality
+identity (Step 2) and cancelling the scalar `α`. -/
 theorem formalCharacter_schurModule_eq_schurPoly
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
-  sorry
+  -- Get the scalar α from c_λ² = α · c_λ
+  obtain ⟨α, hα_sq⟩ := YoungSymmetrizerK_sq_scalar ℚ (∑ i, lam i) (weightToPartition N lam)
+  have hα : α ≠ 0 :=
+    YoungSymmetrizerK_sq_scalar_ne_zero _ (weightToPartition N lam) α hα_sq
+  -- Step 1: ch(L_λ) = α⁻¹ · ∑_σ c_λ(σ) · permTracePoly(N, σ)
+  rw [formalCharacter_schurModule_eq_sum_permTracePoly k N lam hlam α hα hα_sq]
+  -- Step 2: ∑_σ c_λ(σ) · permTracePoly(N, σ) = α · s_λ
+  rw [sum_youngSym_permTracePoly_eq_alpha_schurPoly N lam hlam α hα hα_sq]
+  -- Cancel: α⁻¹ · (α · s_λ) = s_λ
+  rw [smul_smul, inv_mul_cancel₀ hα, one_smul]
 
 /-! ### Weight multiplicity equals Schur polynomial coefficient -/
 
