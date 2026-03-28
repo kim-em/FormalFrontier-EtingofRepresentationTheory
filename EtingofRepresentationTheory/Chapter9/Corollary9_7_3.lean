@@ -151,7 +151,7 @@ theorem Etingof.Corollary_9_7_3_i
 up to isomorphism. If B₁ and B₂ are both basic algebras that are Morita equivalent
 to A, then B₁ ≅ B₂ as k-algebras.
 (Etingof Corollary 9.7.3(i), uniqueness) -/
-theorem Etingof.Corollary_9_7_3_i_unique
+theorem Etingof.Corollary_9_7_3_i_unique [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
@@ -161,9 +161,9 @@ theorem Etingof.Corollary_9_7_3_i_unique
   -- B₁ and B₂ are both Morita equivalent to A, hence to each other.
   have hMor : Etingof.MoritaEquivalent B₁ B₂ := h₁.symm.trans h₂
   -- By the Morita structural theorem: B₂ ≅ e₁(B₁)e₁ for some idempotent e₁ ∈ B₁
-  obtain ⟨e₁, he₁, ⟨φ₁⟩⟩ := @Etingof.MoritaStructural k _ B₁ _ _ _ B₂ _ _ _ _hB₂ hMor
+  obtain ⟨e₁, he₁, ⟨φ₁⟩⟩ := @Etingof.MoritaStructural k _ _ B₁ _ _ _ B₂ _ _ _ _hB₂ hMor
   -- And B₁ ≅ e₂(B₂)e₂ for some idempotent e₂ ∈ B₂
-  obtain ⟨e₂, he₂, ⟨φ₂⟩⟩ := @Etingof.MoritaStructural k _ B₂ _ _ _ B₁ _ _ _ _hB₁ hMor.symm
+  obtain ⟨e₂, he₂, ⟨φ₂⟩⟩ := @Etingof.MoritaStructural k _ _ B₂ _ _ _ B₁ _ _ _ _hB₁ hMor.symm
   -- Set up instances for corner rings
   letI : Ring (Etingof.CornerRing (k := k) e₁) := Etingof.CornerRing.instRing he₁
   letI : Algebra k (Etingof.CornerRing (k := k) e₁) := Etingof.CornerRing.instAlgebra he₁
@@ -197,14 +197,14 @@ theorem Etingof.Corollary_9_7_3_i_unique
 /-- **Corollary 9.7.3(ii)**: For any finite-dimensional algebra A over k, its basic
 algebra B_A satisfies dim_k B_A ≤ dim_k A.
 (Etingof Corollary 9.7.3(ii)) -/
-theorem Etingof.Corollary_9_7_3_ii
+theorem Etingof.Corollary_9_7_3_ii [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
     (_hB : Etingof.IsBasicAlgebra k B) (hMor : Etingof.MoritaEquivalent A B) :
     Module.finrank k B ≤ Module.finrank k A := by
   -- By the Morita structural theorem, B ≅ eAe for some idempotent e : A.
   -- Then dim B = dim(eAe) ≤ dim A.
-  obtain ⟨e, he, ⟨φ⟩⟩ := @Etingof.MoritaStructural k _ A _ _ _ B _ _ _ _hB hMor
+  obtain ⟨e, he, ⟨φ⟩⟩ := @Etingof.MoritaStructural k _ _ A _ _ _ B _ _ _ _hB hMor
   letI : Ring (Etingof.CornerRing (k := k) e) := Etingof.CornerRing.instRing he
   letI : Algebra k (Etingof.CornerRing (k := k) e) := Etingof.CornerRing.instAlgebra he
   calc Module.finrank k B

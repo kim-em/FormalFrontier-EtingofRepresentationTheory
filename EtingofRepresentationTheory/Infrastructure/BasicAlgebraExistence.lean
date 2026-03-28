@@ -86,7 +86,7 @@ there exists a full idempotent `e ∈ A` such that the corner ring `eAe` is basi
    idempotents in A/rad(A)
 5. `CompleteOrthogonalIdempotents.lift_of_isNilpotent_ker` — lift to A
 6. Sum of lifted idempotents is full (AeA = A) and eAe is basic -/
-private lemma exists_full_idempotent_basic_corner
+lemma exists_full_idempotent_basic_corner
     (k : Type u) [Field k] [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A] :
     ∃ (e : A) (he : IsFullIdempotent e),
@@ -321,7 +321,7 @@ private lemma cornerFunctor_essSurj {e : A} (he : IsFullIdempotent e) :
 For a ring `A` and a full idempotent `e` (i.e., `AeA = A`), `A` and `eAe` are
 Morita equivalent. The corner functor `M ↦ eM` gives an equivalence of module
 categories when `e` is full. -/
-private lemma morita_equiv_of_full_idempotent
+lemma morita_equiv_of_full_idempotent
     {e : A} (he : IsFullIdempotent e) :
     @MoritaEquivalent A _ (CornerRing (k := k) e) (CornerRing.instRing he.1) := by
   letI : Ring (CornerRing (k := k) e) := CornerRing.instRing he.1

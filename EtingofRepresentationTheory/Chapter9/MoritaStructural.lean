@@ -1,9 +1,11 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
+import EtingofRepresentationTheory.Infrastructure.BasicAlgebraExistence
 import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.CategoryTheory.Equivalence
 import Mathlib.CategoryTheory.Simple
+import Mathlib.FieldTheory.IsAlgClosed.Basic
 
 universe u v
 
@@ -107,14 +109,55 @@ theorem simple_of_equivalence {C : Type u} [Category.{v} C]
     -- F reflects isos (it's an equivalence), so g is iso
     exact isIso_of_reflects_iso g F.inverse
 
+/-! ## Morita equivalence symmetry and transitivity -/
+
+/-- Morita equivalence is symmetric. -/
+lemma MoritaEquivalent.symm' {A : Type u} [Ring A] {B : Type u} [Ring B]
+    (h : MoritaEquivalent A B) : MoritaEquivalent B A :=
+  h.map CategoryTheory.Equivalence.symm
+
+/-- Morita equivalence is transitive. -/
+lemma MoritaEquivalent.trans' {A : Type u} [Ring A] {B : Type u} [Ring B]
+    {C : Type u} [Ring C]
+    (h₁ : MoritaEquivalent A B) (h₂ : MoritaEquivalent B C) :
+    MoritaEquivalent A C := by
+  obtain ⟨e₁⟩ := h₁; obtain ⟨e₂⟩ := h₂; exact ⟨e₁.trans e₂⟩
+
 /-! ## Morita structural theorem -/
 
 variable {k : Type u} [Field k]
 
+/-- Two basic algebras that are Morita equivalent are isomorphic as `k`-algebras.
+
+This is the uniqueness component of the Morita structural theorem. The proof
+requires showing that a categorical equivalence `ModuleCat B₁ ≌ ModuleCat B₂`
+between basic algebras induces a `k`-algebra isomorphism.
+
+### Proof outline
+
+An equivalence `F : ModuleCat B₁ ≌ ModuleCat B₂` sends simples to simples
+(by `simple_of_equivalence`). Since both algebras are basic, all simples are
+1-dimensional. The equivalence preserves Hom-space dimensions (by full
+faithfulness), so the Cartan matrices agree. Since basic algebras are determined
+up to isomorphism by their Cartan matrices and quiver with relations, `B₁ ≅ B₂`.
+
+Alternatively: the equivalence sends the free `B₁`-module (a progenerator with
+one copy of each indecomposable projective) to the free `B₂`-module (also a
+progenerator with one copy of each indecomposable projective). The endomorphism
+rings of these progenerators give back the algebras: `B₁^op ≅ End(B₁) ≅ End(F(B₁))
+≅ End(B₂) ≅ B₂^op`, hence `B₁ ≅ B₂`. -/
+private lemma basic_morita_algEquiv
+    (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
+    (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
+    (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
+    (h : MoritaEquivalent B₁ B₂) :
+    Nonempty (B₁ ≃ₐ[k] B₂) := by
+  sorry
+
 /-- **Morita structural theorem**: If `A` is a finite-dimensional `k`-algebra
-and `B` is a basic finite-dimensional `k`-algebra that is Morita equivalent to `A`,
-then there exists an idempotent `e : A` such that `B` is isomorphic (as a
-`k`-algebra) to the corner ring `eAe`.
+over an algebraically closed field and `B` is a basic finite-dimensional
+`k`-algebra that is Morita equivalent to `A`, then there exists an idempotent
+`e : A` such that `B` is isomorphic (as a `k`-algebra) to the corner ring `eAe`.
 
 The `IsBasicAlgebra k B` hypothesis is essential: without it the statement is
 false. For example, `k` and `Mₙ(k)` are Morita equivalent, but `Mₙ(k)` cannot
@@ -122,20 +165,24 @@ be realized as `eke` for any `e ∈ k`. The basic algebra is always the smallest
 representative in a Morita equivalence class, so it embeds as a corner ring of
 any other representative.
 
+The `IsAlgClosed k` hypothesis is needed to ensure existence of a basic corner
+ring via Wedderburn–Artin decomposition. Over non-algebraically-closed fields,
+division algebras can have dimension > 1, and the basic algebra construction
+requires each simple quotient to be isomorphic to `k`.
+
 This is the concrete algebraic content of Morita's theorem beyond the categorical
 equivalence proved in Theorem 9.6.4.
 (Etingof, discussion after Definition 9.7.1)
 
-## Proof strategy (not yet formalized)
+## Proof
 
-1. Decompose `A` as a left `A`-module: `A ≅ P₁^{n₁} ⊕ ⋯ ⊕ Pₘ^{nₘ}` where
-   `Pᵢ` are the distinct indecomposable projectives (Krull-Schmidt).
-2. Since `B` is basic, the progenerator corresponding to the equivalence uses
-   exactly one copy of each `Pᵢ`: `Q = P₁ ⊕ ⋯ ⊕ Pₘ`.
-3. `Q` is a direct summand of `A` (since each `nᵢ ≥ 1`), so `Q ≅ eA` for
-   some idempotent `e`.
-4. `B ≅ End_A(Q)ᵒᵖ ≅ eAe`. -/
-theorem MoritaStructural
+1. `exists_full_idempotent_basic_corner`: Wedderburn–Artin + idempotent lifting
+   gives a full idempotent `e ∈ A` with `eAe` basic.
+2. `morita_equiv_of_full_idempotent`: The corner functor `M ↦ eM` gives
+   `MoritaEquivalent A (CornerRing e)`.
+3. `basic_morita_algEquiv`: `B` and `CornerRing e` are both basic and Morita
+   equivalent (by transitivity), hence `B ≃ₐ[k] CornerRing e`. -/
+theorem MoritaStructural [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
     (_hB : IsBasicAlgebra k B)
@@ -144,7 +191,21 @@ theorem MoritaStructural
       Nonempty (@AlgEquiv k B (CornerRing (k := k) e) _ _
         (CornerRing.instRing he).toSemiring
         _ (@CornerRing.instAlgebra k _ A _ _ e he)) := by
-  sorry
+  -- Step 1: Get a full idempotent e whose corner ring eAe is basic
+  obtain ⟨e, he_full, hbasic_corner⟩ := exists_full_idempotent_basic_corner k A
+  refine ⟨e, he_full.1, ?_⟩
+  -- Step 2: Corner ring eAe is Morita equivalent to A
+  have hMoritaCorner := morita_equiv_of_full_idempotent (k := k) he_full
+  -- Step 3: B and CornerRing e are both basic and Morita equivalent
+  letI : Ring (CornerRing (k := k) e) := CornerRing.instRing he_full.1
+  letI : Algebra k (CornerRing (k := k) e) := CornerRing.instAlgebra he_full.1
+  letI : Module.Finite k (CornerRing (k := k) e) := CornerRing.instModuleFinite
+  have hMoritaBC : MoritaEquivalent B (CornerRing (k := k) e) :=
+    h.symm'.trans' hMoritaCorner
+  -- Step 4: Two basic Morita equivalent algebras are isomorphic
+  have hbasic_corner' : IsBasicAlgebra.{_, _, u} k (CornerRing (k := k) e) :=
+    fun M _ _ _ _ _ => hbasic_corner M
+  exact basic_morita_algEquiv B (CornerRing (k := k) e) _hB hbasic_corner' hMoritaBC
 
 /-- **Dimension bound from Morita equivalence**: If `A` and `B` are Morita
 equivalent, then `dim B ≤ dim A` (when `B` is the basic algebra).
