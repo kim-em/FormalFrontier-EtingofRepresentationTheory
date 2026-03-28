@@ -173,16 +173,93 @@ private theorem directSum_rank_le_aleph0 (n : ℕ) :
         · exact h_sup
     _ = Cardinal.aleph0 := Cardinal.aleph0_mul_aleph0
 
--- The Schur module (image of Young symmetrizer on V^{⊗n}) is nonzero for any
--- weight when the partition has at most dim(V) parts. Since `weightToPartition N lam`
--- produces a partition with at most N parts, and V = k^N, this always holds.
--- The proof uses a canonical tensor (placing basis vector e_i in row i) and showing
--- the Young symmetrizer does not annihilate it: row symmetrization gives ∏(lamᵢ!) ≠ 0
--- (char 0), and column antisymmetrization of distinct basis vectors is nonzero.
-private theorem schurModuleSubmodule_ne_bot [CharZero k] {N : ℕ} (hN : 0 < N)
-    (lam : Fin N → ℕ) :
+-- The one-row dominant weight (m, 0, ..., 0) : DominantWeight n
+private def oneRowWeight (n : ℕ) (m : ℕ) (hn : 0 < n) : DominantWeight n :=
+  ⟨fun i => if i = ⟨0, hn⟩ then (m : ℤ) else 0, by
+    intro i j hij
+    by_cases hi : i = ⟨0, hn⟩ <;> by_cases hj : j = ⟨0, hn⟩ <;> simp [hi, hj]
+    exfalso; apply hi; subst hj
+    exact Fin.ext (show i.val = 0 by exact Nat.le_zero.mp hij)⟩
+
+private theorem oneRowWeight_injective (n : ℕ) (hn : 0 < n) :
+    Function.Injective (oneRowWeight n · hn) := by
+  intro m₁ m₂ h
+  have := congr_arg (fun w : DominantWeight n => w.val ⟨0, hn⟩) h
+  simp [oneRowWeight] at this
+  exact_mod_cast this
+
+private theorem oneRowWeight_shift (n : ℕ) (m : ℕ) (hn : 0 < n) :
+    (oneRowWeight n m hn).shift = 0 := by
+  cases n with
+  | zero => omega
+  | succ n =>
+    simp only [DominantWeight.shift, oneRowWeight]
+    -- The last entry of the weight: if Fin.last n = ⟨0, hn⟩ then m else 0
+    split_ifs with h
+    · -- n = 0 case: last entry is m, shift = (-m).toNat = 0 (since m : ℕ cast to ℤ ≥ 0)
+      simp
+    · -- n ≥ 1 case: last entry is 0, shift = (-0).toNat = 0
+      simp
+
+private theorem oneRowWeight_toNatWeight (n : ℕ) (m : ℕ) (hn : 0 < n) :
+    (oneRowWeight n m hn).toNatWeight = fun i => if i = ⟨0, hn⟩ then m else 0 := by
+  ext i
+  simp only [DominantWeight.toNatWeight, oneRowWeight]
+  have : DominantWeight.shift (oneRowWeight n m hn) = 0 := oneRowWeight_shift n m hn
+  unfold oneRowWeight at this
+  rw [this]
+  split_ifs <;> simp
+
+-- The Schur polynomial is nonzero for any antitone weight.
+-- Proof: s_λ · Δ = D_{λ+ρ}, and D_{λ+ρ} ≠ 0 since its diagonal coefficient is 1.
+private theorem schurPoly_ne_zero (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    schurPoly N lam ≠ 0 := by
+  intro h
+  -- From schurPoly_mul_vandermonde: s_λ · Δ = D_{λ+ρ}
+  have hprod := schurPoly_mul_vandermonde N lam
+  rw [h, zero_mul] at hprod
+  -- So D_{λ+ρ} = 0. But its diagonal coefficient is 1.
+  have hstrict : StrictAnti (shiftedExps N lam) := by
+    intro i j hij; simp only [shiftedExps]; have := hlam (le_of_lt hij); omega
+  have hcoeff := alternant_coeff_kronecker hstrict hstrict
+  rw [if_pos rfl] at hcoeff
+  -- hcoeff : coeff ... D_{λ+ρ} = 1, but D_{λ+ρ} = 0, so coeff = 0
+  rw [← hprod, MvPolynomial.coeff_zero] at hcoeff
+  exact one_ne_zero hcoeff.symm
+
+-- The SchurModuleSubmodule is nonzero for any antitone weight.
+-- Uses the Weyl character formula: ch(L_λ) = s_λ ≠ 0.
+private theorem schurModuleSubmodule_ne_bot (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     SchurModuleSubmodule k N lam ≠ ⊥ := by
-  sorry
+  intro h
+  -- If SchurModuleSubmodule = ⊥, the Schur module is zero
+  -- The formal character of a zero module is 0
+  have hchar : formalCharacter k N (SchurModule k N lam) = 0 := by
+    unfold formalCharacter
+    apply Finset.sum_eq_zero
+    intro μ _
+    suffices Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) = 0 by
+      rw [this, Nat.cast_zero, zero_smul]
+    -- SchurModuleSubmodule = ⊥ means the carrier is subsingleton
+    have hsub : ∀ (a b : SchurModuleSubmodule k N lam), a = b := by
+      intro ⟨a, ha⟩ ⟨b, hb⟩
+      ext
+      rw [h] at ha hb
+      simp only [Submodule.mem_bot] at ha hb
+      simp [ha, hb]
+    -- SchurModule has same carrier type
+    have hsub' : ∀ (a b : SchurModule k N lam), a = b := hsub
+    -- Weight space finrank is 0
+    rw [Module.finrank_eq_zero_iff]
+    intro x
+    have : x = 0 := by
+      have := hsub' x.val 0
+      exact Subtype.ext this
+    exact ⟨1, one_ne_zero, by rw [this, smul_zero]⟩
+  -- But ch(L_λ) = s_λ ≠ 0
+  have hne := schurPoly_ne_zero N lam hlam
+  rw [formalCharacter_schurModule_eq_schurPoly k N lam hlam] at hchar
+  exact hne hchar
 
 -- The direct sum ⊕_λ L*_λ ⊗ L_λ has rank ≥ ℵ₀: for n ≥ 1, every summand is
 -- nontrivial (the Schur module for any partition with ≤ n parts on k^n is nonzero
@@ -193,57 +270,59 @@ private theorem directSum_rank_ge_aleph0 [CharZero k] (n : ℕ) (hn : 0 < n) :
       (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)) := by
   set F := fun lam : DominantWeight n =>
     (AlgIrrepGLDual n lam k ⊗[k] AlgIrrepGL n lam k)
-  -- Each summand is nontrivial (both tensor factors are nonzero)
-  have h_nt : ∀ lam : DominantWeight n, Nontrivial (F lam) := by
-    intro lam
-    haveI : Module.Finite k (AlgIrrepGLDual n lam k) := AlgIrrepGL.finite n lam.w0Twist k
-    haveI : Module.Finite k (AlgIrrepGL n lam k) := AlgIrrepGL.finite n lam k
-    haveI : Module.Free k (AlgIrrepGL n lam k) := Module.Free.of_divisionRing k _
-    haveI : Module.Free k (AlgIrrepGLDual n lam k) := Module.Free.of_divisionRing k _
-    haveI : IsScalarTower k k (AlgIrrepGLDual n lam k) := IsScalarTower.left _
-    have h1 := schurModuleSubmodule_ne_bot (k := k) hn lam.toNatWeight
-    have h2 := schurModuleSubmodule_ne_bot (k := k) hn lam.w0Twist.toNatWeight
-    haveI : Nontrivial (AlgIrrepGL n lam k) :=
-      Submodule.nontrivial_iff_ne_bot.mpr h1
-    haveI : Nontrivial (AlgIrrepGLDual n lam k) :=
-      Submodule.nontrivial_iff_ne_bot.mpr h2
-    have hr1 := Module.finrank_pos (R := k) (M := AlgIrrepGL n lam k)
-    have hr2 := Module.finrank_pos (R := k) (M := AlgIrrepGLDual n lam k)
-    have hfr : 0 < Module.finrank k (F lam) := by
-      rw [@Module.finrank_tensorProduct k k]
-      exact Nat.mul_pos hr2 hr1
-    exact Module.nontrivial_of_finrank_pos hfr
-  -- DominantWeight n is infinite for n ≥ 1 (constant functions ℤ → DominantWeight n)
-  haveI : Infinite (DominantWeight n) := by
-    apply Infinite.of_injective
-      (fun z : ℤ => (⟨fun _ => z, fun _ _ _ => le_refl z⟩ : DominantWeight n))
-    intro a b hab
-    have := congr_arg Subtype.val hab
-    exact congr_fun this ⟨0, hn⟩
-  -- For each lam, choose a nonzero element of F(lam)
-  have h_ne_zero : ∀ lam, ∃ y : F lam, y ≠ 0 := fun lam => @exists_ne _ (h_nt lam) 0
-  choose x hx using h_ne_zero
-  -- The direct sum inclusions of nonzero elements are linearly independent:
-  -- elements supported on different indices in a direct sum are independent.
-  classical
-  have hli : LinearIndependent k (fun lam : DominantWeight n =>
-      DirectSum.lof k _ F lam (x lam)) := by
-    rw [linearIndependent_iff']
-    intro s g hg i hi
-    -- Project the zero sum to component i
-    have h_zero : DirectSum.component k _ F i
-        (∑ j ∈ s, g j • DirectSum.lof k _ F j (x j)) = 0 := by
-      rw [hg, map_zero]
-    simp only [map_sum, map_smul] at h_zero
-    -- Isolate the i-th term: for j ≠ i, component i (lof j _) = 0
-    rw [Finset.sum_eq_single i (fun j _ hji => by
-        rw [DirectSum.component.of, dif_neg hji, smul_zero])
-      (fun h => absurd hi h)] at h_zero
-    -- Now h_zero : g i • component i (lof i (x i)) = 0
-    rw [DirectSum.component.lof_self] at h_zero
-    exact (smul_eq_zero.mp h_zero).resolve_right (hx i)
-  -- Infinite linearly independent family gives rank ≥ ℵ₀
-  exact hli.aleph0_le_rank
+  -- For each m : ℕ, the summand at oneRowWeight n m hn is nonzero
+  -- First show AlgIrrepGL n lam k is nonzero for one-row weights
+  have hne : ∀ m : ℕ, Nontrivial (AlgIrrepGL n (oneRowWeight n m hn) k) := by
+    intro m
+    -- toNatWeight is antitone (follows from the ℤ-valued weight being antitone)
+    have hanti : Antitone (oneRowWeight n m hn).toNatWeight := by
+      rw [oneRowWeight_toNatWeight]
+      intro i j hij
+      by_cases hi : i = ⟨0, hn⟩ <;> by_cases hj : j = ⟨0, hn⟩ <;> simp [hi, hj]
+      exfalso; apply hi; subst hj
+      exact Fin.ext (show i.val = 0 by exact Nat.le_zero.mp hij)
+    have hbot := schurModuleSubmodule_ne_bot (k := k) n (oneRowWeight n m hn).toNatWeight hanti
+    rw [ne_eq, ← Submodule.subsingleton_iff_eq_bot] at hbot
+    exact not_subsingleton_iff_nontrivial.mp hbot
+  rw [rank_directSum]
+  -- The sum ∑_λ rank(F λ) ≥ ℵ₀ because there are ℵ₀ many distinct one-row weights,
+  -- each giving a nontrivial summand (rank ≥ 1).
+  -- Step 1: Each summand at a one-row weight has rank ≥ 1
+  have h1 : ∀ m : ℕ, 1 ≤ Module.rank k (F (oneRowWeight n m hn)) := by
+    intro m
+    haveI := hne m
+    -- AlgIrrepGLDual is also nontrivial (it's a SchurModule for the w0-twisted weight)
+    haveI : Nontrivial (AlgIrrepGLDual n (oneRowWeight n m hn) k) := by
+      have hanti : Antitone (oneRowWeight n m hn).w0Twist.toNatWeight := by
+        intro i j hij
+        -- Antitone: i ≤ j → f j ≤ f i
+        -- Goal: w0Twist.toNatWeight j ≤ w0Twist.toNatWeight i
+        unfold DominantWeight.w0Twist DominantWeight.toNatWeight
+        apply Int.toNat_le_toNat
+        gcongr
+        simp only [neg_le_neg_iff]
+        -- Need: lam(i.rev) ≤ lam(j.rev), i.e., lam at the rev-image of i ≤ that of j
+        -- Since i ≤ j, j.rev ≤ i.rev, and lam is antitone
+        exact (oneRowWeight n m hn).property (Fin.rev_anti hij)
+      exact not_subsingleton_iff_nontrivial.mp
+        ((ne_eq .. ▸ Submodule.subsingleton_iff_eq_bot.not).mpr
+          (schurModuleSubmodule_ne_bot (k := k) n _ hanti))
+    exact Cardinal.one_le_iff_ne_zero.mpr (rank_pos (R := k)).ne'
+  -- Step 2: The cardinal sum over all dominant weights is ≥ the sum over one-row weights
+  -- ∑_{λ : DW} rank(F λ) ≥ ∑_{m : ℕ} rank(F(oneRowWeight n m hn)) ≥ ∑_{m:ℕ} 1 = ℵ₀
+  calc Cardinal.aleph0
+      = Cardinal.sum (fun _ : ℕ => (1 : Cardinal)) := by simp
+    _ ≤ Cardinal.sum (fun m : ℕ => Module.rank k (F (oneRowWeight n m hn))) :=
+        Cardinal.sum_le_sum _ _ h1
+    _ ≤ Cardinal.sum (fun lam => Module.rank k (F lam)) := by
+        -- Sub-sum ≤ full sum via the injection oneRowWeight
+        rw [Cardinal.sum, Cardinal.sum]
+        exact ⟨⟨fun ⟨m, x⟩ => ⟨oneRowWeight n m hn, x⟩, fun ⟨m₁, x₁⟩ ⟨m₂, x₂⟩ h => by
+          simp only [Sigma.mk.inj_iff] at h
+          obtain ⟨hm, hx⟩ := h
+          have hm' := oneRowWeight_injective n hn hm
+          subst hm'
+          exact Sigma.ext rfl (by exact hx)⟩⟩
 
 private theorem peterWeyl_rank_eq [CharZero k] (n : ℕ) (hn : 0 < n) :
     Module.rank k (GLCoordinateRing n k) =
