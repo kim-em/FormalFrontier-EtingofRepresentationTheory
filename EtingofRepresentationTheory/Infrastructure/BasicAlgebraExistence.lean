@@ -10,6 +10,7 @@ import Mathlib.RingTheory.Morita.Matrix
 import Mathlib.LinearAlgebra.TensorProduct.Defs
 import Mathlib.RingTheory.Idempotents
 import Mathlib.RingTheory.Jacobson.Semiprimary
+import Mathlib.RingTheory.Jacobson.Ideal
 import Mathlib.Data.Matrix.Basis
 
 /-!
@@ -328,13 +329,79 @@ lemma exists_full_idempotent_basic_corner
     constructor
     · exact he_idem
     · -- Strategy: Show 1 ∈ Ideal.span {a * e * b | a b}
-      -- Step A: In A/J, the image of e generates the quotient as a two-sided ideal
-      -- Step B: Lift to show AeA + J = A, i.e., ∃ x ∈ AeA with x ≡ 1 (mod J)
-      -- Step C: x = 1 - j with j ∈ J ⊂ Ring.jacobson A, so x is a unit
-      -- Step D: AeA contains a unit ⟹ AeA = ⊤
-      -- For now, sorry the full argument. The key missing piece is showing
-      -- that E₁₁ generates Mat_n(k) as a two-sided ideal.
-      sorry
+      -- Step A: In ∏ Mat_{n_i}(k), ∑ E₁₁ generates the whole ring
+      have hpi := pi_matrix_single_generates_ideal k blockSize
+      -- Step B: Transport through φ to A/J
+      let ē_sum := ∑ i, ē_AJ i
+      -- Key: φ.symm (∑ E₁₁) = ē_sum
+      have hē_sum_eq : φ.symm (∑ i,
+          (Pi.single i (Matrix.single 0 0 1) :
+          (∀ i, Matrix (Fin (blockSize i)) (Fin (blockSize i)) k))) =
+          ē_sum := by
+        simp only [ē_sum, map_sum, ē_AJ, ē]
+      have hAJ_gen : Ideal.span {a * ē_sum * b |
+          (a : A ⧸ J) (b : A ⧸ J)} = ⊤ := by
+        rw [eq_top_iff]; intro x _
+        -- Pull back through φ.symm from the product ideal
+        suffices key : ∀ y, y ∈ Ideal.span
+            {a * (∑ i, (Pi.single i (Matrix.single 0 0 1) :
+              (∀ i, Matrix (Fin (blockSize i)) (Fin (blockSize i)) k))) *
+              b | (a : ∀ i, Matrix _ _ k) (b : ∀ i, Matrix _ _ k)} →
+            φ.symm y ∈ Ideal.span
+              {a * ē_sum * b | (a : A ⧸ J) (b : A ⧸ J)} by
+          have := key (φ x) (hpi ▸ Submodule.mem_top)
+          rwa [φ.symm_apply_apply] at this
+        intro y hy
+        induction hy using Submodule.span_induction with
+        | mem z hz =>
+          obtain ⟨a, b, rfl⟩ := hz
+          rw [map_mul, map_mul, hē_sum_eq]
+          exact Ideal.subset_span ⟨φ.symm a, φ.symm b, rfl⟩
+        | zero => simp [Ideal.zero_mem]
+        | add a b _ _ iha ihb => rw [map_add]; exact Ideal.add_mem _ iha ihb
+        | smul r a _ iha =>
+          change φ.symm (r * a) ∈ _
+          rw [map_mul]; exact Ideal.mul_mem_left _ _ iha
+      -- Step C: The image of e in A/J is ē_sum
+      -- So AeA maps onto A/J, meaning AeA + J = A
+      -- i.e., 1 ∈ AeA + J
+      let I := Ideal.span {a * e * b | (a : A) (b : A)}
+      -- The quotient image of I contains the quotient image of e
+      have hI_image : ∀ (a b : A ⧸ J),
+          a * ē_sum * b ∈ Ideal.map (Ideal.Quotient.mk J) I := by
+        intro a b
+        obtain ⟨a', rfl⟩ := Ideal.Quotient.mk_surjective a
+        obtain ⟨b', rfl⟩ := Ideal.Quotient.mk_surjective b
+        have : Ideal.Quotient.mk J a' * ē_sum * Ideal.Quotient.mk J b' =
+            Ideal.Quotient.mk J (a' * e * b') := by
+          rw [show ē_sum = Ideal.Quotient.mk J e from he_image.symm]
+          simp [map_mul]
+        rw [this]
+        exact Ideal.mem_map_of_mem _ (Ideal.subset_span ⟨a', b', rfl⟩)
+      have hI_map_top : Ideal.map (Ideal.Quotient.mk J) I = ⊤ := by
+        rw [eq_top_iff, ← hAJ_gen]
+        exact Submodule.span_le.mpr fun _ ⟨a, b, h⟩ => h ▸ hI_image a b
+      -- Step D: I ⊔ J = ⊤
+      have hIJ_top : I ⊔ J = ⊤ := by
+        rw [eq_top_iff]
+        intro x _
+        rw [← Ideal.mem_quotient_iff_mem_sup]
+        rw [hI_map_top]
+        exact Submodule.mem_top
+      -- Step E: 1 = x + j with x ∈ I, j ∈ J, so x = 1 - j and 1 - x ∈ J
+      have h1_mem : (1 : A) ∈ I ⊔ J := hIJ_top ▸ Submodule.mem_top
+      rw [Submodule.mem_sup] at h1_mem
+      obtain ⟨x, hxI, j, hjJ, hxj⟩ := h1_mem
+      -- x = 1 - j, and j ∈ J which is nilpotent, so j is nilpotent, so x is a unit
+      have hx_unit : IsUnit x := by
+        have hx_eq : x = 1 - j := by
+          have h := hxj; rw [show x + j = 1 ↔ x = 1 - j from
+            ⟨fun h => by rw [← h, add_sub_cancel_right],
+             fun h => by rw [h, sub_add_cancel]⟩] at h; exact h
+        rw [hx_eq]
+        exact IsNilpotent.isUnit_one_sub
+          (hker_nil j (by rwa [RingHom.mem_ker, Ideal.Quotient.eq_zero_iff_mem]))
+      exact Ideal.eq_top_of_isUnit_mem I hxI hx_unit
   have he_basic : @IsBasicAlgebra k _ (CornerRing (k := k) e)
       (CornerRing.instRing he_full.1) (CornerRing.instAlgebra he_full.1) := by
     sorry
