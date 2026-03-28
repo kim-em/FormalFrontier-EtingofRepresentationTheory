@@ -285,7 +285,142 @@ private lemma cornerFunctor_full {e : A} (he : IsFullIdempotent e) :
   letI : Ring (CornerRing (k := k) e) := CornerRing.instRing he.1
   constructor
   intro M N φ
-  sorry
+  -- Extract finite decomposition: 1 = Σ σ(a,b) • (a * e * b) from fullness
+  have hspan : (1 : A) ∈ Submodule.span A (Set.range (fun p : A × A => p.1 * e * p.2)) := by
+    suffices h : Submodule.span A (Set.range (fun p : A × A => p.1 * e * p.2)) = ⊤ from
+      h ▸ Submodule.mem_top
+    have : Set.range (fun p : A × A => p.1 * e * p.2) =
+        {x | ∃ a b : A, a * e * b = x} := by
+      ext x; constructor
+      · rintro ⟨⟨a, b⟩, rfl⟩; exact ⟨a, b, rfl⟩
+      · rintro ⟨a, b, rfl⟩; exact ⟨⟨a, b⟩, rfl⟩
+    rw [this]; exact he.2
+  obtain ⟨σ, hσ⟩ := Finsupp.mem_span_range_iff_exists_finsupp.mp hspan
+  -- hσ : σ.sum (fun p c => c • (p.1 * e * p.2)) = 1
+  -- Note: Finsupp.sum σ g = ∑ p ∈ σ.support, g p (σ p)
+  -- So hσ says: ∑ p ∈ σ.support, σ p • (p.1 * e * p.2) = 1
+  -- i.e., ∑ p, (σ p * p.1) * e * p.2 = 1
+  letI := eCornerModule (k := k) he.1 M
+  letI := eCornerModule (k := k) he.1 N
+  -- Define the lift: f(m) = ∑ p, (σ p * p.1) • ↑(φ (toECorner he.1 (p.2 • m)))
+  let liftFun : M → N := fun m =>
+    ∑ p ∈ σ.support, (σ p * p.1) • (φ (toECorner he.1 (p.2 • m)) : eCorner he.1 N).val
+  have lift_add : ∀ m₁ m₂ : M, liftFun (m₁ + m₂) = liftFun m₁ + liftFun m₂ := by
+    intro m₁ m₂
+    show (∑ p ∈ σ.support, (σ p * p.1) •
+        (φ (toECorner he.1 (p.2 • (m₁ + m₂))) : eCorner he.1 N).val) =
+      (∑ p ∈ σ.support, (σ p * p.1) • (φ (toECorner he.1 (p.2 • m₁)) : eCorner he.1 N).val) +
+      (∑ p ∈ σ.support, (σ p * p.1) • (φ (toECorner he.1 (p.2 • m₂)) : eCorner he.1 N).val)
+    rw [← Finset.sum_add_distrib]
+    congr 1; ext p
+    rw [smul_add, toECorner_add, map_add, AddSubgroup.coe_add, smul_add]
+  -- Key identity: ∑ σ p * (p.1 * e * p.2) = 1
+  have hσ1 : ∑ p ∈ σ.support, σ p * (p.1 * e * p.2) = 1 := by
+    have := hσ; simp only [Finsupp.sum, smul_eq_mul] at this; exact this
+  -- Coercion helper: (r •_{eAe} x : eCorner).val = (r : A) • (x : N)
+  have coe_smul : ∀ (r : CornerRing (k := k) e) (x : eCorner he.1 N),
+      ((r • x : eCorner he.1 N) : N) = (r : A) • (x : N) := fun _ _ => rfl
+  -- Helper for the generator case: liftFun on e • n
+  have lift_eCorner : ∀ (n : M),
+      liftFun (e • n) = (φ (toECorner he.1 n) : eCorner he.1 N).val := by
+    intro n
+    show ∑ p ∈ σ.support, (σ p * p.1) •
+        (φ (toECorner he.1 (p.2 • (e • n))) : eCorner he.1 N).val =
+      (φ (toECorner he.1 n) : eCorner he.1 N).val
+    -- toECorner(p.2 • (e • n)) = ⟨e * p.2 * e • (e • n), ...⟩ = (e*p.2*e) •_{eAe} toECorner(n)
+    -- since e • (p.2 • (e • n)) = (e * p.2 * e) • n [using e²=e twice]
+    -- and toECorner(n) = ⟨e • n, ...⟩
+    have h1 : ∀ p : A × A, toECorner he.1 (p.2 • (e • n)) =
+        (⟨e * p.2 * e, ⟨p.2, rfl⟩⟩ : CornerRing (k := k) e) • toECorner he.1 n := by
+      intro p; apply Subtype.ext
+      show e • (p.2 • (e • n)) = (e * p.2 * e) • (e • n)
+      rw [mul_smul, mul_smul, eCorner_smul_of_idem he.1 n]
+    simp only [← mul_smul]
+    -- Sum: Σ σp * p.1 * (e * p.2 * e) = (Σ σp * (p.1 * e * p.2)) * e = 1 * e = e
+    conv_lhs => arg 1; arg 2; ext p; rw [show σ p * p.1 * (e * p.2 * e) =
+      σ p * (p.1 * e * p.2) * e by simp only [mul_assoc]]
+    rw [← Finset.sum_mul, hσ1, one_mul]
+    exact (φ (toECorner he.1 n)).prop
+  have lift_smul : ∀ (r : A) (m : M), liftFun (r • m) = r • liftFun m := by
+    -- Quantify r inside the induction so the smul case has IH for all r
+    suffices key : ∀ m, m ∈ Submodule.span A (Set.range (fun n : M => e • n)) →
+        ∀ r : A, liftFun (r • m) = r • liftFun m from
+      fun r m => key m (eCorner_spans he m) r
+    intro m hm
+    induction hm using Submodule.span_induction with
+    | mem x hx =>
+      obtain ⟨n, rfl⟩ := hx
+      intro r
+      -- Goal: liftFun(r • (e • n)) = r • liftFun(e • n)
+      rw [← mul_smul, lift_eCorner]
+      -- Goal: liftFun((r * e) • n) = r • φ(toECorner n).val
+      -- Expand liftFun from definition
+      show ∑ p ∈ σ.support, (σ p * p.1) •
+          (φ (toECorner he.1 (p.2 • ((r * e) • n))) : eCorner he.1 N).val =
+        r • (φ (toECorner he.1 n) : eCorner he.1 N).val
+      simp_rw [← mul_smul (α := A)]
+      -- toECorner((p.2 * (r * e)) • n) = ⟨e*(p.2*r)*e, _⟩ •_{eAe} toECorner(n)
+      have h_toE2 : ∀ p : A × A,
+          toECorner he.1 ((p.2 * (r * e)) • n) =
+            (⟨e * (p.2 * r) * e, ⟨p.2 * r, rfl⟩⟩ : CornerRing (k := k) e) •
+              toECorner he.1 n := by
+        intro p; apply Subtype.ext
+        show e • ((p.2 * (r * e)) • n) = (e * (p.2 * r) * e) • (e • n)
+        rw [← mul_smul, ← mul_smul]
+        congr 1
+        simp only [mul_assoc]
+        rw [he.1.eq]
+      simp only [h_toE2, map_smul, coe_smul, ← mul_smul, ← Finset.sum_smul]
+      -- Sum: ∑ σ_p * p.1 * (e * (p.2 * r) * e) = r * e
+      have hsum_eq : ∑ p ∈ σ.support, σ p * p.1 * (e * (p.2 * r) * e) = r * e := by
+        have : ∀ p ∈ σ.support, σ p * p.1 * (e * (p.2 * r) * e) =
+            σ p * (p.1 * e * p.2) * r * e := fun p _ => by simp only [mul_assoc]
+        rw [Finset.sum_congr rfl this, ← Finset.sum_mul, ← Finset.sum_mul, hσ1, one_mul]
+      rw [hsum_eq, mul_smul, (φ (toECorner he.1 n)).prop]
+    | zero =>
+      intro r
+      simp only [smul_zero]
+      show ∑ p ∈ σ.support, (σ p * p.1) •
+          (φ (toECorner he.1 (p.2 • (0 : M))) : eCorner he.1 N).val = 0
+      simp [smul_zero, show toECorner he.1 (0 : M) = 0 from Subtype.ext (smul_zero e),
+            map_zero]
+    | add x y _ _ ihx ihy =>
+      intro r
+      rw [smul_add, lift_add, lift_add, ihx r, ihy r, smul_add]
+    | smul a x _ ihx =>
+      intro r
+      -- liftFun(r • (a • x)) = liftFun((r*a) • x) = (r*a) • liftFun(x) = r • (a • liftFun(x))
+      --                       = r • liftFun(a • x)
+      rw [← mul_smul, ihx (r * a), mul_smul, ← ihx a]
+  let f : M →ₗ[A] N :=
+    { toFun := liftFun
+      map_add' := lift_add
+      map_smul' := lift_smul }
+  refine ⟨ModuleCat.ofHom f, ?_⟩
+  ext ⟨m, hm⟩
+  -- hm : e smul m = m. Show f(m) = phi(m,hm) in eN.
+  apply Subtype.ext
+  show ∑ p ∈ σ.support, (σ p * p.1) •
+      ((φ (toECorner he.1 (p.2 • m))) : eCorner he.1 N).val =
+    (φ ⟨m, hm⟩ : eCorner he.1 N).val
+  -- For m in eM: toECorner(b smul m) = (ebe) smul_{eAe} (m, hm)
+  have htoE : ∀ p : A × A, toECorner he.1 (p.2 • m) =
+      (⟨e * p.2 * e, ⟨p.2, rfl⟩⟩ : CornerRing (k := k) e) • ⟨m, hm⟩ := by
+    intro p; apply Subtype.ext
+    show e • (p.2 • m) = (e * p.2 * e) • m
+    rw [mul_smul, mul_smul, hm]
+  simp only [htoE, map_smul]
+  simp only [show ∀ (r : CornerRing (k := k) e) (x : eCorner he.1 N),
+      ((r • x : eCorner he.1 N) : N) = (r : A) • (x : N) from fun _ _ => rfl]
+  simp only [← mul_smul, ← Finset.sum_smul]
+  -- Sum collapses: sum(sigma(p) * p.1 * e * p.2 * e) = 1 * e = e
+  conv_lhs => arg 1; arg 2; ext p; rw [show σ p * p.1 * (e * p.2 * e) =
+    σ p * (p.1 * e * p.2) * e by simp only [mul_assoc]]
+  rw [← Finset.sum_mul]
+  have hσ2 : ∑ p ∈ σ.support, σ p * (p.1 * e * p.2) = 1 := by
+    have := hσ; simp only [Finsupp.sum, smul_eq_mul] at this; exact this
+  rw [hσ2, one_mul]
+  exact (φ ⟨m, hm⟩).prop
 
 /-! ## Essential surjectivity of the corner functor -/
 
