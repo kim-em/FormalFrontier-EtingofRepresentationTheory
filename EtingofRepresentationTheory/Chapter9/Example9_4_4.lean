@@ -1,14 +1,20 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_4_3
+import EtingofRepresentationTheory.Chapter9.ShapiroLemma
 import Mathlib.Algebra.MvPolynomial.CommRing
 import Mathlib.Algebra.MvPolynomial.Equiv
 import Mathlib.Algebra.Category.ModuleCat.Projective
 import Mathlib.Algebra.Category.ModuleCat.ChangeOfRings
+import Mathlib.Algebra.Category.ModuleCat.Descent
 import Mathlib.Data.ENat.Lattice
 import Mathlib.RingTheory.SimpleModule.InjectiveProjective
 import Mathlib.CategoryTheory.Abelian.Exact
 import Mathlib.CategoryTheory.Preadditive.Projective.Preserves
 import Mathlib.RingTheory.Polynomial.Basic
 import Mathlib.Algebra.Polynomial.Module.AEval
+import Mathlib.Algebra.Polynomial.Inductions
+import Mathlib.Algebra.Homology.DerivedCategory.Ext.ExactSequences
+import Mathlib.Algebra.Homology.DerivedCategory.Ext.Linear
+import Mathlib.LinearAlgebra.Finsupp.VectorSpace
 
 /-!
 # Example 9.4.4: Homological dimension of polynomial algebra (Hilbert syzygies)
@@ -202,32 +208,251 @@ private theorem not_hasHomologicalDimensionLE_zero_polynomial
       (h.trans (map_zero (Module.AEval'.of φ)).symm))
   exact this (hall_zero one_A)
 
+/-- `Polynomial.divX` is a left inverse of X-multiplication on R[X]. -/
+private theorem Polynomial.divX_X_mul (R : Type u) [CommRing R] (p : R[X]) :
+    Polynomial.divX (X * p) = p := by
+  ext n
+  simp [coeff_divX, coeff_X_mul]
+
+/-- X-multiplication on R[X] ⊗_R M is injective: X· has a left inverse (divX ⊗ id),
+since divX is a left inverse of X· on R[X] as an R-linear map. -/
+private theorem polynomial_X_mul_mono_extendScalars (R : Type u) [CommRing R]
+    (M : ModuleCat.{u} R) :
+    Mono ((Polynomial.X : Polynomial R) •
+      (𝟙 ((ModuleCat.extendScalars.{u, u, u} (Polynomial.C (R := R))).obj M))) := by
+  rw [ModuleCat.mono_iff_injective]
+  set FM := (ModuleCat.extendScalars.{u, u, u} (Polynomial.C (R := R))).obj M
+  -- X • 𝟙_FM sends p ⊗ m ↦ (X*p) ⊗ m on FM = R[X] ⊗[R] M.
+  -- divX ⊗ id is a left inverse since divX(X*p) = p.
+  -- We construct the left inverse via TensorProduct.lift.
+  set C := Polynomial.C (R := R)
+  let S' := (ModuleCat.restrictScalars C).obj (ModuleCat.of (Polynomial R) (Polynomial R))
+  -- divX ⊗ id as a bilinear map
+  -- divX(C(r) * q) = C(r) * divX(q) for q : R[X], cast to S'
+  have divX_C_mul : ∀ (r : R) (q : Polynomial R),
+      Polynomial.divX (Polynomial.C r * q) = Polynomial.C r * Polynomial.divX q := by
+    intro r q; apply Polynomial.ext; intro n
+    simp [Polynomial.coeff_divX, Polynomial.coeff_C_mul]
+  let g : TensorProduct R (S' : Type u) (M : Type u) →ₗ[R]
+      TensorProduct R (S' : Type u) (M : Type u) :=
+    TensorProduct.lift
+      { toFun := fun (p : (S' : Type u)) =>
+          { toFun := fun (m : (M : Type u)) =>
+              (Polynomial.divX (p : Polynomial R) : (S' : Type u)) ⊗ₜ[R] m
+            map_add' := fun _ _ => TensorProduct.tmul_add _ _ _
+            map_smul' := fun r m => by
+              simp only [RingHom.id_apply]; exact TensorProduct.tmul_smul r _ m }
+        map_add' := fun p q => by
+          ext m; simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.add_apply]
+          rw [Polynomial.divX_add]; exact (TensorProduct.add_tmul _ _ m)
+        map_smul' := fun r p => by
+          ext m
+          simp only [RingHom.id_apply, LinearMap.coe_mk, AddHom.coe_mk, LinearMap.smul_apply]
+          rw [TensorProduct.smul_tmul']
+          congr 1
+          exact divX_C_mul r p }
+  have hli : Function.LeftInverse g
+      (ConcreteCategory.hom ((Polynomial.X : Polynomial R) • 𝟙 FM)) := by
+    intro t
+    refine TensorProduct.induction_on t ?_ ?_ ?_
+    · simp
+    · intro p m
+      change g ((Polynomial.X : Polynomial R) • (p ⊗ₜ[R] m)) = p ⊗ₜ m
+      rw [ModuleCat.ExtendScalars.smul_tmul]
+      simp only [g, TensorProduct.lift.tmul, LinearMap.coe_mk, AddHom.coe_mk]
+      congr 1
+      exact Polynomial.divX_X_mul R p
+    · intro x y hx hy
+      simp only [map_add, hx, hy]
+  exact hli.injective
+
+/-- The short exact sequence 0 → F(M) →^{X·} F(M) → coker(X·) → 0 in ModuleCat R[X].
+This is the key SES for the polynomial extension dimension theory. -/
+private noncomputable def polynomialExtensionSES (R : Type u) [CommRing R]
+    (M : ModuleCat.{u} R) :
+    let FM := (ModuleCat.extendScalars.{u, u, u} (Polynomial.C (R := R))).obj M
+    let f : FM ⟶ FM := (Polynomial.X : Polynomial R) • (𝟙 FM)
+    (ShortComplex.mk f (cokernel.π f) (cokernel.condition f)).ShortExact where
+  exact := ShortComplex.exact_cokernel _
+  mono_f := polynomial_X_mul_mono_extendScalars R M
+  epi_g := inferInstance
+
+/-- Core vanishing lemma: In ModuleCat R[X], given a short exact sequence
+0 → A →^{X·𝟙} A → Q → 0 and an R[X]-module Y with X · 𝟙_Y = 0,
+if Ext^{n+1}(Q, Y) vanishes then Ext^n(A, Y) vanishes.
+
+The proof uses the contravariant LES of Ext:
+1. The connecting map δ sends Ext^n(A,Y) to Ext^{n+1}(Q,Y) = 0
+2. By exactness, every element lifts through precomposition with X·𝟙
+3. Precomp with X·𝟙 equals X-scalar multiplication on Ext (by mk₀_smul + smul_comp + mk₀_id_comp)
+4. X-scalar multiplication is zero by smul_eq_comp_mk₀ + hY -/
+private theorem ext_eq_zero_of_X_action_vanishing
+    {R : Type u} [CommRing R]
+    {A : ModuleCat.{u} (Polynomial R)} {Y : ModuleCat.{u} (Polynomial R)}
+    (hY : (Polynomial.X : Polynomial R) • (𝟙 Y) = (0 : Y ⟶ Y))
+    {Q : ModuleCat.{u} (Polynomial R)} {g : A ⟶ Q}
+    {w : ((Polynomial.X : Polynomial R) • (𝟙 A)) ≫ g = 0}
+    (hSES : (ShortComplex.mk ((Polynomial.X : Polynomial R) • (𝟙 A)) g w).ShortExact)
+    {n : ℕ}
+    [Small.{u} (Polynomial R)]
+    (hQ : HasProjectiveDimensionLE Q (n + 1))
+    (e : Abelian.Ext A Y (n + 1)) : e = 0 := by
+  -- Step 1: The connecting map δ(e) lands in Ext^{n+2}(Q, Y) = 0
+  have hδ : hSES.extClass.comp e (show 1 + (n + 1) = n + 2 by omega) = 0 :=
+    Abelian.Ext.eq_zero_of_hasProjectiveDimensionLT _ (n + 2) (by omega)
+  -- Step 2: By exactness, e lifts: ∃ e₂ : Ext(A, Y, n+1), (mk₀ f).comp e₂ = e
+  obtain ⟨e₂, he₂⟩ := Abelian.Ext.contravariant_sequence_exact₁ hSES Y e
+    (show 1 + (n + 1) = n + 2 by omega) hδ
+  -- Step 3: Show (mk₀ (X • 𝟙_A)).comp e₂ = X • e₂
+  -- By mk₀_smul: mk₀ (X • 𝟙) = X • mk₀ 𝟙
+  -- By smul_comp: (X • mk₀ 𝟙).comp e₂ = X • (mk₀ 𝟙).comp e₂
+  -- By mk₀_id_comp: (mk₀ 𝟙).comp e₂ = e₂
+  have h_precomp : (Abelian.Ext.mk₀ ((Polynomial.X : Polynomial R) • (𝟙 A))).comp
+      e₂ (zero_add (n + 1)) = (Polynomial.X : Polynomial R) • e₂ := by
+    rw [Abelian.Ext.mk₀_smul, Abelian.Ext.smul_comp, Abelian.Ext.mk₀_id_comp]
+  -- Step 4: Show X • e₂ = 0 using smul_eq_comp_mk₀ and hY
+  have h_smul_zero : (Polynomial.X : Polynomial R) • e₂ = 0 := by
+    rw [Abelian.Ext.smul_eq_comp_mk₀ e₂ (Polynomial.X : Polynomial R)]
+    rw [hY, Abelian.Ext.mk₀_zero, Abelian.Ext.comp_zero]
+  -- Combine: e = f*(e₂) = X • e₂ = 0
+  rw [← he₂, h_precomp, h_smul_zero]
+
+/-- The Shapiro transfer: for any R-module N, Ext vanishing for R[X]-modules with
+trivial X-action transfers to Ext vanishing over R via the extension-restriction
+adjunction. This combines ext_subsingleton_of_extendScalars with the observation
+that every R-module is the restriction of an R[X]-module with trivial X-action. -/
+private theorem ext_subsingleton_of_polynomial_trivial_action
+    (R : Type u) [CommRing R] [Small.{u} R]
+    (M : ModuleCat.{u} R) (N : ModuleCat.{u} R) (i : ℕ)
+    (h : ∀ (Y : ModuleCat.{u} (Polynomial R)),
+      (Polynomial.X : Polynomial R) • (𝟙 Y) = (0 : Y ⟶ Y) →
+      Subsingleton (Abelian.Ext ((ModuleCat.extendScalars.{u, u, u}
+        (Polynomial.C (R := R))).obj M) Y i)) :
+    Subsingleton (Abelian.Ext M N i) := by
+  letI : Small.{u} (Polynomial R) := ⟨⟨Polynomial R, ⟨Equiv.refl _⟩⟩⟩
+  set C := Polynomial.C (R := R)
+  set F := ModuleCat.extendScalars.{u, u, u} C
+  set G := ModuleCat.restrictScalars.{u} C
+  -- Construct the R[X]-module N₀ from N with trivial X-action (φ = 0)
+  let φ : N →ₗ[R] N := 0
+  let N₀ := ModuleCat.of (Polynomial R) (Module.AEval' φ)
+  -- X acts as zero on N₀
+  have hX : (Polynomial.X : Polynomial R) • (𝟙 N₀) = (0 : N₀ ⟶ N₀) := by
+    ext x
+    change (Polynomial.X : Polynomial R) • x = (0 : N₀ ⟶ N₀) x
+    change (Polynomial.X : Polynomial R) • x = 0
+    obtain ⟨m, rfl⟩ := (Module.AEval'.of φ).surjective x
+    rw [Module.AEval'.X_smul_of, LinearMap.zero_apply, map_zero]
+  -- By hypothesis, Ext^i(F(M), N₀) is subsingleton
+  have hN₀ := h N₀ hX
+  -- Apply Shapiro's lemma: need (extendScalars C).PreservesHomology
+  -- R[X] is free over R, hence flat, so extendScalars C preserves homology
+  have hFlat : C.Flat := by
+    change (algebraMap R R[X]).Flat
+    rw [RingHom.flat_algebraMap_iff]
+    infer_instance
+  haveI : F.PreservesHomology := by
+    haveI := ModuleCat.preservesFiniteLimits_extendScalars_of_flat hFlat
+    haveI := (ModuleCat.extendRestrictScalarsAdj.{u} C).leftAdjoint_preservesColimits
+    infer_instance
+  -- By Shapiro, Ext^i(M, G(N₀)) is subsingleton
+  have hGN₀ := ModuleCat.ext_subsingleton_of_extendScalars C M N₀ i hN₀
+  -- G(N₀) and N have the same carrier (AEval' 0 is a type alias for N)
+  -- and same R-action (C(r) •_{R[X]} m = r • m via aeval_C).
+  -- Transfer: G(N₀) and N have the same carrier (AEval' 0 is a type alias for ↑N)
+  -- with the same R-module structure (C(r) acts as r by Module.AEval.C_smul).
+  -- We construct a LinearEquiv between G(N₀) and N, lift to a ModuleCat iso,
+  -- then use Ext functoriality to transfer Subsingleton.
+  -- Step 1: Build a linear equivalence G.obj N₀ ≃ₗ[R] N
+  have smul_compat : ∀ (r : R) (m : G.obj N₀), (r • m : G.obj N₀) = r • (show N from m) := by
+    intro r m
+    change Polynomial.C r • (show N₀ from m) = r • (show N from m)
+    rw [Module.AEval.C_smul]
+  let e : (G.obj N₀) ≃ₗ[R] N :=
+    { toFun := fun m => (show N from m)
+      invFun := fun m => (show G.obj N₀ from m)
+      left_inv := fun _ => rfl
+      right_inv := fun _ => rfl
+      map_add' := fun _ _ => rfl
+      map_smul' := fun r m => smul_compat r m }
+  -- Step 2: Build the iso in ModuleCat R
+  let iso : G.obj N₀ ≅ N := e.toModuleIso
+  -- Step 3: Transfer Subsingleton via Ext postcomposition
+  -- Postcompose a : Ext M N i with mk₀ iso.inv to land in Ext M (G.obj N₀) i,
+  -- use hGN₀ to equate, then compose back with mk₀ iso.hom.
+  constructor
+  intro a b
+  -- Map a, b into Ext M (G.obj N₀) i via postcomposition with iso.inv
+  have ha := hGN₀.elim (a.comp (Abelian.Ext.mk₀ iso.inv) (add_zero i))
+    (b.comp (Abelian.Ext.mk₀ iso.inv) (add_zero i))
+  -- Roundtrip: composing with iso.hom after iso.inv gives identity
+  have hrt : ∀ (x : Abelian.Ext M N i),
+      (x.comp (Abelian.Ext.mk₀ iso.inv) (add_zero i)).comp
+        (Abelian.Ext.mk₀ iso.hom) (add_zero i) = x := by
+    intro x
+    rw [Abelian.Ext.comp_assoc _ _ _ (add_zero i) (zero_add 0) (by omega)]
+    rw [Abelian.Ext.mk₀_comp_mk₀, iso.inv_hom_id, Abelian.Ext.comp_mk₀_id]
+  calc a = (a.comp (Abelian.Ext.mk₀ iso.inv) (add_zero i)).comp
+        (Abelian.Ext.mk₀ iso.hom) (add_zero i) := (hrt a).symm
+    _ = (b.comp (Abelian.Ext.mk₀ iso.inv) (add_zero i)).comp
+        (Abelian.Ext.mk₀ iso.hom) (add_zero i) := by rw [ha]
+    _ = b := hrt b
+
 /-- For any R-module M, if gldim(R[X]) ≤ d + 1, then pd_R(M) ≤ d.
 
-The proof combines three ingredients, none of which are currently in Mathlib:
+The proof combines three ingredients:
 
 1. **SES construction**: For any R-module M, there is a short exact sequence
-   0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → M₀ → 0
-   where M₀ is M with trivial X-action (X acts as 0).
+   0 → R[X] ⊗_R M →^{X·} R[X] ⊗_R M → Q → 0 in ModuleCat R[X].
 
 2. **X-action vanishing**: From the contravariant LES of Ext applied to this SES,
-   the map f* = precomp with X-multiplication is surjective on Ext^i(R[X]⊗M, Y)
-   for i ≥ d+1. By `smul_comp` and `mk₀_id_comp`, f* equals scalar multiplication
-   by X on Ext. Taking Y with trivial X-action (X · 𝟙_Y = 0), `smul_eq_comp_mk₀`
-   gives f* = 0, hence Ext^i_{R[X]}(R[X]⊗M, Y₀) = 0 for i ≥ d+1.
+   precomposition with X-multiplication is surjective on Ext^{d+1}(F(M), Y₀)
+   (since Ext^{d+2}(Q, Y₀) = 0 by gldim). By `smul_eq_comp_mk₀`, this equals
+   scalar multiplication by X, which is zero when Y₀ has trivial X-action.
+   Hence Ext^{d+1}_{R[X]}(F(M), Y₀) = 0.
 
-3. **Shapiro's lemma**: The extension-restriction adjunction
-   (`extendRestrictScalarsAdj Polynomial.C`) plus the fact that `extendScalars`
-   preserves projective objects (from `preservesProjectiveObjects_of_adjunction` +
-   `restrictScalars` preserves epimorphisms) gives:
-     Ext^i_{R[X]}(R[X] ⊗_R M, Y₀) ≅ Ext^i_R(M, Y₀|_R)
-   Since every R-module Z equals Y₀|_R for Y₀ = Z with trivial action,
-   step 2 gives Ext^i_R(M, Z) = 0 for all Z and i ≥ d+1. -/
+3. **Shapiro's lemma**: `ext_subsingleton_of_polynomial_trivial_action` transfers
+   the vanishing from R[X]-modules to R-modules via the extension-restriction
+   adjunction. -/
 private theorem pd_le_of_polynomial_gldim (R : Type u) [CommRing R] (d : ℕ)
     (M : ModuleCat.{u} R)
     (h : Etingof.HasHomologicalDimensionLE (Polynomial R) (d + 1)) :
     HasProjectiveDimensionLE M d := by
-  sorry
+  letI : Small.{u} R := ⟨⟨R, ⟨Equiv.refl R⟩⟩⟩
+  letI : Small.{u} (Polynomial R) := ⟨⟨Polynomial R, ⟨Equiv.refl _⟩⟩⟩
+  -- Abbreviations
+  set F := ModuleCat.extendScalars.{u, u, u} (Polynomial.C (R := R))
+  set FM := F.obj M
+  set f : FM ⟶ FM := (Polynomial.X : Polynomial R) • (𝟙 FM)
+  set Q := cokernel f
+  -- The SES: 0 → FM →^{X·} FM → Q → 0
+  have hSES := polynomialExtensionSES R M
+  -- Q has pd ≤ d+1 (from gldim assumption)
+  have hQ : HasProjectiveDimensionLE Q (d + 1) := h Q
+  -- We show HasProjectiveDimensionLT M (d + 1), i.e., ∀ i ≥ d+1, Ext^i(M, N) = 0
+  change HasProjectiveDimensionLT M (d + 1)
+  rw [hasProjectiveDimensionLT_iff]
+  intro i hi N e
+  -- Use the Shapiro transfer: it suffices to show Ext^i(FM, Y) = 0
+  -- for all Y with trivial X-action
+  have hss : Subsingleton (Abelian.Ext M N i) :=
+    ext_subsingleton_of_polynomial_trivial_action R M N i (fun Y hY => by
+      constructor; intro a b
+      -- For i ≥ d+2: direct from pd(FM) ≤ d+1
+      -- For i = d+1: use the LES + X-action vanishing lemma
+      have hFM_pd : HasProjectiveDimensionLE FM (d + 1) := h FM
+      -- Both a and b are elements of Ext FM Y i
+      -- For i ≥ d+1, we need to show a = b, i.e., a - b = 0
+      suffices ∀ (x : Abelian.Ext FM Y i), x = 0 from
+        (this a).trans (this b).symm
+      intro x
+      -- Case split: i = d+1 vs i ≥ d+2
+      obtain rfl | hi' := Nat.eq_or_lt_of_le hi
+      · -- i = d+1: use the LES + X-action vanishing
+        exact ext_eq_zero_of_X_action_vanishing hY hSES hQ x
+      · -- i ≥ d+2: Ext vanishes by pd(FM) ≤ d+1
+        exact Abelian.Ext.eq_zero_of_hasProjectiveDimensionLT x (d + 2) (by omega))
+  exact hss.elim e 0
 
 /-- If R is a nontrivial commutative ring and HasHomologicalDimensionLE (Polynomial R) (d+1),
 then HasHomologicalDimensionLE R d. This is the key inductive step for the lower bound:
