@@ -712,9 +712,24 @@ private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G
           obtain ⟨g, hg_mem, hg_nz, hg_supp⟩ :=
             extract_single_support φ χ U σ.toSubmodule hσ_inv f hf_mem q₀ hq₀
           -- g is in σ, supported only on q₀ with g(q₀) ≠ 0
-          -- By simplicity of U, σ contains all functions supported on q₀
-          -- By G-action, σ contains all functions supported on any coset
-          -- Hence σ = ⊤
+          -- Step 1: Move g to the identity coset [1] via G-action
+          set q₁ := (⟦(1 : G)⟧ : G ⧸ stabAux φ χ) with hq₁_def
+          -- Act by (1, q₀.out) to move support from q₀ to q₀.out⁻¹ • q₀ = [1]
+          set g₁ := ρ ⟨1, q₀.out⟩ g with hg₁_def
+          have hg₁_mem : g₁ ∈ σ.toSubmodule := hσ_inv ⟨1, q₀.out⟩ g hg_mem
+          -- g₁ is supported on q₀.out⁻¹ • q₀ = [1]
+          have hg₁_supp_target : q₀.out⁻¹ • q₀ = q₁ := by
+            rw [hq₁_def, ← MulAction.Quotient.coe_smul_out (H := stabAux φ χ)]
+            simp [smul_eq_mul, inv_mul_cancel]
+          -- Step 2: σ contains all Pi.single q u
+          -- (main argument uses simplicity of U)
+          suffices h_single : ∀ q u, Pi.single q u ∈ σ.toSubmodule by
+            apply eq_top_iff.mpr
+            intro x _
+            have : x = ∑ q ∈ Finset.univ, Pi.single q (x q) := by
+              ext q; simp [Finset.sum_apply, Pi.single_apply]
+            rw [this]
+            exact σ.toSubmodule.sum_mem (fun q _ => h_single q (x q))
           sorry }
   exact simple_of_isSimpleModule_asModule' ρ
 
