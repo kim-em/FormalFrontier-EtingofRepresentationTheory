@@ -434,6 +434,103 @@ private lemma iteratedReversed_hom_to_mem
       rw [ih (@reversedAtVertex _ _ Q v) hvs.2 ha' hb_vs]
       exact ReversedAtVertexHom_ne_ne hbv hav
 
+/-- Edge from a participant `a` to a non-participant `b` in the iterated reversed
+quiver equals the reverse-direction edge `b ⟶ a` in the original quiver Q.
+Symmetric companion of `iteratedReversed_hom_to_mem`. -/
+private lemma iteratedReversed_hom_from_mem
+    (Q : Quiver (Fin n)) (vs : List (Fin n)) (hvs : vs.Nodup)
+    {a : Fin n} (ha : a ∈ vs) {b : Fin n} (hb : b ∉ vs) :
+    @Quiver.Hom (Fin n) (iteratedReversedAtVertices Q vs) a b =
+    @Quiver.Hom (Fin n) Q b a := by
+  induction vs generalizing Q with
+  | nil => simp at ha
+  | cons v vs ih =>
+    rw [List.nodup_cons] at hvs
+    rcases List.mem_cons.mp ha with rfl | ha_vs
+    · -- a = v (head)
+      have hb' : b ∉ vs := fun h => hb (List.mem_cons.mpr (Or.inr h))
+      have hbv : b ≠ a := fun h => hb (List.mem_cons.mpr (Or.inl h))
+      show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q a) vs) a b = _
+      rw [iteratedReversed_hom_not_mem _ vs hvs.1 hb']
+      exact ReversedAtVertexHom_eq_ne rfl hbv
+    · -- a ∈ vs (tail)
+      have hb' : b ∉ vs := fun h => hb (List.mem_cons.mpr (Or.inr h))
+      have hav : a ≠ v := by intro h; subst h; exact hvs.1 ha_vs
+      have hbv : b ≠ v := fun h => hb (List.mem_cons.mpr (Or.inl h))
+      show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q v) vs) a b = _
+      rw [ih (@reversedAtVertex _ _ Q v) hvs.2 ha_vs hb']
+      exact ReversedAtVertexHom_ne_ne hbv hav
+
+/-- When both endpoints are in the reversal list, the double reversal returns
+to the original Hom type. Each edge gets flipped twice: once when `a` is
+processed and once when `b` is processed. -/
+private lemma iteratedReversed_hom_both_mem
+    (Q : Quiver (Fin n)) (vs : List (Fin n)) (hvs : vs.Nodup)
+    {a b : Fin n} (ha : a ∈ vs) (hb : b ∈ vs) (hab : a ≠ b) :
+    @Quiver.Hom (Fin n) (iteratedReversedAtVertices Q vs) a b =
+    @Quiver.Hom (Fin n) Q a b := by
+  induction vs generalizing Q with
+  | nil => simp at ha
+  | cons v vs ih =>
+    rw [List.nodup_cons] at hvs
+    rcases List.mem_cons.mp ha with rfl | ha_vs
+    · -- a = v: a ∉ vs (by nodup), b ∈ vs (since b ≠ a = v, b ∈ v :: vs implies b ∈ vs)
+      have ha_not : a ∉ vs := hvs.1
+      have hb_vs : b ∈ vs := by
+        rcases List.mem_cons.mp hb with rfl | h
+        · exact absurd rfl hab
+        · exact h
+      show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q a) vs) a b = _
+      rw [iteratedReversed_hom_to_mem _ vs hvs.2 ha_not hb_vs]
+      -- Now: @Hom (reversedAtVertex Q a) b a = @Hom Q a b
+      -- b ≠ a, so ReversedAtVertexHom a b a: x=b ≠ i=a, y=a = i → (i ⟶ x) = (a ⟶ b)
+      exact ReversedAtVertexHom_ne_eq (Ne.symm hab) rfl
+    · rcases List.mem_cons.mp hb with rfl | hb_vs
+      · -- b = v: b ∉ vs (by nodup), a ∈ vs
+        have hb_not : b ∉ vs := hvs.1
+        show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q b) vs) a b = _
+        rw [iteratedReversed_hom_from_mem _ vs hvs.2 ha_vs hb_not]
+        -- Now: @Hom (reversedAtVertex Q b) b a = @Hom Q a b
+        -- a ≠ b, so ReversedAtVertexHom b b a: x=b = i=b, y=a ≠ i → (y ⟶ i) = (a ⟶ b)
+        exact ReversedAtVertexHom_eq_ne rfl hab
+      · -- Both in vs (tail): use IH
+        have hav : a ≠ v := by intro h; subst h; exact hvs.1 ha_vs
+        have hbv : b ≠ v := by intro h; subst h; exact hvs.1 hb_vs
+        show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q v) vs) a b = _
+        rw [ih (@reversedAtVertex _ _ Q v) hvs.2 ha_vs hb_vs]
+        exact ReversedAtVertexHom_ne_ne hav hbv
+
+/-- Self-loops are preserved by iterated reversal.
+At each reversal step, self-loops are unchanged regardless of the reversal vertex. -/
+private lemma iteratedReversed_self_hom
+    (Q : Quiver (Fin n)) (vs : List (Fin n)) (hvs : vs.Nodup)
+    (a : Fin n) :
+    @Quiver.Hom (Fin n) (iteratedReversedAtVertices Q vs) a a =
+    @Quiver.Hom (Fin n) Q a a := by
+  induction vs generalizing Q with
+  | nil => rfl
+  | cons v vs ih =>
+    rw [List.nodup_cons] at hvs
+    show @Quiver.Hom _ (iteratedReversedAtVertices (@reversedAtVertex _ _ Q v) vs) a a = _
+    rw [ih (@reversedAtVertex _ _ Q v) hvs.2]
+    by_cases hav : a = v
+    · exact ReversedAtVertexHom_eq_eq hav hav
+    · exact ReversedAtVertexHom_ne_ne hav hav
+
+/-- **Round-trip lemma**: Reversing at every vertex in a permutation returns the
+quiver to its original state. Each edge gets reversed twice (once for each endpoint),
+and self-loops are always preserved. -/
+private theorem iteratedReversedAtVertices_perm_eq
+    (Q : Quiver (Fin n)) (σ : List (Fin n))
+    (hσ : σ.Perm (List.finRange n)) :
+    iteratedReversedAtVertices Q σ = Q := by
+  have hnodup : σ.Nodup := hσ.nodup_iff.mpr (List.nodup_finRange n)
+  have hmem : ∀ v : Fin n, v ∈ σ := fun v => hσ.mem_iff.mpr (List.mem_finRange v)
+  ext a b
+  by_cases hab : a = b
+  · subst hab; exact iteratedReversed_self_hom Q σ hnodup a
+  · exact iteratedReversed_hom_both_mem Q σ hnodup (hmem a) (hmem b) hab
+
 /-- A topological sort of a Dynkin quiver exists: a permutation of vertices
 where ordering[k] has no Q-outgoing edges to ordering[m] for m ≥ k. -/
 private theorem exists_topoSort
@@ -629,6 +726,23 @@ private lemma iteratedSimpleReflection_append
     iteratedSimpleReflection n A (xs ++ ys) v =
     iteratedSimpleReflection n A ys (iteratedSimpleReflection n A xs v) := by
   simp [iteratedSimpleReflection, List.foldl_append]
+
+/-- Iterating `c = iteratedSimpleReflection n A σ` M times equals
+`iteratedSimpleReflection` on M concatenated copies of σ. -/
+private lemma iteratedSimpleReflection_replicate_eq_iterate
+    (A : Matrix (Fin n) (Fin n) ℤ) (σ : List (Fin n)) (v : Fin n → ℤ) (M : ℕ) :
+    iteratedSimpleReflection n A ((List.replicate M σ).flatten) v =
+    (fun w => iteratedSimpleReflection n A σ w)^[M] v := by
+  set c := fun w => iteratedSimpleReflection n A σ w
+  induction M generalizing v with
+  | zero =>
+    simp only [List.replicate_zero, List.flatten_nil, iteratedSimpleReflection,
+      List.foldl_nil, Function.iterate_zero, id_eq]
+  | succ M ih =>
+    have hflat : (List.replicate (M + 1) σ).flatten = σ ++ (List.replicate M σ).flatten := by
+      rw [List.replicate_succ, List.flatten_cons]
+    simp only [hflat, iteratedSimpleReflection_append, ih,
+      Function.iterate_succ, Function.comp_apply, c]
 
 /-- `iteratedSimpleReflection` with a full permutation preserves B. -/
 private lemma iteratedSimpleReflection_preserves_B
@@ -1136,32 +1250,52 @@ private lemma indecomposable_reduces_to_simpleRoot
   -- By generalized Lemma 6.7.2: ∃ N i, c^N(d)_i < 0
   have hσ_perm := hσ.perm
   obtain ⟨N, i, hNeg⟩ := generalized_Lemma6_7_2 hDynkin σ hσ_perm d hd_nonneg hd_nonzero
-  -- By contradiction with one_round_or_simpleRoot iterated N times:
-  -- if no prefix gives simple root, all c^M(d) are nonneg, contradicting hNeg.
-  -- Iterate one_round_or_simpleRoot N times using the representation ρ.
-  -- At each round M, either:
-  --   (a) some prefix of the M-th round gives simple root → done, or
-  --   (b) c^M(d) is nonneg with an indecomp rep ρ_M on Q
-  -- If (b) holds for all M ≤ N, then c^N(d) is nonneg, contradicting hNeg.
-  -- So (a) must hold for some M. The vertices are σ ++ σ ++ ... ++ σ.take(prefix).
+  -- Iterate one_round_or_simpleRoot N times, threading the representation.
+  -- Strengthen the induction: at each round M, either found a simple root,
+  -- or have an indecomposable representation ρ_M on Q with dim vec = c^M(d).
   suffices ∀ (M : ℕ),
     (∃ (vertices : List (Fin n)) (p : Fin n),
       iteratedSimpleReflection n A vertices d = simpleRoot n p) ∨
-    (∀ j, 0 ≤ c^[M] d j) by
-    rcases this N with ⟨vertices, p, hp⟩ | hNN
+    ((∀ j, 0 ≤ c^[M] d j) ∧
+     ∃ (ρ_M : @QuiverRepresentation k (Fin n) _ Q),
+       (∀ v, Module.Free k (ρ_M.obj v)) ∧
+       (∀ v, Module.Finite k (ρ_M.obj v)) ∧
+       ρ_M.IsIndecomposable ∧
+       (∀ v, (Module.finrank k (ρ_M.obj v) : ℤ) = c^[M] d v)) by
+    rcases this N with ⟨vertices, p, hp⟩ | ⟨hNN, _⟩
     · exact ⟨vertices, p, hp⟩
     · exact absurd (hNN i) (not_le.mpr hNeg)
   intro M
   induction M with
   | zero =>
-    right; intro j; simp only [Function.iterate_zero, id_eq]; exact hd_nonneg j
+    right
+    exact ⟨fun j => by simp only [Function.iterate_zero, id_eq]; exact hd_nonneg j,
+           ρ, ‹_›, ‹_›, hρ,
+           fun v => by simp only [Function.iterate_zero, id_eq, hd_def]⟩
   | succ M ih =>
-    rcases ih with ⟨vertices, p, hp⟩ | hM_nonneg
+    rcases ih with ⟨vertices, p, hp⟩ | ⟨hM_nonneg, ρ_M, hFree_M, hFinite_M, hIndecomp_M, hDimVec_M⟩
     · left; exact ⟨vertices, p, hp⟩
-    · -- c^M(d) is nonneg, apply one_round_or_simpleRoot
-      -- Need: c^M(d) is the dim vector of some indecomp rep on Q
-      -- This is the key representation-level fact
-      sorry
+    · -- c^M(d) is nonneg and is the dim vector of indecomp ρ_M on Q.
+      -- Apply one_round_or_simpleRoot to ρ_M.
+      haveI : ∀ v, Module.Free k (ρ_M.obj v) := hFree_M
+      haveI : ∀ v, Module.Finite k (ρ_M.obj v) := hFinite_M
+      have hd_M : c^[M] d = fun v => (Module.finrank k (ρ_M.obj v) : ℤ) := by
+        ext v; exact (hDimVec_M v).symm
+      rcases one_round_or_simpleRoot hDynkin hOrient σ hσ ρ_M hIndecomp_M
+        (c^[M] d) hd_M with
+        ⟨j, p, hj, hp⟩ | ⟨hnonneg, hnonzero, ρ', hFree', hFinite', hIndecomp', hDimVec'⟩
+      · -- Found simple root at prefix j of round M
+        left
+        -- The full vertex sequence is σ^M ++ σ.take j
+        refine ⟨(List.replicate M σ).flatten ++ σ.take j, p, ?_⟩
+        rw [iteratedSimpleReflection_append]
+        rw [iteratedSimpleReflection_replicate_eq_iterate]
+        exact hp
+      · -- Full round completed: c^{M+1}(d) is nonneg with indecomp rep ρ'
+        right
+        refine ⟨fun j => ?_, ρ', hFree', hFinite', hIndecomp', fun v => ?_⟩
+        · rw [Function.iterate_succ', Function.comp_apply]; exact hnonneg j
+        · rw [Function.iterate_succ', Function.comp_apply]; exact hDimVec' v
 
 /-- The dimension vector of an indecomposable representation of a Dynkin quiver
 satisfies B(d, d) = 2 (not just ≤ 2).
