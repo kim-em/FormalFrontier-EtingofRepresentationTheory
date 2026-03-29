@@ -1,3 +1,4 @@
+import EtingofRepresentationTheory.Chapter2.Definition2_3_8
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
@@ -10,6 +11,7 @@ import Mathlib.CategoryTheory.Conj
 import Mathlib.CategoryTheory.Simple
 import Mathlib.CategoryTheory.Preadditive.AdditiveFunctor
 import Mathlib.Algebra.Category.ModuleCat.Biproducts
+import Mathlib.LinearAlgebra.Projection
 import Mathlib.Algebra.Category.ModuleCat.Limits
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 
@@ -377,5 +379,112 @@ theorem MoritaEquivalent.finrank_cornerRing_le
     (e : A) :
     Module.finrank k (cornerSubmodule (k := k) e) ≤ Module.finrank k A :=
   finrank_cornerSubmodule_le e
+
+/-! ## Indecomposable preservation under equivalence -/
+
+/-- An equivalence of module categories preserves indecomposability.
+
+**Proof**: Given `IsCompl W₁ W₂` for submodules of `F(M)`, the linear projection
+is an idempotent endomorphism of `F(M)`. Since `F` is fully faithful, there exists
+a unique endomorphism `q` of `M` with `F(q) = p`. Since `F` preserves composition,
+`q` is idempotent. By indecomposability of `M`, `range q = ⊥` or `ker q = ⊥`,
+which implies `W₁ = ⊥` or `W₂ = ⊥`. -/
+lemma equiv_preserves_indecomposable
+    {B₁ : Type u} [Ring B₁] {B₂ : Type u} [Ring B₂]
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂)
+    {M : ModuleCat.{u} B₁}
+    (hM : Etingof.IsIndecomposable B₁ M) :
+    Etingof.IsIndecomposable B₂ (F.functor.obj M) := by
+  obtain ⟨hnt, hind⟩ := hM
+  refine ⟨?_, ?_⟩
+  · -- Nontriviality: F(M) is nontrivial because M is
+    by_contra h
+    rw [not_nontrivial_iff_subsingleton] at h
+    -- F(M) subsingleton → F(M) is zero → M is zero (via faithful functor)
+    have hzFM : IsZero (F.functor.obj M) := ModuleCat.isZero_of_subsingleton _
+    have hzM : IsZero M := by
+      rw [IsZero.iff_id_eq_zero]
+      apply F.functor.map_injective
+      rw [F.functor.map_id, F.functor.map_zero]
+      exact (IsZero.iff_id_eq_zero _).mp hzFM
+    exact (not_subsingleton_iff_nontrivial.mpr hnt) (ModuleCat.subsingleton_of_isZero hzM)
+  · -- No nontrivial complemented submodules
+    intro W₁ W₂ hc
+    -- Construct the idempotent projection p : F(M) →ₗ F(M) onto W₁ along W₂
+    let proj := Submodule.linearProjOfIsCompl W₁ W₂ hc
+    let p : (F.functor.obj M) →ₗ[B₂] (F.functor.obj M) :=
+      W₁.subtype.comp proj
+    have hp_idem : p.comp p = p := by
+      ext x
+      simp only [p, LinearMap.comp_apply, Submodule.subtype_apply]
+      congr 1
+      exact Submodule.linearProjOfIsCompl_apply_left hc (proj x)
+    -- Lift p to a categorical endomorphism of F(M)
+    let p_cat : F.functor.obj M ⟶ F.functor.obj M := ModuleCat.ofHom p
+    -- Use full faithfulness to get the preimage q : M ⟶ M
+    let q_cat : M ⟶ M := F.functor.preimage p_cat
+    -- q is idempotent because F preserves composition and is faithful
+    have hq_map : F.functor.map q_cat = p_cat := F.functor.map_preimage p_cat
+    have hp_idem_cat : p_cat ≫ p_cat = p_cat := by
+      ext x; exact LinearMap.congr_fun hp_idem x
+    have hq_idem_cat : q_cat ≫ q_cat = q_cat := by
+      apply F.functor.map_injective
+      simp only [F.functor.map_comp, hq_map, hp_idem_cat]
+    -- Extract the linear map and its idempotency
+    let q : M →ₗ[B₁] M := q_cat.hom
+    have hq_idem : IsIdempotentElem q := by
+      ext x; exact LinearMap.congr_fun (ModuleCat.hom_ext_iff.mp hq_idem_cat) x
+    -- By indecomposability of M, range q = ⊥ or ker q = ⊥
+    have hcompl_q : IsCompl (LinearMap.range q) (LinearMap.ker q) :=
+      open LinearMap in IsIdempotentElem.isCompl hq_idem
+    rcases hind (LinearMap.range q) (LinearMap.ker q) hcompl_q with hrange | hker
+    · -- range q = ⊥ → q = 0 → p = 0 → W₁ = ⊥
+      left
+      have hq_zero : q = 0 := LinearMap.range_eq_bot.mp hrange
+      have hp_zero : p = 0 := by
+        have hp_cat_zero : p_cat = 0 := by
+          rw [← hq_map]
+          have : q_cat = 0 := ModuleCat.hom_ext_iff.mpr hq_zero
+          rw [this, F.functor.map_zero]
+        exact ModuleCat.hom_ext_iff.mp hp_cat_zero
+      -- p = 0 means W₁.subtype ∘ proj = 0
+      -- For x ∈ W₁: p x = x (projection is identity on W₁), so x = 0
+      rw [eq_bot_iff]
+      intro x hx
+      have hp_x : p x = 0 := LinearMap.congr_fun hp_zero x
+      -- proj is identity on W₁: proj ⟨x, hx⟩ = ⟨x, hx⟩
+      have hproj := Submodule.linearProjOfIsCompl_apply_left hc ⟨x, hx⟩
+      -- p x = ↑(proj x) = ↑⟨x, hx⟩ = x
+      have : p x = x := by
+        change (W₁.subtype (proj x)) = x
+        rw [hproj]; rfl
+      rw [this] at hp_x
+      exact hp_x
+    · -- ker q = ⊥ → q = id (idempotent + injective) → p = id → W₂ = ⊥
+      right
+      have hq_id : q = LinearMap.id := by
+        ext x
+        have hqx_mem : q x - x ∈ LinearMap.ker q := by
+          rw [LinearMap.mem_ker, map_sub]
+          have : q (q x) = q x := LinearMap.congr_fun (show q.comp q = q from hq_idem) x
+          rw [this, sub_self]
+        rw [hker, Submodule.mem_bot, sub_eq_zero] at hqx_mem
+        rw [hqx_mem, LinearMap.id_apply]
+      have hp_id : p = LinearMap.id := by
+        have hp_cat_id : p_cat = 𝟙 _ := by
+          rw [← hq_map, ← F.functor.map_id]
+          congr 1
+          exact ModuleCat.hom_ext_iff.mpr hq_id
+        exact ModuleCat.hom_ext_iff.mp hp_cat_id
+      -- p = id means the projection onto W₁ is the identity, so W₁ = ⊤
+      have hW1_top : W₁ = ⊤ := by
+        rw [eq_top_iff]
+        intro x _
+        have hpx : p x = x := LinearMap.congr_fun hp_id x
+        have : W₁.subtype (proj x) = x := hpx
+        rw [Submodule.subtype_apply] at this
+        have hmem := (proj x).2
+        rwa [this] at hmem
+      exact eq_bot_of_isCompl_top (hW1_top ▸ hc.symm)
 
 end Etingof
