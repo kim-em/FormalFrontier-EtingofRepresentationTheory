@@ -47,7 +47,7 @@ The proof is decomposed into two helper lemmas:
 
 ## Proof status
 
-Four sorrys remain:
+Two sorrys remain:
 
 1. `exists_full_idempotent_basic_corner`: Fullness (AeA = A) is proved. Basicness
    proof constructs ring hom π : eAe → k^numBlocks, proves ker π consists of
@@ -55,12 +55,10 @@ Four sorrys remain:
    Remaining sorry: conclude finrank k M = 1 from the annihilation
    (needs Schur's lemma + IsAlgClosed + module transfer infrastructure).
 
-2. `cornerFunctor_full`: Requires constructing the lift of an eAe-linear map
-   eM → eN to an A-linear map M → N. Standard proof goes through the
-   evaluation isomorphism `Ae ⊗_{eAe} eM ≅ M`.
-
-3. `cornerFunctor_essSurj`: Requires showing `e(A ⊗_{eAe} N) ≅ N`, the other
+2. `cornerFunctor_essSurj`: Requires showing `e(A ⊗_{eAe} N) ≅ N`, the other
    direction of the evaluation isomorphism.
+
+`cornerFunctor_full` is now sorry-free (lift construction complete).
 -/
 
 universe u
@@ -771,7 +769,13 @@ private lemma cornerFunctor_full {e : A} (he : IsFullIdempotent e) :
       intro p; apply Subtype.ext
       show e • (p.2 • (e • n)) = (e * p.2 * e) • (e • n)
       rw [mul_smul, mul_smul, eCorner_smul_of_idem he.1 n]
-    sorry -- TODO: fix after Mathlib bump (conv arg navigation changed)
+    simp_rw [h1, map_smul, coe_smul, ← mul_smul, ← Finset.sum_smul]
+    have hsum_e : ∑ p ∈ σ.support, σ p * p.1 * (e * p.2 * e) = e := by
+      have : ∀ p ∈ σ.support, σ p * p.1 * (e * p.2 * e) =
+          σ p * (p.1 * e * p.2) * e := fun p _ => by simp only [mul_assoc]
+      rw [Finset.sum_congr rfl this, ← Finset.sum_mul, hσ1, one_mul]
+    rw [hsum_e]
+    exact (φ (toECorner he.1 n)).prop
   have lift_smul : ∀ (r : A) (m : M), liftFun (r • m) = r • liftFun m := by
     -- Quantify r inside the induction so the smul case has IH for all r
     suffices key : ∀ m, m ∈ Submodule.span A (Set.range (fun n : M => e • n)) →
@@ -810,7 +814,13 @@ private lemma cornerFunctor_full {e : A} (he : IsFullIdempotent e) :
       rw [hsum_eq, mul_smul, (φ (toECorner he.1 n)).prop]
     | zero =>
       intro r
-      sorry -- TODO: fix show pattern after Mathlib bump
+      simp only [smul_zero]
+      have h0 : liftFun (0 : M) = 0 := by
+        have h := lift_add (0 : M) 0; simp only [add_zero] at h
+        -- h : liftFun 0 = liftFun 0 + liftFun 0
+        have : liftFun (0 : M) + liftFun (0 : M) = liftFun (0 : M) + 0 := by rw [add_zero]; exact h.symm
+        exact add_left_cancel this
+      rw [h0, smul_zero]
     | add x y _ _ ihx ihy =>
       intro r
       rw [smul_add, lift_add, lift_add, ihx r, ihy r, smul_add]

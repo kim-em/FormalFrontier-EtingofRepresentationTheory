@@ -175,9 +175,23 @@ Given an equivalence `F : ModuleCat B₁ ≌ ModuleCat B₂`:
 
 ### Blocked by
 
-Step 2 requires the Krull-Schmidt theorem (unique decomposition of modules into
-indecomposables), which is not yet available in Mathlib. All non-circular proof
-strategies for this lemma require either Krull-Schmidt or progenerator theory. -/
+Step 2 requires showing `F(B₁) ≅ B₂` as `B₂`-modules. A proof without
+Krull-Schmidt proceeds as follows:
+
+1. `F(B₁)` is a projective generator of `ModuleCat B₂` (categorical argument).
+2. `F(B₁)/J·F(B₁) ≅ B₂/J·B₂` as `B₂/J`-modules, where `J = Ring.jacobson B₂`.
+   This uses: for basic `B`, the head of `B` is `⊕ᵢ Sᵢ` (one copy of each simple).
+   `F` bijects simples (`simple_of_equivalence`), so the head of `F(B₁)` has the
+   same simple constituents with the same multiplicities.
+3. By projective lifting (`Module.projective_lifting_property`), construct maps
+   `f̃ : B₂ →ₗ F(B₁)` and `g̃ : F(B₁) →ₗ B₂` that are isomorphisms modulo `J`.
+4. Nakayama's lemma (`Submodule.FG.eq_bot_of_le_jacobson_smul`) shows `g̃ ∘ f̃` and
+   `f̃ ∘ g̃` are surjective, hence isomorphisms (finite-dimensional).
+
+The main missing infrastructure is the primitive idempotent decomposition of
+basic algebras and the characterization of the semisimple head `B/JB`.
+See also `exists_full_idempotent_basic_corner` in BasicAlgebraExistence.lean
+which constructs this decomposition for the Artin-Wedderburn quotient. -/
 private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
