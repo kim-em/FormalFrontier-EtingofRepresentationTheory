@@ -1182,17 +1182,31 @@ derivation for `ArrowsInto` which is needed by Proposition 6.6.8. -/
 /-- `Subsingleton` for Hom types is preserved by `reversedAtVertex`.
 Each case of `ReversedAtVertexHom` reduces to an original Hom type. -/
 private lemma subsingleton_hom_reversedAtVertex
-    {Q : Quiver (Fin n)} [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    [inst : DecidableEq (Fin n)]
+    {Q : Quiver (Fin n)} [hSS : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (p : Fin n) (a b : Fin n) :
-    Subsingleton (@Quiver.Hom (Fin n) (@reversedAtVertex (Fin n) _ Q p) a b) := by
-  sorry
+    Subsingleton (@Quiver.Hom (Fin n) (@reversedAtVertex (Fin n) inst Q p) a b) := by
+  constructor
+  intro x y
+  revert x y
+  change ∀ (x y : ReversedAtVertexHom (Fin n) p a b), x = y
+  unfold ReversedAtVertexHom
+  cases inst a p <;> cases inst b p <;> exact fun x y => Subsingleton.elim x y
 
 /-- `Subsingleton` for Hom types is preserved by `iteratedReversedAtVertices`. -/
 private lemma subsingleton_hom_iteratedReversed
     {Q : Quiver (Fin n)} [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (vs : List (Fin n)) (a b : Fin n) :
     Subsingleton (@Quiver.Hom (Fin n) (iteratedReversedAtVertices Q vs) a b) := by
-  sorry
+  induction vs generalizing Q with
+  | nil => change Subsingleton (@Quiver.Hom (Fin n) Q a b); infer_instance
+  | cons v vs ih =>
+    change Subsingleton (@Quiver.Hom (Fin n)
+      (iteratedReversedAtVertices (@reversedAtVertex (Fin n) _ Q v) vs) a b)
+    haveI : ∀ (a b : Fin n), Subsingleton
+        (@Quiver.Hom (Fin n) (@reversedAtVertex (Fin n) _ Q v) a b) :=
+      fun a b => subsingleton_hom_reversedAtVertex v a b
+    exact @ih _ this
 
 /-- Derive `Fintype` for each Hom type from `Subsingleton`, classically. -/
 private noncomputable def fintypeHomOfSubsingleton
@@ -1221,18 +1235,23 @@ private lemma reflFunctorPlus_free_ne
     (v : Q) (hv : v ≠ i) :
     Module.Free k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
       (reflectionFunctorPlus Q i hi ρ) v) := by
-  sorry
+  exact Module.Free.of_equiv (reflFunctorPlus_equivAt_ne hi ρ v hv).symm
 
+set_option linter.unusedFintypeInType false in
 /-- `Module.Free` for the reflected representation at i (ker of linear map over field). -/
 private lemma reflFunctorPlus_free_eq
-    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {k₀ : Type*} [Field k₀] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : IsSink Q i)
     (ρ : @QuiverRepresentation k₀ Q _ _)
     [∀ v, Module.Free k₀ (ρ.obj v)] [∀ v, Module.Finite k₀ (ρ.obj v)]
     [Fintype (@ArrowsInto Q _ i)] :
     Module.Free k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
       (reflectionFunctorPlus Q i hi ρ) i) := by
-  sorry
+  -- Transport via the linear equivalence F⁺ᵢ(ρ).obj i ≃ₗ ker(sinkMap)
+  -- Need AddCommGroup for the direct sum to make Free work for submodules over PIDs
+  letI : AddCommGroup (DirectSum (@ArrowsInto Q _ i) (fun a => ρ.obj a.1)) :=
+    addCommGroupOfRing (k := k₀)
+  exact Module.Free.of_equiv (reflFunctorPlus_equivAt_eq hi ρ).symm
 
 /-- `Module.Finite` for the reflected representation at v ≠ i. -/
 private lemma reflFunctorPlus_finite_ne
@@ -1243,18 +1262,21 @@ private lemma reflFunctorPlus_finite_ne
     (v : Q) (hv : v ≠ i) :
     Module.Finite k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
       (reflectionFunctorPlus Q i hi ρ) v) := by
-  sorry
+  exact Module.Finite.equiv (reflFunctorPlus_equivAt_ne hi ρ v hv).symm
 
+set_option linter.unusedFintypeInType false in
 /-- `Module.Finite` for the reflected representation at i. -/
 private lemma reflFunctorPlus_finite_eq
-    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {k₀ : Type*} [Field k₀] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
     {i : Q} (hi : IsSink Q i)
     (ρ : @QuiverRepresentation k₀ Q _ _)
     [∀ v, Module.Free k₀ (ρ.obj v)] [∀ v, Module.Finite k₀ (ρ.obj v)]
     [Fintype (@ArrowsInto Q _ i)] :
     Module.Finite k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
       (reflectionFunctorPlus Q i hi ρ) i) := by
-  sorry
+  letI : AddCommGroup (DirectSum (@ArrowsInto Q _ i) (fun a => ρ.obj a.1)) :=
+    addCommGroupOfRing (k := k₀)
+  exact Module.Finite.equiv (reflFunctorPlus_equivAt_eq hi ρ).symm
 
 /-! ### Bridge: simpleReflectionDimVector ↔ simpleReflection
 
