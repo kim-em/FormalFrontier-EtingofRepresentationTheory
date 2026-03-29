@@ -542,7 +542,73 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ) :
     ∃ T : StandardYoungTableau n la,
       ∃ p ∈ RowSubgroup n la, sytPerm n la T = σ * p := by
-  sorry
+  classical
+  set parts := la.sortedParts with parts_def
+  have hps : parts.sum = n := sortedParts_sum n la
+  -- Positions in row r
+  let rowPositions (r : ℕ) : Finset (Fin n) :=
+    Finset.univ.filter (fun pos => rowOfPos parts pos.val = r)
+  -- Entries in row r under filling σ
+  let rowEntries (r : ℕ) : Finset (Fin n) := (rowPositions r).image σ.symm
+  -- σ.symm is injective on each row
+  have σ_inj_on_row (r : ℕ) : Set.InjOn σ.symm ↑(rowPositions r) :=
+    Set.InjOn.mono (Set.subset_univ _) (Equiv.injective σ.symm).injOn
+  -- Row entry cardinality equals row width
+  have rowEnt_card : ∀ r : ℕ, r < parts.length →
+      (rowEntries r).card = parts.getD r 0 := by
+    intro r hr; rw [Finset.card_image_of_injOn (σ_inj_on_row r)]
+    -- |{pos : Fin n | rowOfPos parts pos = r}| = parts.getD r 0
+    -- Bijection via colOfPos (injective) and exists_pos_of_cell (surjective)
+    sorry
+  -- Define the sorted filling T(cell(r,c)) = c-th smallest entry in row r
+  let T_fun : Cell n la → Fin n := fun cell =>
+    (rowEntries cell.val.1).orderEmbOfFin (rowEnt_card cell.val.1 cell.prop.1)
+      ⟨cell.val.2, by have := cell.prop.2; omega⟩
+  -- T_fun is injective (different rows → disjoint entry sets; same row → orderEmb injective)
+  have T_inj : Function.Injective T_fun := by
+    intro ⟨⟨r₁, c₁⟩, hr₁, hc₁⟩ ⟨⟨r₂, c₂⟩, hr₂, hc₂⟩ h
+    simp only [T_fun] at h
+    by_cases hr : r₁ = r₂
+    · subst hr
+      have hinj := ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)).injective
+      have := Fin.mk.inj (hinj h)
+      exact Subtype.ext (Prod.ext rfl this)
+    · exfalso
+      -- The entry T_fun(r₁,c₁) is in rowEntries r₁ and (by h) also in rowEntries r₂
+      have h1 := Finset.orderEmbOfFin_mem (rowEntries r₁) (rowEnt_card r₁ hr₁) ⟨c₁, by omega⟩
+      have h2 := Finset.orderEmbOfFin_mem (rowEntries r₂) (rowEnt_card r₂ hr₂) ⟨c₂, by omega⟩
+      -- h gives that these two orderEmbOfFin values are equal
+      -- So the entry from row r₂ is also in rowEntries r₁
+      have h1' : (rowEntries r₂).orderEmbOfFin (rowEnt_card r₂ hr₂) ⟨c₂, by omega⟩ ∈ rowEntries r₁ := h ▸ h1
+      -- Unpack: entry ∈ rowEntries r means ∃ pos in row r with σ.symm pos = entry
+      obtain ⟨pos₁, hpos₁, hv₁⟩ := Finset.mem_image.mp h1'
+      obtain ⟨pos₂, hpos₂, hv₂⟩ := Finset.mem_image.mp h2
+      -- Same entry from both rows
+      have := σ.symm.injective (hv₁.trans hv₂.symm)
+      rw [this] at hpos₁
+      exact hr ((Finset.mem_filter.mp hpos₁).2.symm.trans (Finset.mem_filter.mp hpos₂).2)
+  -- T_fun is surjective (injective function between types of equal finite cardinality)
+  have T_surj : Function.Surjective T_fun := by
+    have h_card : Fintype.card (Cell n la) = Fintype.card (Fin n) :=
+      Fintype.card_of_bijective (canonicalFilling n la).bijective |>.symm
+    exact ((Fintype.bijective_iff_injective_and_card T_fun).mpr ⟨T_inj, h_card⟩).2
+  -- T_fun is row-increasing (orderEmbOfFin is monotone)
+  have T_row_inc : ∀ c₁ c₂ : Cell n la,
+      c₁.val.1 = c₂.val.1 → c₁.val.2 < c₂.val.2 → T_fun c₁ < T_fun c₂ := by
+    intro ⟨⟨r₁, col₁⟩, hr₁, hc₁⟩ ⟨⟨r₂, col₂⟩, hr₂, hc₂⟩ hrow hcol
+    simp only at hrow hcol; subst hrow
+    exact ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)).strictMono (by omega)
+  -- T_fun is column-increasing (uses column-standardness of σ and orderEmbOfFin_lt_of_injective_lt)
+  have T_col_inc : ∀ c₁ c₂ : Cell n la,
+      c₁.val.2 = c₂.val.2 → c₁.val.1 < c₂.val.1 → T_fun c₁ < T_fun c₂ := by
+    sorry
+  let T : StandardYoungTableau n la :=
+    ⟨T_fun, ⟨T_inj, T_surj⟩, T_row_inc, T_col_inc⟩
+  -- p = σ⁻¹ * sytPerm T preserves rows (both σ and T assign entries within same rows)
+  let p := σ⁻¹ * sytPerm n la T
+  have hp_row : p ∈ RowSubgroup n la := by
+    sorry
+  exact ⟨T, p, hp_row, by simp only [p]; rw [mul_inv_cancel_left]⟩
 
 /-- A column-standard filling gives a standard polytabloid. -/
 private theorem column_standard_in_span' (n : ℕ) (la : Nat.Partition n)
