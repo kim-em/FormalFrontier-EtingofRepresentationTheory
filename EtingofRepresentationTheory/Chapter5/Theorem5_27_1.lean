@@ -402,18 +402,357 @@ private lemma endo_preserves_cosets {G A : Type} [Group G] [CommGroup A] [Fintyp
     exact_mod_cast this
   · exact h
 
--- (i) Irreducibility of induced representation V(χ, U) when U is irreducible.
--- Proof sketch: any equivariant endomorphism of V = (G/H → U) is scalar,
--- because A-equivariance forces it to preserve coset components, G_χ-equivariance
--- on the identity component + Schur's lemma forces it to be scalar there,
--- and G-equivariance propagates the scalar to all components.
+-- Helper: different cosets have different A-characters (standalone extraction from
+-- endo_preserves_cosets). If q₁.out⁻¹ and q₂.out⁻¹ give the same twisted character, q₁ = q₂.
+open Classical in
+private lemma coset_char_injective {G A : Type} [Group G] [CommGroup A]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (q₁ q₂ : G ⧸ stabAux φ χ) (heq : dualSmulAux φ q₁.out χ = dualSmulAux φ q₂.out χ) :
+    q₁ = q₂ := by
+  have hmem : q₁.out⁻¹ * q₂.out ∈ stabAux φ χ := by
+    change dualSmulAux φ (q₁.out⁻¹ * q₂.out) χ = χ
+    ext a
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom]
+    have := DFunLike.ext_iff.mp heq ((φ q₁.out : MulAut A) a)
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at this
+    rw [show (φ q₁.out⁻¹ : MulAut A) ((φ q₁.out : MulAut A) a) = a from by
+      rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply],
+      show (φ q₂.out⁻¹ : MulAut A) ((φ q₁.out : MulAut A) a) =
+        (φ (q₁.out⁻¹ * q₂.out)⁻¹ : MulAut A) a from by
+      rw [mul_inv_rev, inv_inv, map_mul, MulAut.mul_apply]] at this
+    exact_mod_cast this.symm
+  rw [← Quotient.out_eq' q₁, ← Quotient.out_eq' q₂]
+  exact Quotient.sound' (QuotientGroup.leftRel_apply.mpr hmem)
+
+-- Helper: for q₁ ≠ q₂, there exists a ∈ A witnessing different character values.
+open Classical in
+private lemma coset_char_witness {G A : Type} [Group G] [CommGroup A]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (q₁ q₂ : G ⧸ stabAux φ χ) (hne : q₁ ≠ q₂) :
+    ∃ a : A, (χ ((φ q₁.out⁻¹ : MulAut A) a) : ℂˣ) ≠ χ ((φ q₂.out⁻¹ : MulAut A) a) := by
+  by_contra h
+  push_neg at h
+  apply hne
+  exact coset_char_injective φ χ q₁ q₂ (DFunLike.ext _ _ (fun a => by
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom]
+    exact_mod_cast h a))
+
+-- A full faithful functor preserving monomorphisms reflects Simple objects.
+open CategoryTheory in
+private lemma simple_of_full_faithful_preservesMono''
+    {C : Type*} {D : Type*} [Category C] [Category D]
+    [Limits.HasZeroMorphisms C] [Limits.HasZeroMorphisms D]
+    (F : C ⥤ D) [F.Full] [F.Faithful] [F.PreservesMonomorphisms] (X : C)
+    [Simple (F.obj X)] : Simple X where
+  mono_isIso_iff_nonzero {Y} f := by
+    intro
+    constructor
+    · intro hiso
+      haveI : IsIso (F.map f) := Functor.map_isIso F f
+      exact fun h => (Simple.mono_isIso_iff_nonzero (F.map f)).mp inferInstance
+        (by rw [h]; simp)
+    · intro hne
+      haveI : Mono (F.map f) := inferInstance
+      haveI : IsIso (F.map f) :=
+        (Simple.mono_isIso_iff_nonzero (F.map f)).mpr
+          (fun h => hne (F.map_injective (by rwa [F.map_zero])))
+      exact isIso_of_fully_faithful F f
+
+-- Bridge: IsSimpleModule over the monoid algebra implies Simple in FDRep.
+open CategoryTheory in
+private noncomputable def simple_of_isSimpleModule_asModule'
+    {k : Type} [Field k] {G : Type} [Group G]
+    {V : Type} [AddCommGroup V] [Module k V] [Module.Finite k V] [Module.Free k V]
+    (ρ : Representation k G V) [IsSimpleModule (MonoidAlgebra k G) ρ.asModule] :
+    Simple (FDRep.of ρ) := by
+  haveI : Simple (ModuleCat.of (MonoidAlgebra k G) ρ.asModule) :=
+    simple_of_isSimpleModule
+  let E := Rep.equivalenceModuleMonoidAlgebra (k := k) (G := G)
+  haveI : Simple
+      (E.functor.obj ((forget₂ (FDRep k G) (Rep k G)).obj (FDRep.of ρ))) := by
+    change Simple (ModuleCat.of (MonoidAlgebra k G) ρ.asModule)
+    infer_instance
+  haveI : Simple ((forget₂ (FDRep k G) (Rep k G)).obj (FDRep.of ρ)) :=
+    simple_of_full_faithful_preservesMono'' E.functor _
+  exact simple_of_full_faithful_preservesMono'' (forget₂ (FDRep k G) (Rep k G)) _
+
+-- The underlying representation of inducedRepV, explicitly typed on (G/H → U).
+-- This avoids going through FDRep carrier coercions.
+open Classical in
+private noncomputable def inducedRep_raw {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ)) :
+    (A ⋊[φ] G) →* ((G ⧸ stabAux φ χ) → ↥U) →ₗ[ℂ] ((G ⧸ stabAux φ χ) → ↥U) :=
+  { toFun := fun ag =>
+    { toFun := fun f q =>
+        let tq := q.out
+        let q' := ag.right⁻¹ • q
+        let s : ↥(stabAux φ χ) := ⟨tq⁻¹ * ag.right * q'.out,
+          transition_mem_stab φ χ ag.right q⟩
+        ((χ ((φ tq⁻¹ : MulAut A) ag.left) : ℂˣ) : ℂ) •
+          (FDRep.ρ U s (f q'))
+      map_add' := fun f₁ f₂ => by ext q; simp [smul_add]
+      map_smul' := fun c f => by
+        ext q; simp only [RingHom.id_apply, Pi.smul_apply]
+        rw [LinearMap.map_smul, smul_comm] }
+    map_one' := by
+      apply LinearMap.ext; intro f; funext q
+      have h1 : ((χ ((φ q.out⁻¹ : MulAut A) (1 : A ⋊[φ] G).left) : ℂˣ) : ℂ) = 1 := by
+        simp only [SemidirectProduct.one_left, map_one, Units.val_one]
+      have h3 : (⟨q.out⁻¹ * (1 : A ⋊[φ] G).right *
+          ((1 : A ⋊[φ] G).right⁻¹ • q).out,
+          transition_mem_stab φ χ (1 : A ⋊[φ] G).right q⟩ :
+          ↥(stabAux φ χ)) = 1 := by
+        ext; simp [SemidirectProduct.one_right, inv_mul_cancel]
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, h1, one_smul,
+        SemidirectProduct.one_right, inv_one, one_smul]
+      have : ∀ (s : ↥(stabAux φ χ)) (hs : (s : G) = 1) (v : ↥U),
+          (FDRep.ρ U s) v = v := by
+        intro s hs v
+        have : s = 1 := Subtype.ext hs
+        rw [this, map_one, Module.End.one_apply]
+      exact this _ (by simp [SemidirectProduct.one_right, inv_mul_cancel]) _
+    map_mul' := fun ag₁ ag₂ => by
+      apply LinearMap.ext; intro f; funext q
+      -- This is the same as the map_mul' proof in inducedRepV
+      simp only [SemidirectProduct.mul_left, SemidirectProduct.mul_right,
+        LinearMap.coe_mk, AddHom.coe_mk, Module.End.mul_apply]
+      set q₁ := ag₁.right⁻¹ • q
+      have hcoset : (ag₁.right * ag₂.right)⁻¹ • q = ag₂.right⁻¹ • q₁ := by
+        rw [mul_inv_rev, mul_smul]
+      have hchar :
+          ((χ ((φ q.out⁻¹ : MulAut A)
+            (ag₁.left * (φ ag₁.right : MulAut A) ag₂.left)) : ℂˣ) : ℂ) =
+          ((χ ((φ q.out⁻¹ : MulAut A) ag₁.left) : ℂˣ) : ℂ) *
+          ((χ ((φ q₁.out⁻¹ : MulAut A) ag₂.left) : ℂˣ) : ℂ) := by
+        rw [map_mul (φ q.out⁻¹ : MulAut A), map_mul χ, Units.val_mul]
+        congr 1
+        rw [← MulAut.mul_apply, ← map_mul φ]
+        have : q.out⁻¹ * ag₁.right = (q.out⁻¹ * ag₁.right * q₁.out) * q₁.out⁻¹ := by group
+        rw [this, map_mul φ, MulAut.mul_apply]
+        exact congrArg _ (stab_char_inv φ χ (transition_mem_stab φ χ ag₁.right q) _)
+      have hstab_val : q.out⁻¹ * (ag₁.right * ag₂.right) *
+          ((ag₁.right * ag₂.right)⁻¹ • q).out =
+        (q.out⁻¹ * ag₁.right * q₁.out) *
+        (q₁.out⁻¹ * ag₂.right * (ag₂.right⁻¹ • q₁).out) := by
+        simp only [hcoset]; group
+      have hrho_eq : ∀ (s₁ s₂ : ↥(stabAux φ χ)),
+          (s₁ : G) = (s₂ : G) → ∀ v, (FDRep.ρ U s₁) v = (FDRep.ρ U s₂) v := by
+        intro s₁ s₂ h v; rw [Subtype.ext h]
+      rw [hchar, mul_smul, ← map_smul]
+      congr 1
+      have step1 := hrho_eq
+        ⟨_, transition_mem_stab φ χ (ag₁.right * ag₂.right) q⟩
+        (⟨_, transition_mem_stab φ χ ag₁.right q⟩ *
+         ⟨_, transition_mem_stab φ χ ag₂.right q₁⟩)
+        (by rw [Subgroup.coe_mul]; exact hstab_val)
+        (((χ ((φ q₁.out⁻¹ : MulAut A) ag₂.left) : ℂˣ) : ℂ) •
+          f ((ag₁.right * ag₂.right)⁻¹ • q))
+      rw [step1, map_mul, Module.End.mul_apply, map_smul]
+      simp_rw [hcoset]
+      rfl }
+
+-- Helper: A-action formula at a coset. For (a,1) ∈ A ⋊ G acting on f at coset q:
+-- (a,1)·f(q) = χ(φ(q⁻¹)(a)) • f(q)
+open Classical in
+private lemma A_action_at_coset {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ))
+    (a : A) (f : (G ⧸ stabAux φ χ) → ↥U) (q : G ⧸ stabAux φ χ) :
+    inducedRep_raw φ χ U ⟨a, 1⟩ f q =
+      ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) • f q := by
+  show ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+    (FDRep.ρ U ⟨q.out⁻¹ * (1 : G) * ((1 : G)⁻¹ • q).out,
+      transition_mem_stab φ χ (1 : G) q⟩) (f ((1 : G)⁻¹ • q)) = _
+  have hrho : ∀ (s : ↥(stabAux φ χ)) (hs : (s : G) = 1) (v : ↥U),
+      (FDRep.ρ U s) v = v := by
+    intro s hs v; rw [show s = 1 from Subtype.ext hs, map_one, Module.End.one_apply]
+  simp only [inv_one, one_smul, mul_one]
+  congr 1
+  exact hrho _ (inv_mul_cancel q.out) _
+
+-- Helper: if σ is an invariant submodule containing f with f(q₀) ≠ 0,
+-- then σ contains an element supported only on q₀.
+-- Uses the "A-eigenspace extraction" trick: iteratively kill other coset components.
+open Classical in
+private lemma extract_single_support {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ))
+    (σ : Submodule ℂ ((G ⧸ stabAux φ χ) → ↥U))
+    (hσ_inv : ∀ ag f, f ∈ σ → inducedRep_raw φ χ U ag f ∈ σ)
+    (f : (G ⧸ stabAux φ χ) → ↥U) (hf : f ∈ σ)
+    (q₀ : G ⧸ stabAux φ χ) (hq₀ : f q₀ ≠ 0) :
+    ∃ g ∈ σ, g q₀ ≠ 0 ∧ ∀ q, q ≠ q₀ → g q = 0 := by
+  -- Induction on the number of nonzero cosets other than q₀
+  suffices ∀ (n : ℕ) (f : (G ⧸ stabAux φ χ) → ↥U), f ∈ σ →
+      f q₀ ≠ 0 →
+      (Finset.univ.filter (fun q => q ≠ q₀ ∧ f q ≠ 0)).card ≤ n →
+      ∃ g ∈ σ, g q₀ ≠ 0 ∧ ∀ q, q ≠ q₀ → g q = 0 by
+    exact this _ f hf hq₀ le_rfl
+  intro n
+  induction n with
+  | zero =>
+    intro f hf hfq₀ hcard
+    refine ⟨f, hf, hfq₀, fun q hq => ?_⟩
+    by_contra hne
+    have : q ∈ Finset.univ.filter (fun q => q ≠ q₀ ∧ f q ≠ 0) :=
+      Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq, hne⟩
+    exact Nat.not_lt.mpr hcard (Finset.card_pos.mpr ⟨q, this⟩)
+  | succ n ih =>
+    intro f hf hfq₀ hcard
+    by_cases h_done : ∀ q, q ≠ q₀ → f q = 0
+    · exact ⟨f, hf, hfq₀, h_done⟩
+    · push_neg at h_done
+      obtain ⟨q₁, hq₁_ne, hq₁_nz⟩ := h_done
+      -- Get a witness a ∈ A where characters at q₀ and q₁ differ
+      obtain ⟨a, ha⟩ := coset_char_witness φ χ q₀ q₁ hq₁_ne.symm
+      -- Define f' = ρ(a,1)(f) - χ_{q₁}(a) • f ∈ σ
+      -- This kills the q₁-component while preserving q₀
+      set c₁ := ((χ ((φ q₁.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) with hc₁_def
+      set f' := inducedRep_raw φ χ U ⟨a, 1⟩ f - c₁ • f with hf'_def
+      have hf'_mem : f' ∈ σ := by
+        apply σ.sub_mem
+        · exact hσ_inv ⟨a, 1⟩ f hf
+        · exact σ.smul_mem c₁ hf
+      -- f' at any coset q: f'(q) = (χ_q(a) - c₁) • f(q)
+      have hf'_eval : ∀ q, f' q =
+          (((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) - c₁) • f q := by
+        intro q
+        show inducedRep_raw φ χ U ⟨a, 1⟩ f q - c₁ • f q = _
+        rw [A_action_at_coset, sub_smul]
+      -- f'(q₁) = 0 (since χ_{q₁}(a) - c₁ = 0)
+      have hf'_q₁ : f' q₁ = 0 := by
+        rw [hf'_eval]; simp [hc₁_def]
+      -- f'(q₀) ≠ 0 (since χ_{q₀}(a) ≠ c₁ = χ_{q₁}(a))
+      have hf'_q₀ : f' q₀ ≠ 0 := by
+        rw [hf'_eval]
+        refine smul_ne_zero (sub_ne_zero.mpr ?_) hfq₀
+        simp only [hc₁_def]
+        exact_mod_cast ha
+      -- f' q = 0 whenever f q = 0
+      have hf'_zero : ∀ q, f q = 0 → f' q = 0 := by
+        intro q hfq; rw [hf'_eval, hfq, smul_zero]
+      -- Support of f' is strictly smaller: it's a subset of supp(f)\{q₁}
+      have hcard' : (Finset.univ.filter (fun q => q ≠ q₀ ∧ f' q ≠ 0)).card ≤ n := by
+        have hsub : Finset.univ.filter (fun q => q ≠ q₀ ∧ f' q ≠ 0) ⊆
+            (Finset.univ.filter (fun q => q ≠ q₀ ∧ f q ≠ 0)).erase q₁ := by
+          intro q hq
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+          rw [Finset.mem_erase]
+          refine ⟨fun heq => hq.2 (heq ▸ hf'_q₁), ?_⟩
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨hq.1, fun hfq => hq.2 (hf'_zero q hfq)⟩
+        calc _ ≤ _ := Finset.card_le_card hsub
+          _ ≤ ((Finset.univ.filter (fun q => q ≠ q₀ ∧ f q ≠ 0)).card - 1) := by
+              rw [Finset.card_erase_of_mem
+                (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq₁_ne, hq₁_nz⟩)]
+          _ ≤ n := by omega
+      exact ih f' hf'_mem hf'_q₀ hcard'
+
 open Classical in
 private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G]
     (φ : G →* MulAut A) (χ : A →* ℂˣ)
     (U : FDRep ℂ ↥(stabAux φ χ))
     (hU : CategoryTheory.Simple U) :
     CategoryTheory.Simple (inducedRepV φ χ U) := by
-  sorry
+  -- Bridge: inducedRepV φ χ U = FDRep.of (inducedRep_raw φ χ U) (same action)
+  suffices h : CategoryTheory.Simple (FDRep.of (inducedRep_raw φ χ U)) by
+    have heq : inducedRepV φ χ U = FDRep.of (inducedRep_raw φ χ U) := by
+      simp only [inducedRepV, inducedRep_raw]
+    rw [heq]; exact h
+  -- Use the IsSimpleModule → Simple bridge
+  set ρ := inducedRep_raw φ χ U
+  haveI : IsSimpleModule (MonoidAlgebra ℂ (A ⋊[φ] G)) (Representation.asModule ρ) :=
+    (Representation.irreducible_iff_isSimpleModule_asModule ρ).mp <| by
+    -- IsIrreducible = IsSimpleOrder (Subrepresentation ρ)
+    haveI : Nontrivial (Subrepresentation ρ) := by
+      rw [nontrivial_iff]
+      refine ⟨⊥, ⊤, fun h => ?_⟩
+      -- ⊥ = ⊤ means V = {0}. Get contradiction from Simple U.
+      -- Simple U implies 𝟙 U ≠ 0, hence ↥U is nontrivial
+      have hid := CategoryTheory.id_nonzero U
+      apply hid
+      -- Show 𝟙 U = 0 when carrier is subsingleton
+      have h_sub : (⊥ : Submodule ℂ ((G ⧸ stabAux φ χ) → ↥U)) =
+          (⊤ : Submodule ℂ ((G ⧸ stabAux φ χ) → ↥U)) := by
+        exact congrArg Subrepresentation.toSubmodule h
+      -- All elements of V are 0
+      have h_zero : ∀ v : (G ⧸ stabAux φ χ) → ↥U, v = 0 := by
+        intro v
+        have hv : v ∈ (⊤ : Submodule ℂ _) := Submodule.mem_top
+        rw [← h_sub] at hv
+        exact (Submodule.mem_bot (R := ℂ)).mp hv
+      -- In particular, ∀ u : ↥U, u = 0 (evaluate at any coset)
+      haveI : Subsingleton ↥U := by
+        constructor; intro a b
+        have : Pi.single (⟦(1 : G)⟧ : G ⧸ stabAux φ χ) a = 0 := h_zero _
+        have ha : a = 0 := by simpa [Pi.single, Function.update] using congr_fun this ⟦1⟧
+        have : Pi.single (⟦(1 : G)⟧ : G ⧸ stabAux φ χ) b = 0 := h_zero _
+        have hb : b = 0 := by simpa [Pi.single, Function.update] using congr_fun this ⟦1⟧
+        rw [ha, hb]
+      -- With ↥U subsingleton, 𝟙 U = 0
+      haveI : Subsingleton ↑U.V.obj := ‹Subsingleton ↥U›
+      ext; exact Subsingleton.elim _ _
+    exact {
+      eq_bot_or_eq_top := fun σ => by
+        by_cases hσ : σ = ⊥
+        · exact Or.inl hσ
+        · right
+          -- σ is nonzero, get f ∈ σ with f ≠ 0
+          have hσ_ne : ∃ f ∈ σ.toSubmodule, f ≠ 0 := by
+            by_contra h; push_neg at h
+            apply hσ
+            exact le_antisymm (fun x hx => (Submodule.mem_bot (R := ℂ)).mpr (h x hx)) bot_le
+          obtain ⟨f, hf_mem, hf_ne⟩ := hσ_ne
+          have ⟨q₀, hq₀⟩ : ∃ q₀, f q₀ ≠ 0 := by
+            by_contra h; push_neg at h; exact hf_ne (funext h)
+          -- Extract single-coset support using A-eigenspace trick
+          have hσ_inv : ∀ ag f, f ∈ σ.toSubmodule → ρ ag f ∈ σ.toSubmodule :=
+            fun ag f hf => σ.apply_mem_toSubmodule ag hf
+          obtain ⟨g, hg_mem, hg_nz, hg_supp⟩ :=
+            extract_single_support φ χ U σ.toSubmodule hσ_inv f hf_mem q₀ hq₀
+          -- g is in σ, supported only on q₀ with g(q₀) ≠ 0
+          -- Step 1: Move g to the identity coset [1] via G-action
+          set q₁ := (⟦(1 : G)⟧ : G ⧸ stabAux φ χ) with hq₁_def
+          -- Act by (1, q₀.out⁻¹) to move support from q₀ to q₀.out⁻¹ • q₀ = [1]
+          -- (ρ(1,s)(f) supported on s • q₀ when f supported on q₀)
+          set g₁ := ρ ⟨1, q₀.out⁻¹⟩ g with hg₁_def
+          have hg₁_mem : g₁ ∈ σ.toSubmodule := hσ_inv ⟨1, q₀.out⁻¹⟩ g hg_mem
+          have hg₁_supp_target : q₀.out⁻¹ • q₀ = q₁ := by
+            rw [hq₁_def, ← MulAction.Quotient.coe_smul_out (H := stabAux φ χ)]
+            simp [smul_eq_mul, inv_mul_cancel]
+          -- Step 2: σ contains all Pi.single q u
+          -- (main argument uses simplicity of U)
+          suffices h_single : ∀ q u, Pi.single q u ∈ σ.toSubmodule by
+            apply eq_top_iff.mpr
+            intro x _
+            have : x = ∑ q ∈ Finset.univ, Pi.single q (x q) := by
+              ext q; simp [Finset.sum_apply, Pi.single_apply]
+            rw [this]
+            exact σ.toSubmodule.sum_mem (fun q _ => h_single q (x q))
+          -- First show Pi.single q₁ u ∈ σ for all u, using simplicity of U
+          -- Define the subspace S = {u ∈ U | Pi.single q₁ u ∈ σ}
+          have h_at_q₁ : ∀ u, Pi.single q₁ u ∈ σ.toSubmodule := by
+            sorry
+          -- For any coset q, Pi.single q u ∈ σ
+          -- Transport via G-action: ρ(1, q.out) maps V_{q₁} to V_q
+          intro q u
+          -- The transition element when acting by (1, q.out) on V_{q₁}
+          -- is q₁.out ∈ H (stabilizer). Pre-apply its inverse.
+          -- q₁.out ∈ H since [q₁.out] = q₁ = [1]
+          have hq₁_out_mem : q₁.out ∈ stabAux φ χ := by
+            have := QuotientGroup.leftRel_apply.mp (Quotient.exact' (QuotientGroup.out_eq' q₁))
+            simpa using (stabAux φ χ).inv_mem this
+          set t : ↥(stabAux φ χ) := ⟨q₁.out, hq₁_out_mem⟩
+          set u' := FDRep.ρ U t⁻¹ u
+          -- Pi.single q₁ u' ∈ σ
+          have hu'_mem := h_at_q₁ u'
+          -- ρ(1, q.out)(Pi.single q₁ u') ∈ σ
+          have h_acted := hσ_inv ⟨1, q.out⟩ _ hu'_mem
+          -- ρ(1, q.out)(Pi.single q₁ u') = Pi.single q u
+          -- so Pi.single q u ∈ σ
+          sorry }
+  exact simple_of_isSimpleModule_asModule' ρ
 
 -- (ii) Orbit injectivity: if V(χ₁, U₁) ≅ V(χ₂, U₂) then χ₁, χ₂ are in the same orbit.
 -- Proof: the A-eigenvalues of V(χ, U) form the orbit of χ under G. An isomorphism
