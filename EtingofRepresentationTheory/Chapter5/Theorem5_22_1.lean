@@ -729,6 +729,12 @@ private theorem weight_trace_coefficient_identity
           (permTracePoly N σ).coeff μ := by
   sorry
 
+/-- **Trace formula**: The formal character of the Schur module equals
+`α⁻¹ · ∑_{σ ∈ S_n} c_λ(σ) · permTracePoly(N, σ)`.
+
+Proved by reducing to the coefficient-level identity
+`weight_trace_coefficient_identity`, which equates the weight space dimension
+to the normalized trace formula coefficient. -/
 theorem formalCharacter_schurModule_eq_sum_permTracePoly
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (α : ℚ) (hα : α ≠ 0)
