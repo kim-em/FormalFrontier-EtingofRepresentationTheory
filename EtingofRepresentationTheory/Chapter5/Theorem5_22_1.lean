@@ -664,13 +664,77 @@ projector against the diagonal GL action:
 where the trace of σ acting on `V^{⊗n}` restricted to a diagonal matrix `diag(x₁,…,x_N)`
 gives `permTracePoly N σ`. -/
 
+/-- The normalized Young symmetrizer `α⁻¹ • E` is an idempotent projection
+onto the Schur module submodule. -/
+private theorem youngSymEndomorphism_normalized_isProj
+    (k' : Type*) [Field k'] (N : ℕ) (lam : Fin N → ℕ)
+    (α : k') (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam)) :
+    LinearMap.IsProj (SchurModuleSubmodule k' N lam) (α⁻¹ • youngSymEndomorphism k' N lam) where
+  map_mem x := by
+    simp only [LinearMap.smul_apply, SchurModuleSubmodule, LinearMap.mem_range]
+    exact ⟨α⁻¹ • x, by rw [map_smul]⟩
+  map_id x hx := by
+    simp only [LinearMap.smul_apply]
+    rw [youngSymEndomorphism_apply_on_range k' N lam α hα_sq x hx]
+    rw [smul_smul, inv_mul_cancel₀ hα, one_smul]
+
+/-- The normalized Young symmetrizer is idempotent. -/
+private theorem youngSymEndomorphism_normalized_isIdempotent
+    (k' : Type*) [Field k'] (N : ℕ) (lam : Fin N → ℕ)
+    (α : k') (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam)) :
+    IsIdempotentElem (α⁻¹ • youngSymEndomorphism k' N lam) :=
+  (youngSymEndomorphism_normalized_isProj k' N lam α hα hα_sq).isIdempotentElem
+
+/-- The trace of the normalized Young symmetrizer on V⊗n equals the dimension of the
+Schur module. This follows from `IsProj.trace`. -/
+private theorem trace_normalized_youngSym_eq_finrank
+    (N : ℕ) (lam : Fin N → ℕ)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam)) :
+    LinearMap.trace ℚ _ (α⁻¹ • youngSymEndomorphism ℚ N lam) =
+      (Module.finrank ℚ (SchurModuleSubmodule ℚ N lam) : ℚ) :=
+  (youngSymEndomorphism_normalized_isProj ℚ N lam α hα hα_sq).trace
+
+/-- **Key coefficient identity**: the weight space dimension of `L_λ` at weight `μ` equals
+the trace formula coefficient `α⁻¹ · ∑_σ c_λ(σ) · [x^μ](permTracePoly N σ)`.
+
+This encodes the trace of the normalized Young symmetrizer restricted to the weight-μ
+component of the tensor power, using `IsProj.trace` to convert the trace of an idempotent
+into the dimension of its image.
+
+**Proof outline**: The standard tensor basis `{e_f : f ∈ (Fin n → Fin N)}` decomposes
+`V^{⊗n}` into weight spaces. The σ-action sends `e_f ↦ e_{f∘σ⁻¹}`, so the trace of σ
+on the weight-μ component equals `#{f : weight μ, f ∘ σ = f} = coeff_μ(permTracePoly)`.
+The Young symmetrizer `E = ∑ c(σ) · σ` preserves weight spaces (commuting with diagonal
+torus), and `(1/α)E` is idempotent with image `L_λ`. By `IsProj.trace`, the trace of
+`(1/α)E` on the weight-μ component equals `finrank((L_λ)_μ)`. -/
+private theorem weight_trace_coefficient_identity
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam))
+    (μ : Fin N →₀ ℕ) :
+    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
+      α⁻¹ * ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
+          (permTracePoly N σ).coeff μ := by
+  sorry
+
 /-- **Trace formula**: The formal character of the Schur module equals
 `α⁻¹ · ∑_{σ ∈ S_n} c_λ(σ) · permTracePoly(N, σ)`.
 
-This follows from `L_λ = Im(c_λ)` where `(1/α) · c_λ` is an idempotent
-projector onto `L_λ`, and the trace of a projector gives the character
-of its image. The trace of each permutation σ acting on the tensor power
-`V^{⊗n}` evaluated on diagonal matrices gives `permTracePoly N σ`. -/
+Proved by reducing to the coefficient-level identity
+`weight_trace_coefficient_identity`, which equates the weight space dimension
+to the normalized trace formula coefficient. -/
 theorem formalCharacter_schurModule_eq_sum_permTracePoly
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (α : ℚ) (hα : α ≠ 0)
@@ -681,7 +745,10 @@ theorem formalCharacter_schurModule_eq_sum_permTracePoly
       α⁻¹ • ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
         (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) •
           permTracePoly N σ := by
-  sorry
+  ext μ
+  rw [formalCharacter_coeff]
+  simp only [MvPolynomial.coeff_smul, smul_eq_mul, MvPolynomial.coeff_sum]
+  exact weight_trace_coefficient_identity k N lam hlam α hα hα_sq μ
 
 /-! #### Bridge: cycle type partition and power sum connection -/
 
