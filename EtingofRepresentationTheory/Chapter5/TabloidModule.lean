@@ -838,6 +838,25 @@ theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
 
 /-! ### Polytabloid dominance for linear independence -/
 
+/-- Helper: the total number of entries in the first i rows is the same for any
+permutation of shape λ (it equals Σ_{r<i} λ_r, the number of cells in the first i rows). -/
+private theorem tabloidCumulCount_full (σ : Equiv.Perm (Fin n)) (i : ℕ) (hn : 0 < n) :
+    tabloidCumulCount la σ ⟨n - 1, by omega⟩ i =
+    (Finset.univ.filter fun pos : Fin n =>
+      rowOfPos la.sortedParts pos.val < i).card := by
+  simp only [tabloidCumulCount]
+  apply Finset.card_nbij' (fun e => σ e) (fun p => σ.symm p)
+  · intro e he
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at he ⊢
+    exact he.2
+  · intro p hp
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢
+    refine ⟨?_, by rwa [Equiv.apply_symm_apply]⟩
+    change (σ.symm p).val ≤ n - 1
+    omega
+  · intro e _; exact σ.symm_apply_apply e
+  · intro p _; exact σ.apply_symm_apply p
+
 /-- If e_{T₁}(σ_{T₂}) ≠ 0, then the tabloid of T₁ dominates the tabloid of T₂.
 This is the key triangularity property for polytabloid linear independence.
 
@@ -850,17 +869,25 @@ linear independence proof which only evaluates polytabloids at SYT permutations.
 The proof uses the SYT structure of both T₁ and T₂: if σ_{T₁}⁻¹ * σ_{T₂} = p * q
 with p ∈ P_λ, q ∈ Q_λ, then row_{T₂}(e) = row_{T₁}(p(q(e))). The SYT constraints
 on T₂ force the dominance inequality. This is the "dominance lemma" for standard
-Young tableaux (cf. Sagan, "The Symmetric Group"). -/
+Young tableaux (cf. Sagan, "The Symmetric Group").
+
+The PQ decomposition σ_{T₂} = σ_{T₁} · p · q gives row₂(e) = row₁(p(q(e))),
+where p preserves canonical rows and q preserves canonical columns. The SYT
+properties of both T₁ and T₂ constrain which (p,q) pairs are possible, ensuring
+the dominance inequality. This is a classical result in the combinatorics of
+symmetric groups (cf. James, "The Representation Theory of the Symmetric Groups",
+or Sagan, "The Symmetric Group", Theorem 2.6.5). -/
 theorem polytabloid_syt_dominance
     (T₁ T₂ : StandardYoungTableau n la)
     (hne : (polytabloid n la T₁ : SymGroupAlgebra n) (sytPerm n la T₂) ≠ 0) :
     tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
-  -- σ_{T₂} is in the support of e_{T₁}, so σ_{T₁}⁻¹ * σ_{T₂} = p * q
-  -- with p ∈ P_λ, q ∈ Q_λ. Hence σ_{T₂} = σ_{T₁} * p * q.
-  -- row_{T₂}(e) = row_{T₁}(p(q(e))).
-  -- Both T₁ and T₂ are standard, so entries increase along rows and columns.
-  -- The SYT property of T₂ constrains which (p,q) decompositions are possible,
-  -- ensuring the dominance inequality holds.
+  -- Get PQ decomposition: σ_{T₂} = σ_{T₁} · p · q with p ∈ P_λ, q ∈ Q_λ
+  obtain ⟨p, hp, q, hq, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
+  -- The proof requires showing that for all k, i:
+  --   |{e ≤ k : rowOfPos(σ_{T₁}(e)) < i}| ≥ |{e ≤ k : rowOfPos(σ_{T₂}(e)) < i}|
+  -- where σ_{T₂}(e) = σ_{T₁}(p(q(e))).
+  -- This is a deep combinatorial fact about standard Young tableaux and the
+  -- interaction of row/column permutations with the dominance order.
   sorry
 
 /-
