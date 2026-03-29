@@ -1,5 +1,6 @@
 import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
+import EtingofRepresentationTheory.Chapter9.Theorem9_2_1
 import EtingofRepresentationTheory.Infrastructure.CornerRing
 import EtingofRepresentationTheory.Infrastructure.BasicAlgebraExistence
 import Mathlib.Algebra.Category.ModuleCat.Basic
@@ -9,8 +10,11 @@ import Mathlib.CategoryTheory.Endomorphism
 import Mathlib.CategoryTheory.Conj
 import Mathlib.CategoryTheory.Simple
 import Mathlib.CategoryTheory.Preadditive.AdditiveFunctor
+import Mathlib.CategoryTheory.Preadditive.Projective.Basic
+import Mathlib.CategoryTheory.Preadditive.Projective.Preserves
 import Mathlib.Algebra.Category.ModuleCat.Biproducts
 import Mathlib.Algebra.Category.ModuleCat.Limits
+import Mathlib.Algebra.Category.ModuleCat.Projective
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 
 universe u v
@@ -208,19 +212,73 @@ The proof decomposes into three pieces:
 3. Assembly: B₁ᵐᵒᵖ ≅ End(B₁) ≅ End(B₂) ≅ B₂ᵐᵒᵖ → B₁ ≅ B₂
 -/
 
+/-! ## Sub-lemmas for basic_morita_regular_module_iso
+
+The proof that F(B₁) ≅ B₂ for basic Morita-equivalent algebras decomposes into:
+1. F preserves projectivity (Mathlib: `Functor.preservesProjectiveObjects_of_isEquivalence`)
+2. For basic B, the regular module B decomposes as ⊕ᵢ Pᵢ (one indecomposable
+   projective per simple), via `Theorem_9_2_1_i` and `isInternal_leftIdeals`
+3. F preserves indecomposability (equivalence reflects complements)
+4. The indecomposable projective summands of F(B₁) match those of B₂
+   (using `indecomposable_projective_iso_of_hom` and `simple_of_equivalence`)
+5. Assembly: ⊕ F(Pᵢ) ≅ ⊕ Qⱼ gives F(B₁) ≅ B₂
+-/
+
+/-- An equivalence of module categories preserves projectivity of objects.
+This wraps Mathlib's `Functor.preservesProjectiveObjects_of_isEquivalence`. -/
+private instance equiv_preserves_projective
+    {R : Type u} [Ring R] {S : Type u} [Ring S]
+    (F : ModuleCat.{u} R ≌ ModuleCat.{u} S) (P : ModuleCat.{u} R)
+    [Projective P] : Projective (F.functor.obj P) := by
+  haveI : F.functor.IsEquivalence := F.isEquivalence_functor
+  exact Functor.projective_obj F.functor P
+
+/-- The regular module is projective in ModuleCat. -/
+private instance regularModuleProjective (R : Type u) [Ring R] :
+    Projective (ModuleCat.of R R) :=
+  ModuleCat.projective_of_categoryTheory_projective _
+
 /-- For basic Morita-equivalent algebras, the regular modules correspond under the
 equivalence. More precisely, if `F : ModuleCat B₁ ≌ ModuleCat B₂` and both `B₁`
 and `B₂` are basic, then `F(B₁) ≅ B₂` as `B₂`-modules.
 
-This uses: `F` bijects simple modules (`simple_of_equivalence`), preserves
-projective covers, and for basic algebras the regular module is the unique
-projective module with head `≅ k^n` (one copy of each simple). -/
+### Proof strategy (Krull-Schmidt + projective cover matching)
+
+1. **Decompose**: For basic Bᵢ over alg closed k, `Theorem_9_2_1_i` gives
+   indecomposable projectives Pᵢ(j) with Hom(Pᵢ(j), Sⱼ) = δⱼₖ, and
+   `isInternal_leftIdeals` gives Bᵢ ≅ ⊕ⱼ Pᵢ(j).
+
+2. **Preserve**: The equivalence F sends each P₁(j) to an indecomposable projective
+   B₂-module F(P₁(j)). F bijects simples (`simple_of_equivalence`).
+
+3. **Match**: By `indecomposable_projective_iso_of_hom`, F(P₁(j)) ≅ P₂(σ(j))
+   for some bijection σ, because both map nonzero to the same simple.
+
+4. **Assemble**: F(B₁) ≅ ⊕ F(P₁(j)) ≅ ⊕ P₂(σ(j)) ≅ ⊕ P₂(j) ≅ B₂.
+
+### Sub-lemma status
+
+Steps 1-2 require bridging module-theoretic decompositions (submodules, types with
+Module instances) to categorical biproducts in ModuleCat. This bridge is the main
+missing infrastructure. Step 3 uses existing `indecomposable_projective_iso_of_hom`.
+Step 4 is categorical biproduct manipulation. -/
 private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
     (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
     F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
+  -- F(B₁) is projective in ModuleCat B₂
+  haveI : Projective (F.functor.obj (ModuleCat.of B₁ B₁)) :=
+    equiv_preserves_projective F _
+  -- The core matching argument: both F(B₁) and B₂ are projective B₂-modules
+  -- with the same indecomposable summand structure (one of each indecomposable
+  -- projective, since both B₁ and B₂ are basic). By Krull-Schmidt uniqueness
+  -- of indecomposable projective covers, the summands match pairwise.
+  -- See issue decomposition for the missing infrastructure:
+  -- (a) internal direct sum ↔ categorical biproduct bridge
+  -- (b) equivalence preserves indecomposability of ModuleCat objects
+  -- (c) composition of pairwise isos gives global iso
   sorry
 
 /-- The functor of an equivalence between module categories is additive.
