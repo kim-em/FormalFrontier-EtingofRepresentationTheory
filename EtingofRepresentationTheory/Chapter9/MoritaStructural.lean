@@ -6,7 +6,11 @@ import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.Algebra.Algebra.Opposite
 import Mathlib.CategoryTheory.Equivalence
 import Mathlib.CategoryTheory.Endomorphism
+import Mathlib.CategoryTheory.Conj
 import Mathlib.CategoryTheory.Simple
+import Mathlib.CategoryTheory.Preadditive.AdditiveFunctor
+import Mathlib.Algebra.Category.ModuleCat.Biproducts
+import Mathlib.Algebra.Category.ModuleCat.Limits
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 
 universe u v
@@ -219,13 +223,14 @@ private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
     F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
   sorry
 
-/-- The endomorphism ring isomorphism induced by a categorical equivalence and
-an isomorphism of objects: given `F : C ≌ D` and `α : F(X) ≅ Y`, we get
-`End(X) ≃ₐ[k] End(Y)` (as k-algebras, not just rings).
+/-- The functor of an equivalence between module categories is additive.
+An equivalence functor is full and preserves binary products, hence is additive. -/
+private noncomputable instance equivFunctorAdditive
+    {R : Type u} [Ring R] {S : Type u} [Ring S]
+    (E : ModuleCat.{u} R ≌ ModuleCat.{u} S) : E.functor.Additive := by
+  haveI : E.functor.IsEquivalence := E.isEquivalence_functor
+  exact Functor.additive_of_preserves_binary_products E.functor
 
-This combines: (1) `F` gives `End(X) ≃* End(F(X))` (fully faithful), (2) `α`
-gives `End(F(X)) ≃ₐ End(Y)` (conjugation), and (3) any equivalence of module
-categories over k-algebras is automatically k-linear on endomorphism rings. -/
 private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂]
@@ -237,7 +242,37 @@ private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
   -- (b) The equivalence F gives End(X) ≃* End(F(X)) (fully faithful)
   -- (c) The iso α gives End(F(B₁)) ≃ End(B₂) (conjugation)
   -- We construct the composite as an AlgEquiv.
-  sorry
+  haveI := equivFunctorAdditive F
+  let X := ModuleCat.of B₁ B₁
+  let Y := ModuleCat.of B₂ B₂
+  -- The fully faithful mulEquivEnd is a ring equiv when the functor is additive
+  let fRing : End X ≃+* End (F.functor.obj X) := {
+    F.fullyFaithfulFunctor.mulEquivEnd X with
+    map_add' := fun _ _ => F.functor.map_add
+  }
+  -- α.conj is a ring equiv in the preadditive category ModuleCat B₂
+  let αRing : End (F.functor.obj X) ≃+* End Y := {
+    α.conj with
+    map_add' := fun f g => by
+      change α.inv ≫ (f + g) ≫ α.hom = (α.inv ≫ f ≫ α.hom) + (α.inv ≫ g ≫ α.hom)
+      rw [CategoryTheory.Preadditive.add_comp, CategoryTheory.Preadditive.comp_add]
+  }
+  -- endRingEquiv converts categorical End ≃+* Module.End
+  let eB₁ := ModuleCat.endRingEquiv X
+  let eB₂ := ModuleCat.endRingEquiv Y
+  -- Compose to get the full RingEquiv
+  let re : Module.End B₁ B₁ ≃+* Module.End B₂ B₂ :=
+    eB₁.symm.trans (fRing.trans (αRing.trans eB₂))
+  -- Upgrade to AlgEquiv: the composite preserves algebraMap k
+  -- algebraMap k (Module.End R M) c = c • LinearMap.id, and the functor+conjugation
+  -- preserves this because the equivalence is k-linear on endomorphism rings.
+  -- This requires the Eilenberg-Watts theorem in full generality; we sorry this step.
+  exact AlgEquiv.ofRingEquiv (f := re) (fun c => by
+    -- Need: re (algebraMap k (Module.End B₁ B₁) c) = algebraMap k (Module.End B₂ B₂) c
+    -- i.e., the ring equiv preserves k-scalar endomorphisms.
+    -- This holds because equivalences of module categories over k-algebras are k-linear
+    -- (Eilenberg-Watts theorem), but proving this requires substantial infrastructure.
+    sorry)
 
 private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
