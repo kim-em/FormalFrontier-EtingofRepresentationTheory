@@ -14,6 +14,8 @@ import Mathlib.Algebra.Category.ModuleCat.Biproducts
 import Mathlib.LinearAlgebra.Projection
 import Mathlib.Algebra.Category.ModuleCat.Limits
 import Mathlib.FieldTheory.IsAlgClosed.Basic
+import Mathlib.Algebra.Category.ModuleCat.Algebra
+import Mathlib.CategoryTheory.Linear.LinearFunctor
 
 universe u v
 
@@ -50,6 +52,7 @@ correspondence.
 -/
 
 open CategoryTheory CategoryTheory.Limits
+open scoped ModuleCat
 
 namespace Etingof
 
@@ -254,6 +257,29 @@ private noncomputable instance equivFunctorAdditive
   haveI : E.functor.IsEquivalence := E.isEquivalence_functor
   exact Functor.additive_of_preserves_binary_products E.functor
 
+/-- An equivalence of module categories over k-algebras is k-linear on Hom spaces.
+
+This is a consequence of the Eilenberg-Watts theorem: any cocontinuous additive functor
+`F : ModuleCat B₁ ⥤ ModuleCat B₂` is naturally isomorphic to `(- ⊗_{B₁} M)` for some
+`(B₁, B₂)`-bimodule `M`. Since tensor product functors are k-linear, and equivalences
+are cocontinuous, any equivalence functor is k-linear.
+
+Alternatively, for the corner functor `M ↦ eM` of a full idempotent, k-linearity is
+immediate from the centrality of `algebraMap k B`. The general case follows since any
+module category equivalence is naturally isomorphic to a corner functor (Morita I). -/
+private noncomputable instance equivFunctorLinear
+    {B₁ : Type u} [Ring B₁] [Algebra k B₁]
+    {B₂ : Type u} [Ring B₂] [Algebra k B₂]
+    (E : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [E.functor.Additive] :
+    E.functor.Linear k := by
+  rw [Functor.linear_iff]
+  intro X r
+  -- Need: E.functor.map (r • 𝟙 X) = r • 𝟙 (E.functor.obj X)
+  -- This says E preserves the k-scalar action on identity morphisms.
+  -- In ModuleCat B, r • 𝟙_M is "left mult by algebraMap k B r" on M.
+  -- Proof requires Eilenberg-Watts or explicit bimodule construction.
+  sorry
+
 private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂]
@@ -266,6 +292,7 @@ private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
   -- (c) The iso α gives End(F(B₁)) ≃ End(B₂) (conjugation)
   -- We construct the composite as an AlgEquiv.
   haveI := equivFunctorAdditive F
+  haveI := equivFunctorLinear (k := k) F
   let X := ModuleCat.of B₁ B₁
   let Y := ModuleCat.of B₂ B₂
   -- The fully faithful mulEquivEnd is a ring equiv when the functor is additive
@@ -287,14 +314,20 @@ private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
   let re : Module.End B₁ B₁ ≃+* Module.End B₂ B₂ :=
     eB₁.symm.trans (fRing.trans (αRing.trans eB₂))
   -- Upgrade to AlgEquiv: the composite preserves algebraMap k
-  -- algebraMap k (Module.End R M) c = c • LinearMap.id, and the functor+conjugation
-  -- preserves this because the equivalence is k-linear on endomorphism rings.
-  -- This requires the Eilenberg-Watts theorem in full generality; we sorry this step.
+  -- Key insight: algebraMap k (End B M) c = c • 𝟙_M in the k-linear category.
+  -- The composite re maps this through:
+  --   eB₁.symm: c • id ↦ c • 𝟙_X (endRingEquiv preserves k-scalar action)
+  --   fRing:    c • 𝟙_X ↦ c • 𝟙_{F(X)} (F is k-linear by equivFunctorLinear)
+  --   αRing:    c • 𝟙_{F(X)} ↦ c • 𝟙_Y (conjugation preserves scalars in linear cat)
+  --   eB₂:     c • 𝟙_Y ↦ c • id = algebraMap k (End B₂ B₂) c
+  -- Upgrade to AlgEquiv by showing re preserves the k-algebra map.
+  -- The proof chains: algebraMap k _ c = c • 1 ↦ c • 𝟙 X ↦ c • 𝟙 (F.obj X) ↦ c • 𝟙 Y ↦ c • 1
+  -- Each step uses k-linearity of the category structure and functor.
+  -- Sorry: requires resolving a Lean typeclass diamond between
+  -- `LieAlgebra.ofAssociativeAlgebra.toModule` and `RestrictScalars.module`
+  -- for `Module k B` instances, combined with the `equivFunctorLinear` sorry
+  -- (Eilenberg-Watts). Both are part of the same conceptual gap.
   exact AlgEquiv.ofRingEquiv (f := re) (fun c => by
-    -- Need: re (algebraMap k (Module.End B₁ B₁) c) = algebraMap k (Module.End B₂ B₂) c
-    -- i.e., the ring equiv preserves k-scalar endomorphisms.
-    -- This holds because equivalences of module categories over k-algebras are k-linear
-    -- (Eilenberg-Watts theorem), but proving this requires substantial infrastructure.
     sorry)
 
 private lemma basic_morita_algEquiv [IsAlgClosed k]
