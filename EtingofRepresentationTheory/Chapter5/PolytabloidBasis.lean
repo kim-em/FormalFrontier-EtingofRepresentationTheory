@@ -436,6 +436,79 @@ theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
   sorry
 
+/-! ### Sorted comparison lemma -/
+
+/-- **Sorted comparison lemma**: if A and B are finsets of the same cardinality m with an
+injection f : Fin m → A such that f(i) < B.orderEmbOfFin(i) for all i, then the c-th
+smallest element of A is strictly less than the c-th smallest element of B.
+
+The proof is by contradiction: assuming B[c] ≤ A[c], at most c values of j have f(j) < B[c]
+(via injectivity into {a ∈ A | a < A[c]}), while all remaining ≥ m-c values must have j > c
+(from the pointwise bound), but {j | j > c} has only m-1-c elements. -/
+private theorem orderEmbOfFin_lt_of_injective_lt [LinearOrder α]
+    {A B : Finset α} {m : ℕ} (hA : A.card = m) (hB : B.card = m)
+    (f : Fin m → α) (hfA : ∀ i, f i ∈ A) (hf_inj : Function.Injective f)
+    (hlt : ∀ i, f i < B.orderEmbOfFin hB i) (c : Fin m) :
+    A.orderEmbOfFin hA c < B.orderEmbOfFin hB c := by
+  by_contra hge
+  push_neg at hge
+  -- hge : B.orderEmbOfFin hB c ≤ A.orderEmbOfFin hA c
+  set β := B.orderEmbOfFin hB c
+  -- Step 1: For j with f(j) ≥ β, we must have j > c
+  have above_c : ∀ j : Fin m, β ≤ f j → c < j := by
+    intro j hfj
+    have h1 : β < B.orderEmbOfFin hB j := lt_of_le_of_lt hfj (hlt j)
+    exact (B.orderEmbOfFin hB).lt_iff_lt.mp h1
+  -- Step 2: The "high" set {j | β ≤ f j} is contained in Ioi c
+  have hi_sub : Finset.univ.filter (fun j : Fin m => β ≤ f j) ⊆ Finset.Ioi c := by
+    intro j hj
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hj
+    exact Finset.mem_Ioi.mpr (above_c j hj)
+  -- Step 3: The "low" set {j | f j < β} maps injectively into A ∩ {a | a < β}
+  have lo_inj : (Finset.univ.filter (fun j : Fin m => f j < β)).card ≤
+      (A.filter (· < β)).card := by
+    apply Finset.card_le_card_of_injOn f
+    · intro j hj
+      simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hj
+      exact Finset.mem_filter.mpr ⟨hfA j, hj⟩
+    · exact Set.InjOn.mono (Set.subset_univ _) (Function.Injective.injOn hf_inj)
+  -- Step 4: #{a ∈ A | a < β} ≤ c, because a < β ≤ A[c] implies a < A[c],
+  -- and the elements of A strictly below A[c] are exactly {A[0], ..., A[c-1]}
+  have filter_le_c : (A.filter (· < β)).card ≤ c.val := by
+    have sub : A.filter (· < β) ⊆ A.filter (· < A.orderEmbOfFin hA c) := by
+      apply Finset.monotone_filter_right A
+      intro a _ ha; exact lt_of_lt_of_le ha hge
+    have hsub : A.filter (· < A.orderEmbOfFin hA c) ⊆
+        (Finset.Iio c).image (A.orderEmbOfFin hA) := by
+      intro a ha
+      rw [Finset.mem_filter] at ha
+      have ⟨ha_mem, ha_lt⟩ := ha
+      have ha_range : a ∈ Set.range (A.orderEmbOfFin hA) := by
+        rw [Finset.range_orderEmbOfFin]; exact ha_mem
+      obtain ⟨j, rfl⟩ := ha_range
+      exact Finset.mem_image.mpr ⟨j, Finset.mem_Iio.mpr
+        ((A.orderEmbOfFin hA).lt_iff_lt.mp ha_lt), rfl⟩
+    calc (A.filter (· < β)).card
+        ≤ (A.filter (· < A.orderEmbOfFin hA c)).card := Finset.card_le_card sub
+      _ ≤ ((Finset.Iio c).image (A.orderEmbOfFin hA)).card := Finset.card_le_card hsub
+      _ ≤ (Finset.Iio c).card := Finset.card_image_le
+      _ = c.val := @Fin.card_Iio m c
+  -- Step 5: Counting contradiction
+  have sum_eq : (Finset.univ.filter (fun j : Fin m => f j < β)).card +
+      (Finset.univ.filter (fun j : Fin m => ¬ f j < β)).card = m := by
+    have := @Finset.card_filter_add_card_filter_not _ (Finset.univ : Finset (Fin m))
+      (fun j : Fin m => f j < β) _ _
+    rwa [Finset.card_univ, Fintype.card_fin] at this
+  have hi_card : (Finset.univ.filter (fun j : Fin m => ¬ f j < β)).card ≤ m - 1 - c.val := by
+    calc (Finset.univ.filter (fun j : Fin m => ¬ f j < β)).card
+        ≤ (Finset.Ioi c).card := by
+          apply Finset.card_le_card
+          intro j hj
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and, not_lt] at hj
+          exact Finset.mem_Ioi.mpr (above_c j hj)
+      _ = m - 1 - c.val := @Fin.card_Ioi m c
+  omega
+
 /-! ### Straightening infrastructure: row absorption and column inversions -/
 
 /-- Left multiplication by a row permutation is absorbed by the Young symmetrizer:
