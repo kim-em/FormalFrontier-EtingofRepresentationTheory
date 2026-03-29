@@ -3,7 +3,9 @@ import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
 import EtingofRepresentationTheory.Infrastructure.BasicAlgebraExistence
 import Mathlib.Algebra.Category.ModuleCat.Basic
+import Mathlib.Algebra.Algebra.Opposite
 import Mathlib.CategoryTheory.Equivalence
+import Mathlib.CategoryTheory.Endomorphism
 import Mathlib.CategoryTheory.Simple
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 
@@ -157,7 +159,7 @@ theorem IsIdempotentElem.eq_one_of_isNilpotent_one_sub
 
 variable {k : Type u} [Field k]
 
-/-- Two basic algebras that are Morita equivalent are isomorphic as `k`-algebras.
+/- Two basic algebras that are Morita equivalent are isomorphic as `k`-algebras.
 
 This is the uniqueness component of the Morita structural theorem.
 
@@ -192,13 +194,71 @@ The main missing infrastructure is the primitive idempotent decomposition of
 basic algebras and the characterization of the semisimple head `B/JB`.
 See also `exists_full_idempotent_basic_corner` in BasicAlgebraExistence.lean
 which constructs this decomposition for the Artin-Wedderburn quotient. -/
+
+/-
+## Implementation of basic_morita_algEquiv
+
+The proof decomposes into three pieces:
+1. `basic_morita_regular_module_iso`: F(B₁) ≅ B₂ as B₂-modules (the hard step)
+2. `equivEndAlgEquiv`: End_{B₁}(B₁) ≃ₐ[k] End_{B₂}(B₂) via the equivalence
+3. Assembly: B₁ᵐᵒᵖ ≅ End(B₁) ≅ End(B₂) ≅ B₂ᵐᵒᵖ → B₁ ≅ B₂
+-/
+
+/-- For basic Morita-equivalent algebras, the regular modules correspond under the
+equivalence. More precisely, if `F : ModuleCat B₁ ≌ ModuleCat B₂` and both `B₁`
+and `B₂` are basic, then `F(B₁) ≅ B₂` as `B₂`-modules.
+
+This uses: `F` bijects simple modules (`simple_of_equivalence`), preserves
+projective covers, and for basic algebras the regular module is the unique
+projective module with head `≅ k^n` (one copy of each simple). -/
+private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
+    (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
+    (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
+    (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
+  sorry
+
+/-- The endomorphism ring isomorphism induced by a categorical equivalence and
+an isomorphism of objects: given `F : C ≌ D` and `α : F(X) ≅ Y`, we get
+`End(X) ≃ₐ[k] End(Y)` (as k-algebras, not just rings).
+
+This combines: (1) `F` gives `End(X) ≃* End(F(X))` (fully faithful), (2) `α`
+gives `End(F(X)) ≃ₐ End(Y)` (conjugation), and (3) any equivalence of module
+categories over k-algebras is automatically k-linear on endomorphism rings. -/
+private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
+    (B₁ : Type u) [Ring B₁] [Algebra k B₁]
+    (B₂ : Type u) [Ring B₂] [Algebra k B₂]
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂)
+    (α : F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂) :
+    Module.End B₁ B₁ ≃ₐ[k] Module.End B₂ B₂ := by
+  -- The proof combines three pieces:
+  -- (a) endRingEquiv converts between categorical End and Module.End
+  -- (b) The equivalence F gives End(X) ≃* End(F(X)) (fully faithful)
+  -- (c) The iso α gives End(F(B₁)) ≃ End(B₂) (conjugation)
+  -- We construct the composite as an AlgEquiv.
+  sorry
+
 private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
     (h : MoritaEquivalent B₁ B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
-  sorry
+  obtain ⟨F⟩ := h
+  -- Step 1: F sends regular B₁-module to regular B₂-module (for basic algebras)
+  have hα := basic_morita_regular_module_iso B₁ B₂ _hB₁ _hB₂ F
+  -- Step 2: Endomorphism ring isomorphism: End_{B₁}(B₁) ≃ₐ[k] End_{B₂}(B₂)
+  have hEnd := equivEndAlgEquiv (k := k) B₁ B₂ F hα
+  -- Step 3: B₁ᵐᵒᵖ ≃ₐ[k] End_{B₁}(B₁) and End_{B₂}(B₂) ≃ₐ[k] B₂ᵐᵒᵖ
+  have hB1op : B₁ᵐᵒᵖ ≃ₐ[k] Module.End B₁ B₁ :=
+    AlgEquiv.moduleEndSelf (A := B₁) k
+  have hB2op : B₂ᵐᵒᵖ ≃ₐ[k] Module.End B₂ B₂ :=
+    AlgEquiv.moduleEndSelf (A := B₂) k
+  -- Step 4: Compose to get B₁ᵐᵒᵖ ≃ₐ[k] B₂ᵐᵒᵖ
+  have hOp : B₁ᵐᵒᵖ ≃ₐ[k] B₂ᵐᵒᵖ := hB1op.trans (hEnd.trans hB2op.symm)
+  -- Step 5: Transfer from opposite to original
+  exact ⟨AlgEquiv.unop hOp⟩
 
 /-- **Morita structural theorem**: If `A` is a finite-dimensional `k`-algebra
 over an algebraically closed field and `B` is a basic finite-dimensional
