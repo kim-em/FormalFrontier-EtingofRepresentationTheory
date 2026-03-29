@@ -703,19 +703,91 @@ private theorem trace_normalized_youngSym_eq_finrank
       (Module.finrank ℚ (SchurModuleSubmodule ℚ N lam) : ℚ) :=
   (youngSymEndomorphism_normalized_isProj ℚ N lam α hα hα_sq).trace
 
+/-! #### Tensor weight infrastructure for the coefficient identity -/
+
+/-- The weight of a tensor basis element `f : Fin n → Fin N`: counts how many times
+each color `i : Fin N` appears in the coloring `f`. -/
+private def tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) : Fin N →₀ ℕ where
+  toFun i := (Finset.univ.filter (fun j => f j = i)).card
+  support := Finset.univ.filter (fun i => 0 < (Finset.univ.filter (fun j => f j = i)).card)
+  mem_support_toFun i := by simp [Finset.card_pos, Finset.filter_nonempty_iff]
+
+/-- The monomial `∏_j X_{f(j)}` equals `X^{tensorWeight f}`. -/
+private lemma prod_X_eq_monomial_tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) :
+    ∏ j : Fin n, (MvPolynomial.X (f j) : MvPolynomial (Fin N) ℚ) =
+      MvPolynomial.monomial (tensorWeight N f) 1 := by
+  -- ∏_j X_{f(j)} = ∏_{i : Fin N} X_i ^ #{j : f(j) = i}
+  rw [← Finset.prod_fiberwise_of_maps_to (g := f) (fun _ _ => Finset.mem_univ _)]
+  -- Within each fiber, X(f j) = X i since f j = i
+  have hfiber : ∀ i ∈ Finset.univ (α := Fin N),
+      ∏ j ∈ Finset.univ.filter (fun k => f k = i),
+        (MvPolynomial.X (f j) : MvPolynomial (Fin N) ℚ) =
+      MvPolynomial.X i ^ (Finset.univ.filter (fun k => f k = i)).card := by
+    intro i _
+    rw [Finset.prod_congr rfl (fun j hj => by rw [(Finset.mem_filter.mp hj).2]),
+        Finset.prod_const]
+  rw [Finset.prod_congr rfl hfiber]
+  -- Goal: ∏ i, X i ^ card(filter(f = i)) = monomial (tensorWeight N f) 1
+  symm
+  rw [MvPolynomial.monomial_eq, map_one, one_mul,
+    Finsupp.prod_fintype _ _ (fun _ => pow_zero _)]
+  simp [tensorWeight]
+
+/-- The coefficient of `x^μ` in a monomial `x^w` is `1` if `w = μ` and `0` otherwise. -/
+private lemma coeff_monomial_one (N : ℕ) (w μ : Fin N →₀ ℕ) :
+    (MvPolynomial.monomial w (1 : ℚ)).coeff μ = if w = μ then 1 else 0 := by
+  simp [MvPolynomial.coeff_monomial]
+
+/-- The coefficient of `x^μ` in `permTracePoly N σ` equals the number of `σ`-fixed
+colorings `f : Fin n → Fin N` with `tensorWeight N f = μ`. -/
+private lemma permTracePoly_coeff_eq_card (N : ℕ) {n : ℕ}
+    (σ : Equiv.Perm (Fin n)) (μ : Fin N →₀ ℕ) :
+    (permTracePoly N σ).coeff μ =
+      ((Finset.univ.filter fun f : Fin n → Fin N =>
+        (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ).card : ℚ) := by
+  unfold permTracePoly
+  rw [MvPolynomial.coeff_sum]
+  -- Each summand contributes 1 if weight = μ, else 0
+  simp_rw [prod_X_eq_monomial_tensorWeight, coeff_monomial_one]
+  -- ∑_{f ∈ fixed} (if weight(f) = μ then 1 else 0) = #{f ∈ fixed : weight(f) = μ}
+  rw [Finset.sum_boole, Nat.cast_inj]
+  -- LHS: (fixed.filter(weight = μ)).card, RHS: (univ.filter(fixed ∧ weight = μ)).card
+  rw [Finset.filter_filter]
+
+/-- **Weight space dimension = trace formula**: The finrank of the `k`-weight space
+of the Schur module equals the ℚ-valued normalized trace on the tensor weight subspace.
+
+This encapsulates the following chain of reasoning:
+(a) Standard tensor basis elements `e_f` are eigenvectors for the diagonal torus with
+    eigenvalue `t^(#{j : f(j) = i})` for `diagUnit(i, t)`.
+(b) The weight-`μ` subspace of `V^{⊗n}` is `span{e_f : tensorWeight f = μ}`.
+(c) The Young symmetrizer `E` preserves weight spaces (it commutes with the torus).
+(d) `(1/α)E` restricted to the weight-`μ` subspace is an `IsProj` onto the weight-`μ`
+    subspace of `L_λ = Im(E)`.
+(e) By `IsProj.trace`, `finrank(Im) = tr((1/α)E|_{W_μ})`.
+(f) `tr((1/α)E|_{W_μ}) = (1/α) · ∑_σ c_λ(σ) · #{f : weight(f) = μ, f ∘ σ = f}` by
+    linearity and the fact that σ acts as a permutation matrix on the standard basis.
+(g) Base change: `finrank_k = finrank_ℚ` because the Young symmetrizer is defined
+    over ℤ and the rank of an integer matrix is field-independent in char 0. -/
+private lemma finrank_weight_eq_card_sum
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam))
+    (μ : Fin N →₀ ℕ) :
+    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
+      α⁻¹ * ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
+          ((Finset.univ.filter fun f : Fin (∑ i, lam i) → Fin N =>
+            (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ).card : ℚ) := by
+  sorry
+
 /-- **Key coefficient identity**: the weight space dimension of `L_λ` at weight `μ` equals
 the trace formula coefficient `α⁻¹ · ∑_σ c_λ(σ) · [x^μ](permTracePoly N σ)`.
 
-This encodes the trace of the normalized Young symmetrizer restricted to the weight-μ
-component of the tensor power, using `IsProj.trace` to convert the trace of an idempotent
-into the dimension of its image.
-
-**Proof outline**: The standard tensor basis `{e_f : f ∈ (Fin n → Fin N)}` decomposes
-`V^{⊗n}` into weight spaces. The σ-action sends `e_f ↦ e_{f∘σ⁻¹}`, so the trace of σ
-on the weight-μ component equals `#{f : weight μ, f ∘ σ = f} = coeff_μ(permTracePoly)`.
-The Young symmetrizer `E = ∑ c(σ) · σ` preserves weight spaces (commuting with diagonal
-torus), and `(1/α)E` is idempotent with image `L_λ`. By `IsProj.trace`, the trace of
-`(1/α)E` on the weight-μ component equals `finrank((L_λ)_μ)`. -/
+Proved by combining `finrank_weight_eq_card_sum` (trace formula) with
+`permTracePoly_coeff_eq_card` (coefficient = counting). -/
 private theorem weight_trace_coefficient_identity
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (α : ℚ) (hα : α ≠ 0)
@@ -727,7 +799,12 @@ private theorem weight_trace_coefficient_identity
       α⁻¹ * ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
         (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
           (permTracePoly N σ).coeff μ := by
-  sorry
+  rw [finrank_weight_eq_card_sum k N lam hlam α hα hα_sq μ]
+  congr 1
+  apply Finset.sum_congr rfl
+  intro σ _
+  congr 1
+  exact (permTracePoly_coeff_eq_card N σ μ).symm
 
 /-- **Trace formula**: The formal character of the Schur module equals
 `α⁻¹ · ∑_{σ ∈ S_n} c_λ(σ) · permTracePoly(N, σ)`.
