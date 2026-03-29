@@ -1173,6 +1173,111 @@ representation), this gives the representation-level reduction.
 
 This is the content of the book's proof of Theorem 6.8.1 + Corollary 6.8.2. -/
 
+/-! ### Infrastructure: Subsingleton preservation and Fintype derivation
+
+For Dynkin quiver orientations, each Hom type has at most one element (simple graph).
+This `Subsingleton` property is preserved by `reversedAtVertex`, enabling `Fintype`
+derivation for `ArrowsInto` which is needed by Proposition 6.6.8. -/
+
+/-- `Subsingleton` for Hom types is preserved by `reversedAtVertex`.
+Each case of `ReversedAtVertexHom` reduces to an original Hom type. -/
+private lemma subsingleton_hom_reversedAtVertex
+    {Q : Quiver (Fin n)} [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    (p : Fin n) (a b : Fin n) :
+    Subsingleton (@Quiver.Hom (Fin n) (@reversedAtVertex (Fin n) _ Q p) a b) := by
+  sorry
+
+/-- `Subsingleton` for Hom types is preserved by `iteratedReversedAtVertices`. -/
+private lemma subsingleton_hom_iteratedReversed
+    {Q : Quiver (Fin n)} [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    (vs : List (Fin n)) (a b : Fin n) :
+    Subsingleton (@Quiver.Hom (Fin n) (iteratedReversedAtVertices Q vs) a b) := by
+  sorry
+
+/-- Derive `Fintype` for each Hom type from `Subsingleton`, classically. -/
+private noncomputable def fintypeHomOfSubsingleton
+    {V : Type*} [Quiver V] [∀ (a b : V), Subsingleton (@Quiver.Hom V _ a b)]
+    (a b : V) : Fintype (@Quiver.Hom V _ a b) := by
+  classical
+  exact if h : Nonempty (a ⟶ b)
+    then Fintype.ofSubsingleton h.some
+    else @Fintype.ofIsEmpty _ (not_nonempty_iff.mp h)
+
+/-- Derive `Fintype (ArrowsInto Q i)` from `Subsingleton` Hom types on `Fin n`. -/
+private noncomputable def fintypeArrowsIntoOfSubsingleton
+    {Q : Quiver (Fin n)} [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    (i : Fin n) : Fintype (@ArrowsInto (Fin n) Q i) := by
+  haveI : ∀ (a : Fin n), Fintype (@Quiver.Hom (Fin n) Q a i) :=
+    fun a => fintypeHomOfSubsingleton a i
+  exact Sigma.instFintype
+
+/-- `Module.Free` for the reflected representation at v ≠ i.
+At v ≠ i, F⁺ᵢ(ρ).obj v = ρ.obj v, so Free transfers. -/
+private lemma reflFunctorPlus_free_ne
+    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : IsSink Q i)
+    (ρ : @QuiverRepresentation k₀ Q _ _)
+    [∀ v, Module.Free k₀ (ρ.obj v)]
+    (v : Q) (hv : v ≠ i) :
+    Module.Free k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
+      (reflectionFunctorPlus Q i hi ρ) v) := by
+  sorry
+
+/-- `Module.Free` for the reflected representation at i (ker of linear map over field). -/
+private lemma reflFunctorPlus_free_eq
+    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : IsSink Q i)
+    (ρ : @QuiverRepresentation k₀ Q _ _)
+    [∀ v, Module.Free k₀ (ρ.obj v)] [∀ v, Module.Finite k₀ (ρ.obj v)]
+    [Fintype (@ArrowsInto Q _ i)] :
+    Module.Free k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
+      (reflectionFunctorPlus Q i hi ρ) i) := by
+  sorry
+
+/-- `Module.Finite` for the reflected representation at v ≠ i. -/
+private lemma reflFunctorPlus_finite_ne
+    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : IsSink Q i)
+    (ρ : @QuiverRepresentation k₀ Q _ _)
+    [∀ v, Module.Finite k₀ (ρ.obj v)]
+    (v : Q) (hv : v ≠ i) :
+    Module.Finite k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
+      (reflectionFunctorPlus Q i hi ρ) v) := by
+  sorry
+
+/-- `Module.Finite` for the reflected representation at i. -/
+private lemma reflFunctorPlus_finite_eq
+    {k₀ : Type*} [Field k₀] {Q : Type*} [DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : IsSink Q i)
+    (ρ : @QuiverRepresentation k₀ Q _ _)
+    [∀ v, Module.Free k₀ (ρ.obj v)] [∀ v, Module.Finite k₀ (ρ.obj v)]
+    [Fintype (@ArrowsInto Q _ i)] :
+    Module.Finite k₀ (@QuiverRepresentation.obj k₀ Q _ (reversedAtVertex Q i)
+      (reflectionFunctorPlus Q i hi ρ) i) := by
+  sorry
+
+/-! ### Bridge: simpleReflectionDimVector ↔ simpleReflection
+
+For a sink p of an orientation of a Dynkin diagram with Subsingleton Hom types,
+the ArrowsInto-indexed sum `Σ_{a : ArrowsInto Q p} d(a.1)` equals the
+Cartan-matrix-indexed sum `Σ_j adj(p,j) * d(j)`, because:
+- adj(p,j) = 1 iff there exists an arrow j → p (since p is a sink, all adjacent arrows point in)
+- Subsingleton ensures at most one arrow per direction
+- So the ArrowsInto sum runs over exactly those j with adj(p,j) = 1 -/
+
+/-- At a sink of a Dynkin orientation with Subsingleton Hom types,
+`simpleReflectionDimVector` equals `simpleReflection` on the dimension vector. -/
+private lemma simpleReflectionDimVector_eq_simpleReflection
+    (hDynkin : IsDynkinDiagram n adj)
+    {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    [hSS : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    (p : Fin n) (hp : @IsSink (Fin n) Q p)
+    (d : Fin n → ℤ) :
+    haveI := fintypeArrowsIntoOfSubsingleton (Q := Q) p
+    simpleReflectionDimVector (fun (a : @ArrowsInto (Fin n) Q p) => a.1) p d =
+    simpleReflection n (cartanMatrix n adj) p d := by
+  sorry
+
 /-- **One round of reflection functors along an admissible ordering.**
 
 For an indecomposable representation V with admissible ordering σ, either:
@@ -1187,6 +1292,7 @@ private lemma one_round_or_simpleRoot
     (hDynkin : IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (σ : List (Fin n)) (hσ : IsAdmissibleOrdering Q σ)
     (ρ : @QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
@@ -1203,12 +1309,20 @@ private lemma one_round_or_simpleRoot
        ρ'.IsIndecomposable ∧
        ∀ v, (Module.finrank k (ρ'.obj v) : ℤ) =
          iteratedSimpleReflection n (cartanMatrix n adj) σ d v) := by
-  -- This requires type-changing iterated reflection functors:
-  -- At each step, apply F⁺_{σ_i} to the current representation on Q_i,
-  -- getting a representation on Q_{i+1} = reversedAtVertex Q_i σ_i.
-  -- After all n steps, Q_n = Q (each edge reversed twice).
-  -- Uses Props 6.6.5 (simple or surjective), 6.6.7 (F⁺ preserves indecomp),
-  -- 6.6.8 (dim vector under F⁺ = simple reflection).
+  -- The proof proceeds by induction on the admissible ordering σ, tracking an
+  -- indecomposable representation on iteratedReversedAtVertices Q (σ.take m).
+  -- At each step m, apply Prop 6.6.5 (simple or surjective at sink σ[m]):
+  --   - If simple: the dim vector is a simple root → left disjunct
+  --   - If surjective: apply F⁺, getting indecomp rep on Q_{m+1} (Prop 6.6.7)
+  --     with dim vector = simpleReflection of previous (Prop 6.6.8 + bridge lemma)
+  -- At m = σ.length: Q_n = Q by iteratedReversedAtVertices_perm_eq → right disjunct.
+  --
+  -- Technical blocker: Lean universe constraint. The representation at step m lives on
+  -- iteratedReversedAtVertices Q (σ.take m), which is Quiver.{v} (Fin n) at the same
+  -- Hom universe v as Q. But the obj types of QuiverRepresentation introduce a separate
+  -- universe u_obj, and when the induction state is wrapped in a ∀ or ∃, Lean cannot
+  -- unify u_obj across steps. Infrastructure lemmas (Subsingleton preservation, Fintype
+  -- derivation, Module.Free/Finite for F⁺, dim vector bridge) are provided above.
   sorry
 
 /-- **Representation-level Theorem 6.8.1**: For an indecomposable representation V
@@ -1223,6 +1337,7 @@ private lemma indecomposable_reduces_to_simpleRoot
     (hDynkin : IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (ρ : @QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
     (hρ : ρ.IsIndecomposable) :
@@ -1309,6 +1424,7 @@ theorem indecomposable_bilinearForm_eq_two
     (hDynkin : IsDynkinDiagram n adj)
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)} (hOrient : IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (ρ : @QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
     (hρ : ρ.IsIndecomposable) :

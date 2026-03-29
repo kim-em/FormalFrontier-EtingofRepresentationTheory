@@ -299,6 +299,7 @@ private lemma Etingof.indecomposable_titsForm_le_two
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)}
     (hOrient : Etingof.IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
     (hρ : ρ.IsIndecomposable) :
@@ -321,6 +322,7 @@ theorem Etingof.Corollary6_8_3
     {k : Type*} [Field k]
     {Q : Quiver (Fin n)}
     (hOrient : Etingof.IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
     [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
     [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)]
