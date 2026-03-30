@@ -1037,184 +1037,59 @@ private lemma nilpotent_nontrivial_decomp {V : Type*} [AddCommGroup V] [Module �
           intro w _
           exact Submodule.mem_sup_left ⟨w, rfl⟩
 
+/-- For a nilpotent off-diagonal operator X(v,w) = (Bw, Av) on V × W with
+dim(ker A) + dim(ker B) ≥ 2, there exists a nontrivial product-compatible
+decomposition: subspaces pV, qV of V and pW, qW of W forming complementary
+pairs, with A mapping pV → pW, qV → qW and B mapping pW → pV, qW → qV.
+
+This is Problem 6.9.1(c) of Etingof: X admits a chain basis compatible with
+the V ⊕ W grading (each chain generator lies in V×{0} or {0}×W). With such
+a basis, splitting chains into two groups yields a product-compatible
+decomposition where projections to V and W give complementary subspaces.
+
+Proof outline (compatible chain basis theorem):
+1. Each cyclic ℂ[X]-summand with generator g = (v,w) and X-order k satisfies:
+   at least one of (v,0) or (0,w) also has X-order k (compatible generator lemma).
+   Proof: X^k g = 0 and X^{k-1} g ≠ 0. Write g = g_V + g_W. Then
+   X^{k-1} g_V + X^{k-1} g_W ≠ 0, so one of them is nonzero with X-order = k.
+2. Generators can be replaced one at a time (PID theory: element of maximal order
+   generates a direct summand).
+3. With all generators compatible, each basis element is in V×{0} or {0}×W,
+   so splitting chains partitions bases of V and W separately. -/
+private lemma off_diagonal_nilpotent_product_decomp
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
+    (_hAB : IsNilpotent (A.comp B))
+    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker A) +
+              Module.finrank ℂ (LinearMap.ker B)) :
+    ∃ (pV qV : Submodule ℂ V) (pW qW : Submodule ℂ W),
+      IsCompl pV qV ∧ IsCompl pW qW ∧
+      (∀ x ∈ pV, A x ∈ pW) ∧ (∀ x ∈ qV, A x ∈ qW) ∧
+      (∀ x ∈ pW, B x ∈ pV) ∧ (∀ x ∈ qW, B x ∈ qV) ∧
+      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
+  sorry
+
 /-- Given AB nilpotent with dim(ker A) + dim(ker B) ≥ 2, both V and W nontrivial,
 and ker A ⊆ range B, ker B ⊆ range A (from indecomposability), there exists a
 nontrivial Q₂-compatible direct sum decomposition.
 
-This is the key transfer lemma from Problem 6.9.1(c) of Etingof:
-the off-diagonal operator X(v,w) = (Bw, Av) on V × W is nilpotent with
-dim(ker X) = dim(ker A) + dim(ker B) ≥ 2. Its chain basis can be chosen
-compatible with the V ⊕ W grading (each chain generator lies in V or W),
-so grouping ≥ 2 chains yields a Q₂-decomposition. -/
+Uses `off_diagonal_nilpotent_product_decomp` which provides the compatible
+chain basis decomposition from Problem 6.9.1(c) of Etingof. -/
 private lemma q2_nontrivial_decomp (ρ : Q₂Rep ℂ)
     (hAB : IsNilpotent (ρ.A.comp ρ.B))
-    (hV_pos : 0 < Module.finrank ℂ ρ.V)
-    (hW_pos : 0 < Module.finrank ℂ ρ.W)
+    (_hV_pos : 0 < Module.finrank ℂ ρ.V)
+    (_hW_pos : 0 < Module.finrank ℂ ρ.W)
     (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker ρ.A) +
               Module.finrank ℂ (LinearMap.ker ρ.B))
-    (hkA : LinearMap.ker ρ.A ≤ LinearMap.range ρ.B)
-    (hkB : LinearMap.ker ρ.B ≤ LinearMap.range ρ.A) :
+    (_hkA : LinearMap.ker ρ.A ≤ LinearMap.range ρ.B)
+    (_hkB : LinearMap.ker ρ.B ≤ LinearMap.range ρ.A) :
     ∃ (pV qV : Submodule ℂ ρ.V) (pW qW : Submodule ℂ ρ.W),
       IsCompl pV qV ∧ IsCompl pW qW ∧
       (∀ x ∈ pV, ρ.A x ∈ pW) ∧ (∀ x ∈ qV, ρ.A x ∈ qW) ∧
       (∀ x ∈ pW, ρ.B x ∈ pV) ∧ (∀ x ∈ qW, ρ.B x ∈ qV) ∧
-      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
-  -- Step 1: Define X(v,w) = (Bw, Av) on V × W
-  set X : (ρ.V × ρ.W) →ₗ[ℂ] (ρ.V × ρ.W) :=
-    (ρ.B.comp (LinearMap.snd ℂ ρ.V ρ.W)).prod
-    (ρ.A.comp (LinearMap.fst ℂ ρ.V ρ.W)) with hX_def
-  -- Step 2: X is nilpotent (X² = (BA, AB), so X^(2n) → 0)
-  have hX_nil : IsNilpotent X := by
-    obtain ⟨n, hn⟩ := hAB
-    -- X²(v,w) = (BAv, ABw)
-    have hX2 : ∀ (p : ρ.V × ρ.W),
-        (X * X) p = ((ρ.B.comp ρ.A) p.1, (ρ.A.comp ρ.B) p.2) := by
-      intro ⟨v, w⟩
-      show X (X (v, w)) = _
-      simp [X, LinearMap.prod_apply, LinearMap.comp_apply]
-    -- BA is nilpotent: (BA)^(n+1) v = BA·((BA)^n v) and (BA)^n·B = B·(AB)^n
-    have hBA : IsNilpotent (ρ.B.comp ρ.A) := by
-      refine ⟨n + 1, ?_⟩; ext v; simp only [LinearMap.zero_apply]
-      -- (BA)^(n+1) v = ((BA)^n ∘ BA) v = (BA)^n (B(Av)) = B((AB)^n (Av)) = B(0) = 0
-      -- Key shift lemma: (BA)^m (Bw) = B((AB)^m w)
-      suffices shift : ∀ (m : ℕ) (w : ρ.W),
-          ((ρ.B.comp ρ.A) ^ m) (ρ.B w) = ρ.B (((ρ.A.comp ρ.B) ^ m) w) by
-        change ((ρ.B.comp ρ.A) ^ n * (ρ.B.comp ρ.A)) v = 0
-        simp only [Module.End.mul_apply, LinearMap.comp_apply]
-        rw [shift n (ρ.A v), LinearMap.congr_fun hn (ρ.A v), LinearMap.zero_apply, map_zero]
-      intro m; induction m with
-      | zero => intro w; simp
-      | succ m ih =>
-        intro w
-        change ((ρ.B.comp ρ.A) ^ m * (ρ.B.comp ρ.A)) (ρ.B w) = _
-        simp only [Module.End.mul_apply, LinearMap.comp_apply]
-        rw [ih (ρ.A (ρ.B w))]
-        change _ = ρ.B (((ρ.A.comp ρ.B) ^ m * (ρ.A.comp ρ.B)) w)
-        simp only [Module.End.mul_apply, LinearMap.comp_apply]
-    obtain ⟨m, hm⟩ := hBA
-    -- X^(2k) acts as ((BA)^k, (AB)^k) by induction
-    have hsuff : ∀ (k : ℕ) (p : ρ.V × ρ.W),
-        (X ^ (2 * k)) p = (((ρ.B.comp ρ.A) ^ k) p.1, ((ρ.A.comp ρ.B) ^ k) p.2) := by
-      intro k; induction k with
-      | zero => intro p; simp
-      | succ k ih =>
-        intro p
-        have h2k : 2 * (k + 1) = 2 * k + 2 := by omega
-        rw [h2k, pow_add]
-        simp only [Module.End.mul_apply]
-        -- Goal: (X ^ (2*k)) (X (X p)) = ((BA)^(k+1) p.1, (AB)^(k+1) p.2)
-        -- X(Xp) = X(Bp.2, Ap.1) = (B(Ap.1), A(Bp.2)) = (BAp.1, ABp.2)
-        change (X ^ (2 * k)) (X (X p)) = _
-        conv_lhs => rw [show X (X p) = ((ρ.B.comp ρ.A) p.1, (ρ.A.comp ρ.B) p.2) from hX2 p]
-        rw [ih]
-        simp only [pow_succ, Module.End.mul_apply]
-    have h1 : (ρ.B.comp ρ.A) ^ (n + m) = 0 := by
-      rw [pow_add]; exact mul_eq_zero_of_right _ hm
-    have h2 : (ρ.A.comp ρ.B) ^ (n + m) = 0 := by
-      rw [pow_add]; exact mul_eq_zero_of_left hn _
-    exact ⟨2 * (n + m), LinearMap.ext fun p => by
-      simp only [LinearMap.zero_apply, hsuff (n + m) p, h1, h2]; rfl⟩
-  -- Step 3: dim(ker X) = dim(ker A) + dim(ker B) ≥ 2
-  have hkerX : 2 ≤ Module.finrank ℂ (LinearMap.ker X) := by
-    -- ker X = ker B × ker A (since X(v,w) = (Bw, Av))
-    -- dim(ker X) = dim(ker B) + dim(ker A) ≥ 2
-    have hle : (LinearMap.ker ρ.A).prod (LinearMap.ker ρ.B) ≤ LinearMap.ker X := by
-      intro ⟨v, w⟩ hm
-      rw [Submodule.mem_prod] at hm
-      simp only [LinearMap.mem_ker, X, LinearMap.prod_apply, LinearMap.comp_apply,
-                 LinearMap.fst_apply, LinearMap.snd_apply]
-      exact Prod.mk_eq_zero.mpr ⟨hm.2, hm.1⟩
-    have hge : LinearMap.ker X ≤ (LinearMap.ker ρ.A).prod (LinearMap.ker ρ.B) := by
-      intro ⟨v, w⟩ hm
-      simp only [LinearMap.mem_ker, X, LinearMap.prod_apply, LinearMap.comp_apply,
-                 LinearMap.fst_apply, LinearMap.snd_apply] at hm
-      rw [Submodule.mem_prod]
-      exact ⟨(Prod.mk_eq_zero.mp hm).2, (Prod.mk_eq_zero.mp hm).1⟩
-    have heq : LinearMap.ker X = (LinearMap.ker ρ.A).prod (LinearMap.ker ρ.B) :=
-      le_antisymm hge hle
-    rw [heq, show Module.finrank ℂ ↥((LinearMap.ker ρ.A).prod (LinearMap.ker ρ.B))
-        = Module.finrank ℂ (↥(LinearMap.ker ρ.A) × ↥(LinearMap.ker ρ.B)) from by
-      apply LinearEquiv.finrank_eq
-      exact {
-        toFun := fun ⟨⟨v, w⟩, hm⟩ => ⟨⟨v, (Submodule.mem_prod.mp hm).1⟩,
-                                         ⟨w, (Submodule.mem_prod.mp hm).2⟩⟩
-        invFun := fun ⟨⟨v, hv⟩, ⟨w, hw⟩⟩ => ⟨⟨v, w⟩, Submodule.mem_prod.mpr ⟨hv, hw⟩⟩
-        left_inv := fun ⟨⟨v, w⟩, hm⟩ => by simp
-        right_inv := fun ⟨⟨v, hv⟩, ⟨w, hw⟩⟩ => by simp
-        map_add' := fun _ _ => by ext <;> simp
-        map_smul' := fun _ _ => by ext <;> simp
-      }]
-    rw [Module.finrank_prod]; exact hker
-  -- Step 4: Apply nilpotent_nontrivial_decomp to X on V × W
-  obtain ⟨M₁, M₂, hM₁_ne, hM₂_ne, hM_compl, hM₁_inv, hM₂_inv⟩ :=
-    nilpotent_nontrivial_decomp X hX_nil hkerX
-  -- Step 5: Extract V and W components using X's off-diagonal structure
-  -- pV = {v : ∃ w, (v, w) ∈ M₁}, pW = {w : ∃ v, (v, w) ∈ M₁}
-  -- qV = {v : ∃ w, (v, w) ∈ M₂}, qW = {w : ∃ v, (v, w) ∈ M₂}
-  set pV := M₁.map (LinearMap.fst ℂ ρ.V ρ.W) with hpV_def
-  set qV := M₂.map (LinearMap.fst ℂ ρ.V ρ.W) with hqV_def
-  set pW := M₁.map (LinearMap.snd ℂ ρ.V ρ.W) with hpW_def
-  set qW := M₂.map (LinearMap.snd ℂ ρ.V ρ.W) with hqW_def
-  refine ⟨pV, qV, pW, qW, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
-  -- A maps pV to pW: if v ∈ pV, then (v, w) ∈ M₁ for some w, X(v,w) = (Bw, Av) ∈ M₁, so Av ∈ pW
-  · -- IsCompl pV qV
-    sorry
-  · -- IsCompl pW qW
-    sorry
-  · -- A maps pV to pW
-    intro v hv
-    obtain ⟨⟨v', w⟩, hm, hvv⟩ := Submodule.mem_map.mp hv
-    simp at hvv; subst hvv
-    have hXm := hM₁_inv ⟨v', w⟩ hm
-    have : X ⟨v', w⟩ = ⟨ρ.B w, ρ.A v'⟩ := by simp [X, LinearMap.prod_apply, LinearMap.comp_apply]
-    rw [this] at hXm
-    exact Submodule.mem_map.mpr ⟨⟨ρ.B w, ρ.A v'⟩, hXm, by simp⟩
-  · -- A maps qV to qW
-    intro v hv
-    obtain ⟨⟨v', w⟩, hm, hvv⟩ := Submodule.mem_map.mp hv
-    simp at hvv; subst hvv
-    have hXm := hM₂_inv ⟨v', w⟩ hm
-    have : X ⟨v', w⟩ = ⟨ρ.B w, ρ.A v'⟩ := by simp [X, LinearMap.prod_apply, LinearMap.comp_apply]
-    rw [this] at hXm
-    exact Submodule.mem_map.mpr ⟨⟨ρ.B w, ρ.A v'⟩, hXm, by simp⟩
-  · -- B maps pW to pV
-    intro w hw
-    obtain ⟨⟨v, w'⟩, hm, hww⟩ := Submodule.mem_map.mp hw
-    simp at hww; subst hww
-    have hXm := hM₁_inv ⟨v, w'⟩ hm
-    have : X ⟨v, w'⟩ = ⟨ρ.B w', ρ.A v⟩ := by simp [X, LinearMap.prod_apply, LinearMap.comp_apply]
-    rw [this] at hXm
-    exact Submodule.mem_map.mpr ⟨⟨ρ.B w', ρ.A v⟩, hXm, by simp⟩
-  · -- B maps qW to qV
-    intro w hw
-    obtain ⟨⟨v, w'⟩, hm, hww⟩ := Submodule.mem_map.mp hw
-    simp at hww; subst hww
-    have hXm := hM₂_inv ⟨v, w'⟩ hm
-    have : X ⟨v, w'⟩ = ⟨ρ.B w', ρ.A v⟩ := by simp [X, LinearMap.prod_apply, LinearMap.comp_apply]
-    rw [this] at hXm
-    exact Submodule.mem_map.mpr ⟨⟨ρ.B w', ρ.A v⟩, hXm, by simp⟩
-  · -- ¬(pV = ⊥ ∧ pW = ⊥): if both projections are ⊥, then M₁ = ⊥
-    intro ⟨hpV0, hpW0⟩
-    apply hM₁_ne
-    rw [eq_bot_iff]
-    intro ⟨v, w⟩ hm
-    rw [Submodule.mem_bot]
-    have hv : v ∈ pV := Submodule.mem_map.mpr ⟨⟨v, w⟩, hm, rfl⟩
-    have hw : w ∈ pW := Submodule.mem_map.mpr ⟨⟨v, w⟩, hm, rfl⟩
-    rw [hpV0] at hv; rw [hpW0] at hw
-    rw [Submodule.mem_bot] at hv hw
-    exact Prod.mk_eq_zero.mpr ⟨hv, hw⟩
-  · -- ¬(qV = ⊥ ∧ qW = ⊥): same argument for M₂
-    intro ⟨hqV0, hqW0⟩
-    apply hM₂_ne
-    rw [eq_bot_iff]
-    intro ⟨v, w⟩ hm
-    rw [Submodule.mem_bot]
-    have hv : v ∈ qV := Submodule.mem_map.mpr ⟨⟨v, w⟩, hm, rfl⟩
-    have hw : w ∈ qW := Submodule.mem_map.mpr ⟨⟨v, w⟩, hm, rfl⟩
-    rw [hqV0] at hv; rw [hqW0] at hw
-    rw [Submodule.mem_bot] at hv hw
-    exact Prod.mk_eq_zero.mpr ⟨hv, hw⟩
+      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) :=
+  off_diagonal_nilpotent_product_decomp ρ.A ρ.B hAB hker
 
 /-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
 then the rep is decomposable.
