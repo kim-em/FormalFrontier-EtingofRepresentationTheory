@@ -126,7 +126,7 @@ private lemma sum_shiftedExps_sub_permVandermondeExp
   simp_rw [show ∀ i, (Finsupp.equivFunOnFinite.symm (shiftedExps N lam.parts) -
       Finsupp.equivFunOnFinite.symm (permVandermondeExp N π) : Fin N →₀ ℕ) i =
       shiftedExps N lam.parts i - permVandermondeExp N π i from by
-    intro i; simp [Finsupp.equivFunOnFinite, Finsupp.coe_tsub, heval]]
+    intro i; simp [Finsupp.equivFunOnFinite, Finsupp.coe_tsub]]
   -- ∑(a - b) + ∑ b = ∑ a when b ≤ a pointwise, so ∑(a - b) = ∑ a - ∑ b
   have key : ∑ i : Fin N, (shiftedExps N lam.parts i - permVandermondeExp N π i) +
       ∑ i : Fin N, permVandermondeExp N π i =
@@ -200,7 +200,7 @@ theorem charValue_product_sum_eq_alternating_cauchy
   have aux : ∀ (a b c d : ℚ) (P Q : Prop) [Decidable P] [Decidable Q],
       (a * if P then c else 0) * (b * if Q then d else 0) =
       a * b * if P ∧ Q then c * d else 0 := by
-    intros; split_ifs <;> simp_all <;> ring
+    intros; split_ifs <;> simp_all; ring
   simp_rw [aux]
   rw [← Finset.mul_sum]
   split_ifs with h
@@ -239,20 +239,139 @@ The proof uses:
   double alternating sum of fullCauchyProd coefficients
 - `vandermonde_cauchy_general` to evaluate the alternating sum as δ_{λ,λ'}
 
-Note: The proof currently relies on `powerSum_bilinear_coeff_gen` which
-has a sorry from the generalized double counting lemma. -/
+This no longer has sorrys from its dependency chain. -/
+-- ((π * ρ)⁻¹ i).val = permVandermondeExp N π i where ρ = Fin.revPerm
+private lemma inv_mul_revPerm_val (N : ℕ) (π : Equiv.Perm (Fin N)) (i : Fin N) :
+    Fin.val ((π * @Fin.revPerm N)⁻¹ i) = permVandermondeExp N π i := by
+  change ((π * @Fin.revPerm N).symm i).val = permVandermondeExp N π i
+  -- (π * ρ).symm i = ρ.symm (π.symm i) = ρ(π⁻¹ i) since ρ.symm = ρ
+  unfold permVandermondeExp vandermondeExps
+  -- Goal: ↑((Equiv.symm (π * Fin.revPerm)) i) = N - 1 - ↑(π⁻¹ i)
+  -- (π * ρ).symm = ρ.symm.trans π.symm, (ρ.symm.trans π.symm) i = π.symm (ρ.symm i) = π⁻¹ (ρ i)
+  -- Wait: for Perm, (f * g).symm x = g.symm (f.symm x)
+  -- So (π * ρ).symm x = ρ.symm (π.symm x) = ρ(π⁻¹ x) = Fin.rev(π⁻¹ x)
+  -- Fin.rev(j).val = N - 1 - j.val
+  have : ((π * @Fin.revPerm N).symm i) = Fin.rev (π.symm i) := by
+    change (@Fin.revPerm N).symm (π.symm i) = Fin.rev (π.symm i)
+    rw [Fin.revPerm_symm, Fin.revPerm_apply]
+  rw [this]; simp [Fin.rev, Equiv.Perm.inv_def]; omega
+
+/-- `shiftedExps` is injective on partitions. -/
+private lemma shiftedExps_injective (N : ℕ) {n : ℕ} (lam lam' : BoundedPartition N n) :
+    shiftedExps N lam.parts = shiftedExps N lam'.parts ↔ lam = lam' := by
+  constructor
+  · intro h
+    have hparts : lam.parts = lam'.parts := by
+      funext i; have := congr_fun h i; simp [shiftedExps] at this; omega
+    cases lam; cases lam'; simp only [BoundedPartition.mk.injEq] at hparts ⊢; exact hparts
+  · rintro rfl; rfl
+
+/-- The alternating sum with `permVandermondeExp` conditions equals `δ_{α,β}` over ℂ.
+Proved by reindexing `vandermonde_cauchy_general` via `Fin.revPerm`. -/
+private lemma vandermonde_cauchy_permVandermondeExp (N : ℕ) (α β : Fin N → ℕ)
+    (hα : StrictAnti α) (hβ : StrictAnti β) :
+    (∑ π : Equiv.Perm (Fin N), ∑ τ : Equiv.Perm (Fin N),
+      ((Equiv.Perm.sign π : ℤ) : ℂ) * ((Equiv.Perm.sign τ : ℤ) : ℂ) *
+      (if (∀ i, permVandermondeExp N π i ≤ α i) ∧
+          (∀ i, permVandermondeExp N τ i ≤ β i)
+       then MvPowerSeries.coeff
+              (bilinExponent N (fun i => α i - permVandermondeExp N π i)
+                               (fun i => β i - permVandermondeExp N τ i))
+              (fullCauchyProd N ℂ)
+       else 0)) =
+    if α = β then 1 else 0 := by
+  set ρ := @Fin.revPerm N
+  -- sign(ρ)² = 1
+  have hsρ : ((Equiv.Perm.sign ρ : ℤ) : ℂ) * ((Equiv.Perm.sign ρ : ℤ) : ℂ) = 1 := by
+    have h := Int.units_sq (Equiv.Perm.sign ρ)
+    have : ((Equiv.Perm.sign ρ : ℤ) : ℂ) * ((Equiv.Perm.sign ρ : ℤ) : ℂ) =
+        (↑(↑(Equiv.Perm.sign ρ ^ 2) : ℤ) : ℂ) := by push_cast; ring
+    rw [this, h]; simp
+  -- Step 1: Match each summand with VCG form at (π*ρ, τ*ρ)
+  -- ((π*ρ)⁻¹ i).val = permVandermondeExp N π i, and sign(π*ρ) = sign(π)*sign(ρ)
+  -- so our summand = VCG(π*ρ, τ*ρ) (signs cancel since sign(ρ)²=1)
+  have h_eq : ∀ (π τ : Equiv.Perm (Fin N)),
+      ((Equiv.Perm.sign π : ℤ) : ℂ) * ((Equiv.Perm.sign τ : ℤ) : ℂ) *
+      (if (∀ i, permVandermondeExp N π i ≤ α i) ∧
+          (∀ i, permVandermondeExp N τ i ≤ β i)
+       then MvPowerSeries.coeff
+              (bilinExponent N (fun i => α i - permVandermondeExp N π i)
+                               (fun i => β i - permVandermondeExp N τ i))
+              (fullCauchyProd N ℂ)
+       else 0) =
+      ((Equiv.Perm.sign (π * ρ) : ℤ) : ℂ) * ((Equiv.Perm.sign (τ * ρ) : ℤ) : ℂ) *
+      (if (∀ i, ((π * ρ)⁻¹ i : Fin N).val ≤ α i) ∧
+          (∀ i, ((τ * ρ)⁻¹ i : Fin N).val ≤ β i)
+       then MvPowerSeries.coeff
+              (bilinExponent N (fun i => α i - ((π * ρ)⁻¹ i : Fin N).val)
+                               (fun i => β i - ((τ * ρ)⁻¹ i : Fin N).val))
+              (fullCauchyProd N ℂ)
+       else 0) := by
+    intro π τ
+    simp only [ρ]
+    simp_rw [inv_mul_revPerm_val, Equiv.Perm.sign_mul]
+    push_cast
+    -- Goal: sπ * sτ * X = (sπ * sρ) * (sτ * sρ) * X where sρ² = 1
+    split_ifs
+    · congr 1
+      have : (↑↑(Equiv.Perm.sign π) * ↑↑(Equiv.Perm.sign (@Fin.revPerm N))) *
+          (↑↑(Equiv.Perm.sign τ) * ↑↑(Equiv.Perm.sign (@Fin.revPerm N))) =
+          ↑↑(Equiv.Perm.sign π) * ↑↑(Equiv.Perm.sign τ) *
+          ((↑↑(Equiv.Perm.sign (@Fin.revPerm N)) : ℂ) *
+           ↑↑(Equiv.Perm.sign (@Fin.revPerm N))) := by ring
+      rw [this, hsρ, mul_one]
+    · simp
+  -- Step 2: Combine reindexing + summand match into a single Fintype.sum_equiv
+  -- ∑_π ∑_τ our(π,τ) = ∑_σ ∑_τ VCG(σ,τ) by σ=π*ρ, τ'=τ*ρ, using h_eq
+  exact (Fintype.sum_equiv (Equiv.mulRight ρ) _ _
+    (fun π => Fintype.sum_equiv (Equiv.mulRight ρ) _ _ (fun τ => h_eq π τ))).trans
+    (vandermonde_cauchy_general N α β hα hβ)
+
+
 theorem charValue_row_orthogonality
     (N : ℕ) {n : ℕ} (lam lam' : BoundedPartition N n) :
     ∑ σ : Equiv.Perm (Fin n),
       charValue N lam (fullCycleTypePartition σ) *
       charValue N lam' (fullCycleTypePartition σ) =
     if lam = lam' then (n.factorial : ℚ) else 0 := by
-  -- Step 1: Reduce to alternating sum of fullCauchyProd coefficients
   rw [charValue_product_sum_eq_alternating_cauchy]
-  -- Step 2: The alternating sum equals δ_{λ,λ'} by vandermonde_cauchy_general
-  -- This requires connecting the ℚ fullCauchyProd coefficients to the ℂ version
-  -- used in vandermonde_cauchy_general, and matching the permVandermondeExp
-  -- with the (π⁻¹ i).val in vandermonde_cauchy_general.
-  sorry
+  set α := shiftedExps N lam.parts
+  set β := shiftedExps N lam'.parts
+  have hα_strict : StrictAnti α := by
+    intro i j hij; simp only [α, shiftedExps]; have := lam.decreasing hij.le; omega
+  have hβ_strict : StrictAnti β := by
+    intro i j hij; simp only [β, shiftedExps]; have := lam'.decreasing hij.le; omega
+  -- Suffices: the double alternating sum = δ_{lam,lam'}
+  suffices hsum : ∑ π : Equiv.Perm (Fin N), ∑ τ : Equiv.Perm (Fin N),
+      (↑(Equiv.Perm.sign π : ℤ) : ℚ) * (↑(Equiv.Perm.sign τ : ℤ) : ℚ) *
+      (if (∀ i, permVandermondeExp N π i ≤ α i) ∧
+          (∀ i, permVandermondeExp N τ i ≤ β i)
+       then MvPowerSeries.coeff
+              (bilinExponent N (fun i => α i - permVandermondeExp N π i)
+                               (fun i => β i - permVandermondeExp N τ i))
+              (fullCauchyProd N ℚ)
+       else 0) = if lam = lam' then 1 else 0 by
+    rw [hsum]; split_ifs <;> ring
+  -- Transfer to ℂ via injectivity of algebraMap ℚ ℂ
+  have h_inj : Function.Injective (algebraMap ℚ ℂ) := Rat.cast_injective
+  apply h_inj
+  -- LHS: push algebraMap through the sum
+  rw [map_sum]
+  simp_rw [map_sum, map_mul, map_intCast]
+  -- Handle the if-then-else inside each summand
+  have hcoeff_cast : ∀ (P : Prop) [Decidable P] (e : CauchyVars N →₀ ℕ),
+      (algebraMap ℚ ℂ) (if P then MvPowerSeries.coeff e (fullCauchyProd N ℚ) else 0) =
+      (if P then MvPowerSeries.coeff e (fullCauchyProd N ℂ) else 0) := by
+    intro P _ e; split_ifs
+    · rw [← MvPowerSeries.coeff_map, map_fullCauchyProd]
+    · exact map_zero _
+  simp_rw [hcoeff_cast]
+  -- RHS: convert if-condition on lam = lam' to α = β
+  have hrhs : (algebraMap ℚ ℂ) (if lam = lam' then 1 else 0) =
+      if α = β then (1 : ℂ) else 0 := by
+    simp only [apply_ite (algebraMap ℚ ℂ), map_one, map_zero]
+    exact if_congr (shiftedExps_injective N lam lam').symm rfl rfl
+  rw [hrhs]
+  exact vandermonde_cauchy_permVandermondeExp N α β hα_strict hβ_strict
 
 end Etingof

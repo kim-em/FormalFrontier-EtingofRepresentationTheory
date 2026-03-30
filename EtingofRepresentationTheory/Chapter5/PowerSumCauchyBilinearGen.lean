@@ -607,7 +607,7 @@ private theorem map_invOfUnit_one_sub_xy {k k' : Type*} [CommRing k] [CommRing k
     ⟨⟨_, _, h3, by rw [mul_comm]; exact h3⟩, rfl⟩
   exact hU.mul_left_cancel (h2.trans h3.symm)
 
-private theorem map_fullCauchyProd {k k' : Type*} [CommRing k] [CommRing k'] (f : k →+* k') :
+theorem map_fullCauchyProd {k k' : Type*} [CommRing k] [CommRing k'] (f : k →+* k') :
     MvPowerSeries.map f (fullCauchyProd N k) = fullCauchyProd N k' := by
   unfold fullCauchyProd
   rw [map_prod (MvPowerSeries.map f)]
