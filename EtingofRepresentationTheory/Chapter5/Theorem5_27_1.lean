@@ -665,6 +665,25 @@ private lemma extract_single_support {G A : Type} [Group G] [CommGroup A] [Finty
           _ ≤ n := by omega
       exact ih f' hf'_mem hf'_q₀ hcard'
 
+-- Helper: if σ is an invariant submodule containing a function supported on q₁
+-- with nonzero value, and U is simple, then σ contains Pi.single q₁ u for all u.
+-- Proof outline: the image of σ's single-support-on-q₁ elements under eval-at-q₁
+-- forms a Subrepresentation of U (invariant via conjugation by q₁.out ∈ stabAux).
+-- It's nonzero (contains g₁ q₁). By simplicity of U, the image is all of U.
+-- For any u, there exists f ∈ σ supported on q₁ with f(q₁) = u.
+-- Such f agrees with Pi.single q₁ u by funext.
+open Classical in
+private lemma sigma_contains_all_single {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ)) (hU : CategoryTheory.Simple U)
+    (σ : Submodule ℂ ((G ⧸ stabAux φ χ) → ↥U))
+    (hσ_inv : ∀ ag f, f ∈ σ → inducedRep_raw φ χ U ag f ∈ σ)
+    (q₁ : G ⧸ stabAux φ χ) (hq₁_out_mem : q₁.out ∈ stabAux φ χ)
+    (g₁ : (G ⧸ stabAux φ χ) → ↥U) (hg₁_mem : g₁ ∈ σ)
+    (hg₁_nz : g₁ q₁ ≠ 0) (hg₁_supp : ∀ q, q ≠ q₁ → g₁ q = 0)
+    (u : ↥U) : ∃ f ∈ σ, f q₁ = u ∧ ∀ q, q ≠ q₁ → f q = 0 := by
+  sorry
+
 open Classical in
 private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G]
     (φ : G →* MulAut A) (χ : A →* ℂˣ)
@@ -747,7 +766,10 @@ private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G
             rw [this]
             exact σ.toSubmodule.sum_mem (fun q _ => h_single q (x q))
           -- First show Pi.single q₁ u ∈ σ for all u, using simplicity of U
-          -- Define the subspace S = {u ∈ U | Pi.single q₁ u ∈ σ}
+          -- q₁.out ∈ H since [q₁.out] = q₁ = [1]
+          have hq₁_out_mem : q₁.out ∈ stabAux φ χ := by
+            have := QuotientGroup.leftRel_apply.mp (Quotient.exact' (QuotientGroup.out_eq' q₁))
+            simpa using (stabAux φ χ).inv_mem this
           have h_at_q₁ : ∀ u, Pi.single q₁ u ∈ σ.toSubmodule := by
             letI : MulAction G (G ⧸ stabAux φ χ) := inferInstance
             -- Step 1: g₁ is supported only on q₁
@@ -796,17 +818,18 @@ private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G
             -- Since σ is invariant, this shows S is invariant under ρ_U.
             -- By simplicity of U, S = U.
             intro u
-            -- Use Subrepresentation machinery: construct a Subrepresentation of FDRep.ρ U
-            -- and apply simplicity
-            sorry
+            obtain ⟨f, hf_mem, hf_eq, hf_supp⟩ := sigma_contains_all_single φ χ U hU
+              σ.toSubmodule hσ_inv q₁ hq₁_out_mem g₁ hg₁_mem hg₁_nz hg₁_supp u
+            -- f ∈ σ, f(q₁) = u, f(q) = 0 for q ≠ q₁
+            -- f = Pi.single q₁ u by funext
+            convert hf_mem using 1
+            ext q; by_cases hq : q = q₁
+            · rw [hq, Pi.single_eq_same, hf_eq]
+            · rw [Pi.single_eq_of_ne hq, hf_supp q hq]
           -- For any coset q, Pi.single q u ∈ σ
           -- Transport via G-action: ρ(1, q.out) maps V_{q₁} to V_q
           intro q u
           letI : MulAction G (G ⧸ stabAux φ χ) := inferInstance
-          -- q₁.out ∈ H since [q₁.out] = q₁ = [1]
-          have hq₁_out_mem : q₁.out ∈ stabAux φ χ := by
-            have := QuotientGroup.leftRel_apply.mp (Quotient.exact' (QuotientGroup.out_eq' q₁))
-            simpa using (stabAux φ χ).inv_mem this
           set t : ↥(stabAux φ χ) := ⟨q₁.out, hq₁_out_mem⟩
           set u' := FDRep.ρ U t⁻¹ u
           -- Pi.single q₁ u' ∈ σ
