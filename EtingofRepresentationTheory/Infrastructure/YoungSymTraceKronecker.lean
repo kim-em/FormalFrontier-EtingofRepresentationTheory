@@ -25,7 +25,6 @@ namespace Etingof
 
 noncomputable section
 open Classical in
-
 /-! ### Coefficient transfer: ℚ ↔ ℂ -/
 
 /-- The ℚ and ℂ Young symmetrizer coefficients agree under cast.
@@ -85,13 +84,47 @@ private def mulLeftOnSpecht (n : ℕ) (c : SymGroupAlgebra n) (la' : Nat.Partiti
 
 /-! ### Trace linearity -/
 
+private lemma mulLeftOnSpecht_of (n : ℕ) (la' : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) :
+    mulLeftOnSpecht n (MonoidAlgebra.of ℂ _ σ) la' = spechtModuleAction n la' σ := by
+  ext ⟨m, hm⟩; rfl
+
+/-- `mulLeftOnSpecht` is ℂ-linear in the algebra element `c`. -/
+private noncomputable def mulLeftOnSpechtLinear (n : ℕ) (la' : Nat.Partition n) :
+    SymGroupAlgebra n →ₗ[ℂ] (↥(SpechtModule n la') →ₗ[ℂ] ↥(SpechtModule n la')) where
+  toFun c := mulLeftOnSpecht n c la'
+  map_add' a b := by ext ⟨m, hm⟩; simp [mulLeftOnSpecht, add_mul]
+  map_smul' r c := by ext ⟨m, hm⟩; simp [mulLeftOnSpecht]
+
 /-- The sum `∑_σ c(σ) · χ_{V}(σ)` equals the trace of left multiplication by `c` on `V`.
 Uses the decomposition `c = ∑ c(σ) · of(σ)` and linearity of trace. -/
 private lemma sum_coeff_char_eq_trace (n : ℕ) (la' : Nat.Partition n)
     (c : SymGroupAlgebra n) :
     ∑ σ : Equiv.Perm (Fin n), c σ * spechtModuleCharacter n la' σ =
       LinearMap.trace ℂ _ (mulLeftOnSpecht n c la') := by
-  sorry
+  symm
+  have key : (LinearMap.trace ℂ _) (mulLeftOnSpecht n c la') =
+      ∑ σ ∈ c.support, c σ * spechtModuleCharacter n la' σ := by
+    have hlin : mulLeftOnSpecht n c la' = (mulLeftOnSpechtLinear n la') c := rfl
+    rw [hlin]
+    simp_rw [spechtModuleCharacter, ← mulLeftOnSpecht_of n la']
+    have hc : c = ∑ σ ∈ c.support, c σ • MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) σ := by
+      conv_lhs => rw [← Finsupp.sum_single c]
+      unfold Finsupp.sum
+      refine Finset.sum_congr rfl (fun σ _ => ?_)
+      rw [MonoidAlgebra.of_apply, Finsupp.smul_single', mul_one]
+    conv_lhs => rw [show (mulLeftOnSpechtLinear n la') c =
+        (mulLeftOnSpechtLinear n la')
+          (∑ σ ∈ c.support, c σ • MonoidAlgebra.of ℂ _ σ) from by rw [← hc]]
+    rw [map_sum, map_sum]
+    refine Finset.sum_congr rfl (fun σ _ => ?_)
+    rw [map_smul, LinearMap.map_smul, smul_eq_mul]
+    rfl
+  rw [key]
+  apply Finset.sum_subset (Finset.subset_univ c.support)
+  intro σ _ hσ
+  have : c σ = 0 := by rwa [Finsupp.mem_support_iff, not_not] at hσ
+  simp [this]
 
 /-! ### Off-diagonal case -/
 
@@ -133,14 +166,79 @@ private lemma mulLeft_youngSym_zero_of_ne (n : ℕ) (la la' : Nat.Partition n) (
 
 /-! ### Diagonal case -/
 
+/-- The identity coefficient of the Young symmetrizer over ℂ is 1. -/
+private lemma youngSym_coeff_one (n : ℕ) (la : Nat.Partition n) :
+    (YoungSymmetrizer n la : MonoidAlgebra ℂ (Equiv.Perm (Fin n))) 1 = 1 := by
+  rw [YoungSymmetrizer_eq_mapRange]
+  simp [MonoidAlgebra.mapRangeRingHom_apply, YoungSymmetrizerZ_apply_one]
+
+/-- For any v ∈ V_λ, c * v is proportional to c: c * v = ((c * v)(1)) • c.
+Uses the sandwich property (Lemma5_13_1) and c(1) = 1. -/
+private lemma mul_mem_specht_proportional (n : ℕ) (la : Nat.Partition n)
+    (v : ↥(SpechtModule n la)) :
+    YoungSymmetrizer n la * v.val =
+      (YoungSymmetrizer n la * v.val) 1 •
+        YoungSymmetrizer n la := by
+  classical
+  set c := YoungSymmetrizer n la
+  obtain ⟨a, ha⟩ := Submodule.mem_span_singleton.mp v.prop
+  rw [smul_eq_mul] at ha
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  have h_sandwich : ∀ x,
+      c * x * c = ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) • c := by
+    intro x
+    change RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) = _
+    rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+          (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
+        RowSymmetrizer n la * (ColumnAntisymmetrizer n la * x * RowSymmetrizer n la) *
+          ColumnAntisymmetrizer n la from by simp only [mul_assoc]]
+    rw [hℓ, show c = YoungSymmetrizer n la from rfl]; simp only [YoungSymmetrizer, mul_assoc]
+  have hsand := h_sandwich a
+  conv_lhs at hsand => rw [mul_assoc]
+  conv_lhs => rw [show v.val = a * c from ha.symm, hsand]
+  conv_rhs => rw [show v.val = a * c from ha.symm, hsand]
+  congr 1
+  rw [Finsupp.smul_apply, smul_eq_mul, youngSym_coeff_one, mul_one]
+
 /-- The trace of left multiplication by `c_λ` on `V_λ = span({c_λ})` equals `α`.
 Factor `T = ι ∘ π` where `ι : ℂ → V` and `π : V → ℂ` using the sandwich
 property (`Lemma5_13_1`), then `tr(T) = tr(π ∘ ι) = α`. -/
 private lemma trace_mulLeft_youngSym_eq (n : ℕ) (la : Nat.Partition n)
-    (α : ℂ) (hα_ne : α ≠ 0)
+    (α : ℂ) (_hα_ne : α ≠ 0)
     (hα_sq : YoungSymmetrizer n la * YoungSymmetrizer n la = α • YoungSymmetrizer n la) :
     LinearMap.trace ℂ _ (mulLeftOnSpecht n (YoungSymmetrizer n la) la) = α := by
-  sorry
+  set c := YoungSymmetrizer n la with hc_def
+  set V := SpechtModule n la
+  set T := mulLeftOnSpecht n c la
+  have hc_mem : c ∈ V := Submodule.subset_span rfl
+  set e : V := ⟨c, hc_mem⟩
+  -- ι : ℂ →ₗ[ℂ] V, x ↦ x • e
+  let ι : ℂ →ₗ[ℂ] V := LinearMap.lsmul ℂ V |>.flip e
+  -- π : V →ₗ[ℂ] ℂ, v ↦ (c * v.val)(1)
+  let π : V →ₗ[ℂ] ℂ :=
+    { toFun := fun v => (c * v.val) 1
+      map_add' := fun x y => by simp [mul_add]
+      map_smul' := fun r x => by
+        change (c * (r • x.val)) 1 = r * (c * x.val) 1
+        rw [Algebra.mul_smul_comm, Finsupp.smul_apply, smul_eq_mul] }
+  -- T = ι ∘ π (using sandwich property)
+  have hT_eq : T = ι.comp π := by
+    apply LinearMap.ext
+    intro ⟨v, hv⟩
+    apply Subtype.ext
+    exact mul_mem_specht_proportional n la ⟨v, hv⟩
+  -- tr(T) = tr(ι ∘ π) = tr(π ∘ ι)
+  rw [hT_eq, LinearMap.trace_comp_comm']
+  -- π ∘ ι maps x ↦ (c * (x • c))(1) = x * ((c * c)(1)) = x * α
+  have h_comp : π.comp ι = α • LinearMap.id := by
+    apply LinearMap.ext
+    intro x
+    change (c * (x • c)) 1 = α * x
+    rw [Algebra.mul_smul_comm, Finsupp.smul_apply, smul_eq_mul]
+    rw [hα_sq, Finsupp.smul_apply, smul_eq_mul, youngSym_coeff_one, mul_one, mul_comm]
+  rw [h_comp]
+  simp [map_smul, LinearMap.trace_id, Module.finrank_self]
 
 /-! ### Main theorem -/
 
