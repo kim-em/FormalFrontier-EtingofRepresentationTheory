@@ -682,7 +682,95 @@ private lemma sigma_contains_all_single {G A : Type} [Group G] [CommGroup A] [Fi
     (g₁ : (G ⧸ stabAux φ χ) → ↥U) (hg₁_mem : g₁ ∈ σ)
     (hg₁_nz : g₁ q₁ ≠ 0) (hg₁_supp : ∀ q, q ≠ q₁ → g₁ q = 0)
     (u : ↥U) : ∃ f ∈ σ, f q₁ = u ∧ ∀ q, q ≠ q₁ → f q = 0 := by
-  sorry
+  -- Bridge: Simple U → IsIrreducible (FDRep.ρ U)
+  -- This is: CategoryTheory.Simple → IsSimpleOrder (Subrepresentation ρ)
+  -- The chain is: Simple FDRep → Simple Rep (forget₂ preserves) →
+  --   Simple ModuleCat (equivalence preserves) → IsSimpleModule → IsIrreducible
+  -- The forget₂ preservation step requires showing sub-Reps of f.d. reps are f.d.
+  have hU_irred : Representation.IsIrreducible (FDRep.ρ U) := by
+    sorry -- bridge: CategoryTheory.Simple FDRep ↔ Representation.IsIrreducible
+  -- Build S = {v : ↥U | ∃ f ∈ σ, f q₁ = v ∧ ∀ q ≠ q₁, f q = 0}
+  -- as a Subrepresentation of FDRep.ρ U.
+  set S : Subrepresentation (FDRep.ρ U) :=
+    { toSubmodule :=
+        { carrier := {v : ↥U | ∃ f ∈ σ, f q₁ = v ∧ ∀ q, q ≠ q₁ → f q = 0}
+          add_mem' := by
+            rintro a b ⟨fa, hfa_mem, hfa_eq, hfa_supp⟩ ⟨fb, hfb_mem, hfb_eq, hfb_supp⟩
+            exact ⟨fa + fb, σ.add_mem hfa_mem hfb_mem,
+              by simp [hfa_eq, hfb_eq],
+              fun q hq => by simp [hfa_supp q hq, hfb_supp q hq]⟩
+          zero_mem' := ⟨0, σ.zero_mem, by simp, fun q _ => by simp⟩
+          smul_mem' := by
+            rintro c v ⟨f, hf_mem, hf_eq, hf_supp⟩
+            exact ⟨c • f, σ.smul_mem c hf_mem,
+              by simp [hf_eq],
+              fun q hq => by simp [hf_supp q hq]⟩ }
+      apply_mem_toSubmodule := by
+        intro s v ⟨f, hf_mem, hf_eq, hf_supp⟩
+        -- Need: ∃ f' ∈ σ, f' q₁ = ρ_U(s)(v) ∧ ∀ q ≠ q₁, f' q = 0
+        -- Take f' = ρ(1, g')(f) where g' = q₁.out * ↑s * q₁.out⁻¹
+        set g' : G := q₁.out * ↑s * q₁.out⁻¹
+        have hg'_stab : g' ∈ stabAux φ χ :=
+          (stabAux φ χ).mul_mem ((stabAux φ χ).mul_mem hq₁_out_mem s.2)
+            ((stabAux φ χ).inv_mem hq₁_out_mem)
+        -- g'⁻¹ preserves q₁ in the quotient (g'⁻¹ ∈ stabAux preserves all cosets)
+        have hg'_inv_fix : g'⁻¹ • q₁ = q₁ := by
+          have hmem_inv : g'⁻¹ ∈ stabAux φ χ := (stabAux φ χ).inv_mem hg'_stab
+          -- q₁ = [q₁.out], g'⁻¹ • [q₁.out] = [g'⁻¹ * q₁.out]
+          -- [g'⁻¹ * q₁.out] = [q₁.out] iff q₁.out⁻¹ * g'⁻¹ * q₁.out ∈ stabAux
+          -- which holds since q₁.out ∈ stabAux and g'⁻¹ ∈ stabAux
+          rw [← QuotientGroup.out_eq' q₁]
+          apply Quotient.sound'; rw [QuotientGroup.leftRel_apply]
+          simp only [smul_eq_mul, mul_inv_rev, inv_inv]
+          exact (stabAux φ χ).mul_mem
+            ((stabAux φ χ).mul_mem ((stabAux φ χ).inv_mem hq₁_out_mem) hg'_stab)
+            hq₁_out_mem
+        -- g' preserves q₁
+        have hg'_fix : g' • q₁ = q₁ := by
+          rw [← QuotientGroup.out_eq' q₁]
+          apply Quotient.sound'; rw [QuotientGroup.leftRel_apply]
+          simp only [smul_eq_mul, mul_inv_rev]
+          exact (stabAux φ χ).mul_mem
+            ((stabAux φ χ).mul_mem ((stabAux φ χ).inv_mem hq₁_out_mem) ((stabAux φ χ).inv_mem hg'_stab))
+            hq₁_out_mem
+        -- For q ≠ q₁: g'⁻¹ • q ≠ q₁
+        have hg'_ne : ∀ q, q ≠ q₁ → g'⁻¹ • q ≠ q₁ := by
+          intro q hq h; apply hq
+          calc q = g' • (g'⁻¹ • q) := by rw [smul_inv_smul]
+            _ = g' • q₁ := by rw [h]
+            _ = q₁ := hg'_fix
+        set f' := inducedRep_raw φ χ U ⟨1, g'⟩ f
+        refine ⟨f', hσ_inv ⟨1, g'⟩ f hf_mem, ?_, ?_⟩
+        · -- f'(q₁) = ρ_U(transition)(f(g'⁻¹ • q₁)) = ρ_U(s)(f(q₁)) = ρ_U(s)(v)
+          change (inducedRep_raw φ χ U ⟨1, g'⟩ f) q₁ = (FDRep.ρ U s) v
+          rw [G_action_at_coset]
+          -- Use simp to handle the dependent rewrite of g'⁻¹ • q₁ = q₁
+          simp only [show (g'⁻¹ : G) • (q₁ : G ⧸ stabAux φ χ) = q₁ from hg'_inv_fix]
+          -- Now: ρ_U(⟨q₁.out⁻¹ * g' * q₁.out, _⟩)(f(q₁)) = ρ_U(s)(v)
+          simp only [show f q₁ = v from hf_eq]
+          -- Need: ρ_U(⟨q₁.out⁻¹ * g' * q₁.out, _⟩) = ρ_U(s)
+          -- Since q₁.out⁻¹ * g' * q₁.out = q₁.out⁻¹ * (q₁.out * ↑s * q₁.out⁻¹) * q₁.out = ↑s
+          have hrho_eq : ∀ (s₁ s₂ : ↥(stabAux φ χ)),
+              (s₁ : G) = (s₂ : G) → ∀ w, (FDRep.ρ U s₁) w = (FDRep.ρ U s₂) w := by
+            intro s₁ s₂ h w; rw [Subtype.ext h]
+          exact hrho_eq _ s (by
+            show q₁.out⁻¹ * g' * q₁.out = ↑s
+            simp [g', mul_assoc, inv_mul_cancel, mul_inv_cancel]) v
+        · -- At q ≠ q₁: f'(q) = ρ_U(trans)(f(g'⁻¹ • q)) = ρ_U(trans)(0) = 0
+          intro q hq
+          change (inducedRep_raw φ χ U ⟨1, g'⟩ f) q = 0
+          rw [G_action_at_coset, hf_supp _ (hg'_ne q hq), map_zero] }
+  -- S ≠ ⊥ (contains g₁ q₁)
+  have hS_ne_bot : S ≠ ⊥ := by
+    intro h; apply hg₁_nz
+    have hmem : g₁ q₁ ∈ S := ⟨g₁, hg₁_mem, rfl, hg₁_supp⟩
+    have : (⊥ : Subrepresentation (FDRep.ρ U)) = S := h.symm
+    rw [← this] at hmem; exact hmem
+  -- By simplicity: S = ⊤
+  have hS_top : S = ⊤ := hU_irred.eq_bot_or_eq_top S |>.resolve_left hS_ne_bot
+  -- For any u, u ∈ S
+  have hu_mem : u ∈ S := by rw [hS_top]; trivial
+  exact hu_mem
 
 open Classical in
 private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G]
