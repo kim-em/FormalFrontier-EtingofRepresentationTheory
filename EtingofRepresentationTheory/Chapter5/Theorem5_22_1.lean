@@ -1108,13 +1108,54 @@ private lemma charValue_eq_spechtModuleCharacter
 /-- Two antitone sequences with the same sum and the same weightToPartition
 are pointwise equal. (The multiset of nonzero parts, being sorted by
 antitonicity, uniquely determines the sequence once padded with zeros.) -/
+private lemma antitone_eq_of_filter_pos_eq
+    (N : ℕ) (lam lam' : Fin N → ℕ)
+    (hlam : Antitone lam) (hlam' : Antitone lam')
+    (h : (Finset.univ.val.map lam).filter (0 < ·) =
+         (Finset.univ.val.map lam').filter (0 < ·)) :
+    lam = lam' := by
+  -- Step 1: Full multisets are equal (positive filters equal + same card → full equal)
+  have h_full : Finset.univ.val.map lam = Finset.univ.val.map lam' := by
+    apply Multiset.ext'; intro a
+    by_cases ha : 0 < a
+    · have := congr_arg (Multiset.count a) h
+      rwa [Multiset.count_filter_of_pos ha, Multiset.count_filter_of_pos ha] at this
+    · push_neg at ha; obtain rfl := Nat.le_zero.mp ha
+      have hc : (Finset.univ.val.map lam).card = (Finset.univ.val.map lam').card := by simp
+      have hfc := congr_arg Multiset.card h
+      have key : ∀ (m : Multiset ℕ), Multiset.count 0 m = m.card - (m.filter (0 < ·)).card := by
+        intro m
+        have h_split := congr_arg Multiset.card (Multiset.filter_add_not (0 < ·) m)
+        rw [Multiset.card_add] at h_split
+        rw [Multiset.count_eq_card_filter_eq]
+        have : Multiset.filter (fun a => 0 = a) m = Multiset.filter (fun a => ¬ 0 < a) m := by
+          congr 1; ext a; simp [Nat.le_zero, eq_comm]
+        rw [this]; omega
+      rw [key, key]; omega
+  -- Step 2: Antitone functions with equal value multisets are equal.
+  -- For antitone f, List.ofFn f is SortedGE. Two SortedGE lists that are
+  -- permutations (= equal multisets) are equal.
+  simp only [Fin.univ_val_map] at h_full
+  have h_perm := Multiset.coe_eq_coe.mp h_full
+  exact List.ofFn_injective
+    (h_perm.eq_of_sortedGE (List.sortedGE_ofFn_iff.mpr hlam) (List.sortedGE_ofFn_iff.mpr hlam'))
+
 private lemma weightToPartition_eq_iff
     (N n : ℕ) (lam lam' : Fin N → ℕ)
     (_hlam : Antitone lam) (_hlam' : Antitone lam')
     (hsum : ∑ i, lam i = n) (hsum' : ∑ i, lam' i = n) :
     (hsum ▸ weightToPartition N lam : Nat.Partition n) =
       (hsum' ▸ weightToPartition N lam') ↔ lam = lam' := by
-  sorry
+  constructor
+  · intro h
+    apply antitone_eq_of_filter_pos_eq N lam lam' _hlam _hlam'
+    have h1 := congr_arg Nat.Partition.parts h
+    have hrec : ∀ (m k : ℕ) (heq : m = k) (p : Nat.Partition m),
+        (heq ▸ p).parts = p.parts := by
+      intros m k heq p; subst heq; rfl
+    rw [hrec _ _ hsum, hrec _ _ hsum'] at h1
+    exact h1
+  · intro h; subst h; rfl
 
 /-! #### Character orthogonality for the Young symmetrizer -/
 
