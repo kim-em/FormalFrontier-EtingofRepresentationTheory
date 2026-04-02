@@ -459,13 +459,65 @@ private lemma simple_of_full_faithful_preservesMono''
       exact isIso_of_fully_faithful F f
 
 -- Bridge: Simple in FDRep implies IsIrreducible of the underlying representation.
--- The proof requires constructing an FDRep mono from a Subrepresentation (category-theoretic
--- plumbing between Subrepresentation and Subobject). The mathematical content is
--- straightforward: invariant subspaces of a simple FDRep are trivial or everything.
+-- Proof: construct the inclusion morphism for each subrepresentation in FDRep, then
+-- apply the Simple condition to show it's trivial or everything.
 open CategoryTheory in
 private lemma simple_fdRep_isIrreducible {k : Type} [Field k] {G : Type} [Group G]
     (U : FDRep k G) [hU : Simple U] : Representation.IsIrreducible (FDRep.ρ U) := by
-  sorry
+  -- IsIrreducible = IsSimpleOrder (Subrepresentation (FDRep.ρ U))
+  -- First, establish that U is nontrivial (nonzero vector space)
+  have hnt : Nontrivial U := by
+    by_contra h
+    rw [not_nontrivial_iff_subsingleton] at h
+    -- 𝟙 U = 0 because all morphisms out of a subsingleton object are equal
+    apply id_nonzero U
+    haveI : Subsingleton (↑U.V.obj) := h
+    ext x
+    exact Subsingleton.elim _ _
+  refine { exists_pair_ne := ⟨⊥, ⊤, ?_⟩, eq_bot_or_eq_top := fun S => ?_ }
+  · -- ⊥ ≠ ⊤ as subrepresentations
+    intro h
+    obtain ⟨x, y, hxy⟩ := hnt
+    have h' := congr_arg Subrepresentation.toSubmodule h
+    -- h' : ⊥.toSubmodule = ⊤.toSubmodule
+    have hx : x - y ∈ (⊤ : Submodule k U) := Submodule.mem_top
+    rw [show (⊤ : Submodule k U) = (⊤ : Subrepresentation (FDRep.ρ U)).toSubmodule from rfl,
+        ← h'] at hx
+    exact hxy (eq_of_sub_eq_zero ((Submodule.mem_bot k).mp hx))
+  · -- eq_bot_or_eq_top: every subrepresentation is ⊥ or ⊤
+    -- Construct inclusion FDRep.of S.toRepresentation ↪ U
+    let W := FDRep.of S.toRepresentation
+    let ι : W ⟶ U :=
+      ⟨FGModuleCat.ofHom S.toSubmodule.subtype, fun g => by ext ⟨x, hx⟩; rfl⟩
+    -- ι is a mono
+    haveI : Mono ι := by
+      refine ⟨fun {Z} f g h => ?_⟩
+      have key : ∀ (x : Z), (f.hom.hom.hom x : U) = (g.hom.hom.hom x : U) := by
+        intro x
+        have := congr_arg (fun φ => (ConcreteCategory.hom φ) x) h
+        exact this
+      ext x
+      exact key x
+    -- By Simple: ι = 0 or IsIso ι
+    by_cases h : ι = 0
+    · -- ι = 0 ⟹ S = ⊥
+      left; apply Subrepresentation.toSubmodule_injective; ext x; constructor
+      · intro hx
+        have : (S.toSubmodule.subtype ⟨x, hx⟩ : U) = 0 := by
+          have := congr_arg (fun φ => (ConcreteCategory.hom φ) ⟨x, hx⟩) h
+          exact this
+        simp [Submodule.subtype] at this
+        exact this ▸ Submodule.zero_mem _
+      · exact fun hx => SetLike.le_def.mp bot_le hx
+    · -- ι ≠ 0 ⟹ S = ⊤
+      right; haveI : IsIso ι := (Simple.mono_isIso_iff_nonzero ι).mpr h
+      apply Subrepresentation.toSubmodule_injective; ext x; constructor
+      · intro _; exact Submodule.mem_top
+      · intro _
+        have hsurj := (ConcreteCategory.bijective_of_isIso ι).2
+        obtain ⟨⟨y, hy⟩, hyx⟩ := hsurj x
+        have : (y : U) = x := hyx
+        rw [← this]; exact hy
 
 -- Bridge: IsSimpleModule over the monoid algebra implies Simple in FDRep.
 open CategoryTheory in
