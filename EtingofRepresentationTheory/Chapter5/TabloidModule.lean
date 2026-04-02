@@ -857,31 +857,31 @@ private theorem tabloidCumulCount_full (σ : Equiv.Perm (Fin n)) (i : ℕ) (hn :
   · intro e _; exact σ.symm_apply_apply e
   · intro p _; exact σ.apply_symm_apply p
 
-/-- If e_{T₁}(σ_{T₂}) ≠ 0, then the tabloid of T₂ dominates the tabloid of T₁.
+/-- If e_{T₁}(σ_{T₂}) ≠ 0, then the tabloid of T₁ dominates the tabloid of T₂.
 This is the key triangularity property for polytabloid linear independence.
 
-The PQ decomposition σ_{T₂} = σ_{T₁} · p · q gives row₂(e) = row₁(p(q(e))),
-where p preserves canonical rows and q preserves canonical columns. The SYT
-properties of both T₁ and T₂ constrain which (p,q) pairs are possible, ensuring
-the dominance inequality: T₂ (the "evaluated-at" SYT) is at least as dominant
-as T₁ (the polytabloid's SYT). This is the "dominance lemma" for standard
+The PQ decomposition σ_{T₂} = σ_{T₁} · q · p gives row₂(e) = row₁(q(p(e))),
+where q preserves canonical columns and p preserves canonical rows. The SYT
+properties of both T₁ and T₂ constrain which (q,p) pairs are possible, ensuring
+the dominance inequality: T₁ (the polytabloid's SYT) is at least as dominant
+as T₂ (the "evaluated-at" SYT). This is the "dominance lemma" for standard
 Young tableaux (cf. James, "The Representation Theory of the Symmetric Groups",
-or Sagan, "The Symmetric Group", Theorem 2.6.5).
+or Sagan, "The Symmetric Group").
 
-Note on direction: T₂ dominates T₁ (not the other way around). Concretely,
-for λ=(3,2), T₁=[0 2 4/1 3], T₂=[0 1 3/2 4], we have e_{T₁}(σ_{T₂})=1≠0,
-and T₂ packs more entries into the first row (entries {0,1} both in row 0)
-than T₁ (only entry 0 in row 0 among {0,1}). -/
+Note on direction: T₁ dominates T₂ (the polytabloid's tableau dominates the
+evaluated-at tableau). Concretely, for λ=(2,1,1), T₁=[0 2/1/3], T₂=[0 3/1/2],
+we have e_{T₁}(σ_{T₂})≠0, and T₁ packs entries {0,2} into the first row while
+T₂ only has entry {0} in the first row among entries ≤ 2. -/
 theorem polytabloid_syt_dominance
     (T₁ T₂ : StandardYoungTableau n la)
     (hne : (polytabloid n la T₁ : SymGroupAlgebra n) (sytPerm n la T₂) ≠ 0) :
-    tabloidDominates la (sytPerm n la T₂) (sytPerm n la T₁) := by
+    tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
   -- Get QP decomposition: σ_{T₂} = σ_{T₁} · q · p with q ∈ Q_λ, p ∈ P_λ
   obtain ⟨q, hq, p, hp, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
   -- The proof requires showing that for all k, i:
-  --   |{e ≤ k : rowOfPos(σ_{T₂}(e)) < i}| ≥ |{e ≤ k : rowOfPos(σ_{T₁}(e)) < i}|
-  -- where σ_{T₂}(e) = σ_{T₁}(p(q(e))).
-  -- Equivalently: the PQ transformation makes the tabloid MORE dominant.
+  --   |{e ≤ k : rowOfPos(σ_{T₁}(e)) < i}| ≥ |{e ≤ k : rowOfPos(σ_{T₂}(e)) < i}|
+  -- where σ_{T₂}(e) = σ_{T₁}(q(p(e))).
+  -- Equivalently: the QP right-action can only decrease dominance.
   -- This is a deep combinatorial fact about standard Young tableaux and the
   -- interaction of row/column permutations with the dominance order.
   sorry
@@ -891,25 +891,25 @@ The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
 Proved via the tabloid triangularity argument:
 1. Assume Σ aₜ · eₜ = 0 with some aₜ ≠ 0.
-2. Pick T minimal (in dominance) among {T' : aₜ' ≠ 0} — exists since finite.
+2. Pick T maximal (in dominance) among {T' : aₜ' ≠ 0} — exists since finite.
 3. Evaluate at σ_T: Σ aₜ' · eₜ'(σ_T) = 0.
 4. eₜ(σ_T) = 1 by polytabloid_self_coeff.
 5. For T' ≠ T with aₜ' ≠ 0: if eₜ'(σ_T) ≠ 0, then by polytabloid_syt_dominance,
-   tabloid(T) dominates tabloid(T'). By minimality of T (it doesn't strictly
-   dominate anything with nonzero coefficient), tabloid(T') = tabloid(T), but then
+   tabloid(T') dominates tabloid(T). By maximality of T (nothing with nonzero
+   coefficient strictly dominates it), tabloid(T') = tabloid(T), but then
    T' = T by sytToTabloid_injective — contradiction.
 6. So aₜ · 1 + Σ_{T'≠T} 0 = 0, giving aₜ = 0 — contradiction.
 -/
 
 /-- Auxiliary: if Σ f(T) e_T = 0 over a finset S, then for any T₀ ∈ S that is
-dominance-minimal among {T ∈ S : f(T) ≠ 0}, we have f(T₀) = 0. -/
-private lemma polytabloid_coeff_zero_of_minimal
+dominance-maximal among {T ∈ S : f(T) ≠ 0}, we have f(T₀) = 0. -/
+private lemma polytabloid_coeff_zero_of_maximal
     (S : Finset (StandardYoungTableau n la))
     (f : StandardYoungTableau n la → ℂ)
     (hf : ∑ t ∈ S, f t • (polytabloidInSpecht n la t : SymGroupAlgebra n) = 0)
     (T₀ : StandardYoungTableau n la) (hT₀ : T₀ ∈ S)
-    (hmin : ∀ T' ∈ S, f T' ≠ 0 →
-      tabloidDominates la (sytPerm n la T₀) (sytPerm n la T') →
+    (hmax : ∀ T' ∈ S, f T' ≠ 0 →
+      tabloidDominates la (sytPerm n la T') (sytPerm n la T₀) →
       sytToTabloid n la T' = sytToTabloid n la T₀) :
     f T₀ = 0 := by
   classical
@@ -941,54 +941,54 @@ private lemma polytabloid_coeff_zero_of_minimal
   by_cases hcoeff : (polytabloidInSpecht n la T' : SymGroupAlgebra n)
       (sytPerm n la T₀) = 0
   · rw [hcoeff, mul_zero]
-  · -- e_{T'}(σ_{T₀}) ≠ 0 implies tabloid(T₀) dominates tabloid(T')
+  · -- e_{T'}(σ_{T₀}) ≠ 0 implies tabloid(T') dominates tabloid(T₀)
     have hdom := polytabloid_syt_dominance T' T₀ hcoeff
-    -- By minimality, tabloid(T') = tabloid(T₀)
-    have htab_eq := hmin T' hT'S hfT' hdom
+    -- By maximality, tabloid(T') = tabloid(T₀)
+    have htab_eq := hmax T' hT'S hfT' hdom
     -- But different SYTs have different tabloids
     exact absurd (sytToTabloid_injective n la htab_eq) hne
 
-/-- In any finset with a dominance-like relation, a nonempty subset has a minimal
+/-- In any finset with a dominance-like relation, a nonempty subset has a maximal
 element. We use a Nat-valued measure and strong induction. -/
-private lemma exists_dominance_minimal
+private lemma exists_dominance_maximal
     (S : Finset (StandardYoungTableau n la))
     (f : StandardYoungTableau n la → ℂ) (T₀ : StandardYoungTableau n la)
     (hT₀ : T₀ ∈ S) (hfT₀ : f T₀ ≠ 0) :
     ∃ T₁ ∈ S, f T₁ ≠ 0 ∧
       ∀ T' ∈ S, f T' ≠ 0 →
-        tabloidDominates la (sytPerm n la T₁) (sytPerm n la T') →
+        tabloidDominates la (sytPerm n la T') (sytPerm n la T₁) →
         sytToTabloid n la T' = sytToTabloid n la T₁ := by
-  -- Measure: for each T, count how many T' ∈ S with f(T') ≠ 0 that T strictly
-  -- dominates. A minimal T has no such T', giving an empty "badSet".
+  -- Measure: for each T, count how many T' ∈ S with f(T') ≠ 0 that strictly
+  -- dominate T. A maximal T has no such T', giving an empty "badSet".
   classical
-  -- Define: "badSet T" = {T' ∈ S | f(T') ≠ 0 ∧ T strictly dominates T'}
-  -- If badSet T₀ = ∅, T₀ is minimal. Otherwise pick T₁ ∈ badSet T₀ and recurse.
+  -- Define: "badSet T" = {T' ∈ S | f(T') ≠ 0 ∧ T' strictly dominates T}
+  -- If badSet T₀ = ∅, T₀ is maximal. Otherwise pick T₁ ∈ badSet T₀ and recurse.
   suffices hmain : ∀ (m : ℕ) (T : StandardYoungTableau n la),
       T ∈ S → f T ≠ 0 →
       (S.filter fun T' => f T' ≠ 0 ∧
-        tabloidStrictDominates la (sytPerm n la T) (sytPerm n la T')).card = m →
+        tabloidStrictDominates la (sytPerm n la T') (sytPerm n la T)).card = m →
       ∃ T₁ ∈ S, f T₁ ≠ 0 ∧ ∀ T' ∈ S, f T' ≠ 0 →
-        tabloidDominates la (sytPerm n la T₁) (sytPerm n la T') →
+        tabloidDominates la (sytPerm n la T') (sytPerm n la T₁) →
         sytToTabloid n la T' = sytToTabloid n la T₁ by
     exact hmain _ T₀ hT₀ hfT₀ rfl
   intro m
   induction m using Nat.strongRecOn with
   | ind m ih =>
   intro T hTS hfT hcard
-  -- Check if T is already minimal
-  by_cases hmin : ∀ T' ∈ S, f T' ≠ 0 →
-      tabloidDominates la (sytPerm n la T) (sytPerm n la T') →
+  -- Check if T is already maximal
+  by_cases hmax : ∀ T' ∈ S, f T' ≠ 0 →
+      tabloidDominates la (sytPerm n la T') (sytPerm n la T) →
       sytToTabloid n la T' = sytToTabloid n la T
-  · exact ⟨T, hTS, hfT, hmin⟩
-  · -- T is not minimal: there exists T' with f(T') ≠ 0 that T strictly dominates
-    push_neg at hmin
-    obtain ⟨T', hT'S, hfT', hdom, hne_tab⟩ := hmin
-    -- T strictly dominates T'
-    have hstrict : tabloidStrictDominates la (sytPerm n la T) (sytPerm n la T') :=
+  · exact ⟨T, hTS, hfT, hmax⟩
+  · -- T is not maximal: there exists T' with f(T') ≠ 0 that strictly dominates T
+    push_neg at hmax
+    obtain ⟨T', hT'S, hfT', hdom, hne_tab⟩ := hmax
+    -- T' strictly dominates T
+    have hstrict : tabloidStrictDominates la (sytPerm n la T') (sytPerm n la T) :=
       ⟨hdom, fun h => hne_tab (toTabloid_eq_of_tabloidRowVec_eq _ _
-        (tabloidRowVec_eq_of_toTabloid_eq _ _ h.symm))⟩
+        (tabloidRowVec_eq_of_toTabloid_eq _ _ h))⟩
     apply ih (S.filter fun T'' => f T'' ≠ 0 ∧
-        tabloidStrictDominates la (sytPerm n la T') (sytPerm n la T'')).card
+        tabloidStrictDominates la (sytPerm n la T'') (sytPerm n la T')).card
     · -- Strict decrease: badSet(T') ⊊ badSet(T)
       rw [← hcard]
       apply Finset.card_lt_card
@@ -1005,15 +1005,14 @@ private lemma exists_dominance_minimal
         intro T'' hT''
         simp only [Finset.mem_filter] at hT'' ⊢
         refine ⟨hT''.1, hT''.2.1, ?_⟩
-        exact ⟨tabloidDominates_trans hstrict.1 hT''.2.2.1,
+        exact ⟨tabloidDominates_trans hT''.2.2.1 hstrict.1,
           fun heq =>
-            -- If toTabloid(T'') = toTabloid(T), then T dom T' dom T'' and
-            -- tabloidCumulCount matches at T and T'' (same tabloid).
+            -- If toTabloid(T'') = toTabloid(T), then T'' dom T' dom T and
+            -- tabloidCumulCount matches at T'' and T (same tabloid).
             -- So T' is squeezed: all cumulative counts match, giving same tabloid.
-            -- tabloidDominates_antisymm_toTabloid gives toTabloid T' = toTabloid T''
-            -- Combined with heq (toTabloid T = toTabloid T''), gives toTabloid T = toTabloid T'
-            hstrict.2 (heq.trans (tabloidDominates_antisymm_toTabloid
-              hstrict.1 hT''.2.2.1 heq).symm)⟩
+            -- tabloidDominates_antisymm_toTabloid gives toTabloid T' = toTabloid T
+            hstrict.2 (tabloidDominates_antisymm_toTabloid
+              hT''.2.2.1 hstrict.1 heq)⟩
     · exact hT'S
     · exact hfT'
     · rfl
@@ -1024,10 +1023,10 @@ theorem polytabloid_linearIndependent' :
   rw [linearIndependent_iff']
   intro S f hf T hT
   by_contra hfT
-  -- Find a dominance-minimal T₀ ∈ S with f(T₀) ≠ 0
-  obtain ⟨T₀, hT₀, hfT₀, hmin⟩ := exists_dominance_minimal S f T hT hfT
+  -- Find a dominance-maximal T₀ ∈ S with f(T₀) ≠ 0
+  obtain ⟨T₀, hT₀, hfT₀, hmax⟩ := exists_dominance_maximal S f T hT hfT
   -- Apply the coefficient extraction lemma to T₀
-  exact hfT₀ (polytabloid_coeff_zero_of_minimal S f hf T₀ hT₀ hmin)
+  exact hfT₀ (polytabloid_coeff_zero_of_maximal S f hf T₀ hT₀ hmax)
 
 end
 
