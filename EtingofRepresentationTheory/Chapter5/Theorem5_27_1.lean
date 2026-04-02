@@ -1288,14 +1288,33 @@ private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A]
   let Wχ := weightSpaceRep φ W χ hχ
   -- Step 3: Find a simple G_χ-subrepresentation U of W_χ
   have hWχ_nz : ¬ CategoryTheory.Limits.IsZero Wχ := by
-    intro hzero
-    apply hχ
-    rw [Submodule.eq_bot_iff]
-    intro x hx
-    -- IsZero ⟹ 𝟙 = 0, so applying to ⟨x, hx⟩ gives x = 0
-    have hid : (𝟙 Wχ : Wχ ⟶ Wχ) = 0 := hzero.eq_of_src _ _
-    have := congr_arg (fun f => (ConcreteCategory.hom f) ⟨x, hx⟩) hid
-    simpa using this
+    -- Contrapositive: weightSpace ≠ ⊥ means Nontrivial carrier; Nontrivial carrier ⟹ ¬ IsZero
+    rw [Ne, Submodule.eq_bot_iff, not_forall] at hχ
+    obtain ⟨v, hv⟩ := hχ; push_neg at hv; obtain ⟨hv_mem, hv_ne⟩ := hv
+    intro hzero; apply hv_ne
+    -- IsZero implies Subsingleton carrier
+    have hsub : Subsingleton ↑Wχ.V.obj := by
+      constructor; intro a b
+      -- Subsingleton follows from IsZero.eq_of_src: all parallel morphisms are equal
+      -- Build two morphisms from the terminal FDRep to Wχ hitting a and b respectively
+      -- Since IsZero Wχ, all maps into it are equal, but we need out of it
+      -- Instead: IsZero means all endomorphisms are equal, in particular 𝟙 = 0
+      -- This means the identity linear map equals zero, so ∀ x, x = 0
+      have h : (CategoryTheory.CategoryStruct.id Wχ : Wχ ⟶ Wχ) = 0 :=
+        hzero.eq_of_src _ _
+      -- Extract at element level using the ext lemma pattern
+      -- We know that for FDRep, ext says morphisms are determined by their .hom component
+      -- And .hom is in FGModuleCat where ext says determined by underlying function
+      -- So 𝟙 = 0 at function level: ∀ x, id x = 0 x, i.e., x = 0
+      have ha : a = 0 := by
+        have := congr_arg (fun (f : Wχ ⟶ Wχ) => f.hom.hom.hom a) h
+        simpa using this
+      have hb : b = 0 := by
+        have := congr_arg (fun (f : Wχ ⟶ Wχ) => f.hom.hom.hom b) h
+        simpa using this
+      exact ha ▸ hb ▸ rfl
+    have h := @Subsingleton.elim _ hsub ⟨v, hv_mem⟩ ⟨0, (weightSpace φ W χ).zero_mem⟩
+    exact congr_arg Subtype.val h
   obtain ⟨U, hU_simple, ⟨ι⟩⟩ := exists_simple_subrep Wχ hWχ_nz
   -- Step 4: By Frobenius reciprocity + Schur, V(χ,U) ≅ W
   exact ⟨χ, U, hU_simple, (exists_nonzero_map_from_induced φ χ W hW hχ U hU_simple ⟨ι⟩).map CategoryTheory.Iso.symm⟩
