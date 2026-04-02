@@ -458,6 +458,15 @@ private lemma simple_of_full_faithful_preservesMono''
           (fun h => hne (F.map_injective (by rwa [F.map_zero])))
       exact isIso_of_fully_faithful F f
 
+-- Bridge: Simple in FDRep implies IsIrreducible of the underlying representation.
+-- The proof requires constructing an FDRep mono from a Subrepresentation (category-theoretic
+-- plumbing between Subrepresentation and Subobject). The mathematical content is
+-- straightforward: invariant subspaces of a simple FDRep are trivial or everything.
+open CategoryTheory in
+private lemma simple_fdRep_isIrreducible {k : Type} [Field k] {G : Type} [Group G]
+    (U : FDRep k G) [hU : Simple U] : Representation.IsIrreducible (FDRep.ρ U) := by
+  sorry
+
 -- Bridge: IsSimpleModule over the monoid algebra implies Simple in FDRep.
 open CategoryTheory in
 private noncomputable def simple_of_isSimpleModule_asModule'
@@ -685,8 +694,8 @@ private lemma sigma_contains_all_single {G A : Type} [Group G] [CommGroup A] [Fi
   -- Bridge: Simple U → IsIrreducible (FDRep.ρ U)
   -- Proof sketch: construct FDRep.of S.toRepresentation with subtype inclusion as
   -- a mono in FDRep. By Simple, it's zero or iso, giving S = ⊥ or S = ⊤.
-  have hU_irred : Representation.IsIrreducible (FDRep.ρ U) := by
-    sorry -- CategoryTheory.Simple FDRep → Representation.IsIrreducible
+  have hU_irred : Representation.IsIrreducible (FDRep.ρ U) :=
+    simple_fdRep_isIrreducible U
   -- Build S = {v : ↥U | ∃ f ∈ σ, f q₁ = v ∧ ∀ q ≠ q₁, f q = 0}
   -- as a Subrepresentation of FDRep.ρ U.
   set S : Subrepresentation (FDRep.ρ U) :=
@@ -969,6 +978,25 @@ private lemma inducedRepV_simple {G A : Type} [Group G] [CommGroup A] [Fintype G
 -- (ii) Orbit injectivity: if V(χ₁, U₁) ≅ V(χ₂, U₂) then χ₁, χ₂ are in the same orbit.
 -- Proof: the A-eigenvalues of V(χ, U) form the orbit of χ under G. An isomorphism
 -- preserves A-eigenvalues, so the orbits must coincide.
+-- Helper: the A-action on V(χ,U) at coset q is scalar multiplication by the character.
+-- This is extracted from endo_preserves_cosets's hA_action proof.
+open Classical in
+private lemma A_action_scalar {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (U : FDRep ℂ ↥(stabAux φ χ))
+    (a : A) (f : (G ⧸ stabAux φ χ) → ↥U) (q : G ⧸ stabAux φ χ) :
+    (inducedRepV φ χ U).ρ ⟨a, 1⟩ f q =
+    ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) • f q := by
+  change ((χ ((φ q.out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+    (FDRep.ρ U ⟨q.out⁻¹ * (1 : G) * ((1 : G)⁻¹ • q).out,
+      transition_mem_stab φ χ (1 : G) q⟩) (f ((1 : G)⁻¹ • q)) = _
+  have hrho : ∀ (s : ↥(stabAux φ χ)) (hs : (s : G) = 1) (v : ↥U),
+      (FDRep.ρ U s) v = v := by
+    intro s hs v; rw [show s = 1 from Subtype.ext hs, map_one, Module.End.one_apply]
+  simp only [inv_one, one_smul, mul_one]
+  congr 1
+  exact hrho _ (inv_mul_cancel q.out) _
+
 open Classical in
 private lemma inducedRepV_orbit_injectivity {G A : Type} [Group G] [CommGroup A] [Fintype G]
     (φ : G →* MulAut A) (χ₁ χ₂ : A →* ℂˣ)
@@ -976,7 +1004,91 @@ private lemma inducedRepV_orbit_injectivity {G A : Type} [Group G] [CommGroup A]
     (hU₁ : CategoryTheory.Simple U₁) (hU₂ : CategoryTheory.Simple U₂)
     (hiso : Nonempty (inducedRepV φ χ₁ U₁ ≅ inducedRepV φ χ₂ U₂)) :
     ∃ g : G, dualSmulAux φ g χ₁ = χ₂ := by
-  sorry
+  obtain ⟨e⟩ := hiso
+  set T := FDRep.isoToLinearEquiv e
+  -- T commutes with the group action
+  have hT_comm : ∀ (ag : A ⋊[φ] G) (f : ↥(inducedRepV φ χ₁ U₁)),
+      T ((inducedRepV φ χ₁ U₁).ρ ag f) = (inducedRepV φ χ₂ U₂).ρ ag (T f) := by
+    intro ag f
+    have h := FDRep.Iso.conj_ρ e ag
+    show T (((inducedRepV φ χ₁ U₁).ρ ag) f) = ((inducedRepV φ χ₂ U₂).ρ ag) (T f)
+    simp only [h, LinearEquiv.conj_apply, LinearMap.comp_apply, LinearEquiv.coe_coe]
+    change T (((inducedRepV φ χ₁ U₁).ρ ag) f) = T (((inducedRepV φ χ₁ U₁).ρ ag) (T.symm (T f)))
+    rw [LinearEquiv.symm_apply_apply]
+  -- Get nonzero element of U₁ (Simple implies nontrivial)
+  haveI : Nontrivial ↥U₁ := by
+    by_contra h
+    rw [not_nontrivial_iff_subsingleton] at h
+    apply CategoryTheory.id_nonzero U₁
+    haveI : Subsingleton ↑U₁.V.obj := ‹Subsingleton ↥U₁›
+    ext; exact Subsingleton.elim _ _
+  obtain ⟨u, hu⟩ := exists_ne (0 : ↥U₁)
+  -- Identity coset q₁ = ⟦1⟧ in G/G_{χ₁}
+  set q₁ := (⟦(1 : G)⟧ : G ⧸ stabAux φ χ₁)
+  -- f = Pi.single q₁ u is nonzero
+  set f : (G ⧸ stabAux φ χ₁) → ↥U₁ := Pi.single q₁ u
+  have hf_ne : f ≠ 0 := by
+    intro h; apply hu
+    have := congr_fun h q₁
+    simpa [f, Pi.single_eq_same] using this
+  -- Tf ≠ 0 (T is bijective)
+  have hTf_ne : T f ≠ 0 := by
+    rw [ne_eq, ← T.map_zero]; exact T.injective.ne hf_ne
+  -- ∃ q₂ with (Tf)(q₂) ≠ 0
+  obtain ⟨q₂, hq₂⟩ : ∃ q₂ : G ⧸ stabAux φ χ₂, (T f) q₂ ≠ 0 := by
+    by_contra h; push_neg at h; exact hTf_ne (funext h)
+  -- Key: dualSmulAux φ q₁.out χ₁ = dualSmulAux φ q₂.out χ₂
+  -- (eigenvalue argument: characters must match where Tf is nonzero)
+  have hchar_match : dualSmulAux φ q₁.out χ₁ = dualSmulAux φ q₂.out χ₂ := by
+    by_contra hne
+    apply hq₂
+    -- Get witness a where characters differ
+    have hne' : ¬ (dualSmulAux φ q₁.out χ₁ = dualSmulAux φ q₂.out χ₂) := hne
+    rw [DFunLike.ext_iff, not_forall] at hne'
+    obtain ⟨a₀, ha₀⟩ := hne'
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at ha₀
+    -- From T-equivariance at ⟨a₀, 1⟩ evaluated at q₂:
+    have hcomm_q₂ : (T ((inducedRepV φ χ₁ U₁).ρ ⟨a₀, 1⟩ f)) q₂ =
+        ((inducedRepV φ χ₂ U₂).ρ ⟨a₀, 1⟩ (T f)) q₂ :=
+      congr_fun (hT_comm ⟨a₀, 1⟩ f) q₂
+    -- LHS: f is supported on q₁, so V₁.ρ ⟨a₀,1⟩ f = c₁ • f, so T(c₁ • f) = c₁ • Tf
+    have hf_supp : ∀ q, q ≠ q₁ → f q = 0 := by
+      intro q hq; simp [f, Ne.symm hq]
+    have haction_f : (inducedRepV φ χ₁ U₁).ρ ⟨a₀, 1⟩ f =
+        ((χ₁ ((φ q₁.out⁻¹ : MulAut A) a₀) : ℂˣ) : ℂ) • f := by
+      funext q
+      rw [A_action_scalar φ χ₁ U₁ a₀ f q, Pi.smul_apply]
+      by_cases hq : q = q₁
+      · subst hq; rfl
+      · rw [hf_supp q hq, smul_zero, smul_zero]
+    rw [haction_f, map_smul, Pi.smul_apply] at hcomm_q₂
+    -- RHS: V₂.ρ ⟨a₀,1⟩ (Tf) at q₂ = c₂ • (Tf)(q₂)
+    rw [A_action_scalar φ χ₂ U₂ a₀ (T f) q₂] at hcomm_q₂
+    -- hcomm_q₂: c₁ • (Tf)(q₂) = c₂ • (Tf)(q₂)
+    have hsub : (((χ₁ ((φ q₁.out⁻¹ : MulAut A) a₀) : ℂˣ) : ℂ) -
+        ((χ₂ ((φ q₂.out⁻¹ : MulAut A) a₀) : ℂˣ) : ℂ)) • (T f) q₂ = 0 := by
+      rw [sub_smul, sub_eq_zero]; exact hcomm_q₂
+    rw [smul_eq_zero] at hsub
+    rcases hsub with h | h
+    · exfalso; apply ha₀; exact_mod_cast sub_eq_zero.mp h
+    · exact h
+  -- q₁.out ∈ stabAux φ χ₁, so dualSmulAux φ q₁.out χ₁ = χ₁
+  have hq₁_stab : q₁.out ∈ stabAux φ χ₁ := by
+    have := QuotientGroup.leftRel_apply.mp (Quotient.exact' (QuotientGroup.out_eq' q₁))
+    simpa using (stabAux φ χ₁).inv_mem this
+  -- dualSmulAux φ q₁.out χ₁ = χ₁ (stabilizer condition)
+  have hq₁_char : dualSmulAux φ q₁.out χ₁ = χ₁ := hq₁_stab
+  -- So χ₁ = dualSmulAux φ q₂.out χ₂
+  have h_eq : χ₁ = dualSmulAux φ q₂.out χ₂ := hq₁_char ▸ hchar_match
+  -- Invert: χ₂ = dualSmulAux φ (q₂.out⁻¹) χ₁
+  exact ⟨q₂.out⁻¹, by
+    ext a
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom, inv_inv]
+    have h := DFunLike.ext_iff.mp h_eq ((φ q₂.out : MulAut A) a)
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at h
+    rw [show (φ q₂.out⁻¹ : MulAut A) ((φ q₂.out : MulAut A) a) = a from by
+      rw [← MulAut.mul_apply, ← map_mul, inv_mul_cancel, map_one, MulAut.one_apply]] at h
+    exact congrArg Units.val h⟩
 
 -- (iii) Completeness: every irrep of G ⋉ A arises as some V(χ, U).
 -- Proof: by dimension counting, ∑_{O,U} dim(V(O,U))² = |G||A^∨| = |G ⋉ A|.
