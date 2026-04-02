@@ -562,8 +562,10 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
     -- colOfPos injects S into Finset.range w
     have h_inj : Set.InjOn (fun pos : Fin n => colOfPos parts pos.val) ↑S := by
       intro ⟨a, _⟩ ha ⟨b, _⟩ hb heq
-      simp only [S, rowPositions, Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
-      exact Fin.ext (rowOfPos_colOfPos_injective parts a b (by omega) (by omega) (ha.trans hb.symm) heq)
+      simp only [S, rowPositions, Finset.mem_coe, Finset.mem_filter,
+        Finset.mem_univ, true_and] at ha hb
+      exact Fin.ext (rowOfPos_colOfPos_injective parts a b
+        (by omega) (by omega) (ha.trans hb.symm) heq)
     have h_range : ∀ pos ∈ S, colOfPos parts pos.val ∈ Finset.range w := by
       intro pos hpos
       simp only [S, rowPositions, Finset.mem_filter, Finset.mem_univ, true_and] at hpos
@@ -603,7 +605,8 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
       have h2 := Finset.orderEmbOfFin_mem (rowEntries r₂) (rowEnt_card r₂ hr₂) ⟨c₂, by omega⟩
       -- h gives that these two orderEmbOfFin values are equal
       -- So the entry from row r₂ is also in rowEntries r₁
-      have h1' : (rowEntries r₂).orderEmbOfFin (rowEnt_card r₂ hr₂) ⟨c₂, by omega⟩ ∈ rowEntries r₁ := h ▸ h1
+      have h1' : (rowEntries r₂).orderEmbOfFin (rowEnt_card r₂ hr₂)
+          ⟨c₂, by omega⟩ ∈ rowEntries r₁ := h ▸ h1
       -- Unpack: entry ∈ rowEntries r means ∃ pos in row r with σ.symm pos = entry
       obtain ⟨pos₁, hpos₁, hv₁⟩ := Finset.mem_image.mp h1'
       obtain ⟨pos₂, hpos₂, hv₂⟩ := Finset.mem_image.mp h2
@@ -622,15 +625,104 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
     intro ⟨⟨r₁, col₁⟩, hr₁, hc₁⟩ ⟨⟨r₂, col₂⟩, hr₂, hc₂⟩ hrow hcol
     simp only at hrow hcol; subst hrow
     exact ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)).strictMono (by omega)
-  -- T_fun is column-increasing (uses column-standardness of σ and orderEmbOfFin_lt_of_injective_lt)
+  -- T_fun is column-increasing: cells in same column, lower row > upper row.
+  -- Requires: (1) sorted parts monotone (r₁ < r₂ ⟹ parts[r₁] ≥ parts[r₂])
+  -- (2) column-standardness of σ to provide pointwise entry bounds between rows
+  -- (3) orderEmbOfFin comparison: if row r₁ has ≥ j+1 entries < B[j], then A[j] < B[j]
   have T_col_inc : ∀ c₁ c₂ : Cell n la,
       c₁.val.2 = c₂.val.2 → c₁.val.1 < c₂.val.1 → T_fun c₁ < T_fun c₂ := by
     sorry
   let T : StandardYoungTableau n la :=
     ⟨T_fun, ⟨T_inj, T_surj⟩, T_row_inc, T_col_inc⟩
-  -- p = σ⁻¹ * sytPerm T preserves rows (both σ and T assign entries within same rows)
+  -- T_fun maps row-r cells to entries in rowEntries r
+  have T_mem_rowEntries : ∀ (cell : Cell n la),
+      T_fun cell ∈ rowEntries cell.val.1 := by
+    intro ⟨⟨r, c⟩, hr, hc⟩
+    exact Finset.orderEmbOfFin_mem (rowEntries r) (rowEnt_card r hr) ⟨c, by omega⟩
+  -- p = σ⁻¹ * sytPerm T preserves rows
   let p := σ⁻¹ * sytPerm n la T
   have hp_row : p ∈ RowSubgroup n la := by
+    intro k
+    simp only [p, Equiv.Perm.coe_mul, Function.comp_apply, Equiv.Perm.inv_apply_self]
+    -- Goal: rowOfPos parts ((σ⁻¹ * sytPerm n la T) k).val = rowOfPos parts k.val
+    -- Let cell = canonicalFilling(k). Then k is at row cell.val.1.
+    -- sytPerm T k = (canonicalFilling).symm ((ofBijective T.val).symm k)
+    -- Let cell_T = T⁻¹(k) — the cell that T assigns entry k
+    -- sytPerm T k = position of cell_T in canonical filling
+    -- rowOfPos(sytPerm T k) = cell_T.val.1 (the row of cell_T)
+    -- T_fun(cell_T) = k. Since T_fun maps cell_T to an entry in rowEntries(cell_T.val.1),
+    -- k ∈ rowEntries(cell_T.val.1), so σ applied to some position in row(cell_T.val.1) = k.
+    -- Actually we want σ⁻¹(sytPerm T k) = σ.symm(sytPerm T k).
+    -- sytPerm T k is a POSITION (Fin n). σ.symm applied to a position gives... well,
+    -- σ is a permutation of Fin n, σ.symm is its inverse. There's no inherent "position"
+    -- vs "entry" distinction at the type level.
+    -- What we need: rowOfPos(σ.symm(sytPerm T k)) = rowOfPos(k).
+    -- Equivalently: σ.symm and sytPerm T⁻¹ ∘ canonical send k to positions in the same row.
+    -- Key fact: T_fun (the filling) puts the entry T_fun(cell) at cell.
+    -- T = ⟨T_fun, ...⟩ as StandardYoungTableau.
+    -- T_fun(cell) ∈ rowEntries(cell.val.1) = (rowPositions cell.val.1).image σ.symm
+    -- means: ∃ pos ∈ rowPositions cell.val.1, σ.symm pos = T_fun(cell)
+    -- i.e., ∃ pos with rowOfPos(pos) = cell.val.1 and σ.symm(pos) = T_fun(cell)
+    -- So σ(T_fun(cell)) is in row cell.val.1. (σ applied to entry T_fun(cell) = pos.)
+    -- Wait, σ.symm(pos) = T_fun(cell) means σ(T_fun(cell)) = pos.
+    -- NO: σ.symm is σ⁻¹. σ.symm(pos) = T_fun(cell) means σ⁻¹(pos) = T_fun(cell),
+    -- i.e., pos = σ(T_fun(cell)).
+    -- So σ(T_fun(cell)) = pos ∈ rowPositions(cell.val.1), meaning
+    -- rowOfPos(σ(T_fun(cell))) = cell.val.1.
+    --
+    -- Now sytPerm T maps k to the canonical position of T⁻¹(k).
+    -- Let cell_k = T⁻¹(k). Then T_fun(cell_k) = k.
+    -- σ.symm(sytPerm T k) = σ.symm(canonicalPosition of cell_k).
+    -- The canonical position of cell_k is some pos_c with rowOfPos(pos_c) = cell_k.val.1.
+    -- rowOfPos(σ.symm(pos_c)) = ? We need this to equal rowOfPos(k.val).
+    --
+    -- From T_mem_rowEntries: T_fun(cell_k) ∈ rowEntries(cell_k.val.1).
+    -- i.e., k ∈ rowEntries(cell_k.val.1) = (rowPositions cell_k.val.1).image σ.symm.
+    -- So ∃ pos with rowOfPos(pos) = cell_k.val.1 and σ.symm(pos) = k.
+    -- That is: σ(k) is in row cell_k.val.1.
+    -- And the canonical position of cell_k is in row cell_k.val.1.
+    -- We want: rowOfPos(σ.symm(canonical_pos_cell_k)) = rowOfPos(k).
+    --
+    -- But σ.symm(canonical_pos_cell_k) is not directly related to k unless
+    -- σ.symm preserves rows... which it doesn't in general.
+    --
+    -- Actually, p = σ⁻¹ * sytPerm T. p(k) = σ⁻¹(sytPerm T(k)).
+    -- We want rowOfPos(p(k)) = rowOfPos(k).
+    -- sytPerm T(k) is the canonical position of cell_k (the cell T assigns entry k).
+    -- σ⁻¹ of that canonical position = σ.symm(canonical_pos) which is some Fin n value.
+    -- We need: this Fin n value has the same rowOfPos as k.
+    --
+    -- k itself is at canonical position canonicalFilling(k) = cell(rowOfPos(k), colOfPos(k)).
+    -- cell_k = T⁻¹(k) which is in some row r_T.
+    -- The canonical position of cell_k is in row r_T.
+    -- σ.symm applied to that canonical position: we need this to be in row rowOfPos(k).
+    --
+    -- For this we need: r_T = rowOfPos(k). i.e., T assigns entry k to a cell in the
+    -- same row as k's canonical position.
+    --
+    -- But T_fun(cell_k) = k ∈ rowEntries(r_T). rowEntries r_T = (rowPositions r_T).image σ.symm.
+    -- So k = σ.symm(some pos in row r_T), meaning σ(k) is in row r_T.
+    -- But rowOfPos(k) is the row of k in the CANONICAL filling, while σ(k) is in row r_T.
+    -- These are unrelated unless σ preserves rows, which it doesn't in general.
+    --
+    -- WAIT. I think p preserves rows NOT in the sense that p(k) has the same canonical
+    -- row as k, but rather in the RowSubgroup sense. Let me re-read the RowSubgroup def.
+    -- RowSubgroup: σ ∈ P_λ iff ∀ k, rowOfPos(σ(k)) = rowOfPos(k).
+    -- So p ∈ P_λ means: rowOfPos(p(k)) = rowOfPos(k) for all k.
+    -- p(k) = σ⁻¹(sytPerm T k).
+    -- We need: rowOfPos(σ⁻¹(sytPerm T k)) = rowOfPos(k).
+    -- Since σ⁻¹ = σ.symm: rowOfPos((σ.symm)(sytPerm T k)) = rowOfPos(k).
+    --
+    -- sytPerm T k: the canonical position of cell_k (the cell where T puts entry k).
+    -- cell_k is in row r_T. The canonical position of cell_k is some Fin n with row r_T.
+    -- σ.symm of a position with row r_T: this maps to σ.symm(pos), where pos is in row r_T.
+    -- σ.symm(pos) is an entry (Fin n value) — it has its OWN canonical row.
+    -- We need: the canonical row of σ.symm(pos) = the canonical row of k.
+    --
+    -- This is NOT true in general. The issue is that "row" is defined via the
+    -- canonical filling, and σ.symm doesn't preserve canonical rows.
+    --
+    -- Something is wrong with my understanding. Let me re-read more carefully.
     sorry
   exact ⟨T, p, hp_row, by simp only [p]; rw [mul_inv_cancel_left]⟩
 
