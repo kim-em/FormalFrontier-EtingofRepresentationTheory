@@ -1143,15 +1143,137 @@ private lemma inducedRepV_orbit_injectivity {G A : Type} [Group G] [CommGroup A]
     exact congrArg Units.val h⟩
 
 -- (iii) Completeness: every irrep of G ⋉ A arises as some V(χ, U).
--- Proof: by dimension counting, ∑_{O,U} dim(V(O,U))² = |G||A^∨| = |G ⋉ A|.
--- Combined with (i) and (ii), this accounts for all irreps.
+-- Proof strategy (direct construction, following the book):
+-- 1. Restrict W to A. Since A is finite abelian over ℂ, W|_A decomposes into characters.
+-- 2. Pick any character χ appearing (i.e., W_χ ≠ 0).
+-- 3. The χ-weight space W_χ is a G_χ-submodule of W.
+-- 4. Pick a simple G_χ-subrepresentation U ↪ W_χ.
+-- 5. Construct a nonzero A⋊G-morphism V(χ,U) → W via Frobenius reciprocity.
+-- 6. By Schur's lemma (both are simple), this morphism is an isomorphism.
+
+-- The weight space W_χ = {w ∈ W | ∀ a, ρ(a,1)(w) = χ(a) · w}
+private def weightSpace {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (W : FDRep ℂ (A ⋊[φ] G)) (χ : A →* ℂˣ) : Submodule ℂ W :=
+  ⨅ (a : A), LinearMap.ker (W.ρ ⟨a, 1⟩ - ((χ a : ℂˣ) : ℂ) • LinearMap.id)
+
+-- Helper: A character of A appearing in W exists (W_χ ≠ 0 for some χ)
+-- Proof: A is finite abelian over ℂ (alg. closed, char 0), so W|_A is semisimple
+-- and decomposes into 1-dimensional characters. Since W ≠ 0 (it's simple), some
+-- weight space is nonzero.
+private lemma exists_character_in_rep {G A : Type} [Group G] [CommGroup A]
+    [Fintype G] [Fintype A]
+    (φ : G →* MulAut A) (W : FDRep ℂ (A ⋊[φ] G)) (hW : CategoryTheory.Simple W) :
+    ∃ χ : A →* ℂˣ, weightSpace φ W χ ≠ ⊥ := by
+  sorry
+
+-- Helper: The weight space W_χ is invariant under G_χ
+-- Proof: For g ∈ G_χ and w ∈ W_χ, ρ(a,1)(ρ(1,g)(w)) = ρ(1,g)(ρ(g⁻¹ag,1)(w))
+-- = ρ(1,g)(χ(g⁻¹ag)·w) = χ(g⁻¹ag)·ρ(1,g)(w). Since g ∈ G_χ, χ(g⁻¹ag) = χ(a).
+private lemma weightSpace_stabAux_invariant {G A : Type} [Group G] [CommGroup A] [Fintype G]
+    (φ : G →* MulAut A) (W : FDRep ℂ (A ⋊[φ] G)) (χ : A →* ℂˣ)
+    (g : ↥(stabAux φ χ)) : ∀ w ∈ weightSpace φ W χ,
+      W.ρ ⟨1, (g : G)⟩ w ∈ weightSpace φ W χ := by
+  intro w hw
+  -- w ∈ weightSpace means: for all a, ρ(a,1)(w) = χ(a) • w
+  simp only [weightSpace, Submodule.mem_iInf, LinearMap.mem_ker, LinearMap.sub_apply,
+    LinearMap.smul_apply, LinearMap.id_apply] at hw ⊢
+  intro a
+  -- Need: ρ(a,1)(ρ(1,g)(w)) - χ(a) • ρ(1,g)(w) = 0
+  -- Key: ρ(a,1) ∘ ρ(1,g) = ρ(a,g) = ρ(1,g) ∘ ρ(g⁻¹ag, 1) (since (1,g)(g⁻¹ag,1) = (a,g))
+  -- And since g ∈ G_χ and A is commutative: χ(g⁻¹ag) = χ(a)
+  -- So ρ(a,1)(ρ(1,g)(w)) = ρ(1,g)(ρ(g⁻¹ag,1)(w)) = ρ(1,g)(χ(g⁻¹ag)•w) = χ(a)•ρ(1,g)(w)
+  have hga : (⟨a, (1 : G)⟩ : A ⋊[φ] G) * ⟨1, (g : G)⟩ =
+      ⟨1, (g : G)⟩ * ⟨(φ (g : G)⁻¹ : MulAut A) a, 1⟩ := by
+    ext
+    · simp [SemidirectProduct.mul_left, SemidirectProduct.mul_right,
+        SemidirectProduct.one_left, SemidirectProduct.one_right]
+    · simp [SemidirectProduct.mul_left, SemidirectProduct.mul_right,
+        SemidirectProduct.one_left, SemidirectProduct.one_right]
+  -- ρ(a,1)(ρ(1,g)(w)) = ρ((a,1)*(1,g))(w) = ρ((1,g)*(g⁻¹ag,1))(w)
+  have step1 : W.ρ ⟨a, (1 : G)⟩ (W.ρ ⟨1, (g : G)⟩ w) =
+      W.ρ ⟨1, (g : G)⟩ (W.ρ ⟨(φ (g : G)⁻¹ : MulAut A) a, 1⟩ w) := by
+    rw [← Module.End.mul_apply, ← map_mul, hga, map_mul, Module.End.mul_apply]
+  -- ρ(g⁻¹ag,1)(w) = χ(g⁻¹ag) • w (since w ∈ W_χ)
+  have step2 := hw ((φ (g : G)⁻¹ : MulAut A) a)
+  -- Since A is commutative: g⁻¹ag = a in A, so χ(g⁻¹ag) = χ(a)
+  -- Actually, (φ g⁻¹)(a) is what appears. Since g ∈ G_χ, χ((φ g⁻¹)(a)) = χ(a).
+  have hstab : χ ((φ (g : G)⁻¹ : MulAut A) a) = χ a := by
+    have hg_mem := g.2  -- g ∈ stabAux φ χ means dualSmulAux φ g χ = χ
+    have := DFunLike.ext_iff.mp hg_mem a
+    simp only [dualSmulAux, MonoidHom.comp_apply, MulEquiv.coe_toMonoidHom] at this
+    exact this
+  rw [step1, sub_eq_zero]
+  -- step2 says ρ(φ(g⁻¹)(a),1)(w) - χ(φ(g⁻¹)(a)) • w = 0
+  rw [sub_eq_zero] at step2
+  rw [step2, map_smul, hstab]
+
+-- Construct the G_χ-representation on the weight space
+private noncomputable def weightSpaceRep {G A : Type} [Group G] [CommGroup A]
+    [Fintype G] [Fintype A]
+    (φ : G →* MulAut A) (W : FDRep ℂ (A ⋊[φ] G)) (χ : A →* ℂˣ)
+    (hχ : weightSpace φ W χ ≠ ⊥) : FDRep ℂ ↥(stabAux φ χ) :=
+  FDRep.of (V := ↥(weightSpace φ W χ)) <|
+  { toFun := fun g =>
+    { toFun := fun ⟨w, hw⟩ =>
+        ⟨W.ρ ⟨1, (g : G)⟩ w, weightSpace_stabAux_invariant φ W χ g w hw⟩
+      map_add' := fun ⟨x, _⟩ ⟨y, _⟩ => Subtype.ext (map_add _ _ _)
+      map_smul' := fun c ⟨x, _⟩ => Subtype.ext (map_smul _ _ _) }
+    map_one' := by
+      ext ⟨w, hw⟩
+      -- Goal: action of 1 ∈ G_χ on (w, hw) = (w, hw)
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, Module.End.one_apply]
+      congr 1
+      show (W.ρ ⟨1, ((1 : ↥(stabAux φ χ)) : G)⟩) w = w
+      rw [show ((1 : ↥(stabAux φ χ)) : G) = 1 from rfl]
+      have : (⟨(1 : A), (1 : G)⟩ : A ⋊[φ] G) = 1 := by
+        ext <;> simp [SemidirectProduct.one_left, SemidirectProduct.one_right]
+      rw [this, map_one]; rfl
+    map_mul' := fun g₁ g₂ => by
+      ext ⟨w, hw⟩
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, Module.End.mul_apply]
+      -- Goal: ⟨ρ(1,g₁g₂)w, _⟩ = ⟨ρ(1,g₁)(ρ(1,g₂)w), _⟩
+      -- (1,g₁)*(1,g₂) = (1,g₁g₂) in A ⋊ G (since φ(g₁)(1) = 1)
+      -- Need: ρ(1,g₁g₂)w = ρ(1,g₁)(ρ(1,g₂)w), i.e. the underlying elements match
+      change (W.ρ ⟨1, ↑(g₁ * g₂)⟩) w = (W.ρ ⟨1, ↑g₁⟩) ((W.ρ ⟨1, ↑g₂⟩) w)
+      rw [← Module.End.mul_apply, ← map_mul]
+      congr 1
+      ext <;> simp [SemidirectProduct.mul_left, SemidirectProduct.one_left,
+          SemidirectProduct.mul_right, SemidirectProduct.one_right, Subgroup.coe_mul] }
+
+-- Helper: A nonzero finite-dimensional representation has a simple subrepresentation
+private lemma exists_simple_subrep {k H : Type} [Field k] [Group H] [Fintype H]
+    (V : FDRep k H) (hV : ¬ CategoryTheory.Limits.IsZero V) :
+    ∃ U : FDRep k H, CategoryTheory.Simple U ∧ Nonempty (U ⟶ V) := by
+  sorry
+
+-- Helper: Frobenius reciprocity map from V(χ,U) to W
+-- Given U ↪ W_χ (as G_χ-reps), construct a nonzero A⋊G-morphism V(χ,U) → W
+private lemma exists_nonzero_map_from_induced {G A : Type} [Group G] [CommGroup A]
+    [Fintype G] [Fintype A]
+    (φ : G →* MulAut A) (χ : A →* ℂˣ)
+    (W : FDRep ℂ (A ⋊[φ] G)) (hW : CategoryTheory.Simple W)
+    (U : FDRep ℂ ↥(stabAux φ χ)) (hU : CategoryTheory.Simple U)
+    (hUW : Nonempty (U ⟶ weightSpaceRep φ W χ (by sorry))) :
+    Nonempty (inducedRepV φ χ U ≅ W) := by
+  sorry
+
 open Classical in
-private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A] [Fintype G]
+private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A]
+    [Fintype G] [Fintype A]
     (φ : G →* MulAut A)
     (W : FDRep ℂ (A ⋊[φ] G)) (hW : CategoryTheory.Simple W) :
     ∃ (χ : A →* ℂˣ) (U : FDRep ℂ ↥(stabAux φ χ)),
       CategoryTheory.Simple U ∧ Nonempty (W ≅ inducedRepV φ χ U) := by
-  sorry
+  -- Step 1: Find a character χ with nonzero weight space
+  obtain ⟨χ, hχ⟩ := exists_character_in_rep φ W hW
+  -- Step 2: The weight space is a nonzero G_χ-representation
+  let Wχ := weightSpaceRep φ W χ hχ
+  -- Step 3: Find a simple G_χ-subrepresentation U of W_χ
+  have hWχ_nz : ¬ CategoryTheory.Limits.IsZero Wχ := by
+    sorry -- hχ : weightSpace ≠ ⊥ ⟹ FDRep.of (weight space) ≠ 0 (categorical bridge)
+  obtain ⟨U, hU_simple, ⟨ι⟩⟩ := exists_simple_subrep Wχ hWχ_nz
+  -- Step 4: By Frobenius reciprocity + Schur, V(χ,U) ≅ W
+  exact ⟨χ, U, hU_simple, (exists_nonzero_map_from_induced φ χ W hW U hU_simple ⟨ι⟩).map CategoryTheory.Iso.symm⟩
 
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
@@ -1167,7 +1289,7 @@ The statement asserts the existence of:
 satisfying irreducibility, injectivity on orbits, surjectivity onto all
 irreducibles, and the explicit character formula. (Etingof Theorem 5.27.1) -/
 theorem Etingof.Theorem5_27_1
-    (G A : Type) [Group G] [CommGroup A] [Fintype G]
+    (G A : Type) [Group G] [CommGroup A] [Fintype G] [Fintype A]
     (φ : G →* MulAut A) :
     ∃ (-- The dual G-action on Â: (g · χ)(a) = χ(φ(g⁻¹)(a))
        dualSmul : G → (A →* ℂˣ) → (A →* ℂˣ))
