@@ -782,14 +782,72 @@ private noncomputable def garnirElement (n : ℕ) (la : Nat.Partition n)
 
 /-- The Garnir set contains at least two positions in the same row (pigeonhole).
 Specifically, it contains p₁ and some other position in the same row as p₁
-(or p₂ and another in row(p₂)) when the corresponding row has width ≥ 2. -/
+(or p₂ and another in row(p₂)) when the corresponding row has width ≥ 2.
+
+Note: the hypothesis `hwidth` excludes single-column partitions where
+the Garnir set has only one element per row. Single-column partitions
+need separate handling in the straightening algorithm. -/
 private theorem garnirSet_has_row_pair (n : ℕ) (la : Nat.Partition n)
     (p₁ p₂ : Fin n)
     (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
-    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val) :
+    (_hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
+    (hwidth : 1 < la.sortedParts.getD (rowOfPos la.sortedParts p₁.val) 0) :
     ∃ a b : Fin n, a ≠ b ∧ a ∈ garnirSet n la p₁ p₂ ∧ b ∈ garnirSet n la p₁ p₂ ∧
       rowOfPos la.sortedParts a.val = rowOfPos la.sortedParts b.val := by
-  sorry
+  set parts := la.sortedParts with hparts_def
+  set r₁ := rowOfPos parts p₁.val with hr₁_def
+  set r₂ := rowOfPos parts p₂.val with hr₂_def
+  set j := colOfPos parts p₁.val with hj_def
+  -- p₁ is a valid position, so j < width(r₁), and p₂ gives j < width(r₂)
+  have hn_pos : 0 < n := Fin.pos p₁
+  have hp₁_valid : p₁.val < parts.sum := by
+    rw [hparts_def, sortedParts_sum]; exact p₁.isLt
+  have hp₂_valid : p₂.val < parts.sum := by
+    rw [hparts_def, sortedParts_sum]; exact p₂.isLt
+  have hj_lt_r₁ : j < parts.getD r₁ 0 := colOfPos_lt_getD parts p₁.val hp₁_valid
+  have hj_lt_r₂ : j < parts.getD r₂ 0 := by
+    have := colOfPos_lt_getD parts p₂.val hp₂_valid
+    rwa [← hcol] at this
+  -- Case split: j ≥ 1 (use row r₂) or j = 0 (use row r₁)
+  by_cases hj_pos : 0 < j
+  · -- Case j ≥ 1: row r₂ has positions at columns 0 and 1, both ≤ j
+    -- Get position at (r₂, 0)
+    have h0_lt : 0 < parts.getD r₂ 0 := by omega
+    obtain ⟨k₀, hk₀_sum, hk₀_row, hk₀_col⟩ := exists_pos_of_cell parts r₂ 0 h0_lt
+    -- Get position at (r₂, 1)
+    have h1_lt : 1 < parts.getD r₂ 0 := by omega
+    obtain ⟨k₁, hk₁_sum, hk₁_row, hk₁_col⟩ := exists_pos_of_cell parts r₂ 1 h1_lt
+    -- They're distinct (different columns)
+    have hne : k₀ ≠ k₁ := by
+      intro heq; rw [heq] at hk₀_col; rw [hk₀_col] at hk₁_col; omega
+    -- Convert to Fin n
+    rw [hparts_def, sortedParts_sum n la] at hk₀_sum hk₁_sum
+    refine ⟨⟨k₀, hk₀_sum⟩, ⟨k₁, hk₁_sum⟩, fun h => hne (congrArg Fin.val h), ?_, ?_, ?_⟩
+    · simp only [garnirSet, Finset.mem_filter, Finset.mem_univ, true_and, ← hparts_def]
+      right; exact ⟨hk₀_row, by rw [hk₀_col]; omega⟩
+    · simp only [garnirSet, Finset.mem_filter, Finset.mem_univ, true_and, ← hparts_def]
+      right; exact ⟨hk₁_row, by rw [hk₁_col]; omega⟩
+    · rw [show (⟨k₀, hk₀_sum⟩ : Fin n).val = k₀ from rfl,
+          show (⟨k₁, hk₁_sum⟩ : Fin n).val = k₁ from rfl, hk₀_row, hk₁_row]
+  · -- Case j = 0: row r₁ has width ≥ 2, positions at cols 0 and 1, both ≥ j = 0
+    push_neg at hj_pos
+    have hj_eq : j = 0 := Nat.le_zero.mp hj_pos
+    -- Get position at (r₁, 0)
+    have h0_lt : 0 < parts.getD r₁ 0 := by omega
+    obtain ⟨k₀, hk₀_sum, hk₀_row, hk₀_col⟩ := exists_pos_of_cell parts r₁ 0 h0_lt
+    -- Get position at (r₁, 1)
+    obtain ⟨k₁, hk₁_sum, hk₁_row, hk₁_col⟩ := exists_pos_of_cell parts r₁ 1 hwidth
+    -- They're distinct
+    have hne : k₀ ≠ k₁ := by
+      intro heq; rw [heq] at hk₀_col; rw [hk₀_col] at hk₁_col; omega
+    rw [hparts_def, sortedParts_sum n la] at hk₀_sum hk₁_sum
+    refine ⟨⟨k₀, hk₀_sum⟩, ⟨k₁, hk₁_sum⟩, fun h => hne (congrArg Fin.val h), ?_, ?_, ?_⟩
+    · simp only [garnirSet, Finset.mem_filter, Finset.mem_univ, true_and, ← hparts_def]
+      left; exact ⟨hk₀_row, by rw [← hj_def, hk₀_col, hj_eq]⟩
+    · simp only [garnirSet, Finset.mem_filter, Finset.mem_univ, true_and, ← hparts_def]
+      left; exact ⟨hk₁_row, by rw [← hj_def, hj_eq]; omega⟩
+    · rw [show (⟨k₀, hk₀_sum⟩ : Fin n).val = k₀ from rfl,
+          show (⟨k₁, hk₁_sum⟩ : Fin n).val = k₁ from rfl, hk₀_row, hk₁_row]
 
 /-- Left multiplication by a transposition t ∈ S_{A∪B} negates the Garnir element:
 of(t) * G = -G. This is a standard property of alternating sums. -/
@@ -799,16 +857,54 @@ private theorem left_transposition_negates_garnir (n : ℕ) (la : Nat.Partition 
     (ht_sign : Equiv.Perm.sign t = -1) :
     MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂ =
       -garnirElement n la p₁ p₂ := by
-  sorry
+  simp only [garnirElement]
+  rw [Finset.mul_sum, ← Finset.sum_neg_distrib]
+  simp_rw [Algebra.mul_smul_comm, ← map_mul (MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)))]
+  -- Goal: ∑ w, (↑↑(sign w.val) : ℂ) • of(t * w.val) =
+  --       ∑ w, -((↑↑(sign w.val) : ℂ) • of(w.val))
+  set S := garnirSet n la p₁ p₂ with hS_def
+  have ht_inv_supp : ∀ x, x ∉ S → t⁻¹ x = x := fun x hx => by
+    calc t⁻¹ x = t⁻¹ (t x) := by rw [ht_supp x hx]
+      _ = x := Equiv.symm_apply_apply t x
+  set P := fun w : Equiv.Perm (Fin n) => ∀ x, x ∉ S → w x = x
+  have hmul_mem : ∀ (w : Equiv.Perm (Fin n)), P w → P (t * w) := fun w hw x hx => by
+    change t (w x) = x; rw [hw x hx, ht_supp x hx]
+  have hinv_mem : ∀ (w : Equiv.Perm (Fin n)), P w → P (t⁻¹ * w) := fun w hw x hx => by
+    change t⁻¹ (w x) = x; rw [hw x hx, ht_inv_supp x hx]
+  -- Reindex LHS sum via bijection w ↦ t * w
+  refine Fintype.sum_equiv
+    ⟨fun ⟨w, hw⟩ => ⟨t * w, hmul_mem w hw⟩,
+     fun ⟨w, hw⟩ => ⟨t⁻¹ * w, hinv_mem w hw⟩,
+     fun ⟨w, _⟩ => Subtype.ext (show t⁻¹ * (t * w) = w by group),
+     fun ⟨w, _⟩ => Subtype.ext (show t * (t⁻¹ * w) = w by group)⟩
+    _ _ (fun ⟨w, hw⟩ => ?_)
+  -- Term matching: sign(w) • of(t * w) = -(sign(t * w) • of(t * w))
+  -- Since sign(t * w) = sign(t) * sign(w) = -1 * sign(w), we get
+  -- -((-1 * sign(w)) • of(t*w)) = sign(w) • of(t*w)
+  -- The equiv maps ⟨w,hw⟩ to ⟨t*w, ...⟩, so we need:
+  -- sign(w) • of(t * w) = -(sign(t * w) • of(t * w))
+  change (↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) •
+      MonoidAlgebra.of ℂ _ (t * w) =
+    -((↑(↑(Equiv.Perm.sign (t * w)) : ℤ) : ℂ) •
+      MonoidAlgebra.of ℂ _ (t * w))
+  have hsm : (↑(↑(Equiv.Perm.sign (t * w)) : ℤ) : ℂ) =
+      -(↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) := by
+    have h1 : Equiv.Perm.sign (t * w) = Equiv.Perm.sign t * Equiv.Perm.sign w := map_mul _ _ _
+    rw [h1, ht_sign]
+    simp only [Units.val_mul, Int.cast_mul]
+    have : (↑(-1 : ℤˣ) : ℤ) = -1 := rfl
+    rw [this, Int.cast_neg, Int.cast_one, neg_one_mul]
+  rw [hsm, neg_smul, neg_neg]
 
 private theorem garnir_row_annihilates (n : ℕ) (la : Nat.Partition n)
     (p₁ p₂ : Fin n)
     (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
-    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val) :
+    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
+    (hwidth : 1 < la.sortedParts.getD (rowOfPos la.sortedParts p₁.val) 0) :
     RowSymmetrizer n la * garnirElement n la p₁ p₂ = 0 := by
   -- Step 1: Find a transposition t in P_λ ∩ S_{A∪B}
   obtain ⟨a, b, hab, ha_mem, hb_mem, hrow_eq⟩ :=
-    garnirSet_has_row_pair n la p₁ p₂ hcol hrow
+    garnirSet_has_row_pair n la p₁ p₂ hcol hrow hwidth
   set t := Equiv.swap a b
   -- t is a transposition (sign = -1)
   have ht_sign : Equiv.Perm.sign t = -1 := Equiv.Perm.sign_swap hab
