@@ -1569,44 +1569,53 @@ private lemma weightToPartition_eq_iff'
     exact h1
   · intro h; subst h; rfl
 
-/-- `charValue N bp μ` reduces to `charValue n (canonicalBP N n bp) μ` by
-repeatedly removing trailing zeros. -/
-private lemma charValue_reduce_to_canonical (N n : ℕ) (bp : BoundedPartition N n)
+-- Reduction to canonical form: charValue N bp = charValue n (canonicalBP N n bp).
+-- Uses charValue_remove_trailing_zero (to strip trailing zeros when N > n) and its
+-- reverse (adding trailing zeros when N < n). Both directions follow from the same
+-- polynomial-coefficient identity relating N+1 and N variables.
+private lemma charValue_reduce_to_n (N n : ℕ) (bp : BoundedPartition N n)
     (μ : Nat.Partition n) :
     charValue N bp μ = charValue n (canonicalBP N n bp) μ := by
   sorry
+
+-- canonicalBP depends only on the underlying partition,
+-- so equal partitions give equal canonical BPs.
+private lemma canonicalBP_eq_of_weightToPartition_eq
+    (N₁ N₂ n : ℕ) (bp₁ : BoundedPartition N₁ n)
+    (bp₂ : BoundedPartition N₂ n)
+    (h : (bp₁.sum_eq ▸ weightToPartition N₁ bp₁.parts :
+            Nat.Partition n) =
+         (bp₂.sum_eq ▸ weightToPartition N₂ bp₂.parts :
+            Nat.Partition n)) :
+    canonicalBP N₁ n bp₁ = canonicalBP N₂ n bp₂ := by
+  have hparts : (canonicalBP N₁ n bp₁).parts =
+      (canonicalBP N₂ n bp₂).parts := by
+    funext i
+    change (bp₁.sum_eq ▸ weightToPartition N₁ bp₁.parts :
+            Nat.Partition n).sortedParts.getD i.val 0 =
+         (bp₂.sum_eq ▸ weightToPartition N₂ bp₂.parts :
+            Nat.Partition n).sortedParts.getD i.val 0
+    rw [h]
+  have : ∀ (a b : BoundedPartition n n), a.parts = b.parts → a = b := by
+    intro ⟨_, _, _⟩ ⟨_, _, _⟩ h; simp_all
+  exact this _ _ hparts
 
 /-- Stability of charValue: the value is independent of the number of variables N,
 depending only on the partition (nonzero parts). This is the standard fact that
 symmetric function coefficients in the alternant expansion are stable under
 change of the number of variables.
 
-**Proof**: Both sides reduce to `charValue n (canonicalBP)` via trailing-zero removal.
-The canonical BPs have the same parts by the hypothesis on partitions. -/
+**Proof**: Reduce both sides to canonical form (`canonicalBP`, which has `n` variables),
+then observe the canonical BPs are equal since they depend only on the partition. -/
 private lemma charValue_stability
     (N₁ N₂ n : ℕ) (bp₁ : BoundedPartition N₁ n) (bp₂ : BoundedPartition N₂ n)
     (h : (bp₁.sum_eq ▸ weightToPartition N₁ bp₁.parts : Nat.Partition n) =
          (bp₂.sum_eq ▸ weightToPartition N₂ bp₂.parts : Nat.Partition n))
     (μ : Nat.Partition n) :
     charValue N₁ bp₁ μ = charValue N₂ bp₂ μ := by
-  rw [charValue_reduce_to_canonical N₁ n bp₁ μ,
-      charValue_reduce_to_canonical N₂ n bp₂ μ]
-  -- The canonical BPs have the same underlying partition, hence same parts
-  -- (antitone at same size n + same multiset of nonzero parts → same function)
-  have h_canon₁ := canonicalBP_weightToPartition N₁ n bp₁
-  have h_canon₂ := canonicalBP_weightToPartition N₂ n bp₂
-  -- The canonical BPs must be equal since their partitions agree
-  suffices h_eq : canonicalBP N₁ n bp₁ = canonicalBP N₂ n bp₂ by rw [h_eq]
-  have h_same : ((canonicalBP N₁ n bp₁).sum_eq ▸
-      weightToPartition n (canonicalBP N₁ n bp₁).parts : Nat.Partition n) =
-    ((canonicalBP N₂ n bp₂).sum_eq ▸
-      weightToPartition n (canonicalBP N₂ n bp₂).parts : Nat.Partition n) := by
-    rw [h_canon₁, h_canon₂, h]
-  have h_parts : (canonicalBP N₁ n bp₁).parts = (canonicalBP N₂ n bp₂).parts :=
-    (weightToPartition_eq_iff' n n _ _ (canonicalBP N₁ n bp₁).decreasing
-      (canonicalBP N₂ n bp₂).decreasing _ _).mp h_same
-  exact match canonicalBP N₁ n bp₁, canonicalBP N₂ n bp₂, h_parts with
-    | ⟨_, _, _⟩, ⟨_, _, _⟩, rfl => rfl
+  rw [charValue_reduce_to_n N₁ n bp₁ μ, charValue_reduce_to_n N₂ n bp₂ μ]
+  congr 1
+  exact canonicalBP_eq_of_weightToPartition_eq N₁ N₂ n bp₁ bp₂ h
 
 /-- The Frobenius character formula bridge: `charValue` equals `spechtModuleCharacter`
 (after casting ℚ → ℂ). This bridges the polynomial coefficient definition used in
