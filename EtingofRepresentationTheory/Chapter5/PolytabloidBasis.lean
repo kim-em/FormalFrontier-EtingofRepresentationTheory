@@ -557,9 +557,33 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
   have rowEnt_card : ∀ r : ℕ, r < parts.length →
       (rowEntries r).card = parts.getD r 0 := by
     intro r hr; rw [Finset.card_image_of_injOn (σ_inj_on_row r)]
-    -- |{pos : Fin n | rowOfPos parts pos = r}| = parts.getD r 0
-    -- Bijection via colOfPos (injective) and exists_pos_of_cell (surjective)
-    sorry
+    set S := rowPositions r
+    set w := parts.getD r 0
+    -- colOfPos injects S into Finset.range w
+    have h_inj : Set.InjOn (fun pos : Fin n => colOfPos parts pos.val) ↑S := by
+      intro ⟨a, _⟩ ha ⟨b, _⟩ hb heq
+      simp only [S, rowPositions, Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
+      exact Fin.ext (rowOfPos_colOfPos_injective parts a b (by omega) (by omega) (ha.trans hb.symm) heq)
+    have h_range : ∀ pos ∈ S, colOfPos parts pos.val ∈ Finset.range w := by
+      intro pos hpos
+      simp only [S, rowPositions, Finset.mem_filter, Finset.mem_univ, true_and] at hpos
+      have := colOfPos_lt_getD parts pos.val (by omega)
+      rw [hpos] at this; exact Finset.mem_range.mpr this
+    -- exists_pos_of_cell provides a right inverse, showing surjectivity
+    have h_surj : Finset.range w ⊆ (S.image (fun pos : Fin n => colOfPos parts pos.val)) := by
+      intro c hc
+      rw [Finset.mem_range] at hc
+      obtain ⟨k, hk, hrow, hcol⟩ := exists_pos_of_cell parts r c hc
+      exact Finset.mem_image.mpr ⟨⟨k, by omega⟩,
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hrow⟩, hcol⟩
+    -- |S| = |image of S under colOfPos| (by injectivity) = w (by surjectivity)
+    calc S.card = (S.image (fun pos : Fin n => colOfPos parts pos.val)).card :=
+          (Finset.card_image_of_injOn h_inj).symm
+      _ = (Finset.range w).card := by
+          apply le_antisymm
+          · exact Finset.card_le_card (Finset.image_subset_iff.mpr (fun pos hp => h_range pos hp))
+          · exact Finset.card_le_card h_surj
+      _ = w := Finset.card_range w
   -- Define the sorted filling T(cell(r,c)) = c-th smallest entry in row r
   let T_fun : Cell n la → Fin n := fun cell =>
     (rowEntries cell.val.1).orderEmbOfFin (rowEnt_card cell.val.1 cell.prop.1)
@@ -622,8 +646,24 @@ private theorem column_standard_in_span' (n : ℕ) (la : Nat.Partition n)
       of_row_mul_youngSymmetrizer' n la p⁻¹ ((RowSubgroup n la).inv_mem hp)]
   exact Submodule.subset_span ⟨T, rfl⟩
 
+/-- Non-column-standard implies existence of a column inversion. -/
+private theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
+    ∃ p₁ p₂ : Fin n,
+      colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val ∧
+      rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val ∧
+      σ.symm p₂ < σ.symm p₁ := by
+  simp only [isColumnStandard', not_forall] at h
+  obtain ⟨p₁, p₂, hcol, hrow, hinv⟩ := h
+  simp only [not_lt] at hinv
+  have hne : p₁ ≠ p₂ := by intro heq; rw [heq] at hrow; exact Nat.lt_irrefl _ hrow
+  have hne' : σ.symm p₁ ≠ σ.symm p₂ := σ.symm.injective.ne hne
+  exact ⟨p₁, p₂, hcol, hrow, lt_of_le_of_ne hinv hne'.symm⟩
+
 /-- Garnir reduction: for a non-column-standard filling, of(σ) · c_λ
-can be expressed as a combination of of(τᵢ) · c_λ with fewer column inversions. -/
+can be expressed as a combination of of(τᵢ) · c_λ with fewer column inversions.
+
+The standard proof uses the Garnir element (see James, Ch. 7). -/
 private theorem garnir_reduction' (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
     ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
