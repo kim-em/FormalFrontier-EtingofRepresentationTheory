@@ -3869,7 +3869,7 @@
     "end_page": "133",
     "start_line": 3,
     "end_line": 6,
-    "status": "attention_needed",
+    "status": "sorry_free",
     "attention_note": "detRep defined sorry-free. Theorem blocked: SchurModule is opaque sorry placeholder.",
     "notes": "Triage 2026-03-18: Blocked on SchurModule (Theorem 5.22.1) which is entirely sorry'd (definition + character + theorem). detRep definition exists but uses a workaround. Issue #1016 was closed with replan. Cannot make progress until SchurModule is defined. Keep attention_needed \u2014 needs SchurModule infrastructure first."
   },
@@ -3913,7 +3913,7 @@
     "end_page": "133",
     "start_line": 13,
     "end_line": 21,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false
   },
   {
@@ -4305,7 +4305,7 @@
     "end_page": "153",
     "start_line": 1,
     "end_line": 4,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false
   },
   {
@@ -4591,7 +4591,7 @@
     "end_page": "168",
     "start_line": 1,
     "end_line": 2,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": true,
     "notes": "Part (a) finiteness sorry-free. Part (b) sorry-free. Part (c) still sorry (needs reflection functors)."
   },
@@ -4689,7 +4689,7 @@
     "end_page": "171",
     "start_line": 19,
     "end_line": 32,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "sorry_count": 2
   },
   {
@@ -5936,7 +5936,7 @@
     "end_page": "217",
     "start_line": 5,
     "end_line": 6,
-    "status": "statement_formalized",
+    "status": "sorry_free",
     "needs_statement": false,
     "attention_needed": false,
     "notes": "Hilbert syzygy theorem: the book proves this via Koszul resolution in Problem 8.2.10(iv). Follow the book's proof. High priority."
