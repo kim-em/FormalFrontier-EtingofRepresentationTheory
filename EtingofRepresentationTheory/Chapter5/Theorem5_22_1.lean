@@ -1438,6 +1438,45 @@ private def BoundedPartition.dropLast (N n : ℕ) (bp : BoundedPartition (N + 1)
 /-- **Key reduction**: If the last part of a bounded partition is 0, then `charValue` at
 `N+1` variables equals `charValue` at `N` variables with the last part dropped.
 
+/-- Extension of a BoundedPartition by appending a zero part. -/
+private def BoundedPartition.extend {N n : ℕ}
+    (bp : BoundedPartition N n) : BoundedPartition (N + 1) n where
+  parts i :=
+    if h : (i : ℕ) < N then bp.parts ⟨i, h⟩ else 0
+  decreasing := by
+    intro i j hij
+    simp only
+    split_ifs with h1 h2
+    · exact bp.decreasing hij
+    · exfalso; omega
+    · exact Nat.zero_le _
+    · exact le_refl _
+  sum_eq := by
+    have : ∑ i : Fin (N + 1), (if h : (i : ℕ) < N then
+        bp.parts ⟨i, h⟩ else 0) =
+        ∑ i : Fin N, bp.parts i := by
+      rw [Fin.sum_univ_castSucc]
+      simp only [Fin.val_castSucc, Fin.val_last, lt_irrefl,
+        dite_false, add_zero]
+      congr 1; funext i; simp [i.isLt]
+    rw [this, bp.sum_eq]
+
+private lemma BoundedPartition.extend_last {N n : ℕ}
+    (bp : BoundedPartition N n) :
+    bp.extend.parts (Fin.last N) = 0 := by
+  simp [extend, Fin.val_last]
+
+private lemma BoundedPartition.extend_dropLast {N n : ℕ}
+    (bp : BoundedPartition N n) :
+    BoundedPartition.dropLast N n bp.extend bp.extend_last = bp := by
+  have : ∀ (a b : BoundedPartition N n),
+      a.parts = b.parts → a = b := by
+    intro ⟨_, _, _⟩ ⟨_, _, _⟩ h; simp_all
+  apply this; funext i
+  show (if h : (Fin.castSucc i : ℕ) < N then
+    bp.parts ⟨↑(Fin.castSucc i), h⟩ else 0) = bp.parts i
+  simp [Fin.val_castSucc, i.isLt]
+
 **Proof outline** (setting x_N = 0 in the (N+1)-variable formula):
 1. The (N+1)×(N+1) alternant matrix with last row (0,...,0,1) has determinant
    equal to ∏x_i · Δ_N (cofactor expansion, then factor x_i from each row).
