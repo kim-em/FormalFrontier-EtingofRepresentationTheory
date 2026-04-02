@@ -1423,22 +1423,190 @@ private lemma canonicalBP_weightToPartition (N n : ℕ) (bp : BoundedPartition N
       exact ih t (fun x hx => hll x (by simp [hx]))
         (by simp only [List.length_cons] at hlen; omega)
 
+/-- Dropping the last part from a BoundedPartition when it's zero. -/
+private def BoundedPartition.dropLast (N n : ℕ) (bp : BoundedPartition (N + 1) n)
+    (h0 : bp.parts (Fin.last N) = 0) : BoundedPartition N n where
+  parts i := bp.parts (i.castSucc)
+  decreasing i j hij := bp.decreasing (Fin.castSucc_le_castSucc_iff.mpr hij)
+  sum_eq := by
+    have hsplit : ∑ i : Fin (N + 1), bp.parts i =
+        (∑ i : Fin N, bp.parts i.castSucc) + bp.parts (Fin.last N) :=
+      Fin.sum_univ_castSucc bp.parts
+    rw [h0, add_zero] at hsplit
+    linarith [bp.sum_eq]
+
+/-- **Key reduction**: If the last part of a bounded partition is 0, then `charValue` at
+`N+1` variables equals `charValue` at `N` variables with the last part dropped.
+
+**Proof outline** (setting x_N = 0 in the (N+1)-variable formula):
+1. The (N+1)×(N+1) alternant matrix with last row (0,...,0,1) has determinant
+   equal to ∏x_i · Δ_N (cofactor expansion, then factor x_i from each row).
+2. psumPart in N+1 vars with x_N=0 = psumPart in N vars.
+3. The shifted exponents at N+1 are the N-variable shifted exponents shifted +1
+   (plus a 0 at position N), so multiplying by ∏x_i exactly compensates.
+
+The restriction algebra homomorphism that sets the last variable to 0:
+sends `x_i ↦ x_i` for `i < N` and `x_N ↦ 0`. -/
+private noncomputable def restrictLastVar (N : ℕ) :
+    MvPolynomial (Fin (N + 1)) ℚ →ₐ[ℚ] MvPolynomial (Fin N) ℚ :=
+  MvPolynomial.aeval (fun i : Fin (N + 1) =>
+    if h : i.val < N then MvPolynomial.X (⟨i.val, h⟩ : Fin N) else 0)
+
+/-- Coefficient extraction through restriction: evaluating at x_N = 0 and extracting
+coefficient at `e` gives the coefficient of the original polynomial at `e` extended
+with 0 at position N. -/
+private lemma coeff_restrictLastVar (N : ℕ) (p : MvPolynomial (Fin (N + 1)) ℚ)
+    (e : Fin N →₀ ℕ) :
+    (restrictLastVar N p).coeff e =
+      p.coeff (Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
+        if h : i.val < N then e ⟨i.val, h⟩ else 0)) := by
+  sorry
+
+/-- Setting x_N = 0 in the (N+1)-variable Vandermonde determinant gives
+∏_{i : Fin N} x_i · Δ_N. -/
+private lemma restrictLastVar_alternantDet (N : ℕ) :
+    restrictLastVar N (alternantMatrix (N + 1) (vandermondeExps (N + 1))).det =
+      (∏ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) *
+        (alternantMatrix N (vandermondeExps N)).det := by
+  sorry
+
+/-- Setting x_N = 0 in psum gives psum in N variables:
+`psum(Fin(N+1), k) = ∑_{i<N} X_i^k + X_N^k`, setting X_N = 0 drops last term. -/
+private lemma restrictLastVar_psum (N k : ℕ) :
+    restrictLastVar N (MvPolynomial.psum (Fin (N + 1)) ℚ k) =
+      MvPolynomial.psum (Fin N) ℚ k := by
+  sorry
+
+/-- Setting x_N = 0 in psumPart: since psumPart is a product of psum's,
+this follows from `restrictLastVar_psum` and multiplicativity of `AlgHom`. -/
+private lemma restrictLastVar_psumPart {n : ℕ} (N : ℕ) (μ : Nat.Partition n) :
+    restrictLastVar N (MvPolynomial.psumPart (Fin (N + 1)) ℚ μ) =
+      MvPolynomial.psumPart (Fin N) ℚ μ := by
+  sorry
+
+/-- Coefficient shifting: coeff_{e+1}(∏x_i · p) = coeff_e(p), where +1 means
+adding 1 to every exponent component. -/
+private lemma prod_X_eq_monomial_ones (N : ℕ) :
+    (∏ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) =
+      MvPolynomial.monomial (Finsupp.equivFunOnFinite.symm (fun _ : Fin N => 1)) 1 := by
+  rw [MvPolynomial.monomial_eq, map_one, one_mul,
+      Finsupp.prod_fintype _ _ (fun _ => pow_zero _)]
+  apply Finset.prod_congr rfl
+  intro i _
+  simp [Finsupp.equivFunOnFinite]
+
+private lemma coeff_prod_X_mul (N : ℕ) (p : MvPolynomial (Fin N) ℚ) (e : Fin N →₀ ℕ) :
+    ((∏ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) * p).coeff
+      (e + Finsupp.equivFunOnFinite.symm (fun _ : Fin N => 1)) = p.coeff e := by
+  set ones := Finsupp.equivFunOnFinite.symm (fun _ : Fin N => 1)
+  rw [prod_X_eq_monomial_ones, add_comm]
+  rw [MvPolynomial.coeff_monomial_mul, one_mul]
+
+private lemma charValue_remove_trailing_zero (N n : ℕ)
+    (bp : BoundedPartition (N + 1) n)
+    (h0 : bp.parts (Fin.last N) = 0) (μ : Nat.Partition n) :
+    charValue (N + 1) bp μ = charValue N (bp.dropLast N n h0) μ := by
+  sorry
+
+/-- If `N > n` then an antitone partition of `n` into `N` parts has last part 0. -/
+private lemma bp_trailing_zero_of_gt (N n : ℕ) (bp : BoundedPartition N n)
+    (hN : N > n) :
+    bp.parts (⟨N - 1, by omega⟩ : Fin N) = 0 := by
+  by_contra h
+  have hpos : 0 < bp.parts ⟨N - 1, by omega⟩ := Nat.pos_of_ne_zero h
+  have hall : ∀ i : Fin N, 1 ≤ bp.parts i := fun i => by
+    have hi := i.isLt
+    have hle : i ≤ ⟨N - 1, by omega⟩ := by exact Fin.mk_le_mk.mpr (by omega)
+    exact le_trans hpos (bp.decreasing hle)
+  have hge : N ≤ ∑ i : Fin N, bp.parts i :=
+    le_trans (by simp) (Finset.sum_le_sum fun i _ => hall i)
+  linarith [bp.sum_eq]
+
+/-- Two antitone sequences with the same sum and the same weightToPartition
+are pointwise equal. (Moved here for use in charValue_stability.) -/
+private lemma antitone_eq_of_filter_pos_eq'
+    (N : ℕ) (lam lam' : Fin N → ℕ)
+    (hlam : Antitone lam) (hlam' : Antitone lam')
+    (h : (Finset.univ.val.map lam).filter (0 < ·) =
+         (Finset.univ.val.map lam').filter (0 < ·)) :
+    lam = lam' := by
+  have h_full : Finset.univ.val.map lam = Finset.univ.val.map lam' := by
+    apply Multiset.ext'; intro a
+    by_cases ha : 0 < a
+    · have := congr_arg (Multiset.count a) h
+      rwa [Multiset.count_filter_of_pos ha, Multiset.count_filter_of_pos ha] at this
+    · push_neg at ha; obtain rfl := Nat.le_zero.mp ha
+      have hc : (Finset.univ.val.map lam).card = (Finset.univ.val.map lam').card := by simp
+      have hfc := congr_arg Multiset.card h
+      have key : ∀ (m : Multiset ℕ), Multiset.count 0 m = m.card - (m.filter (0 < ·)).card := by
+        intro m
+        have h_split := congr_arg Multiset.card (Multiset.filter_add_not (0 < ·) m)
+        rw [Multiset.card_add] at h_split
+        rw [Multiset.count_eq_card_filter_eq]
+        have : Multiset.filter (fun a => 0 = a) m = Multiset.filter (fun a => ¬ 0 < a) m := by
+          congr 1; ext a; simp [eq_comm]
+        rw [this]; omega
+      rw [key, key]; omega
+  simp only [Fin.univ_val_map] at h_full
+  have h_perm := Multiset.coe_eq_coe.mp h_full
+  exact List.ofFn_injective
+    (h_perm.eq_of_sortedGE (List.sortedGE_ofFn_iff.mpr hlam) (List.sortedGE_ofFn_iff.mpr hlam'))
+
+private lemma weightToPartition_eq_iff'
+    (N n : ℕ) (lam lam' : Fin N → ℕ)
+    (hlam : Antitone lam) (hlam' : Antitone lam')
+    (hsum : ∑ i, lam i = n) (hsum' : ∑ i, lam' i = n) :
+    (hsum ▸ weightToPartition N lam : Nat.Partition n) =
+      (hsum' ▸ weightToPartition N lam') ↔ lam = lam' := by
+  constructor
+  · intro h
+    apply antitone_eq_of_filter_pos_eq' N lam lam' hlam hlam'
+    have h1 := congr_arg Nat.Partition.parts h
+    have hrec : ∀ (m k : ℕ) (heq : m = k) (p : Nat.Partition m),
+        (heq ▸ p).parts = p.parts := by
+      intros m k heq p; subst heq; rfl
+    rw [hrec _ _ hsum, hrec _ _ hsum'] at h1
+    exact h1
+  · intro h; subst h; rfl
+
+/-- `charValue N bp μ` reduces to `charValue n (canonicalBP N n bp) μ` by
+repeatedly removing trailing zeros. -/
+private lemma charValue_reduce_to_canonical (N n : ℕ) (bp : BoundedPartition N n)
+    (μ : Nat.Partition n) :
+    charValue N bp μ = charValue n (canonicalBP N n bp) μ := by
+  sorry
+
 /-- Stability of charValue: the value is independent of the number of variables N,
 depending only on the partition (nonzero parts). This is the standard fact that
 symmetric function coefficients in the alternant expansion are stable under
 change of the number of variables.
 
-**Proof strategy**: For any BoundedPartition N n, we:
-1. Construct the canonical BoundedPartition n n with the same partition
-2. Show charValue N bp μ = charValue n (canonicalBP) μ by variable restriction
-3. Conclude by symmetry -/
+**Proof**: Both sides reduce to `charValue n (canonicalBP)` via trailing-zero removal.
+The canonical BPs have the same parts by the hypothesis on partitions. -/
 private lemma charValue_stability
     (N₁ N₂ n : ℕ) (bp₁ : BoundedPartition N₁ n) (bp₂ : BoundedPartition N₂ n)
     (h : (bp₁.sum_eq ▸ weightToPartition N₁ bp₁.parts : Nat.Partition n) =
          (bp₂.sum_eq ▸ weightToPartition N₂ bp₂.parts : Nat.Partition n))
     (μ : Nat.Partition n) :
     charValue N₁ bp₁ μ = charValue N₂ bp₂ μ := by
-  sorry
+  rw [charValue_reduce_to_canonical N₁ n bp₁ μ,
+      charValue_reduce_to_canonical N₂ n bp₂ μ]
+  -- The canonical BPs have the same underlying partition, hence same parts
+  -- (antitone at same size n + same multiset of nonzero parts → same function)
+  have h_canon₁ := canonicalBP_weightToPartition N₁ n bp₁
+  have h_canon₂ := canonicalBP_weightToPartition N₂ n bp₂
+  -- The canonical BPs must be equal since their partitions agree
+  suffices h_eq : canonicalBP N₁ n bp₁ = canonicalBP N₂ n bp₂ by rw [h_eq]
+  have h_same : ((canonicalBP N₁ n bp₁).sum_eq ▸
+      weightToPartition n (canonicalBP N₁ n bp₁).parts : Nat.Partition n) =
+    ((canonicalBP N₂ n bp₂).sum_eq ▸
+      weightToPartition n (canonicalBP N₂ n bp₂).parts : Nat.Partition n) := by
+    rw [h_canon₁, h_canon₂, h]
+  have h_parts : (canonicalBP N₁ n bp₁).parts = (canonicalBP N₂ n bp₂).parts :=
+    (weightToPartition_eq_iff' n n _ _ (canonicalBP N₁ n bp₁).decreasing
+      (canonicalBP N₂ n bp₂).decreasing _ _).mp h_same
+  exact match canonicalBP N₁ n bp₁, canonicalBP N₂ n bp₂, h_parts with
+    | ⟨_, _, _⟩, ⟨_, _, _⟩, rfl => rfl
 
 /-- The Frobenius character formula bridge: `charValue` equals `spechtModuleCharacter`
 (after casting ℚ → ℂ). This bridges the polynomial coefficient definition used in
