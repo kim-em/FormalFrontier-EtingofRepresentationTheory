@@ -1435,9 +1435,6 @@ private def BoundedPartition.dropLast (N n : ℕ) (bp : BoundedPartition (N + 1)
     rw [h0, add_zero] at hsplit
     linarith [bp.sum_eq]
 
-/-- **Key reduction**: If the last part of a bounded partition is 0, then `charValue` at
-`N+1` variables equals `charValue` at `N` variables with the last part dropped.
-
 /-- Extension of a BoundedPartition by appending a zero part. -/
 private def BoundedPartition.extend {N n : ℕ}
     (bp : BoundedPartition N n) : BoundedPartition (N + 1) n where
@@ -1477,14 +1474,39 @@ private lemma BoundedPartition.extend_dropLast {N n : ℕ}
     bp.parts ⟨↑(Fin.castSucc i), h⟩ else 0) = bp.parts i
   simp [Fin.val_castSucc, i.isLt]
 
-**Proof outline** (setting x_N = 0 in the (N+1)-variable formula):
-1. The (N+1)×(N+1) alternant matrix with last row (0,...,0,1) has determinant
-   equal to ∏x_i · Δ_N (cofactor expansion, then factor x_i from each row).
-2. psumPart in N+1 vars with x_N=0 = psumPart in N vars.
-3. The shifted exponents at N+1 are the N-variable shifted exponents shifted +1
-   (plus a 0 at position N), so multiplying by ∏x_i exactly compensates.
+/-- Adding a trailing zero doesn't change charValue. -/
+private lemma charValue_extend_zero (N n : ℕ) (bp : BoundedPartition N n)
+    (μ : Nat.Partition n) :
+    charValue N bp μ = charValue (N + 1) bp.extend μ := by
+  have h := charValue_remove_trailing_zero N n bp.extend bp.extend_last μ
+  rw [bp.extend_dropLast] at h
+  exact h.symm
 
-The restriction algebra homomorphism that sets the last variable to 0:
+/-- Dropping a trailing zero preserves the underlying partition. -/
+private lemma wtp_dropLast (N n : ℕ) (bp : BoundedPartition (N + 1) n)
+    (h0 : bp.parts (Fin.last N) = 0) :
+    ((bp.dropLast N n h0).sum_eq ▸ weightToPartition N (bp.dropLast N n h0).parts :
+      Nat.Partition n) =
+    (bp.sum_eq ▸ weightToPartition (N + 1) bp.parts : Nat.Partition n) := by
+  have hrec : ∀ (m k : ℕ) (h : m = k) (p : Nat.Partition m), (h ▸ p).parts = p.parts := by
+    intros; subst_vars; rfl
+  apply Nat.Partition.ext
+  rw [hrec, hrec]
+  simp only [weightToPartition, BoundedPartition.dropLast, Fin.univ_val_map, Multiset.coe_filter]
+  congr 1
+  conv_rhs => rw [List.ofFn_succ' bp.parts, List.concat_eq_append, List.filter_append]
+  simp [h0]
+
+/-- Extending by a zero preserves the underlying partition. -/
+private lemma wtp_extend (N n : ℕ) (bp : BoundedPartition N n) :
+    (bp.extend.sum_eq ▸ weightToPartition (N + 1) bp.extend.parts :
+      Nat.Partition n) =
+    (bp.sum_eq ▸ weightToPartition N bp.parts : Nat.Partition n) := by
+  have h := wtp_dropLast N n bp.extend bp.extend_last
+  rw [bp.extend_dropLast] at h
+  exact h.symm
+
+/-- The restriction algebra homomorphism that sets the last variable to 0:
 sends `x_i ↦ x_i` for `i < N` and `x_N ↦ 0`. -/
 private noncomputable def restrictLastVar (N : ℕ) :
     MvPolynomial (Fin (N + 1)) ℚ →ₐ[ℚ] MvPolynomial (Fin N) ℚ :=
@@ -1499,7 +1521,55 @@ private lemma coeff_restrictLastVar (N : ℕ) (p : MvPolynomial (Fin (N + 1)) �
     (restrictLastVar N p).coeff e =
       p.coeff (Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
         if h : i.val < N then e ⟨i.val, h⟩ else 0)) := by
-  sorry
+  set e_ext := Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
+    if h : i.val < N then e ⟨i.val, h⟩ else 0) with he_ext
+  set g : Fin (N + 1) → MvPolynomial (Fin N) ℚ := fun i =>
+    if h : i.val < N then MvPolynomial.X ⟨i.val, h⟩ else 0 with hg
+  refine MvPolynomial.induction_on' p ?_ ?_
+  · intro d c
+    simp only [restrictLastVar, MvPolynomial.aeval_monomial, MvPolynomial.algebraMap_eq,
+      MvPolynomial.coeff_C_mul, MvPolynomial.coeff_monomial]
+    by_cases hlast : d (Fin.last N) = 0
+    · -- Case 1: d(N) = 0, so the product gives monomial d_rest 1
+      set d_rest := Finsupp.equivFunOnFinite.symm (fun j : Fin N => d (Fin.castSucc j))
+        with hd_rest
+      have hprod : d.prod (fun i k => (g i) ^ k) = MvPolynomial.monomial d_rest 1 := by
+        rw [Finsupp.prod_fintype _ _ (fun i => by simp [hg])]
+        rw [Fin.prod_univ_castSucc]
+        simp only [hg, Fin.coe_castSucc, Fin.val_last, dif_neg (lt_irrefl N)]
+        rw [hlast, pow_zero, mul_one]
+        rw [← MvPolynomial.prod_X_pow_eq_monomial]
+        rw [Finsupp.prod_fintype _ _ (fun _ => pow_zero _)]
+        apply Finset.prod_congr rfl
+        intro i _
+        have hi : (i : ℕ) < N := i.isLt
+        simp [hi, hd_rest, Finsupp.equivFunOnFinite]
+      rw [hprod, MvPolynomial.coeff_monomial]
+      simp only [mul_ite, mul_one, mul_zero]
+      congr 1
+      constructor
+      · intro heq; ext j; simp [hd_rest, Finsupp.equivFunOnFinite, ← heq, he_ext, j.isLt]
+      · intro heq; ext i
+        by_cases hi : i.val < N
+        · have := congr_fun (congr_arg DFunLike.coe heq) ⟨i.val, hi⟩
+          simp [hd_rest, Finsupp.equivFunOnFinite] at this
+          simp [he_ext, Finsupp.equivFunOnFinite, hi, this]
+        · have : i = Fin.last N := by ext; omega
+          rw [this, hlast]
+          simp [he_ext, Finsupp.equivFunOnFinite, Fin.val_last, show ¬ (N < N) from lt_irrefl N]
+    · -- Case 2: d(N) ≠ 0, so the product contains 0^k = 0
+      have hmem : Fin.last N ∈ d.support := Finsupp.mem_support_iff.mpr hlast
+      have hfactor : (g (Fin.last N)) ^ d (Fin.last N) = 0 := by
+        simp [hg, Fin.val_last, lt_irrefl, zero_pow hlast]
+      rw [Finsupp.prod, Finset.prod_eq_zero hmem hfactor, MvPolynomial.coeff_zero, mul_zero]
+      symm
+      rw [if_neg]
+      intro heq
+      have : d (Fin.last N) = e_ext (Fin.last N) := by rw [heq]
+      simp [he_ext, Finsupp.equivFunOnFinite, Fin.val_last, lt_irrefl] at this
+      exact hlast this
+  · intro p q hp hq
+    simp only [map_add, MvPolynomial.coeff_add, hp, hq]
 
 /-- Setting x_N = 0 in the (N+1)-variable Vandermonde determinant gives
 ∏_{i : Fin N} x_i · Δ_N. -/
@@ -1509,14 +1579,62 @@ private lemma restrictLastVar_alternantDet (N : ℕ) :
         (alternantMatrix N (vandermondeExps N)).det := by
   -- Step 1: Push restrictLastVar inside the determinant
   rw [(restrictLastVar N).map_det]
-  -- Step 2: The mapped matrix M' has entry (i,j) = restrictLastVar N (X_i^{N-j})
-  -- Last row is (0,...,0,1) and we expand along it.
   set M' := (restrictLastVar N).mapMatrix (alternantMatrix (N + 1) (vandermondeExps (N + 1)))
-  -- Step 3: Laplacian expansion along the last row (Fin.last N)
-  -- Only the (N,N) entry is nonzero (= 1), so det = minor(N,N).
-  -- Step 4: The minor has entry X_i^{N-j} = X_i · X_i^{N-1-j} for i,j : Fin N
-  -- Factor out X_i from each row to get (∏ X_i) · alternantDet N.
-  sorry
+  -- Step 3: Identify M' entries
+  have hM'_entry : ∀ (i j : Fin (N + 1)),
+      M' i j = restrictLastVar N ((MvPolynomial.X i : MvPolynomial (Fin (N + 1)) ℚ) ^
+        vandermondeExps (N + 1) j) := by
+    intro i j; simp [M', AlgHom.mapMatrix, alternantMatrix, Matrix.of]
+  -- Step 4: Last row entries
+  have hM'_last_ne : ∀ j : Fin (N + 1), j ≠ Fin.last N →
+      M' (Fin.last N) j = 0 := by
+    intro j hj
+    rw [hM'_entry]
+    have hexp : 0 < vandermondeExps (N + 1) j := by
+      simp only [vandermondeExps]; omega
+    simp only [restrictLastVar, map_pow, MvPolynomial.aeval_X,
+      Fin.val_last, dif_neg (lt_irrefl N), zero_pow hexp.ne']
+  have hM'_last_last : M' (Fin.last N) (Fin.last N) = 1 := by
+    rw [hM'_entry]
+    simp [vandermondeExps, restrictLastVar, MvPolynomial.aeval_X]
+  -- Step 5: Laplacian expansion along the last row
+  rw [Matrix.det_succ_row M' (Fin.last N)]
+  have hsum : ∀ j : Fin (N + 1), j ≠ Fin.last N →
+      (-1) ^ ((Fin.last N : ℕ) + (j : ℕ)) * M' (Fin.last N) j *
+        (M'.submatrix (Fin.last N).succAbove j.succAbove).det = 0 := by
+    intro j hj; rw [hM'_last_ne j hj, mul_zero, mul_zero]
+  conv_lhs =>
+    arg 1; arg 2; ext j
+    rw [show (Fin.last N : Fin (N + 1)) = Fin.last N from rfl]
+  rw [Fin.sum_univ_succAbove _ (Fin.last N)]
+  simp only [hM'_last_last, mul_one, Fin.val_last]
+  rw [show (-1 : MvPolynomial (Fin N) ℚ) ^ (N + N) = 1 from by ring_nf; simp [Even.neg_one_pow ⟨N, rfl⟩]]
+  simp only [one_mul]
+  have hrest : ∑ i : Fin N, (-1) ^ ((Fin.last N : ℕ) + ((Fin.last N).succAbove i : ℕ)) *
+      M' (Fin.last N) ((Fin.last N).succAbove i) *
+      (M'.submatrix (Fin.last N).succAbove ((Fin.last N).succAbove i).succAbove).det = 0 := by
+    apply Finset.sum_eq_zero; intro i _
+    rw [hM'_last_ne _ (Fin.succAbove_ne (Fin.last N) i), mul_zero, mul_zero]
+  rw [hrest, add_zero]
+  -- Step 6: Factor out X_i from each row
+  rw [Fin.succAbove_last]
+  rw [show (∏ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) *
+      (alternantMatrix N (vandermondeExps N)).det =
+    Matrix.det (Matrix.of fun i j =>
+      (MvPolynomial.X i : MvPolynomial (Fin N) ℚ) *
+        (alternantMatrix N (vandermondeExps N)) i j) from by
+    rw [← Matrix.det_mul_column]; rfl]
+  congr 1; ext i j
+  simp only [M', AlgHom.mapMatrix, Matrix.submatrix_apply, alternantMatrix, Matrix.of,
+    Fin.succAbove_last]
+  simp only [restrictLastVar, map_pow, MvPolynomial.aeval_X, Fin.coe_castSucc,
+    dif_pos (show i.val < N from i.isLt), dif_pos (show j.val < N from j.isLt)]
+  simp only [vandermondeExps]
+  have hj : j.val ≤ N - 1 := by omega
+  rw [show N - (j : ℕ) = (N - 1 - (j : ℕ)) + 1 from by omega, pow_succ]
+  congr 1
+  · exact congr_arg MvPolynomial.X (Fin.ext rfl)
+  · exact congr_arg₂ _ (congr_arg MvPolynomial.X (Fin.ext rfl)) rfl
 
 /-- Setting x_N = 0 in psum gives psum in N variables:
 `psum(Fin(N+1), k) = ∑_{i<N} X_i^k + X_N^k`, setting X_N = 0 drops last term. -/
@@ -1566,7 +1684,32 @@ private lemma charValue_remove_trailing_zero (N n : ℕ)
     (bp : BoundedPartition (N + 1) n)
     (h0 : bp.parts (Fin.last N) = 0) (μ : Nat.Partition n) :
     charValue (N + 1) bp μ = charValue N (bp.dropLast N n h0) μ := by
-  sorry
+  -- Unfold charValue on both sides
+  unfold charValue
+  set e_N := Finsupp.equivFunOnFinite.symm (shiftedExps N (bp.dropLast N n h0).parts)
+  set ones := Finsupp.equivFunOnFinite.symm (fun _ : Fin N => 1)
+  -- Key: shiftedExps(N+1) restricted to first N = shiftedExps N (dropLast) + ones
+  have hexp_eq : Finsupp.equivFunOnFinite.symm (shiftedExps (N + 1) bp.parts) =
+      Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
+        if h : i.val < N then (e_N + ones) ⟨i.val, h⟩ else 0) := by
+    ext i
+    simp only [Finsupp.equivFunOnFinite_symm_apply_toFun, e_N, ones]
+    by_cases hi : i.val < N
+    · simp only [hi, dif_pos, Finsupp.coe_add]
+      simp only [Pi.add_apply, Finsupp.equivFunOnFinite_symm_apply_toFun]
+      simp only [shiftedExps, BoundedPartition.dropLast, vandermondeExps]
+      have : i = Fin.castSucc ⟨i.val, hi⟩ := by ext; simp
+      rw [this]
+      simp [Fin.coe_castSucc]
+      omega
+    · simp only [hi, dif_neg, not_lt]
+      have : i = Fin.last N := by ext; omega
+      rw [this]
+      simp [shiftedExps, vandermondeExps, h0]
+  rw [hexp_eq, ← coeff_restrictLastVar]
+  rw [map_mul, restrictLastVar_alternantDet, restrictLastVar_psumPart]
+  rw [mul_assoc]
+  exact coeff_prod_X_mul N _ e_N
 
 /-- If `N > n` then an antitone partition of `n` into `N` parts has last part 0. -/
 private lemma bp_trailing_zero_of_gt (N n : ℕ) (bp : BoundedPartition N n)
@@ -1636,7 +1779,49 @@ private lemma weightToPartition_eq_iff'
 private lemma charValue_reduce_to_n (N n : ℕ) (bp : BoundedPartition N n)
     (μ : Nat.Partition n) :
     charValue N bp μ = charValue n (canonicalBP N n bp) μ := by
-  sorry
+  -- Induction on the distance |N - n|
+  suffices key : ∀ d N, (max N n - min N n = d) → ∀ bp : BoundedPartition N n,
+      charValue N bp μ = charValue n (canonicalBP N n bp) μ from
+    key _ N rfl bp
+  intro d
+  induction d with
+  | zero =>
+    intro N hd bp
+    have hNn : N = n := by omega
+    subst hNn
+    -- N = n: show canonicalBP n n bp = bp
+    have hcwtp := canonicalBP_weightToPartition n n bp
+    have hparts : (canonicalBP n n bp).parts = bp.parts :=
+      (weightToPartition_eq_iff' n n _ _ (canonicalBP n n bp).decreasing bp.decreasing
+        (canonicalBP n n bp).sum_eq bp.sum_eq).mp hcwtp
+    have hbp_eq : canonicalBP n n bp = bp := by
+      have : ∀ (a b : BoundedPartition n n), a.parts = b.parts → a = b := by
+        intro ⟨_, _, _⟩ ⟨_, _, _⟩ h; simp_all
+      exact this _ _ hparts
+    rw [hbp_eq]
+  | succ d ih =>
+    intro N hd bp
+    rcases le_or_lt n N with hle | hlt
+    · -- N > n (since d > 0 and N ≥ n means N > n)
+      have hN : N > n := by omega
+      have hNpos : 0 < N := by omega
+      obtain ⟨M, rfl⟩ := Nat.exists_eq_succ_of_ne_zero hNpos.ne'
+      have hMn : M + 1 > n := hN
+      have h0 : bp.parts (Fin.last M) = 0 := by
+        have := bp_trailing_zero_of_gt (M + 1) n bp hMn
+        convert this using 2
+        ext; simp [Fin.val_last]
+      rw [charValue_remove_trailing_zero M n bp h0 μ]
+      rw [ih M (by omega) (bp.dropLast M n h0)]
+      congr 1
+      exact (canonicalBP_eq_of_weightToPartition_eq M (M + 1) n
+        (bp.dropLast M n h0) bp (wtp_dropLast M n bp h0)).symm
+    · -- N < n
+      rw [charValue_extend_zero N n bp μ]
+      rw [ih (N + 1) (by omega) bp.extend]
+      congr 1
+      exact canonicalBP_eq_of_weightToPartition_eq (N + 1) N n
+        bp.extend bp (wtp_extend N n bp)
 
 -- canonicalBP depends only on the underlying partition,
 -- so equal partitions give equal canonical BPs.
