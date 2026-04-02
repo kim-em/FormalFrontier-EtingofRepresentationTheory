@@ -16,6 +16,10 @@ import Mathlib.Algebra.Category.ModuleCat.Limits
 import Mathlib.FieldTheory.IsAlgClosed.Basic
 import Mathlib.Algebra.Category.ModuleCat.Algebra
 import Mathlib.CategoryTheory.Linear.LinearFunctor
+import Mathlib.CategoryTheory.Preadditive.Projective.Preserves
+import Mathlib.RingTheory.Jacobson.Radical
+import Mathlib.RingTheory.Artinian.Module
+import Mathlib.RingTheory.HopkinsLevitzki
 
 universe u v
 
@@ -234,6 +238,64 @@ The proof decomposes into three pieces:
 3. Assembly: B₁ᵐᵒᵖ ≅ End(B₁) ≅ End(B₂) ≅ B₂ᵐᵒᵖ → B₁ ≅ B₂
 -/
 
+/-! ## Helper lemmas for basic_morita_regular_module_iso
+
+The proof that F(B₁) ≅ B₂ for basic Morita-equivalent algebras proceeds by:
+
+1. F(B₁) is projective as a B₂-module (equivalences preserve projectives).
+2. Both F(B₁)/J·F(B₁) and B₂/J·B₂ are isomorphic to ⊕ᵢ Sᵢ (one copy of each
+   simple), because both algebras are basic and the equivalence bijects simples.
+3. Using projectivity of F(B₁), lift the head isomorphism to a map f : F(B₁) → B₂.
+4. By Nakayama's lemma (non-commutative version), f is surjective.
+5. Since B₂ is projective (free module of rank 1), f splits: F(B₁) ≅ B₂ ⊕ K.
+6. Nakayama kills K: from step 2, K/J·K = 0, so K = 0 by finite generation.
+-/
+
+/-- A B₂-linear surjection from a finitely generated module P to B₂ whose kernel
+    is killed by the Jacobson radical gives P ≅ B₂.
+
+    More precisely: if `f : P →ₗ B₂` is surjective, `B₂` is projective (hence
+    `f` splits), and the kernel `K` satisfies `K ≤ J(B₂) • K`, then `K = 0` by
+    Nakayama and `f` is an isomorphism. -/
+private noncomputable def iso_of_surjection_with_trivial_kernel_head
+    {B₂ : Type u} [Ring B₂] [IsNoetherianRing B₂]
+    (P : ModuleCat.{u} B₂) [Module.Finite B₂ P]
+    (f : P →ₗ[B₂] B₂) (hf_surj : Function.Surjective f)
+    (hker : LinearMap.ker f ≤ Ring.jacobson B₂ • (LinearMap.ker f)) :
+    P ≅ ModuleCat.of B₂ B₂ := by
+  -- The kernel is finitely generated: submodule of f.g. module over Noetherian ring
+  have hker_fg : (LinearMap.ker f).FG :=
+    (Module.Finite.fg_top (R := B₂) (M := P)).of_le le_top
+  -- By Nakayama (non-commutative), ker f = ⊥
+  have hker_bot : LinearMap.ker f = ⊥ :=
+    Submodule.FG.eq_bot_of_le_jacobson_smul hker_fg hker
+  -- f is injective
+  have hf_inj : Function.Injective f :=
+    LinearMap.ker_eq_bot.mp hker_bot
+  -- Construct the isomorphism from the bijective linear map
+  exact (LinearEquiv.ofBijective f ⟨hf_inj, hf_surj⟩).toModuleIso
+
+/-- For basic Morita-equivalent algebras over an algebraically closed field,
+    there exists a B₂-linear surjection F(B₁) → B₂ whose kernel K satisfies
+    K ≤ J(B₂) • K.
+
+    The surjection is constructed by:
+    1. Showing F(B₁)/J·F(B₁) ≅ B₂/J·B₂ (both are ⊕ᵢ Sᵢ with each simple once,
+       since both algebras are basic and F bijects simples).
+    2. Using projectivity of F(B₁) to lift the surjection F(B₁) → F(B₁)/J·F(B₁)
+       → B₂/J·B₂ through the quotient B₂ → B₂/J·B₂.
+    3. By Nakayama, the lifted map is surjective (image covers B₂ mod J).
+    4. Splitting (B₂ projective) gives F(B₁) ≅ B₂ ⊕ K where K/J·K = 0. -/
+private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
+    (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
+    (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
+    (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    Σ' (f : (F.functor.obj (ModuleCat.of B₁ B₁)) →ₗ[B₂] B₂),
+      Function.Surjective f ∧
+      LinearMap.ker f ≤ Ring.jacobson B₂ • (LinearMap.ker f) := by
+  sorry
+
 /-- For basic Morita-equivalent algebras, the regular modules correspond under the
 equivalence. More precisely, if `F : ModuleCat B₁ ≌ ModuleCat B₂` and both `B₁`
 and `B₂` are basic, then `F(B₁) ≅ B₂` as `B₂`-modules.
@@ -247,7 +309,16 @@ private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
     (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
     F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
-  sorry
+  -- B₂ is Artinian (finite-dim over field), hence Noetherian (Hopkins-Levitzki)
+  haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
+  -- F(B₁) is finitely generated as a B₂-module
+  -- (it's the image of a f.g. B₁-module under an equivalence)
+  haveI : Module.Finite B₂ (F.functor.obj (ModuleCat.of B₁ B₁)) := by
+    sorry -- follows from Module.Finite k B₁ and the equivalence
+  -- Obtain the surjection with trivial kernel head
+  let ⟨f, hf_surj, hker⟩ :=
+    exists_surjection_with_trivial_kernel_head B₁ B₂ _hB₁ _hB₂ F
+  exact iso_of_surjection_with_trivial_kernel_head _ f hf_surj hker
 
 /-- The functor of an equivalence between module categories is additive.
 An equivalence functor is full and preserves binary products, hence is additive. -/
