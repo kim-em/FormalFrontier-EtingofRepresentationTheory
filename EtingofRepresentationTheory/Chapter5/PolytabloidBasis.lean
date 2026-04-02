@@ -865,20 +865,6 @@ private theorem garnir_row_annihilates (n : ℕ) (la : Nat.Partition n)
     rw [two_smul]; exact h2
   exact (smul_eq_zero.mp h3).resolve_left (by norm_num : (2 : ℂ) ≠ 0)
 
-/-- Non-column-standard implies existence of a column inversion. -/
-private theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
-    (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
-    ∃ p₁ p₂ : Fin n,
-      colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val ∧
-      rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val ∧
-      σ.symm p₂ < σ.symm p₁ := by
-  simp only [isColumnStandard', not_forall] at h
-  obtain ⟨p₁, p₂, hcol, hrow, hinv⟩ := h
-  simp only [not_lt] at hinv
-  have hne : p₁ ≠ p₂ := by intro heq; rw [heq] at hrow; exact Nat.lt_irrefl _ hrow
-  have hne' : σ.symm p₁ ≠ σ.symm p₂ := σ.symm.injective.ne hne
-  exact ⟨p₁, p₂, hcol, hrow, lt_of_le_of_ne hinv hne'.symm⟩
-
 /-- Garnir reduction via the Garnir element identity.
 
 From `a_λ · G = 0`, extracting the identity term gives:
