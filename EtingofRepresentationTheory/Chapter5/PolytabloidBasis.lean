@@ -738,6 +738,159 @@ private theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
   have hne' : σ.symm p₁ ≠ σ.symm p₂ := σ.symm.injective.ne hne
   exact ⟨p₁, p₂, hcol, hrow, lt_of_le_of_ne hinv hne'.symm⟩
 
+/-! ### Garnir element infrastructure
+
+The Garnir reduction uses the following strategy:
+1. Find a column inversion: positions p₁ (row r₁) and p₂ (row r₂) in column j
+   with r₁ < r₂ and σ⁻¹(p₂) < σ⁻¹(p₁).
+2. Define the Garnir set: A = positions in row r₁ with column ≥ j,
+   B = positions in row r₂ with column ≤ j. Note |A| + |B| = (λ_{r₁} - j) + (j + 1) = λ_{r₁} + 1.
+3. The Garnir element G = Σ_{w ∈ S_{A∪B}} sign(w) · w satisfies a_λ · G = 0 because
+   P_λ ∩ S_{A∪B} contains a transposition t, and a_λ · t = a_λ while t · G = -G,
+   giving a_λ · G = a_λ · t · G = -a_λ · G, hence 2 · a_λ · G = 0, so a_λ · G = 0
+   (in characteristic 0).
+4. Extracting the identity term: from a_λ · G = 0, we get
+   a_λ = -Σ_{w ≠ id} sign(w) · a_λ · of(w)
+   Hence c_λ = a_λ · b_λ = -Σ_{w ≠ id} sign(w) · a_λ · of(w) · b_λ
+   And of(σ) · c_λ = -Σ_{w ≠ id} sign(w) · of(σ) · a_λ · of(w) · b_λ
+5. Each term of(σ) · a_λ · of(w) · b_λ equals Σ_p of(σ·p·w) · b_λ, and the
+   resulting permutations σ·p·w have fewer column inversions than σ.
+-/
+
+/-- The Garnir set positions: right part of row r₁ from column j,
+plus left part of row r₂ through column j.
+
+These are positions (as Fin n) satisfying:
+- In row r₁ with column ≥ j, OR
+- In row r₂ with column ≤ j -/
+private def garnirSet (n : ℕ) (la : Nat.Partition n)
+    (p₁ p₂ : Fin n) : Finset (Fin n) :=
+  let parts := la.sortedParts
+  let r₁ := rowOfPos parts p₁.val
+  let r₂ := rowOfPos parts p₂.val
+  let j := colOfPos parts p₁.val
+  Finset.univ.filter fun pos =>
+    (rowOfPos parts pos.val = r₁ ∧ j ≤ colOfPos parts pos.val) ∨
+    (rowOfPos parts pos.val = r₂ ∧ colOfPos parts pos.val ≤ j)
+
+/-- The Garnir element: alternating sum over all permutations supported on the Garnir set.
+G = Σ_{w ∈ S_{garnirSet}} sign(w) · of(w) -/
+private noncomputable def garnirElement (n : ℕ) (la : Nat.Partition n)
+    (p₁ p₂ : Fin n) : SymGroupAlgebra n :=
+  ∑ w : { w : Equiv.Perm (Fin n) // ∀ x, x ∉ garnirSet n la p₁ p₂ → w x = x },
+    (↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) • MonoidAlgebra.of ℂ _ w.val
+
+/-- The Garnir set contains at least two positions in the same row (pigeonhole).
+Specifically, it contains p₁ and some other position in the same row as p₁
+(or p₂ and another in row(p₂)) when the corresponding row has width ≥ 2. -/
+private theorem garnirSet_has_row_pair (n : ℕ) (la : Nat.Partition n)
+    (p₁ p₂ : Fin n)
+    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
+    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val) :
+    ∃ a b : Fin n, a ≠ b ∧ a ∈ garnirSet n la p₁ p₂ ∧ b ∈ garnirSet n la p₁ p₂ ∧
+      rowOfPos la.sortedParts a.val = rowOfPos la.sortedParts b.val := by
+  sorry
+
+/-- Left multiplication by a transposition t ∈ S_{A∪B} negates the Garnir element:
+of(t) * G = -G. This is a standard property of alternating sums. -/
+private theorem left_transposition_negates_garnir (n : ℕ) (la : Nat.Partition n)
+    (p₁ p₂ : Fin n) (t : Equiv.Perm (Fin n))
+    (ht_supp : ∀ x, x ∉ garnirSet n la p₁ p₂ → t x = x)
+    (ht_sign : Equiv.Perm.sign t = -1) :
+    MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂ =
+      -garnirElement n la p₁ p₂ := by
+  sorry
+
+private theorem garnir_row_annihilates (n : ℕ) (la : Nat.Partition n)
+    (p₁ p₂ : Fin n)
+    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
+    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val) :
+    RowSymmetrizer n la * garnirElement n la p₁ p₂ = 0 := by
+  -- Step 1: Find a transposition t in P_λ ∩ S_{A∪B}
+  obtain ⟨a, b, hab, ha_mem, hb_mem, hrow_eq⟩ :=
+    garnirSet_has_row_pair n la p₁ p₂ hcol hrow
+  set t := Equiv.swap a b
+  -- t is a transposition (sign = -1)
+  have ht_sign : Equiv.Perm.sign t = -1 := Equiv.Perm.sign_swap hab
+  -- t is supported on garnirSet (a, b ∈ garnirSet, swap fixes everything else)
+  have ht_supp : ∀ x, x ∉ garnirSet n la p₁ p₂ → t x = x := by
+    intro x hx
+    simp only [t, Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · exact absurd (h1 ▸ ha_mem) hx
+    · exact absurd (h2 ▸ hb_mem) hx
+    · rfl
+  -- t ∈ P_λ (row subgroup): a and b are in the same row
+  have ht_row : t ∈ RowSubgroup n la := by
+    intro k; simp only [t, Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · exact h1 ▸ hrow_eq.symm
+    · exact h2 ▸ hrow_eq
+    · rfl
+  -- Step 2: use a_λ * of(t) = a_λ and of(t) * G = -G to get a_λ * G = -(a_λ * G)
+  have h_neg : MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂ =
+      -garnirElement n la p₁ p₂ :=
+    left_transposition_negates_garnir n la p₁ p₂ t ht_supp ht_sign
+  have h_absorb : RowSymmetrizer n la * MonoidAlgebra.of ℂ _ t =
+      RowSymmetrizer n la := RowSymmetrizer_mul_of_row t ht_row
+  -- key: a_λ * G = a_λ * (of(t) * of(t)) * G = (a_λ * of(t)) * (of(t) * G) = a_λ * (-G)
+  have key : RowSymmetrizer n la * garnirElement n la p₁ p₂ =
+      -(RowSymmetrizer n la * garnirElement n la p₁ p₂) := by
+    have h_tt : t * t = 1 := Equiv.swap_mul_self a b
+    -- Insert t * t = 1 before G
+    have h_inv : MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) t *
+        MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) t = 1 := by
+      rw [← map_mul, Equiv.swap_mul_self a b, map_one]
+    have h_inv : MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) t *
+        (MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)) t * garnirElement n la p₁ p₂) =
+        garnirElement n la p₁ p₂ := by
+      rw [← mul_assoc, h_inv, one_mul]
+    calc RowSymmetrizer n la * garnirElement n la p₁ p₂
+        = RowSymmetrizer n la * (MonoidAlgebra.of ℂ _ t *
+            (MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂)) := by
+          rw [h_inv]
+      _ = (RowSymmetrizer n la * MonoidAlgebra.of ℂ _ t) *
+            (MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂) := by
+          rw [mul_assoc]
+      _ = RowSymmetrizer n la *
+            (MonoidAlgebra.of ℂ _ t * garnirElement n la p₁ p₂) := by
+          rw [h_absorb]
+      _ = RowSymmetrizer n la * (-garnirElement n la p₁ p₂) := by rw [h_neg]
+      _ = -(RowSymmetrizer n la * garnirElement n la p₁ p₂) := mul_neg _ _
+  -- x = -x implies x = 0 (char 0)
+  have h2 : RowSymmetrizer n la * garnirElement n la p₁ p₂ +
+      RowSymmetrizer n la * garnirElement n la p₁ p₂ = 0 := by
+    nth_rw 1 [key]; exact neg_add_cancel _
+  have h3 : (2 : ℂ) • (RowSymmetrizer n la * garnirElement n la p₁ p₂) = 0 := by
+    rw [two_smul]; exact h2
+  exact (smul_eq_zero.mp h3).resolve_left (by norm_num : (2 : ℂ) ≠ 0)
+
+/-- Garnir reduction via the Garnir element identity.
+
+From `a_λ · G = 0`, extracting the identity term gives:
+  `a_λ = -Σ_{w ≠ id} sign(w) · a_λ · of(w)`
+Multiplying: `of(σ) · c_λ = -Σ_{w ≠ id} sign(w) · of(σ) · a_λ · of(w) · b_λ`
+
+Each non-identity w ∈ S_{A∪B} moves entries between rows r₁ and r₂,
+which reduces column inversions. Specifically:
+- The terms `of(σ) · a_λ · of(w) · b_λ` can be regrouped as
+  `Σ_τ d(τ) · of(τ) · c_λ` where each τ has fewer column inversions.
+
+The column inversion decrease comes from: w moves entries from the
+high-inversion row arrangement into a lower-inversion arrangement by
+"sorting" entries between adjacent rows in the same column. -/
+private theorem garnir_identity_expansion (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n))
+    (p₁ p₂ : Fin n)
+    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
+    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
+    (hinv : σ.symm p₂ < σ.symm p₁) :
+    ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
+      (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
+      MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
+        S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) := by
+  sorry
+
 /-- Garnir reduction: for a non-column-standard filling, of(σ) · c_λ
 can be expressed as a combination of of(τᵢ) · c_λ with fewer column inversions.
 
@@ -748,7 +901,8 @@ private theorem garnir_reduction' (n : ℕ) (la : Nat.Partition n)
       (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
       MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
         S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) := by
-  sorry
+  obtain ⟨p₁, p₂, hcol, hrow, hinv⟩ := exists_column_inversion n la σ h
+  exact garnir_identity_expansion n la σ p₁ p₂ hcol hrow hinv
 
 /-- **Straightening lemma**: any permutation applied to the Young symmetrizer
 lies in the ℂ-span of standard polytabloids.
