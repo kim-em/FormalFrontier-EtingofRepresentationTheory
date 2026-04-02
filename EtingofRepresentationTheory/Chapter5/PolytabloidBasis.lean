@@ -644,15 +644,139 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
   -- Requires: (1) sorted parts monotone (r₁ < r₂ ⟹ parts[r₁] ≥ parts[r₂])
   -- (2) column-standardness of σ to provide pointwise entry bounds between rows
   -- (3) orderEmbOfFin comparison: if row r₁ has ≥ j+1 entries < B[j], then A[j] < B[j]
+  -- sortedParts is descending: r₁ < r₂ ⟹ parts.getD r₁ 0 ≥ parts.getD r₂ 0
+  have parts_descending : ∀ r₁ r₂ : ℕ, r₁ < r₂ → r₂ < parts.length →
+      parts.getD r₂ 0 ≤ parts.getD r₁ 0 := by
+    intro r₁ r₂ hr₁₂ hr₂
+    have hsorted : parts.Pairwise (· ≥ ·) := la.parts.pairwise_sort (· ≥ ·)
+    have hi : r₁ < parts.length := by omega
+    rw [List.getD_eq_getElem (hn := hr₂), List.getD_eq_getElem (hn := hi)]
+    exact List.pairwise_iff_get.mp hsorted ⟨r₁, hi⟩ ⟨r₂, hr₂⟩ hr₁₂
   have T_col_inc : ∀ c₁ c₂ : Cell n la,
       c₁.val.2 = c₂.val.2 → c₁.val.1 < c₂.val.1 → T_fun c₁ < T_fun c₂ := by
-    -- Row-sorting preserves column-increasing for column-standard fillings.
-    -- Proof outline: assume B[col] ≤ A[col] for contradiction.
-    -- For each of the col+1 sorted entries B[0]≤...≤B[col] of rowEntries r₂,
-    -- the column-standard condition provides a strictly smaller entry in rowEntries r₁
-    -- (at the same column in the diagram). These col+1 distinct entries are all < B[col],
-    -- but A[col] ≥ B[col] allows at most col elements of rowEntries r₁ below B[col].
-    sorry
+    intro ⟨⟨r₁, col₁⟩, hr₁, hc₁⟩ ⟨⟨r₂, col₂⟩, hr₂, hc₂⟩ hcol_eq hrow
+    simp only at hcol_eq hrow; subst hcol_eq
+    -- Strategy: construct col₁+1 distinct elements of rowEntries r₁ that are
+    -- all < (rowEntries r₂).orderEmbOfFin(col₁). This forces the col₁-th smallest
+    -- of rowEntries r₁ to be < (rowEntries r₂).orderEmbOfFin(col₁).
+    set w₂ := parts.getD r₂ 0
+    have hw₂ : (rowEntries r₂).card = w₂ := rowEnt_card r₂ hr₂
+    -- For each i : Fin w₂, get the i-th smallest entry of B and its source position
+    have b_mem : ∀ i : Fin w₂,
+        (rowEntries r₂).orderEmbOfFin hw₂ i ∈ rowEntries r₂ :=
+      fun i => Finset.orderEmbOfFin_mem _ hw₂ i
+    have b_source : ∀ i : Fin w₂, ∃ qi : Fin n,
+        qi ∈ rowPositions r₂ ∧ σ.symm qi = (rowEntries r₂).orderEmbOfFin hw₂ i :=
+      fun i => Finset.mem_image.mp (b_mem i)
+    let qi : Fin w₂ → Fin n := fun i => (b_source i).choose
+    have qi_mem : ∀ i, (qi i) ∈ rowPositions r₂ := fun i => (b_source i).choose_spec.1
+    have qi_val : ∀ i, σ.symm (qi i) = (rowEntries r₂).orderEmbOfFin hw₂ i :=
+      fun i => (b_source i).choose_spec.2
+    -- Column of qi(i) is valid for row r₁ (parts descending)
+    have qi_col_lt : ∀ i, colOfPos parts (qi i).val < parts.getD r₁ 0 := by
+      intro i
+      have hq_row := (Finset.mem_filter.mp (qi_mem i)).2
+      have := colOfPos_lt_getD parts (qi i).val (by rw [hps]; exact (qi i).isLt)
+      rw [hq_row] at this
+      exact Nat.lt_of_lt_of_le this (parts_descending r₁ r₂ hrow hr₂)
+    -- For each i, get position in row r₁ at same column as qi(i)
+    have pi_exists : ∀ i : Fin w₂, ∃ pi : Fin n,
+        rowOfPos parts pi.val = r₁ ∧
+        colOfPos parts pi.val = colOfPos parts (qi i).val := by
+      intro i
+      obtain ⟨k, hk, hrow_k, hcol_k⟩ := exists_pos_of_cell parts r₁
+        (colOfPos parts (qi i).val) (qi_col_lt i)
+      exact ⟨⟨k, by rw [← hps]; exact hk⟩, hrow_k, hcol_k⟩
+    let pi : Fin w₂ → Fin n := fun i => (pi_exists i).choose
+    have pi_row : ∀ i, rowOfPos parts (pi i).val = r₁ := fun i => (pi_exists i).choose_spec.1
+    have pi_col : ∀ i, colOfPos parts (pi i).val = colOfPos parts (qi i).val :=
+      fun i => (pi_exists i).choose_spec.2
+    -- f(i) = σ.symm(pi i) is in rowEntries r₁ and < B.orderEmbOfFin(i)
+    let f : Fin w₂ → Fin n := fun i => σ.symm (pi i)
+    have hfA : ∀ i, f i ∈ rowEntries r₁ :=
+      fun i => Finset.mem_image.mpr ⟨pi i,
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, pi_row i⟩, rfl⟩
+    have hf_lt : ∀ i, f i < (rowEntries r₂).orderEmbOfFin hw₂ i := by
+      intro i; rw [← qi_val i]
+      have hqi_row : rowOfPos parts (qi i).val = r₂ := (Finset.mem_filter.mp (qi_mem i)).2
+      exact hcs (pi i) (qi i)
+        (pi_col i)
+        (by rw [pi_row, hqi_row]; exact hrow)
+    -- f is injective (different source positions in row r₁ → different entries under σ.symm)
+    have hf_inj : Function.Injective f := by
+      intro i₁ i₂ heq
+      have hp_eq : pi i₁ = pi i₂ := σ.symm.injective heq
+      have hcol_eq : colOfPos parts (qi i₁).val = colOfPos parts (qi i₂).val := by
+        rw [← pi_col i₁, ← pi_col i₂]
+        exact congrArg (colOfPos parts ·.val) hp_eq
+      have hq_eq : qi i₁ = qi i₂ :=
+        Fin.ext (rowOfPos_colOfPos_injective parts _ _
+          (by rw [hps]; exact (qi i₁).isLt) (by rw [hps]; exact (qi i₂).isLt)
+          ((Finset.mem_filter.mp (qi_mem i₁)).2.trans
+            (Finset.mem_filter.mp (qi_mem i₂)).2.symm) hcol_eq)
+      have := congrArg σ.symm hq_eq
+      rw [qi_val, qi_val] at this
+      exact ((rowEntries r₂).orderEmbOfFin hw₂).injective this
+    -- Now: the image of f restricted to {0, ..., col₁} gives col₁+1 distinct elements
+    -- of rowEntries r₁ that are all < B.orderEmbOfFin(col₁) (by monotonicity of orderEmbOfFin).
+    -- Therefore the col₁-th smallest element of rowEntries r₁ is also < B.orderEmbOfFin(col₁).
+    set β := (rowEntries r₂).orderEmbOfFin hw₂ ⟨col₁, by omega⟩ with β_def
+    -- The col₁+1 elements f(0), ..., f(col₁) are distinct and all in rowEntries r₁
+    -- and all < β (since f(i) < B.orderEmbOfFin(i) ≤ B.orderEmbOfFin(col₁) for i ≤ col₁)
+    have f_lt_β : ∀ i : Fin w₂, i.val ≤ col₁ → f i < β := by
+      intro i hi
+      calc f i < (rowEntries r₂).orderEmbOfFin hw₂ i := hf_lt i
+        _ ≤ β := ((rowEntries r₂).orderEmbOfFin hw₂).monotone (by omega)
+    -- {a ∈ rowEntries r₁ | a < β} has ≥ col₁+1 elements (it contains f(0),...,f(col₁))
+    have count_below : col₁ + 1 ≤ ((rowEntries r₁).filter (· < β)).card := by
+      let S : Finset (Fin w₂) := Finset.univ.filter (fun i => i.val ≤ col₁)
+      have hS_card : S.card = col₁ + 1 := by
+        rw [show S = Finset.Iic (⟨col₁, by omega⟩ : Fin w₂) from by
+          ext i; simp [S, Finset.mem_Iic, Fin.le_def]]
+        exact Fin.card_Iic ⟨col₁, by omega⟩
+      rw [← hS_card]
+      apply Finset.card_le_card_of_injOn f
+      · intro i hi
+        simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and, S] at hi
+        exact Finset.mem_filter.mpr ⟨hfA i, f_lt_β i hi⟩
+      · exact Set.InjOn.mono (Set.subset_univ _) hf_inj.injOn
+    -- The col₁-th smallest of rowEntries r₁ must be < β
+    -- Proof: orderEmbOfFin(col₁) ≤ max of the first col₁+1 sorted elements = orderEmbOfFin(col₁)
+    -- So we need: if |{a ∈ A | a < v}| ≥ col₁+1, then A.orderEmbOfFin(col₁) < v
+    -- This is a counting argument about orderEmbOfFin.
+    by_contra hge; push_neg at hge
+    -- hge : β ≤ T_fun(r₁, col₁) = (rowEntries r₁).orderEmbOfFin(col₁)
+    have hge' : β ≤ (rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁) ⟨col₁, by omega⟩ := hge
+    -- Elements of rowEntries r₁ below β are below orderEmbOfFin(col₁),
+    -- so they're among orderEmbOfFin(0), ..., orderEmbOfFin(col₁-1): at most col₁ elements
+    have filter_le : ((rowEntries r₁).filter (· < β)).card ≤ col₁ := by
+      have sub : (rowEntries r₁).filter (· < β) ⊆
+          (rowEntries r₁).filter (· < (rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)
+            ⟨col₁, by omega⟩) :=
+        Finset.monotone_filter_right _ (fun a _ ha => lt_of_lt_of_le ha hge')
+      have sub2 : (rowEntries r₁).filter
+          (· < (rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁) ⟨col₁, by omega⟩) ⊆
+          (Finset.Iio (⟨col₁, by omega⟩ : Fin (parts.getD r₁ 0))).image
+            ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)) := by
+        intro a ha
+        rw [Finset.mem_filter] at ha
+        have ⟨ha_mem, ha_lt⟩ := ha
+        have ha_range : a ∈ Set.range ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)) := by
+          rw [Finset.range_orderEmbOfFin]; exact ha_mem
+        obtain ⟨j, rfl⟩ := ha_range
+        exact Finset.mem_image.mpr ⟨j, Finset.mem_Iio.mpr
+          (((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)).lt_iff_lt.mp ha_lt), rfl⟩
+      calc ((rowEntries r₁).filter (· < β)).card
+          ≤ ((rowEntries r₁).filter
+              (· < (rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁)
+                ⟨col₁, by omega⟩)).card := Finset.card_le_card sub
+        _ ≤ ((Finset.Iio (⟨col₁, by omega⟩ : Fin (parts.getD r₁ 0))).image
+              ((rowEntries r₁).orderEmbOfFin (rowEnt_card r₁ hr₁))).card :=
+            Finset.card_le_card sub2
+        _ ≤ (Finset.Iio (⟨col₁, by omega⟩ : Fin (parts.getD r₁ 0))).card :=
+            Finset.card_image_le
+        _ = col₁ := @Fin.card_Iio (parts.getD r₁ 0) ⟨col₁, by omega⟩
+    omega
   let T : StandardYoungTableau n la :=
     ⟨T_fun, ⟨T_inj, T_surj⟩, T_row_inc, T_col_inc⟩
   -- T_fun maps row-r cells to entries in rowEntries r
