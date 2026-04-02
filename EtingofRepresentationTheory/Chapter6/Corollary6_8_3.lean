@@ -244,70 +244,8 @@ private lemma Etingof.reflectionFunctors_reduce_and_recover
 
 end ReflectionFunctorChain
 
-section TitsFormBound
-
-/-- The Tits form of the dimension vector of an indecomposable representation of a
-Dynkin quiver satisfies B(d, d) ≤ 2.
-
-## Proof strategy (from the book)
-
-The proof uses Ringel's homological formula for hereditary algebras:
-  dim Hom(V, V) - dim Ext¹(V, V) = ½ B(d(V), d(V))
-
-For V indecomposable over an algebraically closed field k:
-  - dim End(V) = 1 by Schur's lemma (End(V) is a local algebra with
-    End(V)/rad(End(V)) ≅ k, and for finite-dimensional indecomposables
-    over algebraically closed fields, End(V) ≅ k)
-  - dim Ext¹(V, V) ≥ 0
-
-This gives ½ B(d, d) = 1 - dim Ext¹(V, V) ≤ 1, so B(d, d) ≤ 2.
-
-## Blockers
-
-1. **Ext groups**: No formalization of Ext¹ for quiver representations
-   (or more generally for modules over path algebras) exists in this project
-   or in Mathlib.
-
-2. **Homological formula**: The identity relating Hom, Ext¹, and the Euler/Tits
-   form requires the path algebra to be hereditary (global dimension ≤ 1),
-   which requires showing quivers without oriented cycles have hereditary
-   path algebras.
-
-3. **Schur's lemma variant**: While Schur's lemma for simple modules is standard,
-   the result that End(V) ≅ k for indecomposable finite-dimensional V over an
-   algebraically closed field requires the Fitting lemma / Krull-Schmidt theory.
-
-## Alternative approach (bypasses Ext entirely)
-
-The book's proof of Corollary 6.8.2 proves B(d,d) = 2 (not just ≤ 2) by a
-representation-level reduction: apply reflection functors along the Coxeter element
-until reaching a simple representation, then use `iteratedSimpleReflection_preserves_bilinearForm`
-to conclude B(d,d) = B(αₚ,αₚ) = 2. This approach requires the same Coxeter element
-infrastructure as `reflectionFunctors_reduce_and_recover` (type-changing iteration,
-vertex-sink alignment) but avoids Ext groups completely. If that infrastructure is
-built, this lemma becomes a direct corollary and can be eliminated.
-
-The Tits form of the dimension vector of an indecomposable representation of a
-Dynkin quiver satisfies B(d, d) ≤ 2.
-
-This follows from the stronger result `indecomposable_bilinearForm_eq_two` (B = 2 exactly),
-proved via representation-level Coxeter iteration in `CoxeterInfrastructure.lean`.
-The ≤ 2 form is kept for backward compatibility with the existing proof of `Corollary6_8_3`. -/
-private lemma Etingof.indecomposable_titsForm_le_two
-    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
-    (hDynkin : Etingof.IsDynkinDiagram n adj)
-    {k : Type*} [Field k]
-    {Q : Quiver (Fin n)}
-    (hOrient : Etingof.IsOrientationOf Q adj)
-    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
-    (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
-    [∀ v, Module.Free k (ρ.obj v)] [∀ v, Module.Finite k (ρ.obj v)]
-    (hρ : ρ.IsIndecomposable) :
-    dotProduct (fun v => (Module.finrank k (ρ.obj v) : ℤ))
-      ((Etingof.cartanMatrix n adj).mulVec (fun v => (Module.finrank k (ρ.obj v) : ℤ))) ≤ 2 :=
-  le_of_eq (Etingof.indecomposable_bilinearForm_eq_two hDynkin hOrient ρ hρ)
-
-end TitsFormBound
+-- The old `indecomposable_titsForm_le_two` lemma (≤ 2 bound) has been eliminated.
+-- `Corollary6_8_3` now uses `indecomposable_bilinearForm_eq_two` (= 2) directly.
 
 /-- Indecomposable representations of a Dynkin quiver are determined (up to isomorphism)
 by their dimension vectors.
@@ -320,7 +258,7 @@ theorem Etingof.Corollary6_8_3
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     {k : Type*} [Field k]
-    {Q : Quiver (Fin n)}
+    {Q : @Quiver.{0, 0} (Fin n)}
     (hOrient : Etingof.IsOrientationOf Q adj)
     [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
@@ -345,13 +283,8 @@ theorem Etingof.Corollary6_8_3
   -- Step 4: The dimension vector is a positive root (B(d,d) = 2)
   -- Lower bound: B(d,d) ≥ 2 from positive definiteness + evenness (Lemma 6.4.2)
   -- Upper bound: B(d,d) ≤ 2 from indecomposability (requires Ext group infrastructure)
-  have hd_root : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) = 2 := by
-    have hlb : 2 ≤ dotProduct d ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec d) :=
-      Etingof.posdef_min_value hDynkin d hd_nonzero
-    have hub : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) ≤ 2 :=
-      Etingof.indecomposable_titsForm_le_two hDynkin hOrient ρ₁ h₁
-    unfold Etingof.cartanMatrix at hub ⊢
-    omega
+  have hd_root : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) = 2 :=
+    Etingof.indecomposable_bilinearForm_eq_two hDynkin hOrient ρ₁ h₁
   -- Step 5: By Theorem 6.8.1, there exists a sequence of reflections reducing d to a simple root
   obtain ⟨vertices, p, hreflect⟩ := Etingof.Theorem6_8_1 hDynkin d hd_pos hd_nonzero hd_root
   -- Step 6: Use the reflection functor chain to show ρ₁ ≅ ρ₂
