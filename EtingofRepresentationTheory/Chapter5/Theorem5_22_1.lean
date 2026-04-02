@@ -785,12 +785,38 @@ private lemma youngSym_diagonal_entry (k' : Type*) [Field k'] (N : ℕ) (lam : F
 
 /-- The `diagUnit(i,t)` action on a standard tensor basis element multiplies by `t` raised
 to the number of times color `i` appears in `f`. -/
+private lemma diagUnit_mulVecLin_basisFun (N : ℕ) (i : Fin N) (t : kˣ)
+    (m : Fin N) :
+    Matrix.mulVecLin (R := k) (diagUnit k N i t).val (Pi.basisFun k (Fin N) m) =
+      (Function.update (1 : Fin N → k) i (t : k)) m • Pi.basisFun k (Fin N) m := by
+  simp only [diagUnit, Matrix.mulVecLin_apply, Pi.basisFun_apply]
+  rw [Matrix.mulVec_single (M := (Matrix.diagonal (Function.update (1 : Fin N → k) i (t : k))))]
+  simp only [mul_one, Pi.smul_apply, smul_eq_mul, Matrix.diagonal_apply,
+    Function.update_apply, Pi.single_apply, Pi.one_apply]
+  ext x
+  simp only [Pi.smul_apply, smul_eq_mul]
+  by_cases hm : m = i <;> by_cases hx : x = m <;> simp_all [Pi.single_apply]
+
 private lemma glTensorRep_diagUnit_basis (N n : ℕ) (i : Fin N) (t : kˣ)
     (f : Fin n → Fin N) :
     (glTensorRep k N n (diagUnit k N i t)) (tensorStdBasis k N n f) =
       ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
         tensorStdBasis k N n f := by
-  sorry
+  -- Unfold glTensorRep on tprod basis
+  show PiTensorProduct.map (fun _ => Matrix.mulVecLin (diagUnit k N i t).val)
+      (tensorStdBasis k N n f) =
+    ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
+      tensorStdBasis k N n f
+  simp only [tensorStdBasis, _root_.Basis.piTensorProduct_apply, PiTensorProduct.map_tprod,
+    diagUnit_mulVecLin_basisFun k N i t]
+  rw [(PiTensorProduct.tprod k).map_smul_univ
+    (fun j => (Function.update (1 : Fin N → k) i (t : k)) (f j))
+    (fun j => Pi.basisFun k (Fin N) (f j))]
+  congr 1
+  -- ∏ j, update 1 i t (f j) = t ^ #{j : f j = i}
+  simp only [Function.update_apply, Pi.one_apply]
+  rw [Finset.prod_ite, Finset.prod_const_one, mul_one, Finset.prod_const]
+  done
 
 /-- The weight-`μ` subspace of `V^{⊗n}` restricted to the Schur module has a ℚ-valued
 finrank that equals the trace formula.
