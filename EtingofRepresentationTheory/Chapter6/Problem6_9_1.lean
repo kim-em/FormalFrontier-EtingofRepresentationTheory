@@ -1037,64 +1037,13 @@ private lemma nilpotent_nontrivial_decomp {V : Type*} [AddCommGroup V] [Module �
           intro w _
           exact Submodule.mem_sup_left ⟨w, rfl⟩
 
-/-- For a nilpotent off-diagonal operator X(v,w) = (Bw, Av) on V × W with
-dim(ker A) + dim(ker B) ≥ 2, there exists a nontrivial product-compatible
-decomposition: subspaces pV, qV of V and pW, qW of W forming complementary
-pairs, with A mapping pV → pW, qV → qW and B mapping pW → pV, qW → qV.
-
-This is Problem 6.9.1(c) of Etingof: X admits a chain basis compatible with
-the V ⊕ W grading (each chain generator lies in V×{0} or {0}×W). With such
-a basis, splitting chains into two groups yields a product-compatible
-decomposition where projections to V and W give complementary subspaces.
-
-Proof outline (compatible chain basis theorem):
-1. Each cyclic ℂ[X]-summand with generator g = (v,w) and X-order k satisfies:
-   at least one of (v,0) or (0,w) also has X-order k (compatible generator lemma).
-   Proof: X^k g = 0 and X^{k-1} g ≠ 0. Write g = g_V + g_W. Then
-   X^{k-1} g_V + X^{k-1} g_W ≠ 0, so one of them is nonzero with X-order = k.
-2. Generators can be replaced one at a time (PID theory: element of maximal order
-   generates a direct summand).
-3. With all generators compatible, each basis element is in V×{0} or {0}×W,
-   so splitting chains partitions bases of V and W separately. -/
-private lemma off_diagonal_nilpotent_product_decomp
-    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
-    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
-    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
-    (_hAB : IsNilpotent (A.comp B))
-    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker A) +
-              Module.finrank ℂ (LinearMap.ker B)) :
-    ∃ (pV qV : Submodule ℂ V) (pW qW : Submodule ℂ W),
-      IsCompl pV qV ∧ IsCompl pW qW ∧
-      (∀ x ∈ pV, A x ∈ pW) ∧ (∀ x ∈ qV, A x ∈ qW) ∧
-      (∀ x ∈ pW, B x ∈ pV) ∧ (∀ x ∈ qW, B x ∈ qV) ∧
-      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
-  sorry
-
-/-- Given AB nilpotent with dim(ker A) + dim(ker B) ≥ 2, both V and W nontrivial,
-and ker A ⊆ range B, ker B ⊆ range A (from indecomposability), there exists a
-nontrivial Q₂-compatible direct sum decomposition.
-
-Uses `off_diagonal_nilpotent_product_decomp` which provides the compatible
-chain basis decomposition from Problem 6.9.1(c) of Etingof. -/
-private lemma q2_nontrivial_decomp (ρ : Q₂Rep ℂ)
-    (hAB : IsNilpotent (ρ.A.comp ρ.B))
-    (_hV_pos : 0 < Module.finrank ℂ ρ.V)
-    (_hW_pos : 0 < Module.finrank ℂ ρ.W)
-    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker ρ.A) +
-              Module.finrank ℂ (LinearMap.ker ρ.B))
-    (_hkA : LinearMap.ker ρ.A ≤ LinearMap.range ρ.B)
-    (_hkB : LinearMap.ker ρ.B ≤ LinearMap.range ρ.A) :
-    ∃ (pV qV : Submodule ℂ ρ.V) (pW qW : Submodule ℂ ρ.W),
-      IsCompl pV qV ∧ IsCompl pW qW ∧
-      (∀ x ∈ pV, ρ.A x ∈ pW) ∧ (∀ x ∈ qV, ρ.A x ∈ qW) ∧
-      (∀ x ∈ pW, ρ.B x ∈ pV) ∧ (∀ x ∈ qW, ρ.B x ∈ qV) ∧
-      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) :=
-  off_diagonal_nilpotent_product_decomp ρ.A ρ.B hAB hker
-
 /-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
 then the rep is decomposable.
 
-Uses `q2_nontrivial_decomp` to produce a Q₂-compatible decomposition. -/
+Proof: Assume indecomposable → ker A ⊆ range B, ker B ⊆ range A.
+Then dim(ker AB) = dim(ker A) + dim(ker B) ≥ 2. Apply nilpotent_nontrivial_decomp
+to AB on W to get N₁ ⊕ N₂. Pull back through A for the V decomposition, splitting
+ker A using Indecomposable to derive contradiction. -/
 private lemma decomp_of_ker_sum_ge_two (ρ : Q₂Rep ℂ)
     (hAB : IsNilpotent (ρ.A.comp ρ.B))
     (_hV_pos : 0 < Module.finrank ℂ ρ.V)
@@ -1105,9 +1054,26 @@ private lemma decomp_of_ker_sum_ge_two (ρ : Q₂Rep ℂ)
   intro hρ
   have hkA := ρ.ker_A_sub_range_B hρ hAB _hV_pos _hW_pos
   have hkB := ρ.ker_B_sub_range_A hρ hAB _hV_pos _hW_pos
-  obtain ⟨pV, qV, pW, qW, hcV, hcW, hApV, hAqV, hBpW, hBqW, hp_ne, hq_ne⟩ :=
-    q2_nontrivial_decomp ρ hAB _hV_pos _hW_pos hker hkA hkB
-  exact (hρ.2 pV qV pW qW hcV hcW hApV hAqV hBpW hBqW).elim hp_ne hq_ne
+  -- Strategy: construct a nontrivial product-compatible decomposition to contradict hρ.
+  -- We find v₀ ∈ ker A or w₀ ∈ ker B that is NOT in range B or range A respectively,
+  -- then use decomp_of_ker_A_not_range_B or decomp_of_ker_B_not_range_A.
+  -- But ker A ⊆ range B and ker B ⊆ range A from indecomposability. Contradiction!
+  -- So dim(ker A) + dim(ker B) ≥ 2 is incompatible with indecomposability.
+  --
+  -- Wait: the above would mean ker_sum ≤ 1 follows trivially from ker A ⊆ range B.
+  -- But that's wrong: ker A ⊆ range B doesn't bound dim(ker A).
+  -- We need the full compatible chain basis argument.
+  --
+  -- Proof via PID decomposition of V × W under X(v,w) = (Bw, Av):
+  -- 1. X is nilpotent, dim(ker X) = dim(ker A) + dim(ker B) ≥ 2
+  -- 2. PID gives ≥ 2 cyclic summands (each contributes 1 to dim(ker X))
+  -- 3. Compatible generator lemma: each generator can be chosen in V or W
+  --    (because X swaps components, so X^k(v,0) and X^k(0,w) are in disjoint
+  --    components, hence X^k(g) = 0 implies X^k(v,0) = X^k(0,w) = 0)
+  -- 4. With compatible generators, each chain alternates between V and W,
+  --    so splitting chains gives product-compatible decomposition
+  -- 5. With ≥ 2 chains, the decomposition is nontrivial
+  sorry
 
 /-- For indecomposable Q₂-reps with AB nilpotent and both dims > 0,
 dim(ker A) + dim(ker B) ≤ 1. Combined with `ker_sum_ge_one`, gives sum = 1. -/
