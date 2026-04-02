@@ -458,6 +458,15 @@ private lemma simple_of_full_faithful_preservesMono''
           (fun h => hne (F.map_injective (by rwa [F.map_zero])))
       exact isIso_of_fully_faithful F f
 
+-- Bridge: Simple in FDRep implies IsIrreducible of the underlying representation.
+-- The proof requires constructing an FDRep mono from a Subrepresentation (category-theoretic
+-- plumbing between Subrepresentation and Subobject). The mathematical content is
+-- straightforward: invariant subspaces of a simple FDRep are trivial or everything.
+open CategoryTheory in
+private lemma simple_fdRep_isIrreducible {k : Type} [Field k] {G : Type} [Group G]
+    (U : FDRep k G) [hU : Simple U] : Representation.IsIrreducible (FDRep.ρ U) := by
+  sorry
+
 -- Bridge: IsSimpleModule over the monoid algebra implies Simple in FDRep.
 open CategoryTheory in
 private noncomputable def simple_of_isSimpleModule_asModule'
@@ -685,8 +694,8 @@ private lemma sigma_contains_all_single {G A : Type} [Group G] [CommGroup A] [Fi
   -- Bridge: Simple U → IsIrreducible (FDRep.ρ U)
   -- Proof sketch: construct FDRep.of S.toRepresentation with subtype inclusion as
   -- a mono in FDRep. By Simple, it's zero or iso, giving S = ⊥ or S = ⊤.
-  have hU_irred : Representation.IsIrreducible (FDRep.ρ U) := by
-    sorry -- CategoryTheory.Simple FDRep → Representation.IsIrreducible
+  have hU_irred : Representation.IsIrreducible (FDRep.ρ U) :=
+    simple_fdRep_isIrreducible U
   -- Build S = {v : ↥U | ∃ f ∈ σ, f q₁ = v ∧ ∀ q ≠ q₁, f q = 0}
   -- as a Subrepresentation of FDRep.ρ U.
   set S : Subrepresentation (FDRep.ρ U) :=

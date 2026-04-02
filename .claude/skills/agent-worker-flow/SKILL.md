@@ -218,32 +218,6 @@ coordination create-pr <issue-number>
 gh issue close <N> --comment "Closed PR #M as not worth salvaging. See progress entry."
 ```
 
-## Same-File Contention
-
-Before starting work, check if any open PR touches the same file:
-```bash
-gh pr list --state open --json number,files --jq '.[] | select(.files | map(.path) | any(test("YourFile"))) | .number'
-```
-If another PR touches the same file:
-- **PR is MERGEABLE + CI passing**: Wait for it to merge first, or pick a different issue
-- **PR is CONFLICTING or CI-failing**: Consider claiming a fix for that PR instead of starting new work
-- **PR is stale (3+ days)**: Close it with a reason, then proceed with your work
-
-This prevents the #1 cause of merge conflicts: two agents modifying the same file on different branches.
-
-## Stale PR Cleanup
-
-At the start of a session, check for stale PRs needing attention:
-```bash
-coordination orient  # shows "PRs needing attention" section
-```
-If a stale PR (3+ days old) is:
-- **CONFLICTING**: Close it unless the work is clearly valuable and rebasing is straightforward
-- **MERGEABLE + CI-failing**: Try fixing it (quick rebase + build fix) before starting new work
-- **Superseded by a newer PR on the same file**: Close the older one
-
-Stale PRs block the pipeline. Cleaning them up is higher priority than starting new feature work.
-
 ## Step 8: Reflect
 
 Run `/reflect`. If it suggests improvements to skills or commands, make those
