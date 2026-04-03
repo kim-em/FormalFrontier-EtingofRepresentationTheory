@@ -462,6 +462,66 @@ private theorem sandwich_not_mem {n : ℕ} {la : Nat.Partition n}
       Algebra.smul_mul_assoc]
   exact h1.trans (hσt ▸ h2)
 
+/-- Dual sandwich (member case): for p ∈ P_λ, q ∈ Q_λ,
+a_λ * of(p*q) * b_λ = sign(q) • (a_λ * b_λ). -/
+private theorem dual_sandwich_mem {n : ℕ} {la : Nat.Partition n}
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (p * q) * ColumnAntisymmetrizer n la =
+      ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ)) •
+        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
+  rw [map_mul (MonoidAlgebra.of ℂ _)]
+  simp only [mul_assoc]
+  rw [of_col_mul_ColumnAntisymmetrizer q hq, Algebra.mul_smul_comm, Algebra.mul_smul_comm]
+  congr 1
+  rw [← mul_assoc, RowSymmetrizer_mul_of_row p hp]
+
+open Pointwise in
+/-- Dual sandwich (non-member case): for σ ∉ P_λ · Q_λ,
+a_λ * of(σ) * b_λ = 0. Uses the same pigeonhole argument as sandwich_not_mem. -/
+private theorem dual_sandwich_not_mem {n : ℕ} {la : Nat.Partition n}
+    (σ : Equiv.Perm (Fin n))
+    (hσ : σ ∉ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
+      (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))) :
+    RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la = 0 := by
+  classical
+  obtain ⟨t, ht_swap, ht_row, ht_col'⟩ := pigeonhole_transposition σ hσ
+  set u := σ⁻¹ * t * σ with hu_def
+  have hu_col : u ∈ ColumnSubgroup n la := ht_col'
+  have hσt : t * σ = σ * u := by simp [hu_def]; group
+  have hsign_u : (↑(↑(Equiv.Perm.sign u) : ℤ) : ℂ) = -1 := by
+    have hsign_t : Equiv.Perm.sign t = -1 := by
+      obtain ⟨x, z, hxz, ht_eq⟩ := ht_swap; rw [ht_eq]; exact Equiv.Perm.sign_swap hxz
+    have : Equiv.Perm.sign u = -1 := by
+      show Equiv.Perm.sign (σ⁻¹ * t * σ) = -1
+      rw [map_mul, map_mul, hsign_t, Equiv.Perm.sign_inv]
+      simp [mul_comm, Int.units_mul_self]
+    simp [this]
+  suffices heq : RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la =
+      ((↑(↑(Equiv.Perm.sign u) : ℤ) : ℂ)) •
+        (RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la) by
+    rw [hsign_u, neg_one_smul] at heq
+    have hg : ∀ g, (RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ *
+        ColumnAntisymmetrizer n la) g = 0 := by
+      intro g
+      have := Finsupp.ext_iff.mp heq g
+      rw [Finsupp.neg_apply] at this
+      exact (mul_eq_zero.mp (show (2 : ℂ) * _ = 0 by linear_combination this)).resolve_left
+        (by norm_num)
+    exact Finsupp.ext hg
+  have h1 : RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la =
+      RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (t * σ) * ColumnAntisymmetrizer n la := by
+    conv_lhs => rw [← RowSymmetrizer_mul_of_row t ht_row]
+    rw [map_mul (MonoidAlgebra.of ℂ _) t σ]
+    simp only [mul_assoc]
+  have h2 : RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (σ * u) * ColumnAntisymmetrizer n la =
+      ((↑(↑(Equiv.Perm.sign u) : ℤ) : ℂ)) •
+        (RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la) := by
+    rw [map_mul (MonoidAlgebra.of ℂ _)]
+    simp only [mul_assoc]
+    rw [of_col_mul_ColumnAntisymmetrizer u hu_col, Algebra.mul_smul_comm, Algebra.mul_smul_comm]
+  exact h1.trans (hσt ▸ h2)
+
 end Etingof
 
 open Etingof Pointwise in
@@ -486,6 +546,45 @@ theorem Etingof.Lemma5_13_1
       exact ⟨↑(↑(Equiv.Perm.sign q) : ℤ), hqp ▸ sandwich_mem q hq p hp⟩
     · exact ⟨0, by rw [zero_smul]; exact sandwich_not_mem σ hmem⟩
   -- Extract coefficient function and build linear functional
+  choose f hf using basis_mul
+  let ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ :=
+    Finsupp.lsum ℂ (fun σ => f σ • (LinearMap.id : ℂ →ₗ[ℂ] ℂ))
+  refine ⟨ℓ, fun x => ?_⟩
+  induction x using Finsupp.induction_linear with
+  | zero => simp
+  | add x y hx hy =>
+    simp only [mul_add, add_mul, map_add, add_smul]
+    exact congr_arg₂ (· + ·) hx hy
+  | single σ r =>
+    have hℓ : ℓ (Finsupp.single σ r) = f σ * r := by
+      change (Finsupp.lsum ℂ (fun σ => f σ • (LinearMap.id : ℂ →ₗ[ℂ] ℂ)))
+        (Finsupp.single σ r) = f σ * r
+      rw [Finsupp.lsum_single, LinearMap.smul_apply, LinearMap.id_apply, smul_eq_mul]
+    have hsingle : (Finsupp.single σ r : MonoidAlgebra ℂ _) = r • MonoidAlgebra.of ℂ _ σ := by
+      simp [MonoidAlgebra.of_apply, mul_one]
+    conv_lhs => rw [hsingle]
+    rw [Algebra.mul_smul_comm, Algebra.smul_mul_assoc, hf, smul_smul, hℓ, mul_comm]
+
+open Etingof Pointwise in
+/-- Dual sandwich: a_λ * x * b_λ is a scalar multiple of a_λ * b_λ.
+There exists a linear functional ℓ' on ℂ[S_n] such that
+a_λ * x * b_λ = ℓ'(x) • (a_λ * b_λ) for all x.
+This is the P/Q-swapped version of Lemma 5.13.1. -/
+theorem Etingof.Lemma5_13_1_dual
+    (n : ℕ) (la : Nat.Partition n) :
+    ∃ ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ,
+      ∀ x, RowSymmetrizer n la * x * ColumnAntisymmetrizer n la =
+        ℓ x • (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
+  classical
+  have basis_mul : ∀ σ : Equiv.Perm (Fin n), ∃ coeff : ℂ,
+      RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la =
+        coeff • (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
+    intro σ
+    by_cases hmem : σ ∈ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
+        (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))
+    · obtain ⟨p, hp, q, hq, hpq⟩ := Set.mem_mul.mp hmem
+      exact ⟨↑(↑(Equiv.Perm.sign q) : ℤ), hpq ▸ dual_sandwich_mem p hp q hq⟩
+    · exact ⟨0, by rw [zero_smul]; exact dual_sandwich_not_mem σ hmem⟩
   choose f hf using basis_mul
   let ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ :=
     Finsupp.lsum ℂ (fun σ => f σ • (LinearMap.id : ℂ →ₗ[ℂ] ℂ))
