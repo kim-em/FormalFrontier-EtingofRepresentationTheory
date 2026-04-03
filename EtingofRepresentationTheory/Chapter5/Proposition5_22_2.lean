@@ -154,8 +154,14 @@ private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ
     formalCharacter k N (FDRep.of (detTwistedSchurModuleRep k N lam)) =
       formalCharacter k N (SchurModule k N (fun i => lam i + 1)) := by
   rw [formalCharacter_schurModule_shift k N lam hlam]
-  exact formalCharacter_shift_of_weightSpace_finrank k N _ _ fun ν =>
-    finrank_submodule_congr (glWeightSpace_detTwist_shift k N lam ν)
+  exact formalCharacter_shift_of_weightSpace_finrank k N _ _
+    (fun ν => finrank_submodule_congr (glWeightSpace_detTwist_shift k N lam ν))
+    (fun μ hμ => by
+      -- The det-twisted Schur module has no weight spaces at zero-component weights.
+      -- This follows from the polynomial nature of the tensor power action:
+      -- diagUnit acts with eigenvalues t^m for m ≥ 0 on V^⊗n, and the det twist
+      -- shifts all eigenvalues by +1, so all weights have components ≥ 1.
+      sorry)
 
 /-- Key isomorphism: the Schur module `L_{λ+(1,…,1)}` is isomorphic (as a GL_N-representation)
 to the determinant-twisted Schur module `det ⊗ L_λ`.
