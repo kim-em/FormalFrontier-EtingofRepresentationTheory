@@ -27,7 +27,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - `reflFunctorPlus_mapLinear_ne_ne` / `reflFunctorMinus_mapLinear_ne_ne` API (missing; needed for reflection functor naturality in the ne/ne case)
    - ~~Definition-level `sorry : Type` for `AlgIrrepGL`~~ — **RESOLVED** (Wave 35): SchurModule constructed in PR #1740, AlgIrrepGL instances via `show ... from inferInstance` in PR #1752. Some downstream definition sorrys remain (`formalCharacter`, `kostkaNumber`).
    - Nilpotent operator structure theorem (cyclic decomposition / Jordan chains) — not in Mathlib, blocks Problem6_9_1. Would require ~100-200 line development.
-   - Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1). Would require ~500 lines of new theory.
+   - ~~Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1)~~ — **PARTIALLY RESOLVED** (Wave 42): 3 of 5 Mackey machine sorries proved without full Clifford theory (#2034). Remaining 2 sorries (exists_character_in_rep, exists_nonzero_map_from_induced) have open PRs (#2047, #2049) pending CI fixes. The original 500-line estimate was too pessimistic.
    - `Submodule.map` of complementary submodules through non-injective maps — does NOT preserve complementarity. Problem6_9_1 IsCompl conditions hit this fundamental gap.
    - `Lemma5_13_3` (Young symmetrizer idempotency) over general fields — currently only works over ℂ. Blocks the trace-based approach to Weyl character formula.
    - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
@@ -1489,33 +1489,42 @@ The project alternates between **breadth phases** (statement formalization) and 
 - **Expected metrics:** Higher items/PR ratio, sorry count declining
 - **Planners should create 80%+ proof issues** during this phase
 
-### Current Status (as of Wave 40, 2026-03-28)
-The project has 29 sorries across 20 files (down from 66 at wave 28). Sorry-free rate: 249/271 files (91.9%). This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
+### Current Status (as of Wave 42, 2026-04-03)
+The project has 25 sorries across 14 files (down from 66 at wave 28). Sorry-free rate: 266/280 files (95.0%). 577/583 items (98.9%) sorry-free. This is deep in a **depth phase** — all remaining work is proof completion on hard items. Statement formalization is complete.
 
-**Chapter status (Wave 40):** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry (Theorem2_1_2). Ch5 has 14 sorries across 7 files. Ch6 has 9 sorries across 7 files. Ch9 has 3 sorries across 3 files. Infrastructure has 2 sorries across 1 file.
+**Chapter status (Wave 42):** Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry (Theorem2_1_2). Ch5 has 13 sorries across 6 files. Ch6 has 7 sorries across 6 files. Ch9 has 4 sorries across 1 file (MoritaStructural).
 
-**Major milestones since wave 33:**
-- **All definition-level sorries resolved** (wave 37) — every mathematical object is constructed
-- **SchurModule constructed** (PR #1740) — the mega-blocker is resolved
-- **Shapiro's lemma proved from scratch** (#1870, #1880) — was missing from Mathlib, built locally
-- **Hilbert syzygy theorem infrastructure** (#1897) — extendScalars preserves projective dimension, Koszul SES setup
-- **Peter-Weyl decomposition** (#1896) — directSum_rank_ge_aleph0 via infinite linear independence
-- **Morita idempotent fullness** (#1881) — exists_full_idempotent_basic_corner fullness step proved
-- **Weyl character trace formula** (#1883) — decomposed into sub-lemmas
-- **False polytabloid expansion identified** (#1888) — tabloid expansion convention was wrong
-- **Proposition6_6_7 sorry-free** (#1800) — Decidable.casesOn workarounds succeeded
-- **Determinant identity** (#1845) — det_clearedDenomMatrix_eq proved (V_x * V_y)
+**Major milestones since wave 40:**
+- **Proposition5_14_1 sorry-free** (#2048) — Convention swap regression fully recovered (2→0)
+- **PolytabloidBasis 6→3** (#2018, #2041) — T_col_inc proved, garnirSet helpers proved
+- **Corollary6_8_3 restructured** (#2050) — parallel reflection chain approach
+- **Theorem5_22_1 decomposed** (#2042, #2058) — 2→5 sorries from strategic scaffolding
+- **FormalCharacterIso 2→1** (#2059) — shift formula proved
+- **Mackey machine progress** (#2034) — Theorem5_27_1 from 4→2 sorries
+- **OrientationDefs extracted** (#2057) — circular import broken for Corollary6_8_4
 
-**Major blocker clusters (updated wave 40):**
-1. **Gabriel's theorem chain** (~5+ files, 11+ downstream sorries): Prop6_6_6_source (1 sorry) is the keystone — unblocks Corollary6_8_3, 6_8_4, Problem6_1_5_theorem, Theorem_Dynkin_classification
-2. **Character formula chain** (5 sorries): Theorem5_22_1 (3) → Theorem5_23_2 (1) + Proposition5_22_2 (1)
-3. **Mackey machine / Clifford theory** (3 sorries): Theorem5_27_1 — needs ~500 lines new theory
-4. **Morita/Basic algebra** (3 sorries): Non-commutative tensor products + circularity in basic_morita_algEquiv
-5. **Polytabloid basis** (6 sorries across 2 files): right-multiplication dominance needed (left proved, right fundamentally different)
+**Major blocker clusters (updated wave 42):**
+1. **Weyl character formula** (7 sorries, 3 files): Theorem5_22_1 (5), FormalCharacterIso (1), Proposition5_22_2 (1). Active: #2054 targeting charValue chain (5→1)
+2. **Gabriel's theorem chain** (7 sorries, 6 files): Corollary6_8_3 (2), Corollary6_8_4 (1), CoxeterInfrastructure (1, universe-blocked), Problem6_1_5_theorem (1), Problem6_9_1 (1), Theorem6_5_2 (1). Active: #2053
+3. **Polytabloid basis** (4 sorries, 2 files): PolytabloidBasis (3), TabloidModule (1). Active: #2055
+4. **Morita/Eilenberg-Watts** (4 sorries, 1 file): MoritaStructural — all 4 relate to k-linearity gap. No active work.
+5. **Mackey machine** (2 sorries, 1 file): Theorem5_27_1 — two open PRs (#2047, #2049) pending CI fixes
 
-**Velocity trend:** 66 → 43 → 36 → 27 → 29 sorries over waves 28-40. Rate decelerating as remaining items are increasingly hard. Sorry count increased from 27 to 29 due to decomposition adding structured sub-goals (net positive: better scoped work items).
+**Velocity trend:** 66 → 43 → 36 → 27 → 29 → 28 → 25 sorries over waves 28-42. Rate decelerating as remaining items are increasingly hard. The bump at wave 39 (27→29) was from strategic decomposition; steady decline resumed.
 
 **Key velocity insight:** Difficulty 3/3 items have a ~30% single-session success rate — agents should budget accordingly and commit partial progress early. **Agents that don't commit intermediate work produce zero value** — stale claims continue to be a recurring problem.
+
+## Convention Swap Regressions
+
+**Lesson from Wave 41-42:** Changing a foundational convention (e.g., YoungSymmetrizer from `a_λ * b_λ` to `b_λ * a_λ`, PR #2002) can cause cascading regressions in downstream files that depend on the old convention. The Proposition5_14_1 regression (#2048) took a dedicated PR to fix.
+
+**Prevention pattern:**
+1. Before swapping any convention, `grep` for ALL downstream uses across the codebase
+2. Fix ALL downstream files in the SAME PR as the convention change
+3. If the blast radius is too large for one PR, create issues for each affected file before merging
+4. Never merge a convention swap that breaks existing sorry-free theorems — this is a net regression even if the new convention is "more correct"
+
+**Detection:** After merging a convention change, immediately build ALL files that import the changed module: `lake build <ImportingModule1> <ImportingModule2> ...`
 
 ## `simp` Doesn't See Through Local `let` Bindings
 
