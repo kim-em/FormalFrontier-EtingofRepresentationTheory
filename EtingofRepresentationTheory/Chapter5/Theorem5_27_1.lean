@@ -1310,12 +1310,12 @@ private lemma finrank_biprod' {H : Type} [Group H] [Fintype H]
 open CategoryTheory CategoryTheory.Limits in
 private lemma exists_simple_subrep {H : Type} [Group H] [Fintype H]
     (V : FDRep ℂ H) (hV : ¬ CategoryTheory.Limits.IsZero V) :
-    ∃ U : FDRep ℂ H, CategoryTheory.Simple U ∧ Nonempty (U ⟶ V) := by
+    ∃ (U : FDRep ℂ H) (_ : CategoryTheory.Simple U) (f : U ⟶ V), f ≠ 0 := by
   -- Strong induction on finrank
   haveI : NeZero (Nat.card H : ℂ) := ⟨Nat.cast_ne_zero.mpr Nat.card_pos.ne'⟩
   suffices key : ∀ (n : ℕ) (V : FDRep ℂ H), ¬ IsZero V →
       Module.finrank ℂ V ≤ n →
-      ∃ U : FDRep ℂ H, Simple U ∧ Nonempty (U ⟶ V) from
+      ∃ (U : FDRep ℂ H) (_ : Simple U) (f : U ⟶ V), f ≠ 0 from
     key _ V hV le_rfl
   intro n
   induction n with
@@ -1327,7 +1327,7 @@ private lemma exists_simple_subrep {H : Type} [Group H] [Fintype H]
   | succ n ih =>
     intro V hV hfr
     by_cases hS : Simple V
-    · exact ⟨V, hS, ⟨𝟙 V⟩⟩
+    · exact ⟨V, hS, 𝟙 V, id_nonzero V⟩
     · -- V is not simple: extract a nonzero non-iso mono Y ⟶ V
       have h_exists : ∃ (Y : FDRep ℂ H) (f : Y ⟶ V),
           Mono f ∧ f ≠ 0 ∧ ¬ IsIso f := by
@@ -1372,9 +1372,9 @@ private lemma exists_simple_subrep {H : Type} [Group H] [Fintype H]
           ext x; exact hsub.elim _ _)
       have hY_le : Module.finrank ℂ Y ≤ n := by omega
       -- By induction, Y has a simple subrep U with g : U ⟶ Y
-      obtain ⟨U, hU, ⟨g⟩⟩ := ih Y hY hY_le
+      obtain ⟨U, hU, g, hg_ne⟩ := ih Y hY hY_le
       -- Compose g with f to get U ⟶ V
-      exact ⟨U, hU, ⟨g ≫ f⟩⟩
+      exact ⟨U, hU, g ≫ f, fun h => hg_ne ((cancel_mono f).mp (by simp [h]))⟩
 
 -- Helper: Frobenius reciprocity map from V(χ,U) to W
 -- Given U ↪ W_χ (as G_χ-reps), construct a nonzero A⋊G-morphism V(χ,U) → W
@@ -1384,9 +1384,139 @@ private lemma exists_nonzero_map_from_induced {G A : Type} [Group G] [CommGroup 
     (W : FDRep ℂ (A ⋊[φ] G)) (hW : CategoryTheory.Simple W)
     (hχ : weightSpace φ W χ ≠ ⊥)
     (U : FDRep ℂ ↥(stabAux φ χ)) (hU : CategoryTheory.Simple U)
-    (hUW : Nonempty (U ⟶ weightSpaceRep φ W χ hχ)) :
+    (ι : U ⟶ weightSpaceRep φ W χ hχ) (hι : ι ≠ 0) :
     Nonempty (inducedRepV φ χ U ≅ W) := by
-  sorry
+  classical
+  haveI : CategoryTheory.Simple (inducedRepV φ χ U) := inducedRepV_simple φ χ U hU
+  -- ι_W : U →ₗ[ℂ] W (ι composed with submodule inclusion)
+  let ι_W : ↥U →ₗ[ℂ] ↥W :=
+    ((weightSpace φ W χ).subtype).comp (ι.hom.hom.hom : ↥U →ₗ[ℂ] ↥(weightSpace φ W χ))
+  -- Helper: ι equivariance at the linear map level
+  have ι_equiv : ∀ (s : ↥(stabAux φ χ)) (u : ↥U),
+      ι_W (FDRep.ρ U s u) = W.ρ ⟨1, (s : G)⟩ (ι_W u) := by
+    intro s u
+    -- From ι.comm: ∀ g, (ρ_U g ≫ ι.hom) = (ι.hom ≫ ρ_Wχ g)
+    have hcomm := ι.comm s
+    -- At element level: ι.hom(ρ_U(s)(u)) = ρ_Wχ(s)(ι.hom(u))
+    have h := congr_arg (fun (φ : U.V ⟶ (weightSpaceRep _ W χ hχ).V) =>
+      (φ.hom.hom u : ↥(weightSpace _ W χ)).val) hcomm
+    simp only [CategoryTheory.comp_apply] at h
+    exact h
+  -- Helper: weight space property for ι_W targets
+  have ws_prop : ∀ (u : ↥U) (b : A),
+      W.ρ ⟨b, 1⟩ (ι_W u) = ((χ b : ℂˣ) : ℂ) • ι_W u := by
+    intro u b
+    have hw := (ι.hom.hom.hom u : ↥(weightSpace φ W χ)).prop
+    simp only [weightSpace, Submodule.mem_iInf, LinearMap.mem_ker,
+      LinearMap.sub_apply, LinearMap.smul_apply, LinearMap.id_apply] at hw
+    have := hw b
+    exact sub_eq_zero.mp this
+  -- f(v) = Σ_q W.ρ(1, q.out)(ι_W(v(q)))
+  let f_lin : ((G ⧸ stabAux φ χ) → ↥U) →ₗ[ℂ] ↥W :=
+    { toFun := fun v => ∑ q : G ⧸ stabAux φ χ,
+        W.ρ ⟨1, q.out⟩ (ι_W (v q))
+      map_add' := fun v₁ v₂ => by
+        simp only [Pi.add_apply, map_add, Finset.sum_add_distrib]
+      map_smul' := fun c v => by
+        simp only [Pi.smul_apply, map_smul, RingHom.id_apply, Finset.smul_sum] }
+  -- Construct the FDRep morphism (Action.Hom)
+  let f : inducedRepV φ χ U ⟶ W :=
+    ⟨FGModuleCat.ofHom f_lin, fun ⟨a, g⟩ => by
+      apply FGModuleCat.hom_ext; apply LinearMap.ext; intro v
+      change f_lin ((inducedRepV φ χ U).ρ ⟨a, g⟩ v) = W.ρ ⟨a, g⟩ (f_lin v)
+      -- Suffices to show pointwise after reindexing by q = g • r
+      suffices key : ∀ r : G ⧸ stabAux φ χ,
+          W.ρ ⟨1, (g • r).out⟩
+            (ι_W (((inducedRepV φ χ U).ρ ⟨a, g⟩ v) (g • r))) =
+          W.ρ ⟨a, g⟩ (W.ρ ⟨1, r.out⟩ (ι_W (v r))) by
+        simp only [f_lin, LinearMap.coe_mk, AddHom.coe_mk, map_sum]
+        rw [← Equiv.sum_comp (MulAction.toPerm g)]
+        exact Finset.sum_congr rfl (fun r _ => key r)
+      intro r
+      -- Unfold inducedRepV action at coset g•r
+      change W.ρ ⟨1, (g • r).out⟩
+        (ι_W (((χ ((φ (g • r).out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+          FDRep.ρ U ⟨(g • r).out⁻¹ * g * (g⁻¹ • (g • r)).out,
+            transition_mem_stab φ χ g (g • r)⟩
+          (v (g⁻¹ • (g • r))))) =
+        W.ρ ⟨a, g⟩ (W.ρ ⟨1, r.out⟩ (ι_W (v r)))
+      simp only [inv_smul_smul]
+      -- Push scalar through ι_W and W.ρ
+      rw [map_smul ι_W, map_smul (W.ρ ⟨1, (g • r).out⟩)]
+      -- ι_equiv: ι_W(U.ρ(s)(v r)) = W.ρ(1,s.val)(ι_W(v r))
+      rw [ι_equiv]
+      -- Combine: W.ρ(1,(g•r).out) ∘ W.ρ(1,s)
+      rw [← Module.End.mul_apply, ← map_mul]
+      -- Telescope: (1,(g•r).out) * (1,(g•r).out⁻¹*g*r.out) = (1,g*r.out)
+      rw [show (⟨1, (g • r).out⟩ : A ⋊[φ] G) *
+            ⟨1, (g • r).out⁻¹ * g * r.out⟩ = ⟨1, g * r.out⟩ from by
+        ext <;> simp [SemidirectProduct.mul_left,
+          SemidirectProduct.mul_right]; group]
+      -- Combine RHS: W.ρ(a,g) ∘ W.ρ(1,r.out)
+      rw [← Module.End.mul_apply, ← map_mul,
+        show (⟨a, g⟩ : A ⋊[φ] G) * ⟨1, r.out⟩ = ⟨a, g * r.out⟩
+          from by ext <;> simp [SemidirectProduct.mul_left,
+            SemidirectProduct.mul_right]]
+      -- Factor: (a,g*r.out) = (1,g*r.out) * (φ((g*r.out)⁻¹)(a),1)
+      rw [show (⟨a, g * r.out⟩ : A ⋊[φ] G) =
+            ⟨1, g * r.out⟩ *
+            ⟨(φ (g * r.out)⁻¹ : MulAut A) a, 1⟩ from by
+        ext <;> simp [SemidirectProduct.mul_left,
+          SemidirectProduct.mul_right, SemidirectProduct.one_left,
+          SemidirectProduct.one_right],
+        map_mul, Module.End.mul_apply]
+      -- Weight space: W.ρ(b,1)(ι_W(v r)) = χ(b) • ι_W(v r)
+      rw [ws_prop (v r) ((φ (g * r.out)⁻¹ : MulAut A) a), map_smul]
+      -- Remains: χ(φ((g•r).out⁻¹)(a)) = χ(φ((g*r.out)⁻¹)(a))
+      congr 1; congr 1
+      -- (g•r).out⁻¹ * g * r.out ∈ stabAux by transition_mem_stab
+      have hmem := transition_mem_stab φ χ g (g • r)
+      simp only [inv_smul_smul] at hmem
+      -- Factor: (g*r.out)⁻¹ = t⁻¹ * (g•r).out⁻¹ where t ∈ H
+      rw [show (g * r.out)⁻¹ =
+            ((g • r).out⁻¹ * g * r.out)⁻¹ *
+            (g • r).out⁻¹ from by group,
+        map_mul, MulAut.mul_apply]
+      exact (stab_char_inv φ χ
+        ((stabAux φ χ).inv_mem hmem) _).symm⟩
+  -- f ≠ 0: if f = 0 then ι_W = 0 (via Pi.single evaluation), hence ι = 0
+  have hf : f ≠ 0 := by
+    intro hf_eq; apply hι
+    -- f = 0 implies f_lin = 0 on all inputs
+    have hf0 : ∀ v, f_lin v = 0 := fun v =>
+      congr_arg (fun (ψ : inducedRepV _ χ U ⟶ W) => ψ.hom.hom.hom v) hf_eq
+    -- Evaluate at Pi.single q₀ u: sum reduces to single term
+    set q₀ : G ⧸ stabAux φ χ := ⟦1⟧
+    have h0 : ∀ u : ↥U, W.ρ ⟨1, q₀.out⟩ (ι_W u) = 0 := by
+      intro u
+      let v₀ : (G ⧸ stabAux φ χ) → ↥U := Pi.single q₀ u
+      have h := hf0 v₀
+      simp only [f_lin, LinearMap.coe_mk, AddHom.coe_mk] at h
+      -- Sum reduces to single term at q₀
+      have hred : ∀ q, W.ρ ⟨1, q.out⟩ (ι_W (v₀ q)) =
+          if q = q₀ then W.ρ ⟨1, q₀.out⟩ (ι_W u) else 0 := by
+        intro q; by_cases hq : q = q₀
+        · subst hq; simp [v₀, Pi.single_eq_same]
+        · simp [v₀, Pi.single_eq_of_ne hq, map_zero, hq]
+      simp_rw [hred, Finset.sum_ite_eq', Finset.mem_univ, if_true] at h
+      exact h
+    -- W.ρ(1,q₀.out) is injective (apply ρ(1,q₀.out⁻¹) to cancel)
+    have hι0 : ∀ u, ι_W u = 0 := by
+      intro u
+      have h1 := congr_arg (W.ρ ⟨(1 : A), q₀.out⁻¹⟩) (h0 u)
+      rw [map_zero, ← Module.End.mul_apply, ← map_mul] at h1
+      rwa [show (⟨(1 : A), q₀.out⁻¹⟩ : A ⋊[φ] G) * ⟨1, q₀.out⟩ = 1 from by
+        ext <;> simp [SemidirectProduct.mul_left, SemidirectProduct.mul_right,
+          SemidirectProduct.one_left, SemidirectProduct.one_right],
+        map_one, Module.End.one_apply] at h1
+    -- ι_W = 0 implies ι = 0 (subtype inclusion is injective)
+    apply Action.Hom.ext; apply FGModuleCat.hom_ext
+    apply LinearMap.ext; intro u
+    exact Subtype.val_injective (hι0 u)
+  -- Schur's lemma: nonzero map between simples is an isomorphism
+  haveI : CategoryTheory.IsIso f :=
+    CategoryTheory.isIso_of_hom_simple hf
+  exact ⟨CategoryTheory.asIso f⟩
 
 open Classical in
 private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A]
@@ -1428,9 +1558,9 @@ private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A]
       exact ha ▸ hb ▸ rfl
     have h := @Subsingleton.elim _ hsub ⟨v, hv_mem⟩ ⟨0, (weightSpace φ W χ).zero_mem⟩
     exact congr_arg Subtype.val h
-  obtain ⟨U, hU_simple, ⟨ι⟩⟩ := exists_simple_subrep Wχ hWχ_nz
+  obtain ⟨U, hU_simple, ι, hι_ne⟩ := exists_simple_subrep Wχ hWχ_nz
   -- Step 4: By Frobenius reciprocity + Schur, V(χ,U) ≅ W
-  exact ⟨χ, U, hU_simple, (exists_nonzero_map_from_induced φ χ W hW hχ U hU_simple ⟨ι⟩).map CategoryTheory.Iso.symm⟩
+  exact ⟨χ, U, hU_simple, (exists_nonzero_map_from_induced φ χ W hW hχ U hU_simple ι hι_ne).map CategoryTheory.Iso.symm⟩
 
 open Classical in
 /-- Classification of irreducible representations of semidirect products G ⋉ A
