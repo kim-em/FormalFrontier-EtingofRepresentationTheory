@@ -1086,6 +1086,26 @@ have : inst₁ = inst₂ := by
 
 **Companion:** Use `Finsupp.induction_linear` instead of `MonoidAlgebra.induction_on` when working with Finsupp directly (cases: zero, add, single — no `not_mem_support` hypothesis needed).
 
+## Submodules of `Representation.asModule`: Missing Instances
+
+When working with a simple submodule `m : Submodule (MonoidAlgebra ℂ A) ρ.asModule`, several instances needed for Schur-type arguments must be registered explicitly:
+
+```lean
+-- FiniteDimensional over the base field (not auto-derived from the algebra module)
+haveI : FiniteDimensional ℂ m :=
+  Module.Finite.of_injective (m.subtype.restrictScalars ℂ) Subtype.val_injective
+
+-- IsMulCommutative for MonoidAlgebra (not auto-derived from CommSemiring)
+haveI : IsMulCommutative (MonoidAlgebra ℂ A) := ⟨⟨mul_comm⟩⟩
+
+-- Nontrivial (IsSimpleModule.nontrivial is a theorem, not an instance; both args explicit)
+haveI : Nontrivial m := IsSimpleModule.nontrivial (MonoidAlgebra ℂ A) ↥m
+```
+
+**Connecting FDRep action to MonoidAlgebra action:** `W.ρ ⟨a, 1⟩` and `MonoidAlgebra.of ℂ A a • v` are related through `Representation.asAlgebraHom_of`, which is proved by `simp` (not `rfl`). Use explicit `rw [show ... from rfl, show ... from (asAlgebraHom_of ..).symm]` to bridge the gap.
+
+**When to use:** Any proof that extracts characters from representations of commutative groups (e.g., `exists_character_in_rep` in the Mackey machine, #2036).
+
 ## FDRep Morphism Extensionality Patterns
 
 FDRep morphisms are `Action.Hom` wrapping `FGModuleCat.Hom` wrapping `ModuleCat.Hom` wrapping `LinearMap`. Proving `f = g` for FDRep morphisms requires decomposing through all layers.
