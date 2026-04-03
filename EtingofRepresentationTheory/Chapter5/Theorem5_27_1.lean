@@ -1386,7 +1386,83 @@ private lemma exists_nonzero_map_from_induced {G A : Type} [Group G] [CommGroup 
     (U : FDRep ℂ ↥(stabAux φ χ)) (hU : CategoryTheory.Simple U)
     (ι : U ⟶ weightSpaceRep φ W χ hχ) (hι : ι ≠ 0) :
     Nonempty (inducedRepV φ χ U ≅ W) := by
-  sorry
+  classical
+  haveI : CategoryTheory.Simple (inducedRepV φ χ U) := inducedRepV_simple φ χ U hU
+  -- ι_W : U →ₗ[ℂ] W (ι composed with submodule inclusion)
+  let ι_W : ↥U →ₗ[ℂ] ↥W :=
+    ((weightSpace φ W χ).subtype).comp (ι.hom.hom.hom : ↥U →ₗ[ℂ] ↥(weightSpace φ W χ))
+  -- Helper: ι equivariance at the linear map level
+  have ι_equiv : ∀ (s : ↥(stabAux φ χ)) (u : ↥U),
+      ι_W (FDRep.ρ U s u) = W.ρ ⟨1, (s : G)⟩ (ι_W u) := by
+    intro s u
+    -- From ι.comm: ∀ g, (ρ_U g ≫ ι.hom) = (ι.hom ≫ ρ_Wχ g)
+    have hcomm := ι.comm s
+    -- At element level: ι.hom(ρ_U(s)(u)) = ρ_Wχ(s)(ι.hom(u))
+    have h := congr_arg (fun (φ : U.V ⟶ (weightSpaceRep _ W χ hχ).V) =>
+      (φ.hom.hom u : ↥(weightSpace _ W χ)).val) hcomm
+    simp only [CategoryTheory.comp_apply] at h
+    exact h
+  -- Helper: weight space property for ι_W targets
+  have ws_prop : ∀ (u : ↥U) (b : A),
+      W.ρ ⟨b, 1⟩ (ι_W u) = ((χ b : ℂˣ) : ℂ) • ι_W u := by
+    intro u b
+    have hw := (ι.hom.hom.hom u : ↥(weightSpace φ W χ)).prop
+    simp only [weightSpace, Submodule.mem_iInf, LinearMap.mem_ker,
+      LinearMap.sub_apply, LinearMap.smul_apply, LinearMap.id_apply] at hw
+    have := hw b
+    exact sub_eq_zero.mp this
+  -- f(v) = Σ_q W.ρ(1, q.out)(ι_W(v(q)))
+  let f_lin : ((G ⧸ stabAux φ χ) → ↥U) →ₗ[ℂ] ↥W :=
+    { toFun := fun v => ∑ q : G ⧸ stabAux φ χ,
+        W.ρ ⟨1, q.out⟩ (ι_W (v q))
+      map_add' := fun v₁ v₂ => by
+        simp only [Pi.add_apply, map_add, Finset.sum_add_distrib]
+      map_smul' := fun c v => by
+        simp only [Pi.smul_apply, map_smul, RingHom.id_apply, Finset.smul_sum] }
+  -- Construct the FDRep morphism (Action.Hom)
+  let f : inducedRepV φ χ U ⟶ W :=
+    ⟨FGModuleCat.ofHom f_lin, fun ⟨a, g⟩ => by
+      apply FGModuleCat.hom_ext; apply LinearMap.ext; intro v
+      change f_lin ((inducedRepV φ χ U).ρ ⟨a, g⟩ v) = W.ρ ⟨a, g⟩ (f_lin v)
+      sorry⟩
+  -- f ≠ 0: if f = 0 then ι_W = 0 (via Pi.single evaluation), hence ι = 0
+  have hf : f ≠ 0 := by
+    intro hf_eq; apply hι
+    -- f = 0 implies f_lin = 0 on all inputs
+    have hf0 : ∀ v, f_lin v = 0 := fun v =>
+      congr_arg (fun (ψ : inducedRepV _ χ U ⟶ W) => ψ.hom.hom.hom v) hf_eq
+    -- Evaluate at Pi.single q₀ u: sum reduces to single term
+    set q₀ : G ⧸ stabAux φ χ := ⟦1⟧
+    have h0 : ∀ u : ↥U, W.ρ ⟨1, q₀.out⟩ (ι_W u) = 0 := by
+      intro u
+      let v₀ : (G ⧸ stabAux φ χ) → ↥U := Pi.single q₀ u
+      have h := hf0 v₀
+      simp only [f_lin, LinearMap.coe_mk, AddHom.coe_mk] at h
+      -- Sum reduces to single term at q₀
+      have hred : ∀ q, W.ρ ⟨1, q.out⟩ (ι_W (v₀ q)) =
+          if q = q₀ then W.ρ ⟨1, q₀.out⟩ (ι_W u) else 0 := by
+        intro q; by_cases hq : q = q₀
+        · subst hq; simp [v₀, Pi.single_eq_same]
+        · simp [v₀, Pi.single_eq_of_ne hq, map_zero, hq]
+      simp_rw [hred, Finset.sum_ite_eq', Finset.mem_univ, if_true] at h
+      exact h
+    -- W.ρ(1,q₀.out) is injective (apply ρ(1,q₀.out⁻¹) to cancel)
+    have hι0 : ∀ u, ι_W u = 0 := by
+      intro u
+      have h1 := congr_arg (W.ρ ⟨(1 : A), q₀.out⁻¹⟩) (h0 u)
+      rw [map_zero, ← Module.End.mul_apply, ← map_mul] at h1
+      rwa [show (⟨(1 : A), q₀.out⁻¹⟩ : A ⋊[φ] G) * ⟨1, q₀.out⟩ = 1 from by
+        ext <;> simp [SemidirectProduct.mul_left, SemidirectProduct.mul_right,
+          SemidirectProduct.one_left, SemidirectProduct.one_right],
+        map_one, Module.End.one_apply] at h1
+    -- ι_W = 0 implies ι = 0 (subtype inclusion is injective)
+    apply Action.Hom.ext; apply FGModuleCat.hom_ext
+    apply LinearMap.ext; intro u
+    exact Subtype.val_injective (hι0 u)
+  -- Schur's lemma: nonzero map between simples is an isomorphism
+  haveI : CategoryTheory.IsIso f :=
+    CategoryTheory.isIso_of_hom_simple hf
+  exact ⟨CategoryTheory.asIso f⟩
 
 open Classical in
 private lemma inducedRepV_completeness {G A : Type} [Group G] [CommGroup A]
