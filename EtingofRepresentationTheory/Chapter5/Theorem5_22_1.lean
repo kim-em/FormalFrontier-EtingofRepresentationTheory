@@ -1688,7 +1688,67 @@ private lemma coeff_restrictLastVar (N : ℕ) (p : MvPolynomial (Fin (N + 1)) �
     (restrictLastVar N p).coeff e =
       p.coeff (Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
         if h : i.val < N then e ⟨i.val, h⟩ else 0)) := by
-  sorry -- TODO: monomial induction, needs Finsupp.prod_fintype API fix
+  -- Helper: extension map from Fin N exponents to Fin (N+1) exponents
+  set ext_e : (Fin N →₀ ℕ) → (Fin (N + 1) →₀ ℕ) :=
+    fun g => Finsupp.equivFunOnFinite.symm (fun i =>
+      if h : (i : ℕ) < N then g ⟨i.val, h⟩ else 0) with hext_def
+  -- Key properties of ext_e
+  have hext_val : ∀ (g : Fin N →₀ ℕ) (i : Fin (N + 1)) (hi : (i : ℕ) < N),
+      ext_e g i = g ⟨i.val, hi⟩ := by
+    intro g i hi; simp [ext_e, Finsupp.equivFunOnFinite, hi]
+  have hext_last : ∀ (g : Fin N →₀ ℕ), ext_e g (Fin.last N) = 0 := by
+    intro g; simp [ext_e, Finsupp.equivFunOnFinite, Fin.val_last]
+  -- Prove for all e by induction on p
+  suffices ∀ (q : MvPolynomial (Fin (N + 1)) ℚ) (g : Fin N →₀ ℕ),
+      (restrictLastVar N q).coeff g = q.coeff (ext_e g) by
+    exact this p e
+  intro q
+  induction q using MvPolynomial.induction_on with
+  | C a =>
+    intro g
+    simp only [restrictLastVar, MvPolynomial.aeval_C]
+    change MvPolynomial.coeff g (MvPolynomial.C a) = _
+    rw [MvPolynomial.coeff_C, MvPolynomial.coeff_C]
+    simp only [eq_comm (a := (0 : _ →₀ ℕ))]
+    congr 1; ext1; constructor
+    · rintro rfl; ext i; simp [ext_e, Finsupp.equivFunOnFinite]
+    · intro h; ext j; have := DFunLike.congr_fun h (Fin.castSucc j)
+      simp [ext_e, Finsupp.equivFunOnFinite, j.isLt] at this; exact this
+  | add p q hp hq =>
+    intro g; simp only [map_add, MvPolynomial.coeff_add, hp, hq]
+  | mul_X p i hp =>
+    intro g
+    simp only [restrictLastVar] at hp ⊢
+    rw [map_mul, MvPolynomial.aeval_X]
+    by_cases hi : (i : ℕ) < N
+    · -- f(i) = X ⟨i.val, hi⟩
+      rw [dif_pos hi]
+      simp only [MvPolynomial.coeff_mul_X', Finsupp.mem_support_iff]
+      rw [show ext_e g i = g ⟨i.val, hi⟩ from hext_val g i hi]
+      split_ifs with h
+      · -- Use IH with shifted exponent
+        rw [hp]; congr 1
+        refine Finsupp.ext fun j => ?_
+        -- Simplify both sides using hext_val/hext_last
+        rw [Finsupp.tsub_apply, Finsupp.single_apply]
+        by_cases hj : (j : ℕ) < N
+        · rw [hext_val _ j hj, hext_val g j hj, Finsupp.tsub_apply, Finsupp.single_apply]
+          congr 1; simp only [Fin.ext_iff]
+        · have hj_eq : j = Fin.last N := by ext; simp [Fin.val_last]; omega
+          subst hj_eq
+          rw [hext_last, hext_last]
+          have : ¬(i = Fin.last N) := by intro h; simp [h, Fin.val_last] at hi
+          simp [this]
+      · rfl
+    · -- f(i) = 0
+      rw [dif_neg hi, mul_zero, MvPolynomial.coeff_zero]
+      simp only [MvPolynomial.coeff_mul_X', Finsupp.mem_support_iff]
+      have : ¬(ext_e g i ≠ 0) := by
+        push_neg
+        have hi_eq : i = Fin.last N := by
+          ext; simp only [Fin.val_last]; omega
+        rw [hi_eq]; exact hext_last g
+      simp [this]
 
 /-- Setting x_N = 0 in the (N+1)-variable Vandermonde determinant gives
 ∏_{i : Fin N} x_i · Δ_N. -/
@@ -1696,7 +1756,88 @@ private lemma restrictLastVar_alternantDet (N : ℕ) :
     restrictLastVar N (alternantMatrix (N + 1) (vandermondeExps (N + 1))).det =
       (∏ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) *
         (alternantMatrix N (vandermondeExps N)).det := by
-  sorry -- TODO: Laplacian expansion + det_mul_column, needs API compatibility fix
+  -- Step 1: Push restrictLastVar inside the determinant
+  rw [AlgHom.map_det]
+  -- Let R = (restrictLastVar N).mapMatrix (alternantMatrix (N+1) (vandermondeExps (N+1)))
+  set R := (restrictLastVar N).mapMatrix (alternantMatrix (N + 1) (vandermondeExps (N + 1)))
+  -- Step 2: Compute entries of R
+  have hR_entry : ∀ (i : Fin (N + 1)) (j : Fin (N + 1)),
+      R i j = if h : (i : ℕ) < N then
+        (MvPolynomial.X (⟨i.val, h⟩ : Fin N)) ^ (vandermondeExps (N + 1) j)
+      else if (vandermondeExps (N + 1) j) = 0 then 1 else 0 := by
+    intro i j
+    simp only [R, AlgHom.mapMatrix_apply, Matrix.map_apply, alternantMatrix, Matrix.of_apply,
+      restrictLastVar, map_pow, MvPolynomial.aeval_X]
+    split_ifs with hi hv
+    · rfl
+    · rw [hv]; simp
+    · exact zero_pow hv
+  -- Step 3: Last row of R is (0, ..., 0, 1)
+  have hR_last_j : ∀ j : Fin (N + 1), R (Fin.last N) j =
+      if j = Fin.last N then 1 else 0 := by
+    intro j
+    rw [hR_entry]
+    simp only [Fin.val_last, lt_irrefl, dite_false, vandermondeExps]
+    have key : N - (j : ℕ) = 0 ↔ j = Fin.last N := by
+      constructor
+      · intro h; ext; simp [Fin.val_last]; omega
+      · intro h; simp [h, Fin.val_last]
+    simp [key]
+  -- Step 4: Laplace expansion along last row
+  rw [Matrix.det_succ_row R (Fin.last N)]
+  -- Only the j = Fin.last N term survives (others have R (last N) j = 0)
+  have hterm : ∀ j : Fin (N + 1),
+      (-1) ^ ((Fin.last N : ℕ) + (j : ℕ)) * R (Fin.last N) j *
+        (R.submatrix (Fin.last N).succAbove j.succAbove).det =
+      if j = Fin.last N then
+        (-1) ^ ((Fin.last N : ℕ) + (Fin.last N : ℕ)) *
+          (R.submatrix (Fin.last N).succAbove (Fin.last N).succAbove).det
+      else 0 := by
+    intro j
+    rw [hR_last_j j]
+    split_ifs with hj
+    · subst hj; ring
+    · ring
+  simp_rw [hterm]
+  simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  -- Sign: (-1)^(N + N) = 1
+  have hsign : (-1 : MvPolynomial (Fin N) ℚ) ^ ((Fin.last N : ℕ) + (Fin.last N : ℕ)) = 1 := by
+    simp [Fin.val_last, Even.neg_one_pow ⟨N, rfl⟩]
+  rw [hsign, one_mul]
+  -- Step 5: The minor is the upper-left block
+  -- R.submatrix (Fin.last N).succAbove (Fin.last N).succAbove
+  -- has entries R (succAbove (last N) i) (succAbove (last N) j) for i, j : Fin N
+  -- succAbove (last N) i = castSucc i (since i < N = last N)
+  have hsucc : ∀ (i : Fin N), (Fin.last N).succAbove i = Fin.castSucc i := by
+    intro i; simp [Fin.succAbove, Fin.lt_def, Fin.val_last, i.isLt]
+  -- Step 6: The minor = diag(X_i) * alternantMatrix N (vandermondeExps N)
+  -- Minor_{i,j} = R (castSucc i) (castSucc j) = X_i^{N - j} = X_i * X_i^{N-1-j}
+  -- = X_i * (alternantMatrix N (vandermondeExps N))_{i,j}
+  -- So det(minor) = ∏ X_i * det(alternantMatrix N (vandermondeExps N))
+  have hminor_entry : ∀ (i j : Fin N),
+      (R.submatrix (Fin.last N).succAbove (Fin.last N).succAbove) i j =
+        MvPolynomial.X i * (alternantMatrix N (vandermondeExps N) i j) := by
+    intro i j
+    simp only [Matrix.submatrix_apply, hsucc, hR_entry, Fin.val_castSucc, i.isLt, dif_pos]
+    simp only [alternantMatrix, Matrix.of_apply, vandermondeExps]
+    have hi : (i : ℕ) < N := i.isLt
+    have hj : (j : ℕ) < N := j.isLt
+    have hfin : (⟨i.val, hi⟩ : Fin N) = i := Fin.ext rfl
+    rw [hfin]
+    have hexp : N + 1 - 1 - (j.castSucc : ℕ) = (N - 1 - (j : ℕ)) + 1 := by
+      simp [Fin.val_castSucc]; omega
+    rw [hexp, pow_succ']
+  -- Step 7: Apply det_mul_column to factor out X_i from each row
+  have hdet_minor :
+      (R.submatrix (Fin.last N).succAbove (Fin.last N).succAbove).det =
+        (∏ i : Fin N, MvPolynomial.X i) *
+          (alternantMatrix N (vandermondeExps N)).det := by
+    have : R.submatrix (Fin.last N).succAbove (Fin.last N).succAbove =
+        Matrix.of (fun i j => MvPolynomial.X i *
+          alternantMatrix N (vandermondeExps N) i j) := by
+      funext i j; exact hminor_entry i j
+    rw [this, Matrix.det_mul_column]
+  exact hdet_minor
 
 /-- Setting x_N = 0 in psum gives psum in N variables:
 `psum(Fin(N+1), k) = ∑_{i<N} X_i^k + X_N^k`, setting X_N = 0 drops last term. -/
@@ -1746,7 +1887,43 @@ private lemma charValue_remove_trailing_zero (N n : ℕ)
     (bp : BoundedPartition (N + 1) n)
     (h0 : bp.parts (Fin.last N) = 0) (μ : Nat.Partition n) :
     charValue (N + 1) bp μ = charValue N (bp.dropLast N n h0) μ := by
-  sorry -- TODO: needs coeff_restrictLastVar + restrictLastVar_alternantDet + exponent shift
+  simp only [charValue]
+  set p := (alternantMatrix (N + 1) (vandermondeExps (N + 1))).det *
+    MvPolynomial.psumPart (Fin (N + 1)) ℚ μ
+  set e_small := Finsupp.equivFunOnFinite.symm
+    (shiftedExps N (BoundedPartition.dropLast N n bp h0).parts)
+  set ones := Finsupp.equivFunOnFinite.symm (fun _ : Fin N => 1)
+  -- The restricted exponent from (N+1) variables is e_small + ones
+  -- because shiftedExps (N+1) bp.parts (castSucc k) = shiftedExps N bp.dropLast.parts (k) + 1
+  have hstep1 : MvPolynomial.coeff (e_small + ones) (restrictLastVar N p) =
+      MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
+        if h : (i : ℕ) < N then (e_small + ones) ⟨i.val, h⟩ else 0)) p :=
+    coeff_restrictLastVar N p (e_small + ones)
+  -- The extended exponent equals shiftedExps (N+1) bp.parts
+  have hexp_eq : (Finsupp.equivFunOnFinite.symm (fun i : Fin (N + 1) =>
+      if h : (i : ℕ) < N then (e_small + ones) ⟨i.val, h⟩ else 0)) =
+      Finsupp.equivFunOnFinite.symm (shiftedExps (N + 1) bp.parts) := by
+    apply Finsupp.ext; intro i
+    show (if h : (i : ℕ) < N then (e_small + ones) ⟨i.val, h⟩ else 0) =
+      shiftedExps (N + 1) bp.parts i
+    by_cases h : (i : ℕ) < N
+    · simp only [dif_pos h, Finsupp.coe_add, Pi.add_apply]
+      show shiftedExps N (BoundedPartition.dropLast N n bp h0).parts ⟨i.val, h⟩ + 1 =
+        shiftedExps (N + 1) bp.parts i
+      simp only [shiftedExps, BoundedPartition.dropLast]
+      have : bp.parts (Fin.castSucc ⟨i.val, h⟩) = bp.parts i := by
+        congr 1
+      rw [this]; omega
+    · simp only [dif_neg h]
+      have hi_last : i = Fin.last N := Fin.ext (by simp [Fin.val_last]; omega)
+      rw [hi_last]; simp [shiftedExps, h0, Fin.val_last]
+  rw [hexp_eq] at hstep1
+  rw [← hstep1]
+  -- Now LHS = coeff (e_small + ones) (restrictLastVar N p)
+  -- Push restrictLastVar through the product
+  simp only [p, map_mul, restrictLastVar_alternantDet, restrictLastVar_psumPart, mul_assoc]
+  -- Use coeff_prod_X_mul to shift exponents
+  rw [coeff_prod_X_mul]
 
 /-- Adding a trailing zero doesn't change charValue. -/
 private lemma charValue_extend_zero (N n : ℕ) (bp : BoundedPartition N n)
@@ -1870,7 +2047,53 @@ private lemma canonicalBP_eq_of_weightToPartition_eq
 private lemma charValue_reduce_to_n (N n : ℕ) (bp : BoundedPartition N n)
     (μ : Nat.Partition n) :
     charValue N bp μ = charValue n (canonicalBP N n bp) μ := by
-  sorry -- Pre-existing broken proof from PR #2039; variable scoping issue after subst
+  -- Induction on N + (n - N) = max(N, n), but we use explicit case analysis
+  -- Case 1: N = n → base case (canonicalBP n n bp = bp)
+  -- Case 2: N > n → strip trailing zeros, recurse
+  -- Case 3: N < n → extend, recurse
+
+  -- Use well-founded induction on |N - n|
+  suffices key : ∀ (d : ℕ) (N' : ℕ) (bp' : BoundedPartition N' n) (μ' : Nat.Partition n),
+      (N' - n) + (n - N') = d →
+      charValue N' bp' μ' = charValue n (canonicalBP N' n bp') μ' from
+    key ((N - n) + (n - N)) N bp μ rfl
+  intro d
+  induction d with
+  | zero =>
+    intro N' bp' μ' hd
+    have hNn : N' = n := by omega
+    subst hNn
+    -- base case: canonicalBP N' N' bp' = bp' since they have the same weightToPartition
+    suffices h : canonicalBP N' N' bp' = bp' by rw [h]
+    have hext : ∀ (a b : BoundedPartition N' N'), a.parts = b.parts → a = b := by
+      intro ⟨_, _, _⟩ ⟨_, _, _⟩ h; simp_all
+    apply hext
+    -- Use weightToPartition_eq_iff': two antitone sequences with same wtp are equal
+    have hwtp := canonicalBP_weightToPartition N' N' bp'
+    exact ((weightToPartition_eq_iff' N' N'
+      (canonicalBP N' N' bp').parts bp'.parts
+      (canonicalBP N' N' bp').decreasing bp'.decreasing
+      (canonicalBP N' N' bp').sum_eq bp'.sum_eq).mp hwtp)
+  | succ d ihd =>
+    intro N' bp' μ' hd
+    by_cases hlt : N' < n
+    · -- N' < n: extend
+      rw [charValue_extend_zero N' n bp' μ']
+      rw [ihd (N' + 1) bp'.extend μ' (by omega)]
+      congr 1
+      exact canonicalBP_eq_of_weightToPartition_eq (N' + 1) N' n
+        bp'.extend bp' (wtp_extend N' n bp')
+    · -- N' > n (since N' ≠ n because d ≠ 0)
+      have hgt : N' > n := by omega
+      obtain ⟨N'', rfl⟩ := Nat.exists_eq_succ_of_ne_zero (by omega : N' ≠ 0)
+      have h0 := bp_trailing_zero_of_gt (N'' + 1) n bp' (by omega)
+      have h0' : bp'.parts (Fin.last N'') = 0 := by
+        convert h0 using 2
+      rw [charValue_remove_trailing_zero N'' n bp' h0' μ']
+      rw [ihd N'' (bp'.dropLast N'' n h0') μ' (by omega)]
+      congr 1
+      exact canonicalBP_eq_of_weightToPartition_eq N'' (N'' + 1) n
+        (bp'.dropLast N'' n h0') bp' (wtp_dropLast N'' n bp' h0')
 
 /-- Stability of charValue: the value is independent of the number of variables N,
 depending only on the partition (nonzero parts). This is the standard fact that
@@ -2197,6 +2420,32 @@ equals the coefficient of `x^μ` in the Schur polynomial `S_λ`.
 
 This is the core content of the Weyl character formula at the coefficient level:
 `dim(L_λ)_μ = [x^μ] S_λ(x)`. -/
+theorem schurModule_weight_eq_schurPoly_coeff
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (μ : Fin N →₀ ℕ) :
+    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
+      (schurPoly N lam).coeff μ := by
+  -- Reduce to the polynomial-level equality: formalCharacter = schurPoly
+  have h_poly : formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
+    -- Both polynomials satisfy p * Δ = A_{λ+δ}. Since Δ ≠ 0 in the integral domain
+    -- MvPolynomial (Fin N) ℚ, they must be equal.
+    have hΔ := alternantMatrix_vandermondeExps_det_ne_zero N
+    apply mul_right_cancel₀ hΔ
+    rw [formalCharacter_schurModule_mul_vandermonde k N lam hlam,
+        schurPoly_mul_vandermonde]
+  rw [← formalCharacter_coeff, h_poly]
+
+/-- **Weyl character formula for GL(V)**: the formal character of the Schur module
+`L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
+(Etingof Theorem 5.22.1) -/
+theorem Theorem5_22_1
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
+  ext μ
+  rw [formalCharacter_coeff, schurModule_weight_eq_schurPoly_coeff k N lam hlam]
+
+end Etingof
+λ)_μ = [x^μ] S_λ(x)`. -/
 theorem schurModule_weight_eq_schurPoly_coeff
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (μ : Fin N →₀ ℕ) :
