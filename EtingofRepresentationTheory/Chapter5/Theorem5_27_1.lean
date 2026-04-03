@@ -1424,7 +1424,61 @@ private lemma exists_nonzero_map_from_induced {G A : Type} [Group G] [CommGroup 
     ⟨FGModuleCat.ofHom f_lin, fun ⟨a, g⟩ => by
       apply FGModuleCat.hom_ext; apply LinearMap.ext; intro v
       change f_lin ((inducedRepV φ χ U).ρ ⟨a, g⟩ v) = W.ρ ⟨a, g⟩ (f_lin v)
-      sorry⟩
+      -- Suffices to show pointwise after reindexing by q = g • r
+      suffices key : ∀ r : G ⧸ stabAux φ χ,
+          W.ρ ⟨1, (g • r).out⟩
+            (ι_W (((inducedRepV φ χ U).ρ ⟨a, g⟩ v) (g • r))) =
+          W.ρ ⟨a, g⟩ (W.ρ ⟨1, r.out⟩ (ι_W (v r))) by
+        simp only [f_lin, LinearMap.coe_mk, AddHom.coe_mk, map_sum]
+        rw [← Equiv.sum_comp (MulAction.toPerm g)]
+        exact Finset.sum_congr rfl (fun r _ => key r)
+      intro r
+      -- Unfold inducedRepV action at coset g•r
+      change W.ρ ⟨1, (g • r).out⟩
+        (ι_W (((χ ((φ (g • r).out⁻¹ : MulAut A) a) : ℂˣ) : ℂ) •
+          FDRep.ρ U ⟨(g • r).out⁻¹ * g * (g⁻¹ • (g • r)).out,
+            transition_mem_stab φ χ g (g • r)⟩
+          (v (g⁻¹ • (g • r))))) =
+        W.ρ ⟨a, g⟩ (W.ρ ⟨1, r.out⟩ (ι_W (v r)))
+      simp only [inv_smul_smul]
+      -- Push scalar through ι_W and W.ρ
+      rw [map_smul ι_W, map_smul (W.ρ ⟨1, (g • r).out⟩)]
+      -- ι_equiv: ι_W(U.ρ(s)(v r)) = W.ρ(1,s.val)(ι_W(v r))
+      rw [ι_equiv]
+      -- Combine: W.ρ(1,(g•r).out) ∘ W.ρ(1,s)
+      rw [← Module.End.mul_apply, ← map_mul]
+      -- Telescope: (1,(g•r).out) * (1,(g•r).out⁻¹*g*r.out) = (1,g*r.out)
+      rw [show (⟨1, (g • r).out⟩ : A ⋊[φ] G) *
+            ⟨1, (g • r).out⁻¹ * g * r.out⟩ = ⟨1, g * r.out⟩ from by
+        ext <;> simp [SemidirectProduct.mul_left,
+          SemidirectProduct.mul_right]; group]
+      -- Combine RHS: W.ρ(a,g) ∘ W.ρ(1,r.out)
+      rw [← Module.End.mul_apply, ← map_mul,
+        show (⟨a, g⟩ : A ⋊[φ] G) * ⟨1, r.out⟩ = ⟨a, g * r.out⟩
+          from by ext <;> simp [SemidirectProduct.mul_left,
+            SemidirectProduct.mul_right]]
+      -- Factor: (a,g*r.out) = (1,g*r.out) * (φ((g*r.out)⁻¹)(a),1)
+      rw [show (⟨a, g * r.out⟩ : A ⋊[φ] G) =
+            ⟨1, g * r.out⟩ *
+            ⟨(φ (g * r.out)⁻¹ : MulAut A) a, 1⟩ from by
+        ext <;> simp [SemidirectProduct.mul_left,
+          SemidirectProduct.mul_right, SemidirectProduct.one_left,
+          SemidirectProduct.one_right],
+        map_mul, Module.End.mul_apply]
+      -- Weight space: W.ρ(b,1)(ι_W(v r)) = χ(b) • ι_W(v r)
+      rw [ws_prop (v r) ((φ (g * r.out)⁻¹ : MulAut A) a), map_smul]
+      -- Remains: χ(φ((g•r).out⁻¹)(a)) = χ(φ((g*r.out)⁻¹)(a))
+      congr 1; congr 1
+      -- (g•r).out⁻¹ * g * r.out ∈ stabAux by transition_mem_stab
+      have hmem := transition_mem_stab φ χ g (g • r)
+      simp only [inv_smul_smul] at hmem
+      -- Factor: (g*r.out)⁻¹ = t⁻¹ * (g•r).out⁻¹ where t ∈ H
+      rw [show (g * r.out)⁻¹ =
+            ((g • r).out⁻¹ * g * r.out)⁻¹ *
+            (g • r).out⁻¹ from by group,
+        map_mul, MulAut.mul_apply]
+      exact (stab_char_inv φ χ
+        ((stabAux φ χ).inv_mem hmem) _).symm⟩
   -- f ≠ 0: if f = 0 then ι_W = 0 (via Pi.single evaluation), hence ι = 0
   have hf : f ≠ 0 := by
     intro hf_eq; apply hι
