@@ -2444,30 +2444,22 @@ theorem Theorem5_22_1
   ext μ
   rw [formalCharacter_coeff, schurModule_weight_eq_schurPoly_coeff k N lam hlam]
 
-end Etingof
-λ)_μ = [x^μ] S_λ(x)`. -/
-theorem schurModule_weight_eq_schurPoly_coeff
-    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
-    (μ : Fin N →₀ ℕ) :
-    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
-      (schurPoly N lam).coeff μ := by
-  -- Reduce to the polynomial-level equality: formalCharacter = schurPoly
-  have h_poly : formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
-    -- Both polynomials satisfy p * Δ = A_{λ+δ}. Since Δ ≠ 0 in the integral domain
-    -- MvPolynomial (Fin N) ℚ, they must be equal.
-    have hΔ := alternantMatrix_vandermondeExps_det_ne_zero N
-    apply mul_right_cancel₀ hΔ
-    rw [formalCharacter_schurModule_mul_vandermonde k N lam hlam,
-        schurPoly_mul_vandermonde]
-  rw [← formalCharacter_coeff, h_poly]
+/-- Two `GL_N(k)`-representations with equal weight space dimensions at all weights are isomorphic.
 
-/-- **Weyl character formula for GL(V)**: the formal character of the Schur module
-`L_λ` equals the Schur polynomial `S_λ(x₁, …, x_N)`.
-(Etingof Theorem 5.22.1) -/
-theorem Theorem5_22_1
-    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
-    formalCharacter k N (SchurModule k N lam) = schurPoly N lam := by
-  ext μ
-  rw [formalCharacter_coeff, schurModule_weight_eq_schurPoly_coeff k N lam hlam]
+This follows from complete reducibility of polynomial `GL_N` representations (every
+finite-dimensional representation decomposes as a direct sum of Schur modules `L_λ`)
+and the fact that Schur modules with distinct `λ` have distinct formal characters
+(by the Weyl character formula, `Theorem5_22_1`).
+
+The proof requires showing:
+1. Both `M₁` and `M₂` decompose as direct sums of Schur modules
+2. Equal weight space dimensions imply equal multiplicities (by linear independence of Schur polys)
+3. Equal multiplicities imply isomorphism -/
+theorem iso_of_glWeightSpace_finrank_eq (N : ℕ)
+    (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (h : ∀ μ : Fin N → ℕ, Module.finrank k (glWeightSpace k N M₁ μ) =
+      Module.finrank k (glWeightSpace k N M₂ μ)) :
+    Nonempty (M₁ ≅ M₂) := by
+  sorry
 
 end Etingof
