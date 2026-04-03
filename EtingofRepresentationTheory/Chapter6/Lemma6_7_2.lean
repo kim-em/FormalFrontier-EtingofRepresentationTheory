@@ -39,7 +39,7 @@ private lemma cartanMatrix_diag_eq_two
     Matrix.one_apply_eq,
     hDynkin.2.1 i, sub_zero]; norm_num
 
-private lemma simpleRoot_B_eq_two
+lemma simpleRoot_B_eq_two
     (hDynkin : IsDynkinDiagram n adj) (i : Fin n) :
     dotProduct (Pi.single i 1)
       ((cartanMatrix n adj).mulVec (Pi.single i 1)) = 2 := by
@@ -163,7 +163,7 @@ private theorem coxeterAction_orbit_finite
   rw [← hN, coxeterActionIter_preserves_B hDynkin]
 
 /-- Simple reflection is an involution: sᵢ(sᵢ(v)) = v. -/
-private theorem simpleReflection_involutive
+theorem simpleReflection_involutive
     (hA_symm : (cartanMatrix n adj).IsSymm)
     (hroots : ∀ i : Fin n, dotProduct (Pi.single i 1)
         ((cartanMatrix n adj).mulVec (Pi.single i 1)) = 2)
