@@ -862,16 +862,109 @@ private lemma glTensorRep_diagUnit_basis (N n : ℕ) (i : Fin N) (t : kˣ)
   rw [Finset.prod_ite, Finset.prod_const_one, mul_one, Finset.prod_const]
   done
 
-/-- The weight-`μ` subspace of `V^{⊗n}` restricted to the Schur module has a ℚ-valued
-finrank that equals the trace formula.
+/-! #### Infrastructure for weight-restricted trace formula -/
 
-**Core argument over ℚ**: The normalized Young symmetrizer `(1/α)E`, when restricted to
-the weight-`μ` subspace of `V^{⊗n}`, is an idempotent projection. Its trace (= finrank
-of image) in the standard basis equals `α⁻¹ · ∑_σ c_λ(σ) · #{f : weight(f) = μ, f∘σ = f}`.
+/-- Permuting indices preserves tensor weight. -/
+private lemma tensorWeight_comp_equiv {N n : ℕ} (f : Fin n → Fin N)
+    (σ : Equiv.Perm (Fin n)) :
+    tensorWeight N (f ∘ σ) = tensorWeight N f := by
+  ext i
+  simp only [tensorWeight, Finsupp.coe_mk, Function.comp]
+  have h : Finset.univ.filter (fun j => f (σ j) = i) =
+      (Finset.univ.filter (fun j => f j = i)).map σ.symm.toEmbedding := by
+    ext j
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_map,
+      Equiv.toEmbedding_apply]
+    constructor
+    · intro h; exact ⟨σ j, h, σ.symm_apply_apply j⟩
+    · rintro ⟨a, ha, rfl⟩; rwa [σ.apply_symm_apply]
+  rw [h, Finset.card_map]
 
-**Base change**: The finrank over `k` equals the finrank over `ℚ` because the Young
-symmetrizer is defined over ℤ, making the weight space dimension field-independent
-in characteristic 0. -/
+/-- The basis `repr` of `σ · v` at index `g` equals `repr(v)(g ∘ σ)`. -/
+private lemma repr_symGroupAction {N n : ℕ}
+    (k' : Type*) [Field k'] (σ : Equiv.Perm (Fin n)) (v : TensorPower k' (Fin N → k') n)
+    (g : Fin n → Fin N) :
+    (tensorStdBasis k' N n).repr
+      ((symGroupAction k' (Fin N → k') n σ) v) g =
+    (tensorStdBasis k' N n).repr v (g ∘ σ) := by
+  set B := tensorStdBasis k' N n
+  -- Express both sides as linear functionals on v and use Basis.ext
+  have h : (Finsupp.lapply g).comp (B.repr.toLinearMap.comp
+      (symGroupAction k' (Fin N → k') n σ).toLinearMap) =
+    (Finsupp.lapply (g ∘ σ)).comp B.repr.toLinearMap := by
+    apply B.ext
+    intro f
+    simp only [LinearMap.comp_apply, LinearEquiv.coe_toLinearMap, Finsupp.lapply_apply]
+    rw [symGroupAction_tensorStdBasis k' N _ σ f]
+    rw [B.repr_self, Finsupp.single_apply, B.repr_self, Finsupp.single_apply]
+    simp only [Equiv.comp_symm_eq]
+  exact LinearMap.ext_iff.mp h v
+
+/-- The RHS sum can be expressed as `∑_{f:wt=μ} diag_entry(E, f)` by swapping
+the order of summation between permutations and colorings.
+
+`∑_σ c(σ) * #{f : f∘σ=f ∧ wt=μ} = ∑_{f:wt=μ} ∑_{σ:f∘σ=f} c(σ)` -/
+private lemma sum_swap_weight_youngSym (N : ℕ) (lam : Fin N → ℕ)
+    (μ : Fin N →₀ ℕ) :
+    ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
+          ((Finset.univ.filter fun f : Fin (∑ i, lam i) → Fin N =>
+            (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ).card : ℚ) =
+    ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N => tensorWeight N f = μ),
+      ∑ σ ∈ Finset.univ.filter (fun σ : Equiv.Perm (Fin (∑ i, lam i)) => ∀ j, f (σ j) = f j),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) := by
+  -- Step 1: Convert filter sums to indicator sums, then swap
+  conv_lhs =>
+    arg 2; ext σ
+    rw [show (YoungSymmetrizerK ℚ _ (weightToPartition N lam) σ : ℚ) *
+          ((Finset.univ.filter fun f : Fin (∑ i, lam i) → Fin N =>
+            (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ).card : ℚ) =
+        ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N =>
+            (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ),
+          (YoungSymmetrizerK ℚ _ (weightToPartition N lam) σ : ℚ) from by
+      rw [Finset.sum_const, nsmul_eq_mul, mul_comm]]
+  -- Step 2: Convert filter to indicator, swap, convert back
+  simp only [Finset.sum_filter]
+  rw [Finset.sum_comm]
+  congr 1; ext f
+  by_cases hf : tensorWeight N f = μ
+  · simp only [hf, and_true, if_true]
+  · simp only [hf, and_false, if_false, Finset.sum_const_zero]
+
+/-- The weight-restricted diagonal sum of E equals the weight-restricted trace:
+`∑_{f:wt=μ} diag_entry(E_ℚ, f) = ∑_{f:wt=μ} youngSym_diagonal_entry(f)` -/
+private lemma weight_restricted_diag_sum (N : ℕ) (lam : Fin N → ℕ) (μ : Fin N →₀ ℕ) :
+    ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N => tensorWeight N f = μ),
+      (tensorStdBasis ℚ N (∑ i, lam i)).repr
+        (youngSymEndomorphism ℚ N lam (tensorStdBasis ℚ N (∑ i, lam i) f)) f =
+    ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N => tensorWeight N f = μ),
+      ∑ σ ∈ Finset.univ.filter (fun σ : Equiv.Perm (Fin (∑ i, lam i)) => ∀ j, f (σ j) = f j),
+        (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) := by
+  apply Finset.sum_congr rfl
+  intro f _
+  exact youngSym_diagonal_entry ℚ N lam f
+
+/-- **Core structural lemma**: The finrank of the weight space of the Schur module
+over `k` equals the weight-restricted trace of the normalized Young symmetrizer over `ℚ`.
+
+This requires:
+1. The tensor basis diagonalizes the torus (from `glTensorRep_diagUnit_basis`)
+2. The Young symmetrizer preserves weight subspaces (from `tensorWeight_comp_equiv`)
+3. The normalized E is an idempotent projection onto the Schur module
+4. Base change: the ℤ-integral structure of E makes the rank field-independent -/
+private lemma finrank_glWeightSpace_eq_restricted_trace
+    (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (α : ℚ) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam))
+    (μ : Fin N →₀ ℕ) :
+    (Module.finrank k (glWeightSpace k N (SchurModule k N lam) (fun i => μ i)) : ℚ) =
+    α⁻¹ * ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N => tensorWeight N f = μ),
+      (tensorStdBasis ℚ N (∑ i, lam i)).repr
+        (youngSymEndomorphism ℚ N lam (tensorStdBasis ℚ N (∑ i, lam i) f)) f := by
+  sorry
+
 private lemma finrank_weight_eq_card_sum
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (α : ℚ) (hα : α ≠ 0)
@@ -884,7 +977,13 @@ private lemma finrank_weight_eq_card_sum
         (YoungSymmetrizerK ℚ (∑ i, lam i) (weightToPartition N lam) σ : ℚ) *
           ((Finset.univ.filter fun f : Fin (∑ i, lam i) → Fin N =>
             (∀ j, f (σ j) = f j) ∧ tensorWeight N f = μ).card : ℚ) := by
-  sorry
+  -- Step 1: LHS = α⁻¹ · ∑_{f:wt=μ} diag_entry(E_ℚ, f)
+  rw [finrank_glWeightSpace_eq_restricted_trace k N lam hlam α hα hα_sq μ]
+  -- Step 2: Rewrite diag entries using youngSym_diagonal_entry
+  rw [weight_restricted_diag_sum N lam μ]
+  -- Step 3: Swap sums
+  congr 1
+  exact (sum_swap_weight_youngSym N lam μ).symm
 
 /-- **Key coefficient identity**: the weight space dimension of `L_λ` at weight `μ` equals
 the trace formula coefficient `α⁻¹ · ∑_σ c_λ(σ) · [x^μ](permTracePoly N σ)`.
