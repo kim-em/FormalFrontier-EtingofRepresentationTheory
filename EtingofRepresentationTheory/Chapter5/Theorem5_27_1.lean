@@ -1177,12 +1177,75 @@ private lemma exists_character_in_rep {G A : Type} [Group G] [CommGroup A]
   -- Get a simple ℂ[A]-submodule (exists by semisimplicity + nontriviality)
   haveI : Nontrivial ρ_A.asModule := hnt
   obtain ⟨m, hm⟩ := IsSemisimpleModule.exists_simple_submodule (MonoidAlgebra ℂ A) ρ_A.asModule
-  -- Key steps (each requires careful type class management):
-  -- 1. m is 1-dimensional over ℂ (IsSimpleModule.finrank_eq_one_of_isMulCommutative)
-  -- 2. Pick nonzero v ∈ m, then ∀ a : A, ρ(a)v = χ(a)·v for unique scalar χ(a) : ℂ
-  -- 3. χ(a) ∈ ℂˣ (since ρ(a) is invertible) and χ : A →* ℂˣ (multiplicativity)
-  -- 4. v ∈ weightSpace φ W χ, so weightSpace φ W χ ≠ ⊥
-  sorry
+  haveI := hm
+  -- m is 1-dimensional over ℂ (A commutative, ℂ algebraically closed)
+  haveI : FiniteDimensional ℂ m :=
+    Module.Finite.of_injective (m.subtype.restrictScalars ℂ) Subtype.val_injective
+  haveI : IsMulCommutative (MonoidAlgebra ℂ A) := ⟨⟨mul_comm⟩⟩
+  haveI : Nontrivial m := IsSimpleModule.nontrivial (MonoidAlgebra ℂ A) ↥m
+  have h_dim : Module.finrank ℂ m = 1 :=
+    IsSimpleModule.finrank_eq_one_of_isMulCommutative (MonoidAlgebra ℂ A) m ℂ
+  -- Pick nonzero v ∈ m; every element of m is a ℂ-multiple of v
+  obtain ⟨v, hv_ne⟩ := exists_ne (0 : m)
+  have h_basis := (finrank_eq_one_iff_of_nonzero' v hv_ne).mp h_dim
+  -- Scalar uniqueness: c₁ • v = c₂ • v → c₁ = c₂
+  have h_inj : ∀ c₁ c₂ : ℂ, c₁ • v = c₂ • v → c₁ = c₂ := by
+    intro c₁ c₂ h
+    have hsub : (c₁ - c₂) • v = 0 := by rw [sub_smul, sub_eq_zero]; exact h
+    cases (smul_eq_zero.mp hsub) with
+    | inl h => exact sub_eq_zero.mp h
+    | inr h => exact absurd h hv_ne
+  -- For each a ∈ A, define the scalar by which a acts on v
+  let χ_val : A → ℂ := fun a => (h_basis (MonoidAlgebra.of ℂ A a • v)).choose
+  have hχ : ∀ a, χ_val a • v = MonoidAlgebra.of ℂ A a • v :=
+    fun a => (h_basis (MonoidAlgebra.of ℂ A a • v)).choose_spec
+  -- χ_val 1 = 1
+  have hχ_one : χ_val 1 = 1 := by
+    apply h_inj; rw [hχ, map_one, one_smul, one_smul]
+  -- χ_val is multiplicative
+  have hχ_mul : ∀ a b, χ_val (a * b) = χ_val a * χ_val b := by
+    intro a b; apply h_inj
+    calc χ_val (a * b) • v
+        = MonoidAlgebra.of ℂ A (a * b) • v := hχ (a * b)
+      _ = MonoidAlgebra.of ℂ A a • (MonoidAlgebra.of ℂ A b • v) := by
+            rw [← mul_smul, ← map_mul]
+      _ = MonoidAlgebra.of ℂ A a • (χ_val b • v) := by rw [← hχ b]
+      _ = χ_val b • (MonoidAlgebra.of ℂ A a • v) := smul_comm ..
+      _ = χ_val b • (χ_val a • v) := by rw [← hχ a]
+      _ = (χ_val a * χ_val b) • v := by rw [mul_comm, mul_smul]
+  -- χ_val a ≠ 0 (since MonoidAlgebra.of a is invertible)
+  have hχ_ne : ∀ a, χ_val a ≠ 0 := by
+    intro a ha
+    have h1 : χ_val a • v = 0 := by rw [ha, zero_smul]
+    rw [hχ] at h1
+    have h2 : v = 0 := by
+      have := congr_arg (MonoidAlgebra.of ℂ A a⁻¹ • ·) h1
+      simp only [smul_zero, ← mul_smul, ← map_mul, inv_mul_cancel,
+        map_one, one_smul] at this
+      exact this
+    exact hv_ne h2
+  -- Construct χ : A →* ℂˣ
+  let χ : A →* ℂˣ :=
+    { toFun := fun a => Units.mk0 (χ_val a) (hχ_ne a)
+      map_one' := by ext; exact hχ_one
+      map_mul' := fun a b => by ext; exact hχ_mul a b }
+  -- Show weightSpace φ W χ ≠ ⊥
+  refine ⟨χ, ?_⟩
+  rw [ne_eq, Submodule.eq_bot_iff]; push_neg
+  refine ⟨(v : ρ_A.asModule), ?_, fun h => hv_ne (Subtype.ext h)⟩
+  simp only [weightSpace, Submodule.mem_iInf, LinearMap.mem_ker, LinearMap.sub_apply,
+    LinearMap.smul_apply, LinearMap.id_apply]
+  intro a
+  -- Need: W.ρ ⟨a, 1⟩ ↑v - ↑(χ a) • ↑v = 0
+  rw [sub_eq_zero]
+  -- W.ρ ⟨a, 1⟩ = ρ_A a (definitional), use show to make it explicit
+  rw [show (W.ρ ⟨a, 1⟩ : ↑W.V →ₗ[ℂ] ↑W.V) = ρ_A a from rfl,
+    show (ρ_A a : ↑W.V →ₗ[ℂ] ↑W.V) =
+      Representation.asAlgebraHom ρ_A (MonoidAlgebra.of ℂ A a) from
+        (Representation.asAlgebraHom_of ρ_A a).symm]
+  -- Goal: asAlgebraHom ρ_A (of a) ↑v = ↑(χ a) • ↑v
+  -- LHS is definitionally (of a) • ↑v, and from hχ a this equals χ_val a • ↑v = ↑(χ a) • ↑v
+  exact (congr_arg Subtype.val (hχ a)).symm
 
 -- Helper: The weight space W_χ is invariant under G_χ
 -- Proof: For g ∈ G_χ and w ∈ W_χ, ρ(a,1)(ρ(1,g)(w)) = ρ(1,g)(ρ(g⁻¹ag,1)(w))
