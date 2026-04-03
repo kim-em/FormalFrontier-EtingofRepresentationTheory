@@ -8,8 +8,9 @@ For polynomial representations of `GL_N(k)` over algebraically closed fields,
 the formal character determines the isomorphism class. This is a consequence of
 the complete reducibility of polynomial representations (Schur-Weyl duality).
 
-This file provides the sorry'd general theorem and uses it together with the
-weight space shift computation for the determinant twist.
+This file provides the general theorem (reducing to weight space equality via
+`iso_of_glWeightSpace_finrank_eq`) and uses it together with the weight space
+shift computation for the determinant twist.
 -/
 
 open CategoryTheory MvPolynomial
@@ -23,16 +24,17 @@ variable (k : Type*) [Field k] [IsAlgClosed k]
 /-- Two `GL_N(k)`-representations with the same formal character are isomorphic.
 
 This holds for polynomial representations of `GL_N` over algebraically closed fields.
-The proof requires either:
-- Complete reducibility (Schur-Weyl duality / Maschke for reductive groups)
-- Or a direct argument via highest weight theory
-
-Both approaches need substantial infrastructure not yet available. -/
+The proof extracts weight space dimension equality from formal character equality
+and reduces to `iso_of_glWeightSpace_finrank_eq`. -/
 theorem iso_of_formalCharacter_eq (N : ℕ)
     (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
     (h : formalCharacter k N M₁ = formalCharacter k N M₂) :
     Nonempty (M₁ ≅ M₂) := by
-  sorry
+  apply iso_of_glWeightSpace_finrank_eq k N M₁ M₂
+  intro μ
+  have h_coeff := congr_arg (MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm μ)) h
+  rw [formalCharacter_coeff, formalCharacter_coeff] at h_coeff
+  exact_mod_cast h_coeff
 
 /-- The finsupp with all values equal to 1 on `Fin N`. -/
 private def onesFinsupp (N : ℕ) : Fin N →₀ ℕ :=
