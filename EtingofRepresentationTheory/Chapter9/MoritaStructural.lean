@@ -251,24 +251,48 @@ The proof that F(B₁) ≅ B₂ for basic Morita-equivalent algebras proceeds by
 6. Nakayama kills K: from step 2, K/J·K = 0, so K = 0 by finite generation.
 -/
 
-/-- A B₂-linear surjection from a finitely generated module P to B₂ whose kernel
+/-- A B₂-linear surjection from a module P to B₂ whose kernel
     is killed by the Jacobson radical gives P ≅ B₂.
 
-    More precisely: if `f : P →ₗ B₂` is surjective, `B₂` is projective (hence
-    `f` splits), and the kernel `K` satisfies `K ≤ J(B₂) • K`, then `K = 0` by
-    Nakayama and `f` is an isomorphism. -/
+    More precisely: if `f : P →ₗ B₂` is surjective, `B₂` is Artinian, and the
+    kernel `K` satisfies `K ≤ J(B₂) • K`, then `K = 0` by nilpotency of the
+    Jacobson radical (which is nilpotent for Artinian rings), and `f` is an
+    isomorphism. This avoids needing `Module.Finite B₂ P` (which would require
+    showing that equivalences preserve finite generation). -/
 private noncomputable def iso_of_surjection_with_trivial_kernel_head
-    {B₂ : Type u} [Ring B₂] [IsNoetherianRing B₂]
-    (P : ModuleCat.{u} B₂) [Module.Finite B₂ P]
+    {B₂ : Type u} [Ring B₂] [IsArtinianRing B₂]
+    (P : ModuleCat.{u} B₂)
     (f : P →ₗ[B₂] B₂) (hf_surj : Function.Surjective f)
     (hker : LinearMap.ker f ≤ Ring.jacobson B₂ • (LinearMap.ker f)) :
     P ≅ ModuleCat.of B₂ B₂ := by
-  -- The kernel is finitely generated: submodule of f.g. module over Noetherian ring
-  have hker_fg : (LinearMap.ker f).FG :=
-    (Module.Finite.fg_top (R := B₂) (M := P)).of_le le_top
-  -- By Nakayama (non-commutative), ker f = ⊥
-  have hker_bot : LinearMap.ker f = ⊥ :=
-    Submodule.FG.eq_bot_of_le_jacobson_smul hker_fg hker
+  -- ker f = J • ker f (since hker gives ≤ and smul_le_right gives ≥)
+  have heq : LinearMap.ker f = Ring.jacobson B₂ • LinearMap.ker f :=
+    le_antisymm hker Submodule.smul_le_right
+  -- The Jacobson radical of an Artinian ring is nilpotent
+  have hker_bot : LinearMap.ker f = ⊥ := by
+    obtain ⟨n, hn⟩ := (IsSemiprimaryRing.isNilpotent : IsNilpotent (Ring.jacobson B₂))
+    rw [eq_bot_iff]
+    -- Show every element of ker f is in J^k • ⊤ for all k
+    suffices h : ∀ (k : ℕ), ∀ x ∈ LinearMap.ker f,
+        x ∈ (Ring.jacobson B₂ ^ k • ⊤ : Submodule B₂ ↑P) by
+      intro x hx
+      have := h n x hx
+      rw [hn, Submodule.bot_smul] at this
+      exact this
+    intro k; induction k with
+    | zero => intro x _; exact Submodule.mem_top
+    | succ k ih =>
+      intro x hx
+      rw [heq] at hx
+      -- x ∈ J • ker f, decompose using smul_induction_on
+      refine Submodule.smul_induction_on hx (fun r hr z hz => ?_) (fun a b ha hb => ?_)
+      · -- r ∈ J, z ∈ ker f. By IH, z ∈ J^k • ⊤.
+        have hz' := ih z hz
+        -- r • z ∈ J^(k+1) • ⊤
+        -- J^(k+1) = J * J^k, and r * s ∈ J * J^k when r ∈ J and s ∈ J^k
+        rw [pow_succ']
+        exact Submodule.smul_mem_smul hr hz'
+      · exact Submodule.add_mem _ ha hb
   -- f is injective
   have hf_inj : Function.Injective f :=
     LinearMap.ker_eq_bot.mp hker_bot
@@ -309,12 +333,8 @@ private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
     (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
     F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
-  -- B₂ is Artinian (finite-dim over field), hence Noetherian (Hopkins-Levitzki)
+  -- B₂ is Artinian (finite-dim over field)
   haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
-  -- F(B₁) is finitely generated as a B₂-module
-  -- (it's the image of a f.g. B₁-module under an equivalence)
-  haveI : Module.Finite B₂ (F.functor.obj (ModuleCat.of B₁ B₁)) := by
-    sorry -- follows from Module.Finite k B₁ and the equivalence
   -- Obtain the surjection with trivial kernel head
   let ⟨f, hf_surj, hker⟩ :=
     exists_surjection_with_trivial_kernel_head B₁ B₂ _hB₁ _hB₂ F
