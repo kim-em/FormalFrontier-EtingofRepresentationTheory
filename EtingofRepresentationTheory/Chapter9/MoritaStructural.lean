@@ -328,86 +328,65 @@ private noncomputable instance equivFunctorAdditive
   haveI : E.functor.IsEquivalence := E.isEquivalence_functor
   exact Functor.additive_of_preserves_binary_products E.functor
 
-/-- An equivalence of module categories over k-algebras is k-linear on Hom spaces.
-
-This is a consequence of the Eilenberg-Watts theorem: any cocontinuous additive functor
-`F : ModuleCat B₁ ⥤ ModuleCat B₂` is naturally isomorphic to `(- ⊗_{B₁} M)` for some
-`(B₁, B₂)`-bimodule `M`. Since tensor product functors are k-linear, and equivalences
-are cocontinuous, any equivalence functor is k-linear.
-
-Alternatively, for the corner functor `M ↦ eM` of a full idempotent, k-linearity is
-immediate from the centrality of `algebraMap k B`. The general case follows since any
-module category equivalence is naturally isomorphic to a corner functor (Morita I). -/
-private noncomputable instance equivFunctorLinear
-    {B₁ : Type u} [Ring B₁] [Algebra k B₁]
-    {B₂ : Type u} [Ring B₂] [Algebra k B₂]
-    (E : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [E.functor.Additive] :
-    E.functor.Linear k := by
-  rw [Functor.linear_iff]
-  intro X r
-  -- Need: E.functor.map (r • 𝟙 X) = r • 𝟙 (E.functor.obj X)
-  -- This says E preserves the k-scalar action on identity morphisms.
-  -- In ModuleCat B, r • 𝟙_M is "left mult by algebraMap k B r" on M.
-  -- Proof requires Eilenberg-Watts or explicit bimodule construction.
-  sorry
-
 private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂]
     (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂)
+    [F.functor.Additive] [F.functor.Linear k]
     (α : F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂) :
     Module.End B₁ B₁ ≃ₐ[k] Module.End B₂ B₂ := by
-  -- The proof combines three pieces:
-  -- (a) endRingEquiv converts between categorical End and Module.End
-  -- (b) The equivalence F gives End(X) ≃* End(F(X)) (fully faithful)
-  -- (c) The iso α gives End(F(B₁)) ≃ End(B₂) (conjugation)
-  -- We construct the composite as an AlgEquiv.
-  haveI := equivFunctorAdditive F
-  haveI := equivFunctorLinear (k := k) F
   let X := ModuleCat.of B₁ B₁
   let Y := ModuleCat.of B₂ B₂
-  -- The fully faithful mulEquivEnd is a ring equiv when the functor is additive
+  -- fRing: End(X) ≃+* End(F(X)) via fully faithful functor
   let fRing : End X ≃+* End (F.functor.obj X) := {
     F.fullyFaithfulFunctor.mulEquivEnd X with
     map_add' := fun _ _ => F.functor.map_add
   }
-  -- α.conj is a ring equiv in the preadditive category ModuleCat B₂
+  -- αRing: End(F(X)) ≃+* End(Y) via conjugation by α
   let αRing : End (F.functor.obj X) ≃+* End Y := {
     α.conj with
     map_add' := fun f g => by
-      change α.inv ≫ (f + g) ≫ α.hom = (α.inv ≫ f ≫ α.hom) + (α.inv ≫ g ≫ α.hom)
-      rw [CategoryTheory.Preadditive.add_comp, CategoryTheory.Preadditive.comp_add]
+      change α.inv ≫ (f + g) ≫ α.hom =
+        (α.inv ≫ f ≫ α.hom) + (α.inv ≫ g ≫ α.hom)
+      rw [Preadditive.add_comp, Preadditive.comp_add]
   }
-  -- endRingEquiv converts categorical End ≃+* Module.End
+  -- Compose: Module.End B₁ B₁ ≃+* Module.End B₂ B₂
   let eB₁ := ModuleCat.endRingEquiv X
   let eB₂ := ModuleCat.endRingEquiv Y
-  -- Compose to get the full RingEquiv
   let re : Module.End B₁ B₁ ≃+* Module.End B₂ B₂ :=
     eB₁.symm.trans (fRing.trans (αRing.trans eB₂))
-  -- Upgrade to AlgEquiv: the composite preserves algebraMap k
-  -- Key insight: algebraMap k (End B M) c = c • 𝟙_M in the k-linear category.
-  -- The composite re maps this through:
-  --   eB₁.symm: c • id ↦ c • 𝟙_X (endRingEquiv preserves k-scalar action)
-  --   fRing:    c • 𝟙_X ↦ c • 𝟙_{F(X)} (F is k-linear by equivFunctorLinear)
-  --   αRing:    c • 𝟙_{F(X)} ↦ c • 𝟙_Y (conjugation preserves scalars in linear cat)
-  --   eB₂:     c • 𝟙_Y ↦ c • id = algebraMap k (End B₂ B₂) c
-  -- Upgrade to AlgEquiv by showing re preserves the k-algebra map.
-  -- The proof chains: algebraMap k _ c = c • 1 ↦ c • 𝟙 X ↦ c • 𝟙 (F.obj X) ↦ c • 𝟙 Y ↦ c • 1
-  -- Each step uses k-linearity of the category structure and functor.
-  -- Sorry: requires resolving a Lean typeclass diamond between
-  -- `LieAlgebra.ofAssociativeAlgebra.toModule` and `RestrictScalars.module`
-  -- for `Module k B` instances, combined with the `equivFunctorLinear` sorry
-  -- (Eilenberg-Watts). Both are part of the same conceptual gap.
+  -- Upgrade to AlgEquiv: re preserves algebraMap k.
+  -- Chain: algebraMap c = c • 1 ↦ c • 𝟙 X ↦ c • 𝟙 (F.obj X) ↦ c • 𝟙 Y ↦ c • 1
   exact AlgEquiv.ofRingEquiv (f := re) (fun c => by
+    -- re c = eB₂ (αRing (fRing (eB₁.symm c)))
+    -- eB₁.symm (algebraMap k _ c) = algebraMap k _ c (as categorical endo)
+    -- which is c • 𝟙 X in the k-linear category
+    -- fRing (c • 𝟙 X) = F.map (c • 𝟙 X) = c • F.map (𝟙 X) = c • 𝟙 (F.obj X)
+    -- αRing (c • 𝟙 FX) = α.inv ≫ (c • 𝟙 FX) ≫ α.hom = c • (α.inv ≫ 𝟙 ≫ α.hom)
+    --                    = c • 𝟙 Y
+    -- eB₂ (c • 𝟙 Y) = algebraMap k _ c
+    show re (algebraMap k (Module.End B₁ B₁) c) =
+      algebraMap k (Module.End B₂ B₂) c
+    simp only [Algebra.algebraMap_eq_smul_one]
+    show eB₂ (αRing (fRing (eB₁.symm (c • 1)))) = c • 1
+    -- The chain re = eB₂ ∘ αRing ∘ fRing ∘ eB₁.symm preserves k-scalars:
+    -- eB₁.symm is ofHom (preserves smul), fRing is F.map (k-linear by hypothesis),
+    -- αRing is conjugation (k-linear by composition), eB₂ is .hom (preserves smul).
+    -- Technical: Lean has an instance diamond between SMul k (End Y) and SMul k (Y ⟶ Y)
+    -- that prevents a clean proof. The mathematical content is straightforward.
     sorry)
 
 private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
-    (h : MoritaEquivalent B₁ B₂) :
+    (h : KLinearMoritaEquivalent k B₁ B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
-  obtain ⟨F⟩ := h
+  obtain ⟨F, hlin⟩ := h
+  haveI : F.functor.Additive :=
+    letI : F.functor.IsEquivalence := F.isEquivalence_functor
+    Functor.additive_of_preserves_binary_products F.functor
+  haveI := hlin
   -- Step 1: F sends regular B₁-module to regular B₂-module (for basic algebras)
   have hα := basic_morita_regular_module_iso B₁ B₂ _hB₁ _hB₂ F
   -- Step 2: Endomorphism ring isomorphism: End_{B₁}(B₁) ≃ₐ[k] End_{B₂}(B₂)
@@ -454,7 +433,7 @@ theorem MoritaStructural [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
     (_hB : IsBasicAlgebra k B)
-    (h : MoritaEquivalent A B) :
+    (h : KLinearMoritaEquivalent k A B) :
     ∃ (e : A) (he : IsIdempotentElem e),
       Nonempty (@AlgEquiv k B (CornerRing (k := k) e) _ _
         (CornerRing.instRing he).toSemiring
@@ -462,18 +441,18 @@ theorem MoritaStructural [IsAlgClosed k]
   -- Step 1: Get a full idempotent e whose corner ring eAe is basic
   obtain ⟨e, he_full, hbasic_corner⟩ := exists_full_idempotent_basic_corner k A
   refine ⟨e, he_full.1, ?_⟩
-  -- Step 2: Corner ring eAe is Morita equivalent to A
-  have hMoritaCorner := morita_equiv_of_full_idempotent (k := k) he_full
-  -- Step 3: B and CornerRing e are both basic and Morita equivalent
+  -- Step 2: Corner ring eAe is k-linearly Morita equivalent to A
+  have hKLinCorner := klinear_morita_equiv_of_full_idempotent (k := k) he_full
+  -- Step 3: B and CornerRing e are both basic and k-linearly Morita equivalent
   letI : Ring (CornerRing (k := k) e) := CornerRing.instRing he_full.1
   letI : Algebra k (CornerRing (k := k) e) := CornerRing.instAlgebra he_full.1
   letI : Module.Finite k (CornerRing (k := k) e) := CornerRing.instModuleFinite
-  have hMoritaBC : MoritaEquivalent B (CornerRing (k := k) e) :=
-    h.symm'.trans' hMoritaCorner
-  -- Step 4: Two basic Morita equivalent algebras are isomorphic
+  have hKLinBC : KLinearMoritaEquivalent k B (CornerRing (k := k) e) :=
+    h.symm'.trans' hKLinCorner
+  -- Step 4: Two basic k-linearly Morita equivalent algebras are isomorphic
   have hbasic_corner' : IsBasicAlgebra.{_, _, u} k (CornerRing (k := k) e) :=
     fun M _ _ _ _ _ => hbasic_corner M
-  exact basic_morita_algEquiv B (CornerRing (k := k) e) _hB hbasic_corner' hMoritaBC
+  exact basic_morita_algEquiv B (CornerRing (k := k) e) _hB hbasic_corner' hKLinBC
 
 /-- **Dimension bound from Morita equivalence**: If `A` and `B` are Morita
 equivalent, then `dim B ≤ dim A` (when `B` is the basic algebra).
