@@ -4163,7 +4163,7 @@
     "end_page": "147",
     "start_line": 11,
     "end_line": 14,
-    "status": "statement_formalized"
+    "status": "sorry_free"
   },
   {
     "id": "Chapter5/Exercise5.27.2",
@@ -4802,7 +4802,7 @@
     "end_page": "176",
     "start_line": 47,
     "end_line": 30,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": true
   },
   {
