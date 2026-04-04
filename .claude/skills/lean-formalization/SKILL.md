@@ -644,73 +644,74 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 40, 2026-03-28)
+## Endgame Priorities (Wave 43, 2026-04-04)
 
-With **29 sorries** across 20 files, the remaining work is concentrated in hard items. All definition-level sorries are resolved (verified by scan on 2026-03-28). Easy wins are exhausted — future progress is slower per sorry.
+With **13 sorries** across 10 files, the project is at 99.3% items sorry-free (579/583). All definition-level sorries are resolved. The remaining sorries are the hardest in the project — each requires either deep combinatorial argument, new infrastructure, or architectural rethink.
 
-**Trajectory:** 66 sorries (wave 28, Mar 22) → 33 (wave 37) → 27 (wave 38) → 29 (wave 40, Mar 28). Note: sorry count can increase when decomposition adds new sub-goals.
+**Trajectory:** 66 sorries (wave 28, Mar 22) → 29 (wave 40, Mar 28) → 25 (wave 42, Apr 3) → **13 (wave 43, Apr 4)**. Wave 43 was the largest single-wave reduction (−12 sorries, −4 files). Two clusters eliminated (Mackey Machine fully, Weyl Character nearly).
 
-**Recently completed (Waves 38-40, PRs #1824–#1897):**
-- Hilbert syzygy lower bound: Shapiro's lemma proved from scratch (#1870, #1880), Ext^n result (#1887)
-- Hilbert syzygy upper bound: Koszul SES infrastructure + extendScalars preserves projective dim (#1897)
-- Morita/corner ring: exists_full_idempotent_basic_corner fullness proved (#1881)
-- Weyl character formula: trace formula sub-lemmas decomposed (#1883)
-- Peter-Weyl: directSum_rank_ge_aleph0 proved (#1896, pending CI)
-- Polytabloid: false theorem (tabloid expansion) identified and fixed (#1888)
-- Determinant identity: det_clearedDenomMatrix_eq proved (#1845)
+**Recently completed (Waves 41-43, PRs #2047–#2092):**
+- Mackey machine: Theorem5_27_1 fully sorry-free (#2047, #2049, #2069) — Clifford theory was NOT needed; direct constructions sufficed
+- Weyl character: charValue stability chain proved (#2068), finrank trace formula (#2075), iso_of_formalCharacter_eq (#2070)
+- Weight space: Proposition5_22_2 det-twist vanishing proved (#2077)
+- Gabriel chain: Corollary6_8_3 recovery lemma + iteration tracking (2→0, #2080), F⁻ functoriality (#2074), admissible sinks (#2076)
+- Morita: KLinearMoritaEquivalent bypass (#2073), equivEndAlgEquiv scalar preservation (#2082), Module.Finite transport (#2092)
+- Polytabloid: garnir single-column case proved (#2078), multi-column blocker identified
 
-**Dependency DAG — strategic priority order:**
+**Remaining sorry map (13 sorries, 10 files):**
 
 ```
-Proposition6_6_6_source (1 sorry) ← KEYSTONE: unblocks ~11 downstream
-├─→ Corollary6_8_3 (1) → Problem6_1_5_theorem (1) → Theorem_Dynkin_classification (1)
-├─→ Corollary6_8_4 (1)
-└─→ Theorem2_1_2 (1)
+Cluster A: Polytabloid Basis (Ch5, 4 sorries) — DESIGN BLOCKER
+├── PolytabloidBasis (3): polytabloid_linearIndependent, column_standard_in_span', garnir_identity_expansion
+└── TabloidModule (1): polytabloid_syt_dominance
 
-Theorem5_22_1 (3 sorrys) ← unblocks character formula completion
-├─→ Theorem5_23_2 (1)
-└─→ Proposition5_22_2 (1)
+Cluster B: Weyl Character (Ch5, 1 sorry) — NEARLY ELIMINATED
+└── Theorem5_22_1 (1): iso_of_glWeightSpace_finrank_eq [PR #2081 pending CI re-run]
 
-CoxeterInfrastructure (2 sorrys) ← enables Corollary6_8_3 inductive step
+Cluster D: Gabriel Theorem Chain (Ch6, 5 sorries)
+├── CoxeterInfrastructure (1): one_round_or_simpleRoot [UNIVERSE BLOCKER]
+├── Corollary6_8_4 (1): indecomposable_of_positive_root [blocked by CoxeterInfrastructure]
+├── Problem6_1_5_theorem (1): Theorem_6_1_5 (finite type ↔ Dynkin)
+├── Problem6_9_1 (1): off_diagonal_nilpotent_product_decomp [active: #2083]
+└── Theorem6_5_2 (1): Theorem_6_5_2c_bijection (dim vector bijection)
 
-Theorem5_27_1 (3 sorrys) [Independent — Mackey machine]
-PolytabloidBasis (3 sorrys) + TabloidModule (3 sorrys) [Isolated cluster]
-BasicAlgebraExistence (2 sorrys) → MoritaStructural (1)
-Problem6_9_1 (2 sorrys) [Isolated]
-Example9_4_4 (2 sorrys) [Isolated]
-Theorem2_1_2 (1 sorry) [Blocked on Gabriel chain]
+Cluster E: Morita Theory (Ch9, 2 sorries)
+└── MoritaStructural (2): exists_surjection_with_trivial_kernel_head + Module.Finite transport
+    [Both need progenerator theory or composition series]
+
+Isolated:
+└── Theorem2_1_2 (1): Gabriel's theorem classification [blocked on Cluster D]
 ```
 
 **Priority tiers:**
 
-**Tier 1 — Highest strategic value:**
-- Proposition6_6_6_source (1 sorry) — reflection functor naturality. Unblocks 5+ downstream theorems with 11+ sorrys total. Very hard (dependent type rewriting).
-- Theorem5_22_1 (3 sorrys) — Cauchy identity / Vandermonde. Unblocks character formula completion (2 downstream).
+**Tier 1 — Highest ROI (low effort, high impact):**
+- **Re-run CI on PR #2081** — If it passes, Theorem5_22_1 goes to 0 sorries, eliminating Cluster B entirely. Zero proof effort needed.
+- **Problem6_9_1** (#2083, active) — Compatible chain basis. Concrete linear algebra, 1→0 sorry.
 
-**Tier 2 — Hard but tractable:**
-- CoxeterInfrastructure (2 sorrys) — type-changing quiver iteration
-- Problem6_9_1 (2 sorrys) — IsCompl conditions for projected subspaces
-- Theorem5_27_1 (3 sorrys) — Mackey machine (needs Clifford theory ~500 lines)
+**Tier 2 — Tractable with current techniques:**
+- **Problem6_1_5_theorem** — Finite type ↔ Dynkin classification. Standalone proof, independent of other Cluster D items.
+- **Theorem6_5_2** — Dim vector bijection. Also standalone within Cluster D.
+- **MoritaStructural Module.Finite transport** — May yield to a direct argument about equivalences preserving finiteness.
 
-**Tier 3 — Significant infrastructure:**
-- BasicAlgebraExistence (2 sorrys) — corner ring Morita equivalence (~200-300 lines), non-commutative tensor products
-- MoritaStructural (1 sorry) — basic_morita_algEquiv has fundamental circularity; all non-circular approaches require Krull-Schmidt or progenerator theory
-- Example9_4_4 (2 sorrys) — Koszul SES exactness for polynomial rings
+**Tier 3 — Needs new infrastructure or architectural rethink:**
+- **MoritaStructural exists_surjection** — Needs progenerator theory (composition series, projectivity preservation). ~200-300 lines of new infrastructure.
+- **CoxeterInfrastructure** — Universe constraint blocker. May need Lean 4 changes or complete architectural rethink of the induction structure.
+- **Corollary6_8_4** — Blocked by CoxeterInfrastructure. No point working on this until the blocker is resolved.
 
-**Tier 4 — Isolated / lower priority:**
-- PolytabloidBasis (3 sorrys) + TabloidModule (3 sorrys) — right-multiplication dominance needed (left was proved, right is fundamentally different)
-- Theorem2_1_2 (1 sorry) — blocked on full Gabriel chain
+**Tier 4 — Design-level blockers (do not attempt without plan):**
+- **PolytabloidBasis (3 sorries) + TabloidModule (1)** — The `columnInvCount'` metric is provably insufficient for the multi-column Garnir reduction (counterexample found for partition (2,1,1)). Requires one of: (a) new induction metric (lexicographic with row-width weighting), (b) tabloid dominance ordering (standard approach from James's book), or (c) targeted fix for ¬hwidth case. Do NOT attempt without choosing an approach first.
 
 **Key endgame insights:**
 1. **All definitions are constructed.** Every remaining sorry is a pure proof obligation.
 2. **Decomposition is the dominant value-creation pattern.** Converting a monolithic sorry into structured sub-goals (with 60-80% proved) is often the best outcome for a single session.
 3. **Approach cycling is expensive.** After 3 genuinely different approaches, document and move on.
 4. **Decidable.casesOn patterns are well-documented** (see sections below). Read before attempting Ch6 work.
-5. **False theorems can hide in conjugation/action directions.** Verify statement correctness with concrete examples.
-6. **Missing infrastructure is the primary blocker**, not tactic difficulty. Remaining sorrys need new mathematical developments (Clifford theory, Morita, tensor algebra isomorphisms).
-7. **Circular dependencies between sorry'd theorems** exist (e.g., Prop 5.22.2 needs Thm 5.22.1). When both ends of a circle have sorrys, focus on the one with fewer prerequisites.
-8. **Non-commutative tensor products are a recurring wall.** Mathlib's `TensorProduct` requires `CommSemiring`. Morita theory needs `A ⊗_{eAe} N` over non-commutative corner rings. Multiple agents have hit this — see "Non-Commutative Ring Workarounds" below.
-9. **Multi-PR iteration is normal for hard items.** Complex theorems (Hilbert syzygy, Morita) routinely require 2-4 PRs: restructure → build infrastructure → prove. Plan for this.
+5. **Distinguish proof difficulty from design blockers.** A sorry that's "hard" needs more effort. A sorry with a provably broken approach needs a *different* approach. Don't spend sessions on the latter without an explicit replan. (Example: garnir multi-column case — the swap doesn't decrease the metric, period.)
+6. **Pessimism about infrastructure requirements can be wrong.** The Mackey machine was estimated to need ~500 lines of Clifford theory. It was proved without Clifford theory at all — direct constructions sufficed. Always try the simplest approach first.
+7. **Element-level proofs bridge SMul instance diamonds.** When two Module instances are propositionally but not definitionally equal, work at element level with `ext`, then use `conv_lhs => rw [...]` to bridge the instances. This resolved the hardest MoritaStructural sub-task (#2082).
+8. **Multi-PR iteration is normal for hard items.** Complex theorems routinely require 2-4 PRs: restructure → build infrastructure → prove.
+9. **Scaffold-then-parallelize works.** Decomposing a sorry into 3-5 sub-sorries lets multiple agents work in parallel. Mackey machine (5 sub-goals → 3 agents → 0 sorries) is the exemplar.
 
 ## Non-Commutative Ring Workarounds
 
@@ -1011,6 +1012,78 @@ theorem main_result : conclusion := by
 - Corollary9_7_3: sorry pushed to infrastructure files (#1560)
 
 **Infrastructure absorption pattern:** When helper lemmas are reusable across theorems, extract them into dedicated infrastructure files (e.g., `Infrastructure/BasicAlgebraExistence.lean`, `Infrastructure/MoritaStructural.lean`). This cleanly separates mathematical infrastructure from theorem proofs.
+
+## SMul Instance Diamond Bridge (Wave 43)
+
+When two `Module` instances on the same type are propositionally but not definitionally equal (common with equivalences, transport, or `restrictScalars`), direct `rfl` and `congr` fail.
+
+**Symptoms:**
+- `rfl` fails on what looks like `r • x = r • x`
+- Error mentions two different `SMul` or `Module` instances
+- `convert` leaves `HEq` goals between instances
+
+**Pattern: Element-level proof with conv rewrite**
+```lean
+-- Two instances: inst₁ and inst₂ on the same carrier type M
+-- You have: h : ∀ (r : R) (m : M), @SMul.smul R M inst₁.toSMul r m = @SMul.smul R M inst₂.toSMul r m
+-- Goal: some statement involving inst₂ that you can prove using inst₁
+
+ext m  -- reduce to element level
+show @SMul.smul R M inst₂.toSMul r m = ...
+conv_lhs => rw [show @SMul.smul R M inst₂.toSMul r m = @SMul.smul R M inst₁.toSMul r m from (h r m).symm]
+-- Now the goal uses inst₁, which you can work with
+```
+
+**Evidence:** This resolved equivEndAlgEquiv scalar preservation in MoritaStructural (#2082), the hardest sub-task in Cluster E. The key was proving scalar action agreement at element level, then using `conv_lhs => rw [...]` to swap instances within larger expressions.
+
+**When NOT to use:** If the instances are definitionally equal but Lean can't see it, try `change` or `show` first. This pattern is for genuinely different instances that happen to agree propositionally.
+
+## Recognizing Design-Level Blockers vs Proof Difficulty (Wave 43)
+
+**Critical distinction:** A "hard sorry" needs more effort on the same approach. A "design blocker" means the current approach is provably wrong and no amount of effort will fix it.
+
+**How to tell them apart:**
+
+| Signal | Proof Difficulty | Design Blocker |
+|--------|-----------------|----------------|
+| Counterexample exists | No | Yes — approach fails on specific inputs |
+| "All other swaps also fail" | No | Yes — no variant of the approach works |
+| Missing lemma | Yes — prove it | Maybe — check if lemma is actually false |
+| Tactic timeout | Yes — simplify | No — not relevant |
+| 3+ failed attempts, all similar | Yes — try harder | Check for counterexample first |
+
+**The garnir_columnInvCount_decrease lesson (issue #2055):**
+The swap-based approach was supposed to decrease `columnInvCount'` for the multi-column case. Analysis showed:
+1. For partition (2,1,1), σ with filling [0,3,2,1], the swap preserves the column inversion at (2,3)
+2. ALL other possible swaps for this σ INCREASE the count
+3. The Garnir element approach gives `0 = 0` (trivial identity) due to row absorption
+
+This is NOT "hard" — it's provably impossible with the current metric. The fix requires changing the induction measure or the entire proof architecture.
+
+**Action when you identify a design blocker:**
+1. Document the counterexample in a GitHub issue
+2. Propose 2-3 alternative approaches
+3. Do NOT attempt further proofs on the broken approach
+4. Mark difficulty as 9-10 and add `replan` label
+
+## Bypass Strategies That Worked (Waves 41-43)
+
+Several sorry reductions succeeded by finding simpler approaches than originally estimated:
+
+**1. Mackey machine without Clifford theory (#2047, #2049)**
+- Original estimate: ~500 lines of Clifford theory infrastructure
+- Actual approach: Direct construction using Frobenius reciprocity + simple subrepresentation existence
+- Lesson: Always try the simplest approach first. Infrastructure estimates are often pessimistic.
+
+**2. KLinearMoritaEquivalent bypass (#2073)**
+- Original approach: Prove k-linear Morita equivalence (requires tensor product infrastructure)
+- Bypass: Skip k-linearity entirely and work with the underlying additive equivalence + separate scalar preservation
+- Lesson: If a type class requirement is hard to satisfy, check if you can decompose the proof to avoid needing the full type class.
+
+**3. charValue stability chain (#2068)**
+- Original approach: Direct polynomial manipulation
+- Actual approach: Induction on the stability chain length, reducing each step to a base case
+- Lesson: When polynomial arguments are complex, look for inductive structure.
 
 ## MonoidAlgebra.lift Pattern for Group Algebra Homomorphisms
 

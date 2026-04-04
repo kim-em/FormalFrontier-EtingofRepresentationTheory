@@ -286,19 +286,36 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 30:** ~562/583 items sorry-free (96.4%), ~66 sorry occurrences across 24 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 2 sorries. Ch5 remains the bottleneck (~36 sorries, but Theorem5_26_1 now sorry-free). Ch6 has ~19 sorries (Theorem_Dynkin_classification now sorry-free, CoxeterInfrastructure progressing). Ch9 has ~6 sorries. Statement formalization is complete.
+**As of Wave 43 (2026-04-04):** 579/583 items sorry-free (99.3%), **13 sorries** across 10 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry (Theorem2_1_2). Ch5 has 5 sorries (PolytabloidBasis 3, TabloidModule 1, Theorem5_22_1 1). Ch6 has 5 sorries (CoxeterInfrastructure 1, Corollary6_8_4 1, Problem6_1_5_theorem 1, Problem6_9_1 1, Theorem6_5_2 1). Ch9 has 2 sorries (MoritaStructural 2). Statement formalization is complete.
 
-**Wave 29-30 completions (19 PRs, #1620–#1658):** Theorem_Dynkin_classification (fully sorry-free via reciprocal inequality + tree_branch_iso), Theorem5_26_1 (Artin's theorem fully sorry-free via character orthogonality), nilpotent_nontrivial_decomp (sorry-free), elliptic_sum_algebraic_core (sorry-free), principalSeries infrastructure (detChar_simple/mono/ne_zero, IsSplitMono approach structured), Prop6_6_6 3→2 sorries, complementW_finrank infrastructure decomposed.
+**Wave 40-43 trajectory (14 PRs, #2047–#2092):** Largest single-wave reduction in project history (−12 sorries, −4 files in Wave 43). Mackey Machine cluster fully eliminated without Clifford theory. Weyl Character cluster nearly eliminated (1 sorry, PR #2081 pending). Corollary6_8_3 fully proved. MoritaStructural reduced 4→2.
 
-**Note:** Sorry count increased 61→66 due to healthy decomposition — opaque sorries replaced by well-scoped sub-sorries (e.g., complementW_finrank added 8 helper sorries, decomp_of_ker_sum_ge_two added dimension argument sub-sorries).
+**Endgame characteristics (Wave 43+):** Remaining sorries in 4 clusters:
+- **Cluster A: Polytabloid Basis (4 sorries):** Design blocker — `columnInvCount'` metric provably insufficient for multi-column Garnir. Needs architectural rethink (dominance ordering or new metric).
+- **Cluster B: Weyl Character (1 sorry):** PR #2081 pending CI. If merged, cluster eliminated.
+- **Cluster D: Gabriel Chain (5 sorries):** CoxeterInfrastructure universe blocker prevents Corollary6_8_4. Three other sorries are independent and tractable.
+- **Cluster E: Morita (2 sorries):** Needs progenerator theory or composition series infrastructure.
+- **Primary value-creation patterns:** Decomposition into sub-sorries, bypass approaches (simpler than estimated), and element-level instance bridging. Single-sorry items remain highest-ROI targets.
 
-**Endgame characteristics (Wave 30+):** Remaining sorries concentrated in:
-- **SchurModule cluster (~20 sorries, ~30%):** Mega-blocker, concrete definition needed
-- **Theorem5_25_2 principal series (~11 sorries):** IsSplitMono infrastructure ready, cokernel identification is the gap
-- **Gabriel chain (~8 sorries):** CoxeterInfrastructure foundations built, type-changing iteration is the key remaining piece
-- **Mackey/Clifford (~5 sorries):** Deep blocker, no Mathlib infrastructure
-- **Morita/Ch9 (~6 sorries):** Infrastructure gaps
-- **Primary value-creation pattern:** Character orthogonality and IsSplitMono decomposition are the most reliable proof strategies. Decomposition into sub-sorries remains the dominant value-creation pattern. Single-sorry items continue to be highest-ROI targets.
+### Disk Space and Worktree Management (Wave 41)
+
+**Problem:** 45 concurrent worktrees consumed 156GB, leaving only 214MB free. Agents could not run `lake build` or `lake exe cache get`.
+
+**Prevention:**
+- Monitor disk usage before creating worktrees: `df -h /`
+- If < 5GB free, truncate `.lake/build/ir` and `.lake/build/lib` in idle worktrees
+- Cap concurrent worktrees at ~30 for this project
+- Rely on CI for verification when local builds are impossible
+
+### CI-Stale PRs: Merge Promptly (Waves 42-43)
+
+**Problem:** PRs #2047, #2049 had cancelled CI for ~5 hours. PR #2081 had cancelled CI at the end of Wave 43. Delays cascade — downstream agents can't merge their work until upstream PRs land on `main`.
+
+**Rule:** After creating a PR with auto-merge:
+1. Check CI status after 30 minutes
+2. If CI is cancelled or stalled, re-trigger manually: `gh run rerun <run-id>`
+3. If CI fails, investigate immediately — don't leave it for the next agent
+4. Never leave a session with a pending CI-stale PR without noting it in the progress file
 
 ### Stalling Detection and Response
 
