@@ -148,6 +148,238 @@ noncomputable def Etingof.QuiverRepresentation.crossIsoToIso
 
 end Iso
 
+section MapIso
+
+/-! ## Functoriality of F⁻ᵢ on isomorphisms
+
+Given an isomorphism σ : ρ₁ ≅ ρ₂ of quiver representations and a source vertex i,
+we construct F⁻ᵢ(σ) : F⁻ᵢ(ρ₁) ≅ F⁻ᵢ(ρ₂).
+
+At vertices v ≠ i, the equivalence is the composition:
+  F⁻(ρ₁).obj v ≃ ρ₁.obj v ≃[σ] ρ₂.obj v ≃ F⁻(ρ₂).obj v
+
+At vertex i, both sides are cokernels of source maps ψ₁, ψ₂. The iso σ induces
+a componentwise equivalence on the direct sums that maps range(ψ₁) to range(ψ₂),
+hence descends to an equivalence on quotients.
+-/
+
+/-- Componentwise linear equiv on direct sums induced by linear equivs at each component.
+Used to transport source maps through an isomorphism σ between representations. -/
+noncomputable def Etingof.directSumMapEquiv
+    {k : Type*} [CommRing k] {ι : Type*} [DecidableEq ι]
+    {M₁ M₂ : ι → Type*}
+    [∀ a, AddCommMonoid (M₁ a)] [∀ a, Module k (M₁ a)]
+    [∀ a, AddCommMonoid (M₂ a)] [∀ a, Module k (M₂ a)]
+    (e : ∀ a, M₁ a ≃ₗ[k] M₂ a) :
+    DirectSum ι M₁ ≃ₗ[k] DirectSum ι M₂ :=
+  DFinsupp.mapRange.linearEquiv e
+
+theorem Etingof.directSumMapEquiv_lof
+    {k : Type*} [CommRing k] {ι : Type*} [DecidableEq ι]
+    {M₁ M₂ : ι → Type*}
+    [∀ a, AddCommMonoid (M₁ a)] [∀ a, Module k (M₁ a)]
+    [∀ a, AddCommMonoid (M₂ a)] [∀ a, Module k (M₂ a)]
+    (e : ∀ a, M₁ a ≃ₗ[k] M₂ a)
+    (a : ι) (v : M₁ a) :
+    Etingof.directSumMapEquiv e (DirectSum.lof k ι M₁ a v) =
+      DirectSum.lof k ι M₂ a (e a v) := by
+  change (DFinsupp.mapRange.linearEquiv e) (DFinsupp.single a v) =
+    DFinsupp.single a ((e a) v)
+  ext b
+  rw [DFinsupp.mapRange.linearEquiv_apply, DFinsupp.mapRange_apply,
+      DFinsupp.single_apply, DFinsupp.single_apply]
+  split
+  · next h => subst h; rfl
+  · exact map_zero _
+
+/-- σ-induced map on direct sums sends range(ψ₁) to range(ψ₂).
+This is the key compatibility needed to descend to quotients. -/
+theorem Etingof.directSumMapEquiv_maps_sourceRange
+    {k : Type*} [CommRing k] {Q : Type*} [Quiver Q]
+    {i : Q}
+    {ρ₁ ρ₂ : Etingof.QuiverRepresentation k Q}
+    (σ : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)
+    [Fintype (Etingof.ArrowsOutOf Q i)] [DecidableEq (Etingof.ArrowsOutOf Q i)]
+    (ψ₁ : ρ₁.obj i →ₗ[k] DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₁.obj a.fst))
+    (hψ₁ : ψ₁ = ∑ a : Etingof.ArrowsOutOf Q i,
+        (DirectSum.lof k _ (fun a => ρ₁.obj a.fst) a).comp (ρ₁.mapLinear a.2))
+    (ψ₂ : ρ₂.obj i →ₗ[k] DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₂.obj a.fst))
+    (hψ₂ : ψ₂ = ∑ a : Etingof.ArrowsOutOf Q i,
+        (DirectSum.lof k _ (fun a => ρ₂.obj a.fst) a).comp (ρ₂.mapLinear a.2))
+    (F : DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₁.obj a.fst) ≃ₗ[k]
+         DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₂.obj a.fst))
+    (hF : ∀ (a : Etingof.ArrowsOutOf Q i) (v : ρ₁.obj a.fst),
+        F (DirectSum.lof k _ _ a v) = DirectSum.lof k _ _ a (σ.equivAt a.fst v)) :
+    Submodule.map F.toLinearMap (LinearMap.range ψ₁) = LinearMap.range ψ₂ := by
+  ext x
+  simp only [Submodule.mem_map, LinearMap.mem_range, LinearEquiv.coe_toLinearMap]
+  constructor
+  · rintro ⟨y, ⟨v, rfl⟩, rfl⟩
+    refine ⟨σ.equivAt i v, ?_⟩
+    rw [hψ₁, hψ₂]
+    simp only [LinearMap.sum_apply, LinearMap.comp_apply, map_sum]
+    congr 1; ext1 a
+    rw [hF]
+    congr 1
+    exact (σ.naturality a.2 v).symm
+  · rintro ⟨w, rfl⟩
+    refine ⟨ψ₁ ((σ.equivAt i).symm w), ⟨(σ.equivAt i).symm w, rfl⟩, ?_⟩
+    rw [hψ₁, hψ₂]
+    simp only [LinearMap.sum_apply, LinearMap.comp_apply, map_sum]
+    congr 1; ext1 a
+    rw [hF]
+    congr 1
+    rw [σ.naturality a.2, LinearEquiv.apply_symm_apply]
+
+set_option maxHeartbeats 1600000 in
+-- reason: v=i case unfolds two reflectionFunctorMinus instances + match resolution + Quotient.equiv
+/-- Pointwise linear equivalence for the reflection functor map at each vertex.
+At v ≠ i, composes through σ.equivAt. At v = i, uses quotient equiv on cokernels.
+
+The v = i case uses sequential `rw` with individual type equalities (each having ONE
+`reflectionFunctorMinus` reference) to avoid the whnf timeout that occurs when TWO
+references appear simultaneously in the goal. -/
+private noncomputable def Etingof.reflectionFunctorMinus_map_iso_equivAt
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    {ρ₁ ρ₂ : Etingof.QuiverRepresentation k Q}
+    (σ : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    (v : Q) :
+    @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₁) v ≃ₗ[k]
+    @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₂) v := by
+  by_cases hv : v = i
+  · rw [eq_comm] at hv; subst hv
+    -- Set up instances matching reflectionFunctorMinus internals
+    letI : ∀ v, AddCommGroup (ρ₁.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+    letI : ∀ v, AddCommGroup (ρ₂.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+    letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₁.obj a.1)) :=
+      Etingof.addCommGroupOfRing (k := k)
+    letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₂.obj a.1)) :=
+      Etingof.addCommGroupOfRing (k := k)
+    letI : DecidableEq (Etingof.ArrowsOutOf Q i) := Classical.decEq _
+    let ψ₁ := ∑ a : Etingof.ArrowsOutOf Q i,
+      (DirectSum.lof k _ (fun a => ρ₁.obj a.1) a).comp (ρ₁.mapLinear a.2)
+    let ψ₂ := ∑ a : Etingof.ArrowsOutOf Q i,
+      (DirectSum.lof k _ (fun a => ρ₂.obj a.1) a).comp (ρ₂.mapLinear a.2)
+    -- Resolve both Decidable.casesOn via match (iota reduction, not rw motive abstraction)
+    unfold Etingof.reflectionFunctorMinus
+    simp only []
+    refine match inst i i with
+    | .isFalse h => absurd rfl h
+    | .isTrue _ => ?_
+    -- After match resolution, both sides are explicit cokernel quotients
+    let F := Etingof.directSumMapEquiv (fun a : Etingof.ArrowsOutOf Q i => σ.equivAt a.fst)
+    exact Submodule.Quotient.equiv (LinearMap.range ψ₁) (LinearMap.range ψ₂) F
+      (Etingof.directSumMapEquiv_maps_sourceRange σ ψ₁ rfl ψ₂ rfl F
+          (fun a v => Etingof.directSumMapEquiv_lof
+            (fun a : Etingof.ArrowsOutOf Q i => σ.equivAt a.fst) a v))
+  · exact (Etingof.reflFunctorMinus_equivAt_ne hi ρ₁ v hv).trans
+      ((σ.equivAt v).trans (Etingof.reflFunctorMinus_equivAt_ne hi ρ₂ v hv).symm)
+
+set_option maxHeartbeats 3200000 in
+-- reason: unfolding reflFunctorMinus_map_iso_equivAt + reflectionFunctorMinus + match reduction
+/-- Naturality of the reflection functor map iso.
+Factored out to avoid timeout in the main @Iso.mk type-check. -/
+private theorem Etingof.reflectionFunctorMinus_map_iso_naturality
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    {ρ₁ ρ₂ : Etingof.QuiverRepresentation k Q}
+    (σ : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)
+    [Fintype (Etingof.ArrowsOutOf Q i)]
+    {a b : Q} (e : @Quiver.Hom Q (Etingof.reversedAtVertex Q i) a b)
+    (x : @Etingof.QuiverRepresentation.obj k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₁) a) :
+    Etingof.reflectionFunctorMinus_map_iso_equivAt hi σ b
+      (@Etingof.QuiverRepresentation.mapLinear k Q _
+        (Etingof.reversedAtVertex Q i)
+        (Etingof.reflectionFunctorMinus Q i hi ρ₁) a b e x) =
+    @Etingof.QuiverRepresentation.mapLinear k Q _
+      (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₂) a b e
+      (Etingof.reflectionFunctorMinus_map_iso_equivAt hi σ a x) := by
+  have hi_sink := Etingof.isSource_reversedAtVertex_isSink hi
+  by_cases ha : a = i
+  · subst ha; exact ((hi_sink b).false e).elim
+  · by_cases hb : b = i
+    · rw [eq_comm] at hb; subst hb
+      simp only [Etingof.reflectionFunctorMinus_map_iso_equivAt, dif_neg ha, dite_true]
+      rw [Etingof.reflFunctorMinus_mapLinear_ne_eq hi ρ₁ ha e x]
+      rw [Etingof.reflFunctorMinus_mapLinear_ne_eq hi ρ₂ ha e]
+      revert x e
+      unfold Etingof.reflFunctorMinus_mkQ Etingof.reflectionFunctorMinus
+      simp only
+      refine match inst i i with
+      | .isFalse h => absurd rfl h
+      | .isTrue _ => ?_
+      intro x e
+      -- Goal: Quotient.equiv(F)(mkQ(lof(⟨a,e'⟩)(equivAt_ne x))) = mkQ(lof(⟨a,e'⟩)(...))
+      -- Set up instances matching reflectionFunctorMinus internals
+      letI : DecidableEq (Etingof.ArrowsOutOf Q i) := Classical.decEq _
+      letI : ∀ v, AddCommGroup (ρ₁.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+      letI : ∀ v, AddCommGroup (ρ₂.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+      letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₁.obj a.1)) :=
+        Etingof.addCommGroupOfRing (k := k)
+      letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ₂.obj a.1)) :=
+        Etingof.addCommGroupOfRing (k := k)
+      simp only [id, LinearEquiv.trans_apply, LinearEquiv.apply_symm_apply]
+      -- Goal: Quotient.equiv(F)(mkQ(lof ...)) = mkQ(lof(σ.equivAt ...))
+      -- Quotient.equiv is defined via mapQ, so equiv(mkQ v) = mkQ(F v)
+      change (Submodule.Quotient.equiv _ _ _ _).toLinearMap
+        (Submodule.Quotient.mk _) = Submodule.Quotient.mk _
+      rw [LinearEquiv.coe_toLinearMap, Submodule.Quotient.equiv_apply,
+        Submodule.mapQ_apply]
+      congr 1
+      exact Etingof.directSumMapEquiv_lof (fun a : Etingof.ArrowsOutOf Q i => σ.equivAt a.fst)
+        ⟨a, Etingof.reversedArrow_ne_eq ha e⟩ _
+    · -- a ≠ i, b ≠ i: both sides reduce through equivAt_ne
+      -- Unfold equivAt to see the .trans composition
+      simp only [Etingof.reflectionFunctorMinus_map_iso_equivAt, dif_neg ha, dif_neg hb,
+        LinearEquiv.trans_apply]
+      -- Now both sides have equivAt_ne + σ.equivAt + equivAt_ne.symm pattern
+      -- Use mapLinear_ne_ne to reduce F⁻ mapLinear to original ρ mapLinear
+      rw [Etingof.reflFunctorMinus_mapLinear_ne_ne hi ρ₁ ha hb e x]
+      -- LHS: (equivAt_ne ρ₂ b hb).symm (σ.equivAt b (ρ₁.mapLinear (reversedArrow ..) ..))
+      -- RHS: (F⁻(ρ₂).mapLinear e) ((equivAt_ne ρ₂ a ha).symm (σ.equivAt a (..)))
+      rw [LinearEquiv.symm_apply_eq]
+      -- Now RHS has equivAt_ne ρ₂ b hb applied to F⁻(ρ₂).mapLinear
+      rw [Etingof.reflFunctorMinus_mapLinear_ne_ne hi ρ₂ ha hb e]
+      rw [LinearEquiv.apply_symm_apply]
+      exact σ.naturality (Etingof.reversedArrow_ne_ne ha hb e)
+        ((Etingof.reflFunctorMinus_equivAt_ne hi ρ₁ a ha) x)
+
+/-- Functoriality of F⁻ᵢ: an isomorphism σ : ρ₁ ≅ ρ₂ induces an isomorphism
+F⁻ᵢ(ρ₁) ≅ F⁻ᵢ(ρ₂) on the reversed quiver Q̄ᵢ.
+
+At vertices v ≠ i, the equivalence transports through σ.equivAt v.
+At vertex i, both are cokernels; σ induces a compatible map on direct sums
+that descends to an equivalence on quotients.
+
+(Functoriality of the reflection functor, implicit in Etingof Definition 6.6.4) -/
+noncomputable def Etingof.reflectionFunctorMinus_map_iso
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [instQ : Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    {ρ₁ ρ₂ : Etingof.QuiverRepresentation k Q}
+    (σ : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)
+    [Fintype (Etingof.ArrowsOutOf Q i)] :
+    Nonempty (@Etingof.QuiverRepresentation.Iso k (inferInstanceAs (CommSemiring k))
+      Q (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₁)
+      (Etingof.reflectionFunctorMinus Q i hi ρ₂)) :=
+  ⟨@Etingof.QuiverRepresentation.Iso.mk k _ Q
+    (Etingof.reversedAtVertex Q i)
+    (Etingof.reflectionFunctorMinus Q i hi ρ₁)
+    (Etingof.reflectionFunctorMinus Q i hi ρ₂)
+    (Etingof.reflectionFunctorMinus_map_iso_equivAt hi σ)
+    (Etingof.reflectionFunctorMinus_map_iso_naturality hi σ)⟩
+
+end MapIso
+
 section Helpers
 
 /-- For an arrow `i →_{Q̄ᵢ} j` in the reversed quiver (with i a sink), the target vertex
