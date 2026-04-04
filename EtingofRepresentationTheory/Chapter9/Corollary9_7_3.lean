@@ -156,14 +156,15 @@ theorem Etingof.Corollary_9_7_3_i_unique [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : Etingof.IsBasicAlgebra k B₁) (_hB₂ : Etingof.IsBasicAlgebra k B₂)
-    (h₁ : Etingof.MoritaEquivalent A B₁) (h₂ : Etingof.MoritaEquivalent A B₂) :
+    (h₁ : Etingof.KLinearMoritaEquivalent k A B₁)
+    (h₂ : Etingof.KLinearMoritaEquivalent k A B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
   -- B₁ and B₂ are both Morita equivalent to A, hence to each other.
-  have hMor : Etingof.MoritaEquivalent B₁ B₂ := h₁.symm.trans h₂
+  have hMor : Etingof.KLinearMoritaEquivalent k B₁ B₂ := h₁.symm'.trans' h₂
   -- By the Morita structural theorem: B₂ ≅ e₁(B₁)e₁ for some idempotent e₁ ∈ B₁
   obtain ⟨e₁, he₁, ⟨φ₁⟩⟩ := @Etingof.MoritaStructural k _ _ B₁ _ _ _ B₂ _ _ _ _hB₂ hMor
   -- And B₁ ≅ e₂(B₂)e₂ for some idempotent e₂ ∈ B₂
-  obtain ⟨e₂, he₂, ⟨φ₂⟩⟩ := @Etingof.MoritaStructural k _ _ B₂ _ _ _ B₁ _ _ _ _hB₁ hMor.symm
+  obtain ⟨e₂, he₂, ⟨φ₂⟩⟩ := @Etingof.MoritaStructural k _ _ B₂ _ _ _ B₁ _ _ _ _hB₁ hMor.symm'
   -- Set up instances for corner rings
   letI : Ring (Etingof.CornerRing (k := k) e₁) := Etingof.CornerRing.instRing he₁
   letI : Algebra k (Etingof.CornerRing (k := k) e₁) := Etingof.CornerRing.instAlgebra he₁
@@ -200,7 +201,8 @@ algebra B_A satisfies dim_k B_A ≤ dim_k A.
 theorem Etingof.Corollary_9_7_3_ii [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
-    (_hB : Etingof.IsBasicAlgebra k B) (hMor : Etingof.MoritaEquivalent A B) :
+    (_hB : Etingof.IsBasicAlgebra k B)
+    (hMor : Etingof.KLinearMoritaEquivalent k A B) :
     Module.finrank k B ≤ Module.finrank k A := by
   -- By the Morita structural theorem, B ≅ eAe for some idempotent e : A.
   -- Then dim B = dim(eAe) ≤ dim A.
