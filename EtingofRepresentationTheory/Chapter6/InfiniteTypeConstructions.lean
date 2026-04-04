@@ -91,7 +91,33 @@ instance cycleQuiver_subsingleton (k : ℕ) (hk : 3 ≤ k) (a b : Fin k) :
 
 theorem cycleOrientation_isOrientationOf (k : ℕ) (hk : 3 ≤ k) :
     @Etingof.IsOrientationOf k (cycleQuiver k hk) (cycleAdj k hk) := by
-  sorry
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows: IsEmpty (PLift (j.val = (i.val+1) % k))
+    constructor; intro ⟨hp⟩
+    simp only [cycleAdj] at hij
+    simp only [hp, true_or, ↓reduceIte] at hij
+    exact hij rfl
+  · -- Each edge has an arrow in one direction
+    simp only [cycleAdj] at hij
+    split_ifs at hij with h
+    · rcases h with h | h
+      · left; exact ⟨⟨h⟩⟩
+      · right; exact ⟨⟨h⟩⟩
+    · simp at hij
+  · -- No two-way arrows: j.val = (i.val+1)%k and i.val = (j.val+1)%k → False
+    obtain ⟨⟨h1⟩⟩ := hi
+    obtain ⟨⟨h2⟩⟩ := hj
+    rw [h1] at h2
+    -- h2 : i.val = ((i.val + 1) % k + 1) % k
+    have hi_lt := i.isLt
+    by_cases hlt : i.val + 1 < k
+    · rw [Nat.mod_eq_of_lt hlt] at h2
+      by_cases hlt2 : i.val + 2 < k
+      · rw [Nat.mod_eq_of_lt hlt2] at h2; omega
+      · rw [show i.val + 1 + 1 = k from by omega, Nat.mod_self] at h2; omega
+    · rw [show i.val + 1 = k from by omega, Nat.mod_self] at h2
+      rw [Nat.mod_eq_of_lt (show 1 < k by omega)] at h2
+      omega
 
 /-! ## Section 4: Cycle representation construction -/
 
