@@ -2812,22 +2812,4 @@ theorem Theorem5_22_1
   ext μ
   rw [formalCharacter_coeff, schurModule_weight_eq_schurPoly_coeff k N lam hlam]
 
-/-- Two `GL_N(k)`-representations with equal weight space dimensions at all weights are isomorphic.
-
-This follows from complete reducibility of polynomial `GL_N` representations (every
-finite-dimensional representation decomposes as a direct sum of Schur modules `L_λ`)
-and the fact that Schur modules with distinct `λ` have distinct formal characters
-(by the Weyl character formula, `Theorem5_22_1`).
-
-The proof requires showing:
-1. Both `M₁` and `M₂` decompose as direct sums of Schur modules
-2. Equal weight space dimensions imply equal multiplicities (by linear independence of Schur polys)
-3. Equal multiplicities imply isomorphism -/
-theorem iso_of_glWeightSpace_finrank_eq (N : ℕ)
-    (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
-    (h : ∀ μ : Fin N → ℕ, Module.finrank k (glWeightSpace k N M₁ μ) =
-      Module.finrank k (glWeightSpace k N M₂ μ)) :
-    Nonempty (M₁ ≅ M₂) := by
-  sorry
-
 end Etingof
