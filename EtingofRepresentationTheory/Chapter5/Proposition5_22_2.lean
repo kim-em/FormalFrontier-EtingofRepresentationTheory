@@ -113,6 +113,7 @@ private lemma det_diagUnit_val (N : ℕ) (i : Fin N) (t : kˣ) :
     (Matrix.GeneralLinearGroup.det (diagUnit k N i t) : k) = (t : k) :=
   congr_arg Units.val (det_diagUnit k N i t)
 
+
 -- The initial `simp only [glWeightSpace, ...]` unfold is expensive.
 set_option maxHeartbeats 800000 in
 /-- The weight space of the det-twisted module at weight `μ + 1` equals
@@ -149,6 +150,64 @@ private lemma finrank_submodule_congr {R M : Type*} [CommRing R] [AddCommGroup M
     [Module R M] {S₁ S₂ : Submodule R M} (h : S₁ = S₂) :
     Module.finrank R S₁ = Module.finrank R S₂ := by subst h; rfl
 
+/-- The standard tensor basis for `(k^N)^{⊗n}`, indexed by `Fin n → Fin N`. -/
+private noncomputable abbrev tBasis (N n : ℕ) :=
+  (_root_.Basis.piTensorProduct (R := k) (fun _ : Fin n => Pi.basisFun k (Fin N)))
+
+omit [IsAlgClosed k] in
+/-- `diagUnit(i, t)` acts on the tensor basis by scalar `t^(count of i in f)`. -/
+private lemma glTensorRep_diagUnit_tBasis (N n : ℕ) (i : Fin N) (t : kˣ)
+    (f : Fin n → Fin N) :
+    (glTensorRep k N n (diagUnit k N i t)) (tBasis (k := k) N n f) =
+      ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
+        tBasis (k := k) N n f := by
+  show PiTensorProduct.map (fun _ => Matrix.mulVecLin (diagUnit k N i t).val)
+      (tBasis (k := k) N n f) =
+    ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
+      tBasis (k := k) N n f
+  simp only [tBasis, Basis.piTensorProduct_apply, PiTensorProduct.map_tprod]
+  -- Matrix.mulVecLin(diagUnit) on basis vector = scalar • basis vector
+  have haction : ∀ (m : Fin n),
+      Matrix.mulVecLin (R := k) (diagUnit k N i t).val (Pi.basisFun k (Fin N) (f m)) =
+        (Function.update (1 : Fin N → k) i (t : k)) (f m) •
+          Pi.basisFun k (Fin N) (f m) := by
+    intro m
+    simp only [diagUnit, Matrix.mulVecLin_apply, Pi.basisFun_apply]
+    rw [Matrix.mulVec_single]
+    ext x
+    simp only [mul_one, Pi.smul_apply, smul_eq_mul, Matrix.diagonal_apply,
+      Function.update_apply, Pi.single_apply, Pi.one_apply]
+    by_cases hm : f m = i <;> by_cases hx : x = f m <;> simp_all [Pi.single_apply]
+  simp_rw [haction]
+  rw [(PiTensorProduct.tprod k).map_smul_univ
+    (fun j => (Function.update (1 : Fin N → k) i (t : k)) (f j))
+    (fun j => Pi.basisFun k (Fin N) (f j))]
+  congr 1
+  simp only [Function.update_apply, Pi.one_apply]
+  rw [Finset.prod_ite, Finset.prod_const_one, mul_one, Finset.prod_const]
+
+omit [IsAlgClosed k] in
+/-- The f-th basis coordinate of `glTensorRep(diagUnit(i,t))` applied to `v` equals
+`t^(count f i) * (f-th coordinate of v)`. -/
+private lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
+    (v : TensorPower k (Fin N → k) n) (f : Fin n → Fin N) :
+    (tBasis (k := k) N n).repr ((glTensorRep k N n (diagUnit k N i t)) v) f =
+      ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) *
+        (tBasis (k := k) N n).repr v f := by
+  set b := tBasis (k := k) N n
+  set c := ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card)
+  -- Both sides are linear in v; reduce to basis elements via LinearMap equality
+  have h_eq : (Finsupp.lapply f).comp (b.repr.toLinearMap.comp
+      (glTensorRep k N n (diagUnit k N i t))) =
+      c • ((Finsupp.lapply f).comp b.repr.toLinearMap) := by
+    apply b.ext; intro g
+    simp only [LinearMap.comp_apply, LinearEquiv.coe_toLinearMap, LinearMap.smul_apply,
+      smul_eq_mul, Finsupp.lapply_apply]
+    rw [glTensorRep_diagUnit_tBasis, map_smul, Finsupp.smul_apply, smul_eq_mul,
+      b.repr_self_apply]
+    by_cases hgf : g = f <;> simp [hgf, c]
+  exact LinearMap.congr_fun h_eq v
+
 private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ)
     (hlam : Antitone lam) :
     formalCharacter k N (FDRep.of (detTwistedSchurModuleRep k N lam)) =
@@ -158,10 +217,59 @@ private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ
     (fun ν => finrank_submodule_congr (glWeightSpace_detTwist_shift k N lam ν))
     (fun μ hμ => by
       -- The det-twisted Schur module has no weight spaces at zero-component weights.
-      -- This follows from the polynomial nature of the tensor power action:
-      -- diagUnit acts with eigenvalues t^m for m ≥ 0 on V^⊗n, and the det twist
-      -- shifts all eigenvalues by +1, so all weights have components ≥ 1.
-      sorry)
+      obtain ⟨i₀, hi₀⟩ := hμ
+      suffices h : glWeightSpace k N (FDRep.of (detTwistedSchurModuleRep k N lam)) μ = ⊥ by
+        simp [h]
+      rw [Submodule.eq_bot_iff]
+      intro v hv
+      simp only [glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker] at hv
+      -- For all t: ρ(diagUnit(i₀, t)) v = t^(μ i₀) • v = v  (since μ i₀ = 0)
+      have hv_fix : ∀ t : kˣ,
+          (FDRep.of (detTwistedSchurModuleRep k N lam)).ρ (diagUnit k N i₀ t) v = v := by
+        intro t; have := hv i₀ t; rw [hi₀, pow_zero, one_smul] at this
+        exact eq_of_sub_eq_zero this
+      -- v is in SchurModuleSubmodule, a subtype of the tensor power
+      -- Show (v : TensorPower) = 0 using the tensor basis diagonal action
+      set n := ∑ i, lam i
+      set b := tBasis (k := k) N n
+      -- Extract the underlying tensor power element
+      set vt : TensorPower k (Fin N → k) n :=
+        (v : SchurModuleSubmodule k N lam).val with hvt_def
+      -- It suffices to show all basis coordinates of v (in the tensor power) are zero
+      suffices hv_val : vt = 0 by
+        exact SetCoe.ext hv_val
+      rw [← b.repr.map_eq_zero_iff]
+      ext f
+      simp only [Finsupp.zero_apply]
+      by_contra hcf
+      -- The f-th basis coefficient is nonzero; derive contradiction
+      set m := (Finset.univ.filter (fun j => f j = i₀)).card
+      -- Pick t₀ with t₀^(m+1) ≠ 1 (exists since k is algebraically closed, hence infinite)
+      obtain ⟨t₀, ht₀⟩ := exists_unit_pow_ne_one k (m + 1) (by omega)
+      -- From weight space condition at (i₀, t₀):
+      -- detTwistedRep(g) v = det(g) • schurModuleRep(g) v
+      -- On the tensor power level: t₀ • glTensorRep(diagUnit(i₀, t₀)) vt = vt
+      have hfix_val : (t₀ : k) • (glTensorRep k N n (diagUnit k N i₀ t₀)) vt = vt := by
+        have h := congr_arg Subtype.val (hv_fix t₀)
+        -- h : ↑(ρ(g) v) = ↑v at the FDRep level
+        -- Unfold through: FDRep.of_ρ' → detTwistedSchurModuleRep → smul + restrict → glTensorRep
+        simp only [FDRep.of_ρ'] at h
+        -- The coercions (smul_apply, restrict_coe_apply, coe_smul) are all rfl,
+        -- so h is definitionally: det(g) • glTensorRep(g) vt = vt
+        have h2 : (Matrix.GeneralLinearGroup.det (diagUnit k N i₀ t₀) : k) •
+            (glTensorRep k N n (diagUnit k N i₀ t₀)) vt = vt := h
+        rw [det_diagUnit_val] at h2
+        exact h2
+      -- Extract f-th basis coordinate: t₀^(m+1) * c_f = c_f
+      have hcoord : (t₀ : k) ^ (m + 1) * b.repr vt f = b.repr vt f := by
+        have h1 := congr_arg (fun w => b.repr w f) hfix_val
+        simp only [map_smul, Finsupp.smul_apply, smul_eq_mul] at h1
+        rw [repr_glTensorRep_diagUnit, ← mul_assoc, ← pow_succ'] at h1
+        exact h1
+      -- (t₀^(m+1) - 1) * c_f = 0, contradicting both ≠ 0
+      have h_zero : ((t₀ : k) ^ (m + 1) - 1) * b.repr vt f = 0 := by
+        rw [sub_mul, one_mul, hcoord, sub_self]
+      exact (mul_eq_zero.mp h_zero).elim (sub_ne_zero.mpr ht₀) hcf)
 
 /-- Key isomorphism: the Schur module `L_{λ+(1,…,1)}` is isomorphic (as a GL_N-representation)
 to the determinant-twisted Schur module `det ⊗ L_λ`.
