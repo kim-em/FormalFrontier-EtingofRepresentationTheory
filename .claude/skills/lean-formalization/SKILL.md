@@ -699,8 +699,13 @@ Isolated:
 - **CoxeterInfrastructure** — Universe constraint blocker. May need Lean 4 changes or complete architectural rethink of the induction structure.
 - **Corollary6_8_4** — Blocked by CoxeterInfrastructure. No point working on this until the blocker is resolved.
 
-**Tier 4 — Design-level blockers (do not attempt without plan):**
-- **PolytabloidBasis (3 sorries) + TabloidModule (1)** — The `columnInvCount'` metric is provably insufficient for the multi-column Garnir reduction (counterexample found for partition (2,1,1)). Requires one of: (a) new induction metric (lexicographic with row-width weighting), (b) tabloid dominance ordering (standard approach from James's book), or (c) targeted fix for ¬hwidth case. Do NOT attempt without choosing an approach first.
+**Tier 4 — Design-level blockers (plan exists, execute in order):**
+- **PolytabloidBasis (3 sorries) + TabloidModule (1)** — Meditate #2102 completed. Root cause: YoungSymmetrizer convention `b_λ*a_λ` blocks left P_λ absorption needed for straightening. Plan:
+  1. **#2103**: Switch YoungSymmetrizer from `b_λ*a_λ` to `a_λ*b_λ` (difficulty 6, ~150 lines)
+  2. **#2105**: Prove `column_standard_in_span'` — trivial after #2103 (difficulty 3, ~10 lines)
+  3. **#2104**: Restructure Garnir WF induction for multiset-decreasing expansion (difficulty 9, ~200 lines). `columnInvCount'` pointwise decrease is FALSE (counterexample: partition (2,2), coset rep (1,2)). Need last-letter ordering or multiset Dershowitz-Manna ordering.
+  4. **#2106**: Close `polytabloid_linearIndependent` — 1 line after #2088 (difficulty 1)
+  - Critical path: #2103 → #2105 + #2104 → done. #2088/#2106 is a parallel independent chain.
 
 **Key endgame insights:**
 1. **All definitions are constructed.** Every remaining sorry is a pure proof obligation.
@@ -1610,6 +1615,8 @@ The project has 25 sorries across 14 files (down from 66 at wave 28). Sorry-free
 ## Convention Swap Regressions
 
 **Lesson from Wave 41-42:** Changing a foundational convention (e.g., YoungSymmetrizer from `a_λ * b_λ` to `b_λ * a_λ`, PR #2002) can cause cascading regressions in downstream files that depend on the old convention. The Proposition5_14_1 regression (#2048) took a dedicated PR to fix.
+
+**Wave 44 update:** Meditate #2102 determined that the current `b_λ * a_λ` convention MUST be switched BACK to `a_λ * b_λ` (#2103). The `b_λ * a_λ` convention fundamentally blocks the straightening lemma (no left P_λ absorption). The previous convention change was premature — it was done to make `polytabloid_self_coeff` work but broke the more important straightening proof. Budget ~150 lines for the switch and downstream fixes.
 
 **Prevention pattern:**
 1. Before swapping any convention, `grep` for ALL downstream uses across the codebase
