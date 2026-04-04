@@ -8,7 +8,6 @@ import EtingofRepresentationTheory.Chapter6.Proposition6_6_6
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_7
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_8
 import EtingofRepresentationTheory.Chapter6.ReflectionFunctorInfrastructure
-import EtingofRepresentationTheory.Chapter6.Theorem6_5_2
 import EtingofRepresentationTheory.Chapter6.Theorem6_8_1
 import EtingofRepresentationTheory.Chapter6.Lemma6_7_2
 import Mathlib.LinearAlgebra.Dimension.Free

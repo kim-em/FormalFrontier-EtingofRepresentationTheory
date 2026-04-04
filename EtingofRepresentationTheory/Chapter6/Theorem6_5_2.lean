@@ -6,6 +6,9 @@ import EtingofRepresentationTheory.Chapter6.Definition6_5_1
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.ReflectionFunctorInfrastructure
 import EtingofRepresentationTheory.Chapter6.Lemma6_4_2
+import EtingofRepresentationTheory.Chapter6.OrientationDefs
+import EtingofRepresentationTheory.Chapter6.Corollary6_8_3
+import EtingofRepresentationTheory.Chapter6.Corollary6_8_4
 
 /-!
 # Theorem 6.5.2: Gabriel's Theorem
@@ -201,6 +204,7 @@ theorem Etingof.Theorem_6_5_2b_dimvec_is_positive_root
     Etingof.IsPositiveRoot n adj d :=
   ⟨⟨hd_nonzero, by rwa [Etingof.cartanMatrix] at hd_root⟩, hd_pos⟩
 
+universe u in
 /-- Part (c) of Gabriel's theorem: for each positive root α of a Dynkin quiver,
 there is exactly one indecomposable representation (up to isomorphism) with
 dimension vector α.
@@ -211,18 +215,30 @@ Corollary 6.8.3 (dimension vector determines indecomposable).
 theorem Etingof.Theorem_6_5_2c_bijection
     {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
     (hDynkin : Etingof.IsDynkinDiagram n adj)
-    (k : Type*) [Field k]
-    {Q : Quiver (Fin n)}
+    (k : Type u) [Field k]
+    {Q : @Quiver.{0, 0} (Fin n)}
+    (hQ : Etingof.IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
     (α : Fin n → ℤ) (hα : Etingof.IsPositiveRoot n adj α) :
     -- Existence: there is an indecomposable with dimension vector α
-    (∃ (ρ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
+    (∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
       (_ : ∀ v, Module.Free k (ρ.obj v)) (_ : ∀ v, Module.Finite k (ρ.obj v)),
       ρ.IsIndecomposable ∧ ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v))) ∧
     -- Uniqueness: any two such are isomorphic
-    (∀ (ρ₁ ρ₂ : @Etingof.QuiverRepresentation k (Fin n) _ Q)
+    (∀ (ρ₁ ρ₂ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
       [∀ v, Module.Free k (ρ₁.obj v)] [∀ v, Module.Finite k (ρ₁.obj v)]
       [∀ v, Module.Free k (ρ₂.obj v)] [∀ v, Module.Finite k (ρ₂.obj v)],
       ρ₁.IsIndecomposable → ρ₂.IsIndecomposable →
       (∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ₁.obj v))) →
       (∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ₂.obj v))) →
-      Nonempty (Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)) := sorry
+      Nonempty (Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)) := by
+  constructor
+  · -- Existence: from Corollary 6.8.4
+    exact Etingof.Corollary6_8_4 hDynkin α hα k hQ
+  · -- Uniqueness: from Corollary 6.8.3
+    intro ρ₁ ρ₂ _ _ _ _ h₁ h₂ hdim₁ hdim₂
+    apply Etingof.Corollary6_8_3 hDynkin hQ ρ₁ ρ₂ h₁ h₂
+    intro v
+    have h1 := hdim₁ v
+    have h2 := hdim₂ v
+    omega
