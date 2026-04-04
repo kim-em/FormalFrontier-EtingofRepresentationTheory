@@ -25,7 +25,7 @@ noncomputable section
 
 namespace Etingof
 
-variable {k : Type*} [Field k] [IsAlgClosed k]
+variable {k : Type*} [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- **Theorem 5.23.2 (i)**: Every finite-dimensional algebraic representation of
 `GL_n(k)` is completely reducible. That is, if `ρ` is an algebraic representation

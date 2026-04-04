@@ -19,7 +19,7 @@ noncomputable section
 
 namespace Etingof
 
-variable (k : Type*) [Field k] [IsAlgClosed k]
+variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- Two `GL_N(k)`-representations with the same formal character are isomorphic.
 

@@ -503,7 +503,7 @@ noncomputable def formalCharacter (k : Type*) [Field k] [IsAlgClosed k] (N : ℕ
     (Module.finrank k (glWeightSpace k N M (fun i => μ i)) : ℚ) •
       MvPolynomial.monomial μ 1
 
-variable (k : Type*) [Field k] [IsAlgClosed k]
+variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-! ### Coefficient extraction for formal character -/
 
@@ -944,14 +944,72 @@ private lemma weight_restricted_diag_sum (N : ℕ) (lam : Fin N → ℕ) (μ : F
   intro f _
   exact youngSym_diagonal_entry ℚ N lam f
 
+/-- The basis repr coordinate of a diagonal torus action is multiplicative:
+`B.repr(ρ(diag(i,t))(v))(g) = t^(wt(g)(i)) * B.repr(v)(g)`. -/
+private lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
+    (g : Fin n → Fin N) (v : TensorPower k (Fin N → k) n) :
+    (tensorStdBasis k N n).repr (glTensorRep k N n (diagUnit k N i t) v) g =
+    ((t : k) ^ (Finset.univ.filter (fun j => g j = i)).card) *
+      (tensorStdBasis k N n).repr v g := by
+  set B := tensorStdBasis k N n
+  -- Both sides define the same linear functional on v; suffices to check on basis
+  have hbasis : ∀ f, B.repr (glTensorRep k N n (diagUnit k N i t) (B f)) g =
+      ((t : k) ^ (Finset.univ.filter (fun j => g j = i)).card) * B.repr (B f) g := by
+    intro f
+    rw [glTensorRep_diagUnit_basis k N n i t, LinearEquiv.map_smul, Finsupp.smul_apply,
+      smul_eq_mul, B.repr_self, Finsupp.single_apply]
+    by_cases hfg : f = g
+    · subst hfg; simp
+    · simp [hfg]
+  -- Use linearity: suffices is a special case of linear map extensionality
+  set L := ((Finsupp.lapply g).comp B.repr.toLinearMap).comp
+    (glTensorRep k N n (diagUnit k N i t))
+  set R := ((t : k) ^ (Finset.univ.filter (fun j => g j = i)).card) •
+    ((Finsupp.lapply g).comp B.repr.toLinearMap)
+  suffices L = R from LinearMap.ext_iff.mp this v
+  apply B.ext; intro f
+  simp only [L, R, LinearMap.comp_apply, LinearEquiv.coe_toLinearMap, Finsupp.lapply_apply,
+    LinearMap.smul_apply, smul_eq_mul]
+  exact hbasis f
+
+/-- Off-diagonal entries of the Young symmetrizer vanish when weights differ. -/
+private lemma youngSym_repr_zero_of_ne_weight (k' : Type*) [Field k'] (N : ℕ) (lam : Fin N → ℕ)
+    (f g : Fin (∑ i, lam i) → Fin N)
+    (hne : tensorWeight N g ≠ tensorWeight N f) :
+    (tensorStdBasis k' N (∑ i, lam i)).repr
+      (youngSymEndomorphism k' N lam (tensorStdBasis k' N (∑ i, lam i) f)) g = 0 := by
+  set B := tensorStdBasis k' N (∑ i, lam i)
+  -- Each permutation σ contributes c(σ) * B.repr(σ·b_f)(g), which is 0
+  -- because σ·b_f = b_{f∘σ⁻¹} and B.repr(b_{f∘σ⁻¹})(g) = δ(f∘σ⁻¹,g) = 0
+  -- since wt(f∘σ⁻¹) = wt(f) ≠ wt(g)
+  set c := YoungSymmetrizerK k' (∑ i, lam i) (weightToPartition N lam)
+  have hE : youngSymEndomorphism k' N lam =
+      c.sum (fun σ a => a • (symGroupAction k' (Fin N → k') (∑ i, lam i) σ :
+        TensorPower k' (Fin N → k') (∑ i, lam i) →ₗ[k']
+        TensorPower k' (Fin N → k') (∑ i, lam i))) := by
+    unfold youngSymEndomorphism symGroupAlgHom
+    rw [MonoidAlgebra.lift_apply]; rfl
+  rw [hE, Finsupp.sum, LinearMap.sum_apply, map_sum, Finsupp.finset_sum_apply]
+  apply Finset.sum_eq_zero; intro σ _
+  simp only [LinearMap.smul_apply, map_smul, Finsupp.smul_apply, smul_eq_mul]
+  -- After simp, need: c σ * B.repr(σ·(B f))(g) = 0
+  -- The ↑ coercion from LinearEquiv to function is transparent
+  change c σ * B.repr ((symGroupAction k' (Fin N → k') (∑ i, lam i) σ) (B f)) g = 0
+  -- Rewrite using repr_symGroupAction: B.repr(σ·v)(g) = B.repr(v)(g∘σ)
+  rw [repr_symGroupAction k' σ (B f) g]
+  -- Now: c σ * B.repr(B f)(g∘σ) = 0
+  rw [B.repr_self, Finsupp.single_apply]
+  split_ifs with h
+  · -- f = g ∘ σ, so wt(f) = wt(g∘σ) = wt(g) — contradiction
+    exact absurd (by rw [h, tensorWeight_comp_equiv] : tensorWeight N f = tensorWeight N g).symm hne
+  · ring
+
 /-- **Core structural lemma**: The finrank of the weight space of the Schur module
 over `k` equals the weight-restricted trace of the normalized Young symmetrizer over `ℚ`.
 
-This requires:
-1. The tensor basis diagonalizes the torus (from `glTensorRep_diagUnit_basis`)
-2. The Young symmetrizer preserves weight subspaces (from `tensorWeight_comp_equiv`)
-3. The normalized E is an idempotent projection onto the Schur module
-4. Base change: the ℤ-integral structure of E makes the rank field-independent -/
+Uses the composed idempotent `Φ = β⁻¹ • (E_k * I_μ)` where `I_μ` is the weight-μ indicator.
+The key steps are: (1) `Φ` is idempotent, (2) `range(Φ) ↔ glWeightSpace`,
+(3) `trace(Φ) = β⁻¹ * D_k`, (4) base change via CharZero to lift from k to ℚ. -/
 private lemma finrank_glWeightSpace_eq_restricted_trace
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
     (α : ℚ) (hα : α ≠ 0)
@@ -963,7 +1021,317 @@ private lemma finrank_glWeightSpace_eq_restricted_trace
     α⁻¹ * ∑ f ∈ Finset.univ.filter (fun f : Fin (∑ i, lam i) → Fin N => tensorWeight N f = μ),
       (tensorStdBasis ℚ N (∑ i, lam i)).repr
         (youngSymEndomorphism ℚ N lam (tensorStdBasis ℚ N (∑ i, lam i) f)) f := by
-  sorry
+  set n := ∑ i, lam i
+  set la := weightToPartition N lam
+  set cZ := YoungSymmetrizerZ n la
+  set β : ℤ := (cZ * cZ) 1
+  -- α = (β : ℚ)
+  have hα_eq_β : α = (β : ℚ) := by
+    have h1 : (MonoidAlgebra.mapRangeRingHom (Equiv.Perm (Fin n)) (Int.castRingHom ℚ)) (cZ * cZ) =
+        α • (MonoidAlgebra.mapRangeRingHom (Equiv.Perm (Fin n)) (Int.castRingHom ℚ)) cZ := by
+      rw [map_mul]; exact (YoungSymmetrizerK_eq_mapRange ℚ n la) ▸ hα_sq
+    have h2 := Finsupp.ext_iff.mp h1 1
+    simp only [MonoidAlgebra.mapRangeRingHom_apply,
+      MonoidAlgebra.smul_apply, smul_eq_mul, mul_comm α] at h2
+    -- h2 : (Int.castRingHom ℚ) ((cZ * cZ) 1) = (Int.castRingHom ℚ) (cZ 1) * α
+    -- Goal: α = ↑β where β = (cZ * cZ) 1
+    show α = ((cZ * cZ) 1 : ℤ)
+    have h3 : (cZ 1 : ℚ) = 1 := by simp [cZ, YoungSymmetrizerZ_apply_one]
+    change (↑((cZ * cZ) 1) : ℚ) = (↑(cZ 1) : ℚ) * α at h2
+    rw [h3, one_mul] at h2; linarith
+  -- cZ² = β • cZ over ℤ
+  have hZ : cZ * cZ = β • cZ := by
+    ext σ
+    have h_ℚ : (MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom ℚ)) (cZ * cZ) =
+        (β : ℚ) • (MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom ℚ)) cZ := by
+      rw [map_mul, ← hα_eq_β]; exact (YoungSymmetrizerK_eq_mapRange ℚ n la) ▸ hα_sq
+    have h2 := Finsupp.ext_iff.mp h_ℚ σ
+    simp only [MonoidAlgebra.mapRangeRingHom_apply,
+      MonoidAlgebra.smul_apply, smul_eq_mul] at h2
+    rw [MonoidAlgebra.smul_apply, smul_eq_mul]
+    -- h2 : (Int.castRingHom ℚ) ((cZ * cZ) σ) = ↑β * (Int.castRingHom ℚ) (cZ σ)
+    -- Goal: (cZ * cZ) σ = β * cZ σ
+    change (↑((cZ * cZ) σ) : ℚ) = ↑β * (↑(cZ σ) : ℚ) at h2
+    exact_mod_cast h2
+  -- Over k: E_k² = (β : k) • E_k
+  have hcK_sq : YoungSymmetrizerK k n la * YoungSymmetrizerK k n la =
+      (β : k) • YoungSymmetrizerK k n la := by
+    rw [YoungSymmetrizerK_eq_mapRange k n la, ← map_mul, hZ, map_zsmul,
+      ← Int.cast_smul_eq_zsmul k]
+  have hE_sq := youngSymEndomorphism_sq_scalar k N lam (β : k) hcK_sq
+  have hβ_ne : (β : ℤ) ≠ 0 := by
+    intro h; apply hα; rw [hα_eq_β, h, Int.cast_zero]
+  have hβ_k_ne : (β : k) ≠ 0 := Int.cast_ne_zero.mpr hβ_ne
+  -- === Step 2: Composed idempotent ===
+  set B := tensorStdBasis k N n
+  set E_k := youngSymEndomorphism k N lam
+  set wt_μ := Finset.univ.filter (fun f : Fin n → Fin N => tensorWeight N f = μ)
+  set I_μ : Module.End k (TensorPower k (Fin N → k) n) :=
+    ∑ f ∈ wt_μ, LinearMap.smulRight (B.coord f) (B f)
+  -- I_μ on basis elements
+  have hI_basis : ∀ g : Fin n → Fin N,
+      I_μ (B g) = if tensorWeight N g = μ then B g else 0 := by
+    intro g
+    simp only [I_μ, LinearMap.sum_apply, LinearMap.smulRight_apply]
+    -- Goal: ∑ f ∈ wt_μ, (B.coord f)(B g) • B f = if ...
+    -- (B.coord f)(B g) = (B.repr (B g)) f = δ_{f,g}
+    have hcoord : ∀ f, (B.coord f) (B g) = if g = f then 1 else 0 := by
+      intro f; show (B.repr (B g)) f = _; rw [B.repr_self, Finsupp.single_apply]
+    split_ifs with hg
+    · rw [Finset.sum_eq_single g]
+      · rw [hcoord, if_pos rfl, one_smul]
+      · intro f _ hfg; rw [hcoord, if_neg (Ne.symm hfg), zero_smul]
+      · intro hg'; exact absurd (Finset.mem_filter.mpr ⟨Finset.mem_univ g, hg⟩) hg'
+    · apply Finset.sum_eq_zero; intro f hf
+      have hfg : g ≠ f := fun h => hg (h ▸ (Finset.mem_filter.mp hf).2)
+      rw [hcoord, if_neg hfg, zero_smul]
+  -- I_μ is idempotent
+  have hI_idem : I_μ * I_μ = I_μ := by
+    apply B.ext; intro g
+    show I_μ (I_μ (B g)) = I_μ (B g)
+    rw [hI_basis]; split_ifs with h <;> simp [hI_basis, h]
+  -- I_μ(E_k(B g)) = if wt(g)=μ then E_k(B g) else 0
+  have hI_Ek : ∀ g, I_μ (E_k (B g)) = if tensorWeight N g = μ then E_k (B g) else 0 := by
+    intro g
+    -- E_k(B g) = ∑ h, c_h • B h
+    conv_lhs => rw [(B.sum_repr (E_k (B g))).symm]
+    simp only [Finsupp.sum, map_sum, map_smul, hI_basis]
+    -- For h with c_h ≠ 0, wt(h) = wt(g) (by youngSym_repr_zero_of_ne_weight)
+    split_ifs with hg
+    · -- wt(g)=μ: all nonzero terms have wt(h)=wt(g)=μ, so if_pos
+      conv_rhs => rw [(B.sum_repr (E_k (B g))).symm]
+      apply Finset.sum_congr rfl; intro h _
+      split_ifs with hh
+      · rfl
+      · -- wt(h) ≠ μ, so repr is 0
+        rw [youngSym_repr_zero_of_ne_weight k N lam g h
+          (fun heq => hh (heq.trans hg))]; simp
+    · -- wt(g)≠μ: all nonzero terms have wt(h)=wt(g)≠μ, so if_neg
+      apply Finset.sum_eq_zero; intro h _
+      split_ifs with hh
+      · -- wt(h) = μ but wt(g) ≠ μ, so repr is 0
+        rw [youngSym_repr_zero_of_ne_weight k N lam g h
+          (fun heq => hg (heq.symm.trans hh))]; simp
+      · simp
+  -- E_k and I_μ commute
+  have hcomm : E_k * I_μ = I_μ * E_k := by
+    apply B.ext; intro g
+    show E_k (I_μ (B g)) = I_μ (E_k (B g))
+    rw [hI_basis, hI_Ek]
+    split_ifs with h <;> simp
+  -- Composed idempotent
+  set Φ := (β : k)⁻¹ • (E_k * I_μ : Module.End k _) with hΦ_def
+  have hΦ_idem : IsIdempotentElem Φ := by
+    have h1 : ∀ v, E_k (I_μ (E_k (I_μ v))) = (β : k) • (E_k (I_μ v)) := by
+      intro v
+      -- I_μ ∘ E_k = E_k ∘ I_μ (from hcomm), then I_μ² = I_μ, then E_k² = β•E_k
+      have hc := LinearMap.ext_iff.mp hcomm (I_μ v)
+      change E_k (I_μ (I_μ v)) = I_μ (E_k (I_μ v)) at hc
+      rw [← hc, show I_μ (I_μ v) = I_μ v from LinearMap.ext_iff.mp hI_idem v]
+      exact LinearMap.ext_iff.mp hE_sq (I_μ v)
+    rw [IsIdempotentElem]; show Φ * Φ = Φ; rw [hΦ_def]
+    apply LinearMap.ext; intro w
+    show (β : k)⁻¹ • E_k (I_μ ((β : k)⁻¹ • E_k (I_μ w))) = (β : k)⁻¹ • E_k (I_μ w)
+    rw [map_smul, map_smul, h1, smul_smul, smul_smul]
+    congr 1; field_simp
+  -- === Step 3: Weight space characterization ===
+  have hweight_supp : ∀ (v : SchurModuleSubmodule k N lam),
+      v ∈ glWeightSpace k N (SchurModule k N lam) (fun i => (μ i : ℕ)) →
+      ∀ g : Fin n → Fin N, tensorWeight N g ≠ μ →
+      B.repr (v : TensorPower k (Fin N → k) n) g = 0 := by
+    intro ⟨v, hv_im⟩ hv_wt g hg
+    obtain ⟨i, hi⟩ : ∃ i : Fin N, tensorWeight N g i ≠ μ i := by
+      by_contra h; push_neg at h; exact hg (DFunLike.ext _ _ h)
+    obtain ⟨t, ht⟩ := exists_unit_pow_ne k hi
+    -- v ∈ glWeightSpace means ρ(diag(i,t))(v) = t^(μ i) • v
+    have h1 : glWeightSpace k N (SchurModule k N lam) (fun i => (μ i : ℕ)) ≤
+        ⨅ (s : kˣ), LinearMap.ker
+          ((SchurModule k N lam).ρ (diagUnit k N i s) -
+            ((s : k) ^ (μ i : ℕ)) • LinearMap.id) := iInf_le _ i
+    have h2 : ⨅ (s : kˣ), LinearMap.ker
+        ((SchurModule k N lam).ρ (diagUnit k N i s) -
+          ((s : k) ^ (μ i : ℕ)) • LinearMap.id) ≤
+        LinearMap.ker ((SchurModule k N lam).ρ (diagUnit k N i t) -
+          ((t : k) ^ (μ i : ℕ)) • LinearMap.id) := iInf_le _ t
+    have hker := h2 (h1 hv_wt)
+    rw [LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.smul_apply, LinearMap.id_apply,
+      sub_eq_zero] at hker
+    have hval : glTensorRep k N n (diagUnit k N i t) v = (t : k) ^ (μ i : ℕ) • v := by
+      have := congr_arg Subtype.val hker
+      simp only [FDRep.of_ρ', schurModuleRep, LinearMap.restrict_coe_apply,
+        Submodule.coe_smul_of_tower] at this
+      exact this
+    -- Two ways to compute B.repr(ρ(diag) v)(g):
+    -- (1) by repr_glTensorRep_diagUnit: t^|{j|g j=i}| * B.repr v g
+    -- (2) by hval: t^(μ i) * B.repr v g
+    have h3a : B.repr (glTensorRep k N n (diagUnit k N i t) v) g =
+        (t : k) ^ (Finset.univ.filter fun j => g j = i).card * B.repr v g :=
+      repr_glTensorRep_diagUnit k N n i t g v
+    have h3b : B.repr (glTensorRep k N n (diagUnit k N i t) v) g =
+        (t : k) ^ (μ i : ℕ) * B.repr v g := by
+      rw [hval, LinearEquiv.map_smul, Finsupp.smul_apply, smul_eq_mul]
+    have h4 : ((t : k) ^ (Finset.univ.filter fun j => g j = i).card -
+        (t : k) ^ (μ i : ℕ)) * B.repr v g = 0 := by
+      rw [sub_mul, sub_eq_zero]; exact h3a.symm.trans h3b
+    exact (mul_eq_zero.mp h4).resolve_left (sub_ne_zero.mpr ht)
+  -- I_μ fixes vectors supported on weight μ
+  have hI_fix : ∀ v : TensorPower k (Fin N → k) n,
+      (∀ g, tensorWeight N g ≠ μ → B.repr v g = 0) → I_μ v = v := by
+    intro v hsupp
+    conv_lhs => rw [(B.sum_repr v).symm]
+    conv_rhs => rw [(B.sum_repr v).symm]
+    simp only [Finsupp.sum, map_sum, map_smul, hI_basis]
+    apply Finset.sum_congr rfl; intro g _
+    split_ifs with hg
+    · rfl
+    · rw [hsupp g hg]; simp
+  -- === Step 4: Map between range(Φ) and glWeightSpace ===
+  have h_map : Submodule.map (SchurModuleSubmodule k N lam).subtype
+      (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) = LinearMap.range Φ := by
+    ext v; simp only [Submodule.mem_map, LinearMap.mem_range]; constructor
+    · -- glWeightSpace → range(Φ)
+      rintro ⟨⟨w, hw_im⟩, hw_wt, rfl⟩
+      have hIw : I_μ w = w := hI_fix w (hweight_supp ⟨w, hw_im⟩ hw_wt)
+      have hEw := youngSymEndomorphism_apply_on_range k N lam (β : k) hcK_sq w hw_im
+      refine ⟨w, ?_⟩
+      show (β : k)⁻¹ • E_k (I_μ w) = w
+      rw [hIw, hEw, smul_smul, inv_mul_cancel₀ hβ_k_ne, one_smul]
+    · -- range(Φ) → glWeightSpace
+      rintro ⟨w, rfl⟩
+      -- Φ(w) ∈ im(E_k)
+      have hv_im : Φ w ∈ SchurModuleSubmodule k N lam := by
+        show (β : k)⁻¹ • E_k (I_μ w) ∈ LinearMap.range E_k
+        exact ⟨(β : k)⁻¹ • I_μ w, by rw [map_smul]⟩
+      -- I_μ(Φ(w)) = Φ(w)
+      have hIΦ : I_μ (Φ w) = Φ w := by
+        show I_μ ((β : k)⁻¹ • E_k (I_μ w)) = (β : k)⁻¹ • E_k (I_μ w)
+        rw [map_smul]; congr 1
+        -- I_μ(E_k(I_μ w)) = E_k(I_μ(I_μ w)) = E_k(I_μ w)
+        have hc := LinearMap.ext_iff.mp hcomm (I_μ w)
+        change E_k (I_μ (I_μ w)) = I_μ (E_k (I_μ w)) at hc
+        rw [← hc, show I_μ (I_μ w) = I_μ w from LinearMap.ext_iff.mp hI_idem w]
+      -- Weight condition: Φ w is in glWeightSpace
+      -- First prove at the tensor level
+      have hval : ∀ i : Fin N, ∀ t : kˣ,
+          glTensorRep k N n (diagUnit k N i t) (Φ w) =
+            (t : k) ^ (μ i : ℕ) • (Φ w) := by
+        intro i t
+        conv_lhs => rw [← B.sum_repr (Φ w)]
+        conv_rhs => rw [← B.sum_repr (Φ w)]
+        simp only [Finsupp.sum, map_sum, map_smul, Finset.smul_sum]
+        apply Finset.sum_congr rfl; intro g _
+        by_cases hg : tensorWeight N g = μ
+        · have hB : glTensorRep k N n (diagUnit k N i t) (B g) =
+              (↑t : k) ^ (Finset.univ.filter (fun j => g j = i)).card • B g :=
+            glTensorRep_diagUnit_basis k N n i t g
+          rw [hB, smul_smul, smul_smul]
+          congr 1
+          have hcard : (Finset.univ.filter (fun j => g j = i)).card = μ i :=
+            Finsupp.ext_iff.mp hg i
+          rw [hcard, mul_comm]
+        · have h0 : B.repr (Φ w) g = 0 := by
+            have key : B.repr (I_μ (Φ w)) g = 0 := by
+              simp only [I_μ, LinearMap.sum_apply, LinearMap.smulRight_apply]
+              rw [map_sum, Finsupp.finset_sum_apply]
+              apply Finset.sum_eq_zero; intro f hf
+              rw [map_smul, Finsupp.smul_apply, smul_eq_mul,
+                B.repr_self, Finsupp.single_apply]
+              split_ifs with hfg
+              · exact absurd (hfg ▸ (Finset.mem_filter.mp hf).2) hg
+              · ring
+            rwa [hIΦ] at key
+          simp [h0]
+      -- Now lift to weight space membership
+      have hv_wt : ⟨Φ w, hv_im⟩ ∈ glWeightSpace k N (SchurModule k N lam)
+          (fun i => (μ i : ℕ)) := by
+        rw [glWeightSpace]; simp only [Submodule.mem_iInf]; intro i t
+        rw [LinearMap.mem_ker]
+        have h := hval i t
+        simp only [LinearMap.sub_apply, sub_eq_zero, LinearMap.smul_apply, LinearMap.id_apply]
+        apply Subtype.ext
+        simp only [SchurModule, FDRep.of_ρ', LinearMap.restrict_coe_apply,
+          Submodule.coe_smul_of_tower]
+        exact h
+      exact ⟨⟨Φ w, hv_im⟩, hv_wt, rfl⟩
+  -- === Steps 5-6: Trace computation and base change ===
+  -- Integer diagonal sum
+  set D_ℤ : ℤ := ∑ f ∈ wt_μ,
+    ∑ σ ∈ Finset.univ.filter (fun σ : Equiv.Perm (Fin n) => ∀ j, f (σ j) = f j),
+      YoungSymmetrizerZ n la σ
+  -- Diagonal sum over k = (D_ℤ : k)
+  have hD_k : ∑ f ∈ wt_μ, B.repr (E_k (B f)) f = (D_ℤ : k) := by
+    simp only [D_ℤ]; rw [Int.cast_sum]
+    apply Finset.sum_congr rfl; intro f _
+    rw [youngSym_diagonal_entry k N lam f, Int.cast_sum]
+    apply Finset.sum_congr rfl; intro σ _
+    rw [YoungSymmetrizerK_eq_mapRange k n la, MonoidAlgebra.mapRangeRingHom_apply]; norm_cast
+  -- Diagonal sum over ℚ = (D_ℤ : ℚ)
+  have hD_ℚ : ∑ f ∈ wt_μ, (tensorStdBasis ℚ N n).repr
+      (youngSymEndomorphism ℚ N lam ((tensorStdBasis ℚ N n) f)) f = (D_ℤ : ℚ) := by
+    simp only [D_ℤ]; rw [Int.cast_sum]
+    apply Finset.sum_congr rfl; intro f _
+    rw [youngSym_diagonal_entry ℚ N lam f, Int.cast_sum]
+    apply Finset.sum_congr rfl; intro σ _
+    rw [YoungSymmetrizerK_eq_mapRange ℚ n la, MonoidAlgebra.mapRangeRingHom_apply]; norm_cast
+  -- Suffices: finrank * β = D_ℤ as integers
+  suffices h_int : (Module.finrank k
+      (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) : ℤ) * β = D_ℤ by
+    -- Cast to ℚ and conclude
+    have h_ℚ := congr_arg (Int.cast (R := ℚ)) h_int
+    push_cast at h_ℚ
+    -- h_ℚ : (finrank : ℚ) * (β : ℚ) = (D_ℤ : ℚ)
+    -- Unfold n in hD_ℚ so it matches the goal
+    simp only [n] at hD_ℚ
+    rw [hD_ℚ]
+    -- Goal: (finrank : ℚ) = α⁻¹ * (D_ℤ : ℚ)
+    have hαβ : (α : ℚ) = (β : ℚ) := by exact_mod_cast hα_eq_β
+    rw [← h_ℚ, hαβ]; field_simp [hα]
+  -- Prove integer equation via trace over k
+  -- trace(Φ) = (finrank : k)
+  have h_fr_eq : Module.finrank k (LinearMap.range Φ) =
+      Module.finrank k (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) := by
+    rw [← h_map]; exact Submodule.finrank_map_subtype_eq _ _
+  have h_trace_fr : LinearMap.trace k _ Φ =
+      (Module.finrank k (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) : k) := by
+    rw [← h_fr_eq]; exact ((LinearMap.isProj_range_iff_isIdempotentElem Φ).mpr hΦ_idem).trace
+  -- trace(Φ) = (β:k)⁻¹ * ∑_{f:wt=μ} diag entry
+  have h_trace_sum : LinearMap.trace k (TensorPower k (Fin N → k) n) Φ =
+      (β : k)⁻¹ * ∑ f ∈ wt_μ, B.repr (E_k (B f)) f := by
+    rw [LinearMap.trace_eq_matrix_trace k B]
+    simp only [Matrix.trace, Matrix.diag]
+    -- toMatrix B B Φ g g = B.repr (Φ (B g)) g
+    simp only [LinearMap.toMatrix_apply]
+    -- Expand Φ (B g) = (β:k)⁻¹ • E_k (I_μ (B g))
+    have hΦ_expand : ∀ x, B.repr (Φ (B x)) x = (↑β)⁻¹ * B.repr (E_k (I_μ (B x))) x := by
+      intro x; rw [hΦ_def, LinearMap.smul_apply, Module.End.mul_apply, map_smul,
+        Finsupp.smul_apply, smul_eq_mul]
+    conv_lhs => arg 2; ext x; rw [hΦ_expand x]
+    rw [← Finset.mul_sum]
+    -- Prove the sum equality separately to avoid congr timeout
+    have h_sum : ∑ x, B.repr (E_k (I_μ (B x))) x = ∑ f ∈ wt_μ, B.repr (E_k (B f)) f := by
+      trans ∑ g : Fin n → Fin N,
+        if tensorWeight N g = μ then B.repr (E_k (B g)) g else 0
+      · apply Finset.sum_congr rfl; intro g _
+        rw [hI_basis]; split_ifs with h
+        · rfl
+        · simp [map_zero]
+      · exact (Finset.sum_filter _ _).symm
+    rw [h_sum]
+  -- Combine: (finrank : k) = (β:k)⁻¹ * (D_ℤ : k)
+  have h_combined : (Module.finrank k
+      (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) : k) =
+      (β : k)⁻¹ * (D_ℤ : k) := by
+    rw [← h_trace_fr]; exact h_trace_sum.trans (congr_arg _ hD_k)
+  -- Multiply by β: (finrank : k) * (β : k) = (D_ℤ : k)
+  have h_k_eq : (Module.finrank k
+      (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) : k) * (β : k) =
+      (D_ℤ : k) := by
+    rw [h_combined]; field_simp [hβ_k_ne]
+  -- By CharZero, Int.cast is injective: lift to ℤ
+  have h_cast : ((Module.finrank k
+      (glWeightSpace k N (SchurModule k N lam) fun i => (μ i : ℕ)) : ℤ) * β : k) =
+      (D_ℤ : k) := by push_cast; exact h_k_eq
+  exact_mod_cast h_cast
 
 private lemma finrank_weight_eq_card_sum
     (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam)
