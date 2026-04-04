@@ -1156,7 +1156,95 @@ private lemma off_diagonal_nilpotent_product_decomp
       · intro ⟨hqV, hqW⟩; exact h2_ne ⟨hqW, hqV⟩
     · push_neg at h2
       -- Hard case: ker A ≤ range B AND ker B ≤ range A.
-      -- This requires the compatible chain basis argument.
+      -- Strategy: AB is nilpotent on W with dim(ker AB) ≥ 2,
+      -- so nilpotent_nontrivial_decomp gives W = pW ⊕ qW both AB-invariant.
+      -- Then construct V decomposition using B to transfer.
+      -- Step 1: dim(ker(AB)) = dim(ker A) + dim(ker B) ≥ 2
+      -- ker(AB) = comap B (ker A), and B⁻¹(ker A) splits as:
+      -- dim = dim(ker B) + dim(ker A ∩ range B) = dim(ker B) + dim(ker A)
+      -- Step 1: dim(ker(AB)) = dim(ker A) + dim(ker B) ≥ 2
+      -- ker(AB) = comap B (ker A), and B⁻¹(ker A) decomposes via the short exact
+      -- sequence: 0 → ker B → comap B (ker A) →B ker A → 0
+      -- (surjectivity from ker A ≤ range B = map B ⊤ ⊇ map B (comap B (ker A)))
+      have hAB_ker : 2 ≤ Module.finrank ℂ (LinearMap.ker (A.comp B)) := by
+        rw [LinearMap.ker_comp]
+        -- The restriction of B to S := comap B (ker A) has:
+        -- - kernel = ker B (since ker B ≤ S)
+        -- - range = ker A (since ker A ≤ range B)
+        set S := Submodule.comap B (LinearMap.ker A)
+        -- ker B ≤ S
+        have hkerB_le : LinearMap.ker B ≤ S :=
+          fun w hw => show B w ∈ LinearMap.ker A from by
+            simp [LinearMap.mem_ker.mp hw]
+        -- B maps S onto ker A ∩ range B = ker A
+        have hBS : Submodule.map B S = LinearMap.ker A :=
+          Submodule.map_comap_eq_self h1
+        -- rank-nullity for the restriction of B to S:
+        -- finrank S = finrank(map B S) + finrank(S ⊓ ker B)
+        -- Since S ⊓ ker B = ker B (by hkerB_le):
+        have hS_inf : S ⊓ LinearMap.ker B = LinearMap.ker B := inf_eq_right.mpr hkerB_le
+        -- The restriction B|_S : S → V has range = ker A
+        -- and kernel ≅ ker B
+        -- dim(S) = dim(ker A) + dim(ker B)
+        -- Approach: define the restriction explicitly and use rank-nullity
+        set B_S := B.domRestrict S
+        have hB_S_range : LinearMap.range B_S = LinearMap.ker A := by
+          ext v; constructor
+          · rintro ⟨⟨x, hx⟩, rfl⟩; exact hx
+          · intro hv
+            obtain ⟨x, rfl⟩ := h1 _ hv
+            exact ⟨⟨x, hv⟩, rfl⟩
+        have hB_S_ker : Module.finrank ℂ (LinearMap.ker B_S) =
+            Module.finrank ℂ (LinearMap.ker B) := by
+          have : LinearMap.ker B_S = (LinearMap.ker B).comap S.subtype := by
+            ext ⟨x, _⟩; simp [B_S, LinearMap.domRestrict_apply]
+          rw [this]
+          exact (Submodule.comapSubtypeEquivOfLe hkerB_le).finrank_eq
+        have hRN := B_S.finrank_range_add_finrank_ker
+        rw [hB_S_range, hB_S_ker] at hRN
+        -- finrank S = finrank(ker A) + finrank(ker B) ≥ 2
+        linarith
+      -- Step 2: Apply nilpotent_nontrivial_decomp to AB on W
+      have hBA : IsNilpotent (B.comp A) := by
+        obtain ⟨n, hn⟩ := _hAB
+        exact ⟨n + 1, by ext v; simp only [LinearMap.zero_apply]
+                         rw [pow_succ, Module.End.mul_apply, LinearMap.comp_apply]
+                         have : ∀ (m : ℕ) (w : W),
+                             ((B.comp A) ^ m) (B w) = B (((A.comp B) ^ m) w) := by
+                           intro m; induction m with
+                           | zero => intro w; simp
+                           | succ m ih =>
+                             intro w; rw [pow_succ, Module.End.mul_apply,
+                               LinearMap.comp_apply, ih, pow_succ, Module.End.mul_apply,
+                               ← LinearMap.comp_apply A B]
+                         rw [this n (A v), LinearMap.congr_fun hn (A v),
+                           LinearMap.zero_apply, map_zero]⟩
+      have hBA_ker : 2 ≤ Module.finrank ℂ (LinearMap.ker (B.comp A)) := by
+        rw [LinearMap.ker_comp]
+        set S' := Submodule.comap A (LinearMap.ker B)
+        have hkerA_le : LinearMap.ker A ≤ S' :=
+          fun v hv => show A v ∈ LinearMap.ker B from by simp [LinearMap.mem_ker.mp hv]
+        have hAS' : Submodule.map A S' = LinearMap.ker B :=
+          Submodule.map_comap_eq_self h2
+        set A_S' := A.domRestrict S'
+        have hA_S'_range : LinearMap.range A_S' = LinearMap.ker B := by
+          ext w; constructor
+          · rintro ⟨⟨x, hx⟩, rfl⟩; exact hx
+          · intro hw; obtain ⟨x, rfl⟩ := h2 _ hw; exact ⟨⟨x, hw⟩, rfl⟩
+        have hA_S'_ker : Module.finrank ℂ (LinearMap.ker A_S') =
+            Module.finrank ℂ (LinearMap.ker A) := by
+          have : LinearMap.ker A_S' = (LinearMap.ker A).comap S'.subtype := by
+            ext ⟨x, _⟩; simp [A_S', LinearMap.domRestrict_apply]
+          rw [this]; exact (Submodule.comapSubtypeEquivOfLe hkerA_le).finrank_eq
+        have hRN' := A_S'.finrank_range_add_finrank_ker
+        rw [hA_S'_range, hA_S'_ker] at hRN'
+        linarith
+      -- Step 2: Construct the product-compatible decomposition.
+      -- This requires the compatible chain basis argument:
+      -- Define X : V×W → V×W by X(v,w) = (Bw,Av), show X nilpotent with
+      -- dim(ker X) ≥ 2, apply PID decomposition, replace generators to be
+      -- pure V or W elements, then group chains.
+      -- See issue #2083 for the full argument.
       sorry
 
 /-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
