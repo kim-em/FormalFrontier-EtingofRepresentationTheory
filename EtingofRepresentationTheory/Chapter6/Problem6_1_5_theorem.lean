@@ -48,11 +48,13 @@ supports at most one indecomposable (up to isomorphism).
 Uses `QuiverRepresentation.IsIndecomposable` from Proposition 6.6.5. -/
 def Etingof.IsFiniteTypeQuiver (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) : Prop :=
   ∀ (k : Type) [Field k] [IsAlgClosed k]
-    (Q : @Quiver.{0} (Fin n)), @Etingof.IsOrientationOf n Q adj →
+    (Q : @Quiver.{0, 0} (Fin n))
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)],
+    @Etingof.IsOrientationOf n Q adj →
       Set.Finite
         {d : Fin n → ℕ |
-          ∃ (V : @Etingof.QuiverRepresentation k (Fin n) _ Q),
-            V.IsIndecomposable ∧ ∀ v, V.obj v = (Fin (d v) → k)}
+          ∃ (V : Etingof.QuiverRepresentation.{0, 0, 0, 0} k (Fin n)),
+            V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[k] (Fin (d v) → k))}
 
 /-- Gabriel's theorem: a connected quiver (given by its symmetric adjacency matrix)
 is of finite type (finitely many indecomposable representations up to isomorphism)
@@ -80,7 +82,7 @@ theorem Etingof.Theorem_6_1_5 (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ)
   · -- Backward: Dynkin diagram → finite type
     -- Every indecomposable has dim vector that is a positive root (Theorem 6.5.2b),
     -- and positive roots are finite (Theorem 6.5.2a).
-    intro hDynkin k _inst_field _inst_algclosed Q hOrient
+    intro hDynkin k _inst_field _inst_algclosed Q _inst_ss hOrient
     -- Cast map from ℕ dim vectors to ℤ vectors
     set f : (Fin n → ℕ) → (Fin n → ℤ) := fun d i => ↑(d i)
     -- f is injective
@@ -90,7 +92,7 @@ theorem Etingof.Theorem_6_1_5 (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ)
     -- The set of dim vectors of indecomposables maps into positive roots
     apply Set.Finite.subset
       ((Etingof.Theorem_6_5_2a_finiteness hDynkin).preimage (hf_inj.injOn))
-    intro d ⟨V, hV_indec, hV_type⟩
+    intro d ⟨V, hV_indec, hV_equiv⟩
     simp only [Set.mem_preimage, Set.mem_setOf_eq]
     -- Show f d is a positive root: nonneg, nonzero, B(f d, f d) = 2
     refine ⟨⟨?_, ?_⟩, fun i => Int.natCast_nonneg (d i)⟩
@@ -101,11 +103,22 @@ theorem Etingof.Theorem_6_1_5 (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ)
         have h := congr_fun heq v
         change (d v : ℤ) = 0 at h
         exact_mod_cast h
-      rw [hV_type v] at hv
-      exact not_nontrivial (Fin 0 → k) (by rw [hv_zero] at hv; exact hv)
+      -- V.obj v ≃ₗ[k] (Fin 0 → k), so V.obj v is trivial, contradicting Nontrivial
+      obtain ⟨e⟩ := hV_equiv v
+      rw [hv_zero] at e
+      haveI : Subsingleton (V.obj v) := e.toEquiv.injective.subsingleton
+      exact not_nontrivial (V.obj v) hv
     · -- B(f d, f d) = 2: indecomposable dim vectors satisfy the Tits form condition.
-      -- This connects the type-equality formulation (V.obj v = Fin (d v) → k) to
-      -- the Module.finrank formulation used by indecomposable_bilinearForm_eq_two.
-      -- Requires deriving Module.Free/Finite from the type equality and showing
-      -- Module.finrank k (V.obj v) = d v.
-      sorry
+      -- Derive Module.Free and Module.Finite from the linear equivs
+      haveI : ∀ v, Module.Free k (V.obj v) := fun v =>
+        Module.Free.of_equiv ((hV_equiv v).some.symm)
+      haveI : ∀ v, Module.Finite k (V.obj v) := fun v =>
+        Module.Finite.equiv ((hV_equiv v).some.symm)
+      -- Bridge: show finrank equals d v via LinearEquiv
+      have hdim : ∀ v, Module.finrank k (V.obj v) = d v := fun v => by
+        rw [(hV_equiv v).some.finrank_eq, Module.finrank_fin_fun]
+      -- Rewrite the goal to use finrank
+      have : f d = fun v => (Module.finrank k (V.obj v) : ℤ) := by
+        ext v; simp only [f]; rw [hdim v]
+      rw [this]
+      exact Etingof.indecomposable_bilinearForm_eq_two hDynkin hOrient V hV_indec
