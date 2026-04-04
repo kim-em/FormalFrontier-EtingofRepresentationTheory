@@ -1812,3 +1812,27 @@ trying variations. Instead:
 
 3. **For `iInf` equality**: Use `iInf_congr` (not `iInf_mono` + `le_antisymm`) when you need
    equality, not just inequality.
+
+## Quiver Hom Universe in Lean 4/Mathlib
+
+`Quiver.{v, u}` has `Hom : V → V → Type v`, NOT `Sort v`. You CANNOT have
+Prop-valued arrows directly. For Prop-valued quiver arrows (as used in
+`IsFiniteTypeQuiver` with `@Quiver.{0, 0}`), wrap with `PLift`:
+
+```lean
+def myQuiver : Quiver (Fin k) where
+  Hom i j := PLift (j.val = (i.val + 1) % k)  -- Type 0, not Prop
+```
+
+The CategoryTheory instances on `Fin k` (`CategoryStruct.toQuiver`,
+`ReflQuiver.toQuiver`) conflict with custom quivers. Suppress per-declaration:
+
+```lean
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+def/theorem ... := by letI := myQuiver k hk; ...
+```
+
+Dot notation on `QuiverRepresentation` fields (e.g., `.obj`) triggers Quiver
+instance synthesis. Use explicit `@QuiverRepresentation.obj ... inst ...` when
+instances are suppressed.
