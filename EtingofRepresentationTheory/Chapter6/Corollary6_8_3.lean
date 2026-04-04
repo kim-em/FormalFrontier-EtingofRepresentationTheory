@@ -49,6 +49,41 @@ private lemma Etingof.noSelfLoop_of_dynkin_orientation
 
 end Helpers
 
+section IsoComposition
+
+/-- Inverse of a quiver representation isomorphism. -/
+noncomputable def Etingof.QuiverRepresentation.Iso.symm
+    {k : Type*} [CommSemiring k] {Q : Type*} [Quiver Q]
+    {ρ₁ ρ₂ : Etingof.QuiverRepresentation k Q}
+    (f : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂) :
+    Etingof.QuiverRepresentation.Iso ρ₂ ρ₁ :=
+  ⟨fun v => (f.equivAt v).symm,
+   fun e x => by
+     apply (f.equivAt _).injective
+     rw [LinearEquiv.apply_symm_apply, f.naturality, LinearEquiv.apply_symm_apply]⟩
+
+/-- Composition of quiver representation isomorphisms. -/
+noncomputable def Etingof.QuiverRepresentation.Iso.trans
+    {k : Type*} [CommSemiring k] {Q : Type*} [Quiver Q]
+    {ρ₁ ρ₂ ρ₃ : Etingof.QuiverRepresentation k Q}
+    (f : Etingof.QuiverRepresentation.Iso ρ₁ ρ₂)
+    (g : Etingof.QuiverRepresentation.Iso ρ₂ ρ₃) :
+    Etingof.QuiverRepresentation.Iso ρ₁ ρ₃ :=
+  ⟨fun v => (f.equivAt v).trans (g.equivAt v),
+   fun e x => by
+     simp only [LinearEquiv.trans_apply, f.naturality, g.naturality]⟩
+
+/-- Transport an isomorphism through a quiver instance equality. -/
+noncomputable def Etingof.QuiverRepresentation.Iso.transport
+    {k : Type*} [CommSemiring k] {Q : Type} [DecidableEq Q]
+    {inst₁ inst₂ : @Quiver.{0, 0} Q} (h : inst₁ = inst₂)
+    {ρ₁ ρ₂ : @Etingof.QuiverRepresentation k Q _ inst₁}
+    (f : @Etingof.QuiverRepresentation.Iso k _ Q inst₁ ρ₁ ρ₂) :
+    @Etingof.QuiverRepresentation.Iso k _ Q inst₂ (h ▸ ρ₁) (h ▸ ρ₂) := by
+  subst h; exact f
+
+end IsoComposition
+
 section SimpleAtIso
 
 /-- Two representations that are simple at the same vertex are isomorphic. -/
@@ -206,19 +241,162 @@ private lemma Etingof.parallel_reduce_and_recover
         exact Etingof.indecomposable_simpleRoot_iso hDynkin hOrient_cur ρ₁ ρ₂ i
           (fun v => by rw [hDim₁, hd_simple₂])
           (fun v => by rw [hDim₂, hd_simple₂])
-      · -- Both surjective: apply F⁺, recurse, recover
-        -- This is the main inductive case. Apply F⁺ᵢ to both representations.
-        -- F⁺(ρ₁), F⁺(ρ₂) live on reversedAtVertex Q_cur i.
-        -- By IH they're isomorphic. Recovery gives ρ₁ ≅ ρ₂.
-        --
-        -- Sorry: Full proof requires:
-        -- 1. Thread Free/Finite/Indecomposable for F⁺ outputs (~20 lines)
-        -- 2. Dim vector tracking via Prop 6.6.8 (~10 lines)
-        -- 3. Sinks condition for rest on reversed quiver (~15 lines)
-        -- 4. IH application (~5 lines)
-        -- 5. **Recovery lemma**: F⁺(ρ₁) ≅ F⁺(ρ₂) → ρ₁ ≅ ρ₂ (~80 lines)
-        --    Uses F⁻ functoriality + Prop 6.6.6 round-trip.
-        sorry
+      · -- Both surjective: apply F⁺, recurse, recover via F⁻ + round-trip
+        -- Prove sink subsingleton lemmas BEFORE Q_rev to avoid instance pollution
+        have h₁_sink_ss_of_src :
+            (∀ (a : Etingof.ArrowsInto (Fin n) i), Subsingleton (ρ₁.obj a.1)) →
+            Subsingleton (ρ₁.obj i) := by
+          intro hsrc_ss
+          refine ⟨fun a b => ?_⟩
+          obtain ⟨x, rfl⟩ := h₁_surj a
+          obtain ⟨y, rfl⟩ := h₁_surj b
+          suffices x = y by rw [this]
+          have : ∀ z : DirectSum (Etingof.ArrowsInto (Fin n) i) (fun a => ρ₁.obj a.1), z = 0 :=
+            fun z => DFinsupp.ext (fun j => @Subsingleton.elim _ (hsrc_ss j) _ _)
+          exact (this x).trans (this y).symm
+        have h₂_sink_ss_of_src :
+            (∀ (a : Etingof.ArrowsInto (Fin n) i), Subsingleton (ρ₂.obj a.1)) →
+            Subsingleton (ρ₂.obj i) := by
+          intro hsrc_ss
+          refine ⟨fun a b => ?_⟩
+          obtain ⟨x, rfl⟩ := h₂_surj a
+          obtain ⟨y, rfl⟩ := h₂_surj b
+          suffices x = y by rw [this]
+          have : ∀ z : DirectSum (Etingof.ArrowsInto (Fin n) i) (fun a => ρ₂.obj a.1), z = 0 :=
+            fun z => DFinsupp.ext (fun j => @Subsingleton.elim _ (hsrc_ss j) _ _)
+          exact (this x).trans (this y).symm
+        let Q_rev := @Etingof.reversedAtVertex (Fin n) _ Q_cur i
+        let ρ₁_plus := @Etingof.reflectionFunctorPlus k _ (Fin n) _ Q_cur i hi_sink ρ₁
+        let ρ₂_plus := @Etingof.reflectionFunctorPlus k _ (Fin n) _ Q_cur i hi_sink ρ₂
+        -- Subsingleton/Fintype on reversed quiver
+        haveI hSS_rev : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q_rev a b) :=
+          fun a b => Etingof.subsingleton_hom_reversedAtVertex i a b
+        haveI : Fintype (@Etingof.ArrowsInto (Fin n) Q_rev i) :=
+          @Etingof.fintypeArrowsIntoOfSubsingleton _ Q_rev hSS_rev i
+        haveI : ∀ (j : Fin n), Fintype (@Quiver.Hom (Fin n) Q_rev i j) :=
+          fun j => @Etingof.fintypeHomOfSubsingleton _ Q_rev hSS_rev i j
+        haveI : Fintype (@Etingof.ArrowsOutOf (Fin n) Q_rev i) := Sigma.instFintype
+        -- Free/Finite for F⁺ outputs — use rw [hv] to avoid subst eliminating i
+        haveI : ∀ v, Module.Free k (ρ₁_plus.obj v) := fun v => by
+          by_cases hv : v = i
+          · rw [hv]; exact @Etingof.reflFunctorPlus_free_eq k _ (Fin n) _ Q_cur i hi_sink ρ₁ _ _ _
+          · exact @Etingof.reflFunctorPlus_free_ne k _ (Fin n) _ Q_cur i hi_sink ρ₁ _ v hv
+        haveI : ∀ v, Module.Finite k (ρ₁_plus.obj v) := fun v => by
+          by_cases hv : v = i
+          · rw [hv]; exact @Etingof.reflFunctorPlus_finite_eq k _ (Fin n) _ Q_cur i hi_sink ρ₁ _ _ _
+          · exact @Etingof.reflFunctorPlus_finite_ne k _ (Fin n) _ Q_cur i hi_sink ρ₁ _ v hv
+        haveI : ∀ v, Module.Free k (ρ₂_plus.obj v) := fun v => by
+          by_cases hv : v = i
+          · rw [hv]; exact @Etingof.reflFunctorPlus_free_eq k _ (Fin n) _ Q_cur i hi_sink ρ₂ _ _ _
+          · exact @Etingof.reflFunctorPlus_free_ne k _ (Fin n) _ Q_cur i hi_sink ρ₂ _ v hv
+        haveI : ∀ v, Module.Finite k (ρ₂_plus.obj v) := fun v => by
+          by_cases hv : v = i
+          · rw [hv]; exact @Etingof.reflFunctorPlus_finite_eq k _ (Fin n) _ Q_cur i hi_sink ρ₂ _ _ _
+          · exact @Etingof.reflFunctorPlus_finite_ne k _ (Fin n) _ Q_cur i hi_sink ρ₂ _ v hv
+        -- F⁺ outputs are indecomposable (Prop 6.6.7 + not zero since surjective)
+        have h₁_ind : @Etingof.QuiverRepresentation.IsIndecomposable k _ _ Q_rev ρ₁_plus := by
+          rcases @Etingof.Proposition6_6_7_sink k _ _ _ Q_cur i hi_sink ρ₁ _ _ h₁ with h | h_zero
+          · exact h
+          · exfalso
+            obtain ⟨⟨v, hv⟩, _⟩ := h₁
+            suffices hs : ∀ j, Subsingleton
+                (@Etingof.QuiverRepresentation.obj k (Fin n) _ Q_cur ρ₁ j) from
+              absurd (hs v) (not_subsingleton_iff_nontrivial.mpr hv)
+            intro j
+            by_cases hj : j = i
+            · rw [hj]; exact h₁_sink_ss_of_src (fun ⟨m, e⟩ =>
+                (@Etingof.reflFunctorPlus_equivAt_ne k _ (Fin n) _ Q_cur i hi_sink ρ₁ m
+                  (fun h => (hi_sink m).false (h ▸ e))).toEquiv.subsingleton_congr.mp (h_zero m))
+            · exact (@Etingof.reflFunctorPlus_equivAt_ne k _ (Fin n) _
+                Q_cur i hi_sink ρ₁ j hj).toEquiv.subsingleton_congr.mp
+                (h_zero j)
+        have h₂_ind :
+            @Etingof.QuiverRepresentation.IsIndecomposable
+              k _ _ Q_rev ρ₂_plus := by
+          rcases @Etingof.Proposition6_6_7_sink k _ _ _
+            Q_cur i hi_sink ρ₂ _ _ h₂ with h | h_zero
+          · exact h
+          · exfalso
+            obtain ⟨⟨v, hv⟩, _⟩ := h₂
+            suffices hs : ∀ j, Subsingleton
+                (@Etingof.QuiverRepresentation.obj k (Fin n)
+                  _ Q_cur ρ₂ j) from
+              absurd (hs v)
+                (not_subsingleton_iff_nontrivial.mpr hv)
+            intro j
+            by_cases hj : j = i
+            · rw [hj]; exact h₂_sink_ss_of_src fun ⟨m, e⟩ =>
+                let eq := @Etingof.reflFunctorPlus_equivAt_ne
+                  k _ (Fin n) _ Q_cur i hi_sink ρ₂ m
+                  (fun h => (hi_sink m).false (h ▸ e))
+                eq.toEquiv.subsingleton_congr.mp (h_zero m)
+            · have eq := @Etingof.reflFunctorPlus_equivAt_ne
+                k _ (Fin n) _ Q_cur i hi_sink ρ₂ j hj
+              exact eq.toEquiv.subsingleton_congr.mp
+                (h_zero j)
+        -- Orientation on reversed quiver
+        have hOrient_rev : @Etingof.IsOrientationOf n Q_rev adj :=
+          Etingof.reversedAtVertex_isOrientationOf hDynkin.1 hDynkin.2.1 hOrient_cur i
+        -- Dim vector of F⁺ outputs = simpleReflection n A i d_cur
+        set d_new := Etingof.simpleReflection n (Etingof.cartanMatrix n adj) i d_cur
+        have hDim₁_plus : ∀ v, (Module.finrank k (ρ₁_plus.obj v) : ℤ) = d_new v := by
+          intro v
+          have h668 := @Etingof.Proposition6_6_8_sink k _
+            (Fin n) _ Q_cur i hi_sink ρ₁ _ _ _ h₁_surj v
+          change (ρ₁_plus.finrankAt' k v : ℤ) = d_new v
+          rw [h668]
+          have hd_eq := funext hDim₁
+          rw [hd_eq]
+          have hbridge := @Etingof.simpleReflectionDimVector_eq_simpleReflection _ _
+            hDynkin Q_cur hOrient_cur hSS_cur i hi_sink d_cur
+          convert congr_fun hbridge v
+        have hDim₂_plus : ∀ v, (Module.finrank k (ρ₂_plus.obj v) : ℤ) = d_new v := by
+          intro v
+          have h668 := @Etingof.Proposition6_6_8_sink k _
+            (Fin n) _ Q_cur i hi_sink ρ₂ _ _ _ h₂_surj v
+          change (ρ₂_plus.finrankAt' k v : ℤ) = d_new v
+          rw [h668]
+          have hd_eq := funext hDim₂
+          rw [hd_eq]
+          have hbridge := @Etingof.simpleReflectionDimVector_eq_simpleReflection _ _
+            hDynkin Q_cur hOrient_cur hSS_cur i hi_sink d_cur
+          convert congr_fun hbridge v
+        -- Sinks condition for rest on reversed quiver (definitional reduction)
+        have hSinks_rest : ∀ m (hm : m < rest.length),
+            @Etingof.IsSink (Fin n)
+              (@Etingof.iteratedReversedAtVertices _ _ Q_rev (rest.take m))
+              (rest.get ⟨m, hm⟩) := by
+          intro m hm
+          exact hSinks (m + 1) (by simp [List.length_cons]; omega)
+        -- hreflect for rest on d_new
+        have hreflect_rest : Etingof.iteratedSimpleReflection n
+            (Etingof.cartanMatrix n adj) rest d_new = Etingof.simpleRoot n p := by
+          rw [Etingof.iteratedSimpleReflection_cons] at hreflect
+          exact hreflect
+        -- Apply IH to F⁺ outputs on reversed quiver
+        have h_iso_plus := @ih Q_rev hOrient_rev
+          hSS_rev hSinks_rest ρ₁_plus ρ₂_plus _ _ _ _
+          h₁_ind h₂_ind d_new hDim₁_plus hDim₂_plus
+          hreflect_rest
+        -- Recover ρ₁ ≅ ρ₂ via F⁻ functoriality + round-trip
+        obtain ⟨iso_plus⟩ := h_iso_plus
+        -- F⁻ applied to iso gives iso on double-reversed quiver
+        have hi' := @Etingof.isSink_reversedAtVertex_isSource (Fin n) _ Q_cur i hi_sink
+        obtain ⟨iso_dr⟩ := @Etingof.reflectionFunctorMinus_map_iso k _ (Fin n) _ Q_rev i hi'
+          ρ₁_plus ρ₂_plus iso_plus _
+        -- Transport iso_dr to Q_cur via reversedAtVertex_twice
+        let h_eq := @Etingof.reversedAtVertex_twice (Fin n) _ Q_cur i
+        let iso_transported := iso_dr.transport h_eq
+        -- Round-trip isos: transport(F⁻(F⁺(ρ))) ≅ ρ
+        obtain ⟨iso_rt₁⟩ := @Etingof.Proposition6_6_6_sink
+          k _ (Fin n) _ Q_cur i hi_sink ρ₁ _ _ _ h₁_surj
+        obtain ⟨iso_rt₂⟩ := @Etingof.Proposition6_6_6_sink
+          k _ (Fin n) _ Q_cur i hi_sink ρ₂ _ _ _ h₂_surj
+        -- Compose: ρ₁ ← transport(F⁻(F⁺(ρ₁))) ≅ transport(F⁻(F⁺(ρ₂))) → ρ₂
+        exact ⟨@Etingof.QuiverRepresentation.Iso.trans k _ (Fin n) Q_cur _ _ _
+          (@Etingof.QuiverRepresentation.Iso.symm k _ (Fin n) Q_cur _ _ iso_rt₁)
+          (@Etingof.QuiverRepresentation.Iso.trans k _ (Fin n) Q_cur _ _ _
+            iso_transported iso_rt₂)⟩
 
 end ReflectionFunctorChain
 
@@ -243,8 +421,8 @@ private lemma Etingof.indecomposable_titsForm_le_two
 
 end TitsFormBound
 
--- Coxeter iteration + admissible ordering search is expensive
 set_option maxHeartbeats 800000 in
+-- Coxeter iteration + admissible ordering search requires extra heartbeats
 /-- Indecomposable representations of a Dynkin quiver are determined (up to isomorphism)
 by their dimension vectors.
 (Etingof Corollary 6.8.3) -/
@@ -280,21 +458,54 @@ theorem Etingof.Corollary6_8_3
   -- Iterate: track one rep through rounds to find the vertex list
   -- We track ρ₁ to find where the dim vector reduces to a simple root.
   -- The full vertex list (with sinks condition) is then used with both ρ₁, ρ₂.
+  -- Strengthened suffices: carry a representation through the iteration
   suffices ∀ (M : ℕ),
       Nonempty (@Etingof.QuiverRepresentation.Iso k _ (Fin n) Q ρ₁ ρ₂) ∨
-      (∀ j, 0 ≤ c^[M] d j) by
-    rcases this N with ⟨iso⟩ | hNN
+      ((∀ j, 0 ≤ c^[M] d j) ∧
+       ∃ (ρ_M : @Etingof.QuiverRepresentation k (Fin n) _ Q),
+         (∀ v, Module.Free k (ρ_M.obj v)) ∧
+         (∀ v, Module.Finite k (ρ_M.obj v)) ∧
+         ρ_M.IsIndecomposable ∧
+         (∀ v, (Module.finrank k (ρ_M.obj v) : ℤ) = c^[M] d v)) by
+    rcases this N with ⟨iso⟩ | ⟨hNN, _⟩
     · exact iso
     · exact absurd (hNN i₀) (not_le.mpr hNeg)
   intro M
   induction M with
-  | zero => right; intro j; simp only [Function.iterate_zero, id_eq]; exact hd_nonneg j
+  | zero =>
+    right
+    exact ⟨fun j => by simp only [Function.iterate_zero, id_eq]; exact hd_nonneg j,
+           ρ₁, ‹_›, ‹_›, h₁,
+           fun v => by simp only [Function.iterate_zero, id_eq, hd_def]⟩
   | succ M ih =>
-    rcases ih with ⟨iso⟩ | hM_nonneg
+    rcases ih with ⟨iso⟩ | ⟨hM_nonneg, ρ_M, hFree_M, hFinite_M, hIndecomp_M, hDimVec_M⟩
     · left; exact iso
-    · -- Need an indecomposable rep with dim vector c^[M](d) to call one_round_or_simpleRoot
-      -- Use ρ₁'s round-M counterpart from one_round_or_simpleRoot iteration
-      -- This is exactly what indecomposable_reduces_to_simpleRoot does internally
-      -- For now, sorry the iteration tracking
-      sorry
+    · -- Apply one_round_or_simpleRoot to ρ_M
+      haveI : ∀ v, Module.Free k (ρ_M.obj v) := hFree_M
+      haveI : ∀ v, Module.Finite k (ρ_M.obj v) := hFinite_M
+      have hd_M : c^[M] d = fun v => (Module.finrank k (ρ_M.obj v) : ℤ) := by
+        ext v; exact (hDimVec_M v).symm
+      rcases Etingof.one_round_or_simpleRoot hDynkin hOrient σ hσ ρ_M hIndecomp_M
+        (c^[M] d) hd_M with
+        ⟨j, p₀, hj_le, hp₀⟩ | ⟨hnonneg, _, ρ', hFree', hFinite', hIndecomp', hDimVec'⟩
+      · -- Simple root found at prefix j of round M
+        left
+        -- Build vertex list and call parallel_reduce_and_recover
+        set vertices := (List.replicate M σ).flatten ++ σ.take j with hvertices_def
+        have hSinks := Etingof.admissible_sinks_replicated Q σ hσ M j hj_le
+        have hreflect : Etingof.iteratedSimpleReflection n A vertices d =
+            Etingof.simpleRoot n p₀ := by
+          rw [hvertices_def, Etingof.iteratedSimpleReflection_append,
+              Etingof.iteratedSimpleReflection_replicate_eq_iterate]
+          exact hp₀
+        exact Etingof.parallel_reduce_and_recover hDynkin vertices hOrient
+          ‹∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)› hSinks
+          ρ₁ ρ₂ h₁ h₂ d (fun v => rfl)
+          (fun v => by simp only [hd_def]; exact_mod_cast (hdim v).symm)
+          p₀ hreflect
+      · -- Full round: continue with new indecomposable rep
+        right
+        refine ⟨fun j => ?_, ρ', hFree', hFinite', hIndecomp', fun v => ?_⟩
+        · rw [Function.iterate_succ', Function.comp_apply]; exact hnonneg j
+        · rw [Function.iterate_succ', Function.comp_apply]; exact hDimVec' v
 
