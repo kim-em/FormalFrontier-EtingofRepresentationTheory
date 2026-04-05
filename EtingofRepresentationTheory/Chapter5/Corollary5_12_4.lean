@@ -38,15 +38,15 @@ theorem Corollary5_12_4 (n : ℕ) (la : Nat.Partition n) :
   let b_int : MonoidAlgebra ℤ (Equiv.Perm (Fin n)) :=
     haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
     ∑ g : (ColumnSubgroup n la), (Equiv.Perm.sign g.val : ℤ) • MonoidAlgebra.of ℤ _ g.val
-  use b_int * a_int
+  use a_int * b_int
   -- The ring hom φ : ℤ[Sₙ] →+* ℂ[Sₙ] preserves multiplication
-  change φ (b_int * a_int) = YoungSymmetrizer n la
+  change φ (a_int * b_int) = YoungSymmetrizer n la
   rw [map_mul]
   -- Show φ maps each factor to the corresponding ℂ-version
   -- Use ext at the Finsupp level to avoid Fintype instance issues
   suffices ha : φ a_int = RowSymmetrizer n la by
     suffices hb : φ b_int = ColumnAntisymmetrizer n la by
-      rw [hb, ha, YoungSymmetrizer]
+      rw [ha, hb, YoungSymmetrizer]
     -- Prove φ b_int = ColumnAntisymmetrizer
     simp only [b_int, φ, ColumnAntisymmetrizer, map_sum, map_zsmul,
       MonoidAlgebra.of_apply, MonoidAlgebra.mapRangeRingHom_single, map_one]

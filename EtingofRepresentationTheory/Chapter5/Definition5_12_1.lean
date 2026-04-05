@@ -116,20 +116,19 @@ noncomputable def ColumnAntisymmetrizer (n : ℕ) (la : Nat.Partition n) :
   ∑ g : (ColumnSubgroup n la),
     ((↑(Equiv.Perm.sign g.val) : ℤ) : ℂ) • MonoidAlgebra.of ℂ _ g.val
 
-/-- The Young symmetrizer c_λ = b_λ · a_λ in the group algebra ℂ[S_n].
+/-- The Young symmetrizer c_λ = a_λ · b_λ in the group algebra ℂ[S_n].
 (Etingof Definition 5.12.1)
 
 Here a_λ = ∑_{g ∈ P_λ} g and b_λ = ∑_{g ∈ Q_λ} sign(g) · g,
 where P_λ is the row subgroup and Q_λ is the column subgroup.
 
-**Convention**: We use c_λ = b_λ · a_λ (column × row) rather than a_λ · b_λ.
-Both conventions generate isomorphic Specht modules, but the b_λ · a_λ convention
-is needed for the polytabloid basis theorem: the map T ↦ of(σ_T) · c_λ is injective
-on standard Young tableaux only with this ordering. See James, "The Representation
-Theory of the Symmetric Groups". -/
+**Convention**: We use c_λ = a_λ · b_λ (row × column) following James,
+"The Representation Theory of the Symmetric Groups". This convention
+gives left P_λ absorption: of(p) · c_λ = c_λ for p ∈ P_λ, which is
+needed for the straightening lemma in the polytabloid basis proof. -/
 noncomputable def YoungSymmetrizer (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℂ (Equiv.Perm (Fin n)) :=
-  ColumnAntisymmetrizer n la * RowSymmetrizer n la
+  RowSymmetrizer n la * ColumnAntisymmetrizer n la
 
 /-! ## Helper lemmas for rowOfPos and colOfPos -/
 

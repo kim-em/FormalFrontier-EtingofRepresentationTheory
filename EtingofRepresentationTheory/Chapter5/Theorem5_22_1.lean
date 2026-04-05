@@ -50,9 +50,9 @@ def YoungSymmetrizerK (k : Type*) [CommRing k] (n : ℕ) (la : Nat.Partition n) 
     MonoidAlgebra k (Equiv.Perm (Fin n)) :=
   haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
   haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of k _ g.val) *
   (∑ g : (ColumnSubgroup n la),
-    ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val) *
-  (∑ g : (RowSubgroup n la), MonoidAlgebra.of k _ g.val)
+    ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val)
 
 /-! ### Young symmetrizer over ℤ and scalar transfer -/
 
@@ -62,9 +62,9 @@ def YoungSymmetrizerZ (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℤ (Equiv.Perm (Fin n)) :=
   haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
   haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of ℤ _ g.val) *
   (∑ g : (ColumnSubgroup n la),
-    (↑(Equiv.Perm.sign g.val) : ℤ) • MonoidAlgebra.of ℤ _ g.val) *
-  (∑ g : (RowSubgroup n la), MonoidAlgebra.of ℤ _ g.val)
+    (↑(Equiv.Perm.sign g.val) : ℤ) • MonoidAlgebra.of ℤ _ g.val)
 
 /-- Base change maps `of ℤ g` to `of k g`. -/
 private theorem mapRange_of {G : Type*} [Monoid G] (R : Type*) [CommRing R]
