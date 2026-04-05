@@ -1019,6 +1019,154 @@ private lemma exists_dominance_maximal
     · exact hfT'
     · rfl
 
+/-! ### Tabloid representation (free ℂ-module on tabloids)
+
+The tabloid representation M^λ is the free ℂ-module with basis indexed by tabloids.
+Polytabloids live naturally in M^λ, avoiding the definitional mismatch that occurs
+when trying to define them in the group algebra ℂ[S_n]. -/
+
+/-- The tabloid representation M^λ: formal ℂ-linear combinations of tabloids. -/
+abbrev TabloidRepresentation (n : ℕ) (la : Nat.Partition n) :=
+  Finsupp (Tabloid n la) ℂ
+
+/-- The polytabloid e_T in the tabloid module:
+  e_T = Σ_{q ∈ Q_λ} sign(q) · {q⁻¹ · σ_T}
+where {·} denotes a basis element (single tabloid) in M^λ.
+
+Different q ∈ Q_λ give different tabloids (since P_λ ∩ Q_λ = {1}),
+so the polytabloid has exactly |Q_λ| nonzero coefficients, each ±1. -/
+noncomputable def polytabloidTab (T : StandardYoungTableau n la) :
+    TabloidRepresentation n la :=
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  ∑ q : ↥(ColumnSubgroup n la),
+    ((↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (q.val⁻¹ * sytPerm n la T)) 1
+
+/-- Different column permutations give different tabloids when applied to σ_T.
+This is the key injectivity lemma for the polytabloid coefficient computation. -/
+private theorem toTabloid_inv_mul_injective (T : StandardYoungTableau n la)
+    (q₁ q₂ : ↥(ColumnSubgroup n la))
+    (h : toTabloid n la (q₁.val⁻¹ * sytPerm n la T) =
+         toTabloid n la (q₂.val⁻¹ * sytPerm n la T)) :
+    q₁ = q₂ := by
+  rw [toTabloid_eq_iff] at h
+  -- h : q₁⁻¹ σ_T * (q₂⁻¹ σ_T)⁻¹ ∈ P_λ, i.e., q₁⁻¹ q₂ ∈ P_λ
+  have h' : q₁.val⁻¹ * q₂.val ∈ RowSubgroup n la := by
+    convert h using 1; group
+  have := RowSubgroup_inter_ColumnSubgroup n la (q₁.val⁻¹ * q₂.val) h'
+    ((ColumnSubgroup n la).mul_mem
+      ((ColumnSubgroup n la).inv_mem q₁.prop) q₂.prop)
+  exact Subtype.ext (eq_of_inv_mul_eq_one this)
+
+/-- The coefficient of tabloid {T} (= toTabloid(σ_T)) in polytabloid e_T is 1.
+
+Only q = 1 contributes to this tabloid: for q ≠ 1, the tabloid
+toTabloid(q⁻¹ · σ_T) ≠ toTabloid(σ_T) by ColumnSubgroup_ne_tabloid. -/
+theorem polytabloidTab_coeff_self (T : StandardYoungTableau n la) :
+    polytabloidTab T (sytToTabloid n la T) = 1 := by
+  classical
+  simp only [polytabloidTab, sytToTabloid]
+  rw [Finsupp.finset_sum_apply]
+  rw [Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ :
+      ↥(ColumnSubgroup n la))]
+  · -- q = 1: sign(1) * single(σ_T)(toTabloid(σ_T)) = 1
+    simp [Equiv.Perm.sign_one]
+  · -- q ≠ 1: toTabloid(q⁻¹ σ_T) ≠ toTabloid(σ_T), so coefficient is 0
+    intro q _ hq
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+    have hne : (q : Equiv.Perm (Fin n)) ≠ 1 := fun h => hq (Subtype.ext h)
+    have := ColumnSubgroup_ne_tabloid T q.val q.prop hne
+    simp only [sytToTabloid] at this
+    rw [if_neg this, mul_zero]
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- If the coefficient of a tabloid t in e_T is nonzero, then {T} dominates t.
+
+Specifically, if polytabloidTab T evaluates to nonzero at toTabloid(σ), then
+σ_T dominates σ in the tabloid dominance order. This follows because the
+support of e_T consists of tabloids {q⁻¹ · σ_T} for q ∈ Q_λ, and
+column_perm_dominance shows σ_T dominates each q⁻¹ · σ_T. -/
+theorem polytabloidTab_coeff_dominance (T : StandardYoungTableau n la)
+    (σ : Equiv.Perm (Fin n))
+    (hne : polytabloidTab T (toTabloid n la σ) ≠ 0) :
+    tabloidDominates la (sytPerm n la T) σ := by
+  classical
+  simp only [polytabloidTab] at hne
+  rw [Finsupp.finset_sum_apply] at hne
+  -- Some term in the sum is nonzero
+  obtain ⟨q, _, hq_term⟩ := Finset.exists_ne_zero_of_sum_ne_zero hne
+  rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply] at hq_term
+  split_ifs at hq_term with heq
+  · -- toTabloid(q⁻¹ σ_T) = toTabloid(σ)
+    -- By column_perm_dominance: σ_T dominates q⁻¹ σ_T
+    have hdom := column_perm_dominance T q.val q.prop
+    -- By tabloidDominates_congr: σ_T dominates σ (same tabloid as q⁻¹ σ_T)
+    exact tabloidDominates_congr rfl heq hdom
+  · simp at hq_term
+
+/-- Variant: if e_{T₁} has nonzero coefficient at the tabloid of T₂,
+then T₁'s tabloid dominates T₂'s tabloid. -/
+theorem polytabloidTab_syt_dominance (T₁ T₂ : StandardYoungTableau n la)
+    (hne : polytabloidTab T₁ (sytToTabloid n la T₂) ≠ 0) :
+    tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) :=
+  polytabloidTab_coeff_dominance T₁ (sytPerm n la T₂) hne
+
+/-! ### Linear independence of polytabloids in the tabloid module -/
+
+/-- Auxiliary: if Σ f(T) · e_T = 0 in M^λ, then for any dominance-maximal T₀
+with f(T₀) ≠ 0, we get a contradiction. -/
+private lemma polytabloidTab_coeff_zero_of_maximal
+    (S : Finset (StandardYoungTableau n la))
+    (f : StandardYoungTableau n la → ℂ)
+    (hf : ∑ t ∈ S, f t • polytabloidTab t = 0)
+    (T₀ : StandardYoungTableau n la) (hT₀ : T₀ ∈ S)
+    (hmax : ∀ T' ∈ S, f T' ≠ 0 →
+      tabloidDominates la (sytPerm n la T') (sytPerm n la T₀) →
+      sytToTabloid n la T' = sytToTabloid n la T₀) :
+    f T₀ = 0 := by
+  classical
+  -- Evaluate at the tabloid of T₀
+  have heval : (∑ t ∈ S, f t • polytabloidTab t) (sytToTabloid n la T₀) = 0 := by
+    rw [hf]; rfl
+  rw [Finsupp.finset_sum_apply] at heval
+  simp only [Finsupp.smul_apply, smul_eq_mul] at heval
+  -- Split off the T₀ term
+  rw [← Finset.add_sum_erase S _ hT₀] at heval
+  -- e_{T₀} at tabloid {T₀} = 1
+  rw [polytabloidTab_coeff_self, mul_one] at heval
+  -- Show all other terms vanish
+  suffices hrest : ∀ T' ∈ S.erase T₀,
+      f T' * polytabloidTab T' (sytToTabloid n la T₀) = 0 by
+    rw [Finset.sum_eq_zero hrest, add_zero] at heval; exact heval
+  intro T' hT'
+  have hT'S : T' ∈ S := Finset.mem_of_mem_erase hT'
+  have hne_T : T' ≠ T₀ := Finset.ne_of_mem_erase hT'
+  by_cases hfT' : f T' = 0
+  · rw [hfT', zero_mul]
+  by_cases hcoeff : polytabloidTab T' (sytToTabloid n la T₀) = 0
+  · rw [hcoeff, mul_zero]
+  · -- Nonzero coefficient ⟹ T' dominates T₀
+    have hdom := polytabloidTab_syt_dominance T' T₀ hcoeff
+    -- By maximality, tabloid(T') = tabloid(T₀)
+    have htab_eq := hmax T' hT'S hfT' hdom
+    -- But different SYTs have different tabloids
+    exact absurd (sytToTabloid_injective n la htab_eq) hne_T
+
+/-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in M^λ.
+
+This is the correct statement: polytabloids are linearly independent in the
+tabloid module, where the definition is sound (unlike in ℂ[S_n] where
+polytabloid_mem_spechtModule is false). The proof uses dominance triangularity:
+the "tabloid coefficient matrix" is unitriangular with respect to the
+dominance order on tabloids. -/
+theorem polytabloidTab_linearIndependent :
+    LinearIndependent ℂ (fun T : StandardYoungTableau n la => polytabloidTab T) := by
+  rw [linearIndependent_iff']
+  intro S f hf T hT
+  by_contra hfT
+  obtain ⟨T₀, hT₀, hfT₀, hmax⟩ := exists_dominance_maximal S f T hT hfT
+  exact hfT₀ (polytabloidTab_coeff_zero_of_maximal S f hf T₀ hT₀ hmax)
+
 theorem polytabloid_linearIndependent' :
     LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
