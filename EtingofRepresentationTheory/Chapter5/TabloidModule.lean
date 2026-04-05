@@ -876,12 +876,12 @@ theorem polytabloid_syt_dominance
     (T₁ T₂ : StandardYoungTableau n la)
     (hne : (polytabloid n la T₁ : SymGroupAlgebra n) (sytPerm n la T₂) ≠ 0) :
     tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
-  -- Get QP decomposition: σ_{T₂} = σ_{T₁} · q · p with q ∈ Q_λ, p ∈ P_λ
-  obtain ⟨q, hq, p, hp, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
+  -- Get PQ decomposition: σ_{T₂} = σ_{T₁} · p · q with p ∈ P_λ, q ∈ Q_λ
+  obtain ⟨p, hp, q, hq, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
   -- The proof requires showing that for all k, i:
   --   |{e ≤ k : rowOfPos(σ_{T₁}(e)) < i}| ≥ |{e ≤ k : rowOfPos(σ_{T₂}(e)) < i}|
-  -- where σ_{T₂}(e) = σ_{T₁}(q(p(e))).
-  -- Equivalently: the QP right-action can only decrease dominance.
+  -- where σ_{T₂}(e) = σ_{T₁}(p(q(e))).
+  -- Equivalently: the PQ right-action can only decrease dominance.
   -- This is a deep combinatorial fact about standard Young tableaux and the
   -- interaction of row/column permutations with the dominance order.
   sorry

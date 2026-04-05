@@ -61,8 +61,8 @@ theorem YoungSymmetrizerZ_sandwich_basis (n : ℕ) (la : Nat.Partition n)
   have hφσ : φ (MonoidAlgebra.of ℤ _ σ) = MonoidAlgebra.of ℂ _ σ := by
     change MonoidAlgebra.mapRangeRingHom _ _ (Finsupp.single σ 1) = Finsupp.single σ 1
     rw [MonoidAlgebra.mapRangeRingHom_single, map_one]
-  -- Over ℂ: a * x * b = ℓ(x) • c (Lemma 5.13.1)
-  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  -- Over ℂ: a * x * b = ℓ(x) • c (Lemma 5.13.1 dual)
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1_dual n la
   -- The sandwich for c: c * x * c = ℓ(b * (x * a)) • c
   have h_sandwich : ∀ x,
       YoungSymmetrizer n la * x * YoungSymmetrizer n la =

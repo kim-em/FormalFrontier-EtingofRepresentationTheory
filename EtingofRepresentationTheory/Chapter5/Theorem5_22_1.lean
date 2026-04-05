@@ -131,34 +131,32 @@ theorem YoungSymmetrizerZ_apply_one (n : ℕ) (la : Nat.Partition n) :
   simp only [YoungSymmetrizer, RowSymmetrizer, ColumnAntisymmetrizer]
   -- Distribute the product of sums
   rw [Finset.sum_mul]
-  simp_rw [smul_mul_assoc, Finset.mul_sum]
+  simp_rw [Finset.mul_sum, mul_smul_comm]
   -- Unfold of to single, then simplify multiplication of singles
   have hof : ∀ (g : Equiv.Perm (Fin n)),
       (MonoidAlgebra.of ℂ _ g : MonoidAlgebra ℂ _) = Finsupp.single g 1 := fun _ => rfl
   simp_rw [hof, MonoidAlgebra.single_mul_single, mul_one]
-  -- Push smul inside the inner sum
-  simp_rw [Finset.smul_sum]
-  -- Goal: (∑ q ∑ p, (sign q) • single (q*p) 1)(1) = 1
+  -- Goal: (∑ p ∑ q, (sign q) • single (p*q) 1)(1) = 1
   rw [Finset.sum_apply']
   conv_lhs => arg 2; ext k; rw [Finset.sum_apply']
   simp only [MonoidAlgebra.smul_apply, smul_eq_mul, MonoidAlgebra.single_apply,
     mul_ite, mul_one, mul_zero]
-  -- ∑_q ∑_p, if q * p = 1 then (sign q : ℂ) else 0 = 1
-  rw [Fintype.sum_eq_single ⟨1, (ColumnSubgroup n la).one_mem⟩]
-  · rw [Fintype.sum_eq_single ⟨1, (RowSubgroup n la).one_mem⟩]
+  -- ∑_p ∑_q, if p * q = 1 then (sign q : ℂ) else 0 = 1
+  rw [Fintype.sum_eq_single ⟨1, (RowSubgroup n la).one_mem⟩]
+  · rw [Fintype.sum_eq_single ⟨1, (ColumnSubgroup n la).one_mem⟩]
     · simp [Equiv.Perm.sign_one]
-    · intro ⟨p, hp⟩ hne
+    · intro ⟨q, hq⟩ hne
       rw [if_neg]
-      intro hp1
-      exact hne (Subtype.ext (by simpa using hp1))
-  · intro ⟨q, hq⟩ hne
+      intro hq1
+      exact hne (Subtype.ext (by simpa using hq1))
+  · intro ⟨p, hp⟩ hne
     apply Fintype.sum_eq_zero
-    intro ⟨p, hp⟩
+    intro ⟨q, hq⟩
     rw [if_neg]
-    intro hqp
-    have heq : q = p⁻¹ := mul_eq_one_iff_eq_inv.mp hqp
-    have hq_in_P : q ∈ RowSubgroup n la := heq ▸ (RowSubgroup n la).inv_mem hp
-    exact hne (Subtype.ext (row_col_preserving_eq_one n la q hq_in_P hq))
+    intro hpq
+    have heq : p = q⁻¹ := mul_eq_one_iff_eq_inv.mp hpq
+    have hp_in_Q : p ∈ ColumnSubgroup n la := heq ▸ (ColumnSubgroup n la).inv_mem hq
+    exact hne (Subtype.ext (row_col_preserving_eq_one n la p hp hp_in_Q))
 
 /-- The Young symmetrizer over any CharZero ring satisfies c² = α·c for some scalar α.
 The scalar is the image of an integer, obtained by transferring the identity from ℂ
@@ -1587,17 +1585,17 @@ private lemma mul_mem_specht_proportional' (n : ℕ) (la : Nat.Partition n)
   set c := YoungSymmetrizer n la
   obtain ⟨a, ha⟩ := Submodule.mem_span_singleton.mp v.prop
   rw [smul_eq_mul] at ha
-  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1_dual n la
   have h_sandwich : ∀ x,
-      c * x * c = ℓ (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) • c := by
+      c * x * c = ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) • c := by
     intro x
-    change ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
-        (ColumnAntisymmetrizer n la * RowSymmetrizer n la) = _
-    rw [show ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
-          (ColumnAntisymmetrizer n la * RowSymmetrizer n la) =
-        ColumnAntisymmetrizer n la * (RowSymmetrizer n la * x * ColumnAntisymmetrizer n la) *
-          RowSymmetrizer n la from by simp only [mul_assoc]]
-    rw [hℓ, show c = YoungSymmetrizer n la from rfl]; simp only [YoungSymmetrizer, mul_assoc]
+    change RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) = _
+    rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+          (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
+        RowSymmetrizer n la * (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) *
+          ColumnAntisymmetrizer n la from by simp only [mul_assoc]]
+    rw [hℓ]
   have hsand := h_sandwich a
   conv_lhs at hsand => rw [mul_assoc]
   conv_lhs => rw [show v.val = a * c from ha.symm, hsand]

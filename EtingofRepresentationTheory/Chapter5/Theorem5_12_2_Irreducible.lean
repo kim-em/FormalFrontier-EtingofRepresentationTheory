@@ -41,16 +41,16 @@ for a linear functional f. This follows from Lemma 5.13.1 (a_λ * x * b_λ = ℓ
 private lemma sandwich_scalar (n : ℕ) (la : Nat.Partition n) :
     ∃ f : A' n →ₗ[ℂ] ℂ, ∀ x,
       YoungSymmetrizer n la * x * YoungSymmetrizer n la = f x • YoungSymmetrizer n la := by
-  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
-  refine ⟨ℓ.comp ((LinearMap.mulLeft ℂ (RowSymmetrizer n la)).comp
-    (LinearMap.mulRight ℂ (ColumnAntisymmetrizer n la))), fun x => ?_⟩
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1_dual n la
+  refine ⟨ℓ.comp ((LinearMap.mulLeft ℂ (ColumnAntisymmetrizer n la)).comp
+    (LinearMap.mulRight ℂ (RowSymmetrizer n la))), fun x => ?_⟩
   change YoungSymmetrizer n la * x * YoungSymmetrizer n la =
-    ℓ (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) • YoungSymmetrizer n la
+    ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) • YoungSymmetrizer n la
   simp only [YoungSymmetrizer]
-  have : ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
-    (ColumnAntisymmetrizer n la * RowSymmetrizer n la) =
-    ColumnAntisymmetrizer n la * (RowSymmetrizer n la * x * ColumnAntisymmetrizer n la) *
-    RowSymmetrizer n la := by simp only [mul_assoc]
+  have : RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
+    (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
+    RowSymmetrizer n la * (ColumnAntisymmetrizer n la * x * RowSymmetrizer n la) *
+    ColumnAntisymmetrizer n la := by simp only [mul_assoc]
   rw [this, hℓ]; simp only [YoungSymmetrizer, mul_assoc]
 
 /-- The trace of left multiplication by a MonoidAlgebra element in the regular
@@ -129,39 +129,43 @@ This uses the fact that P_λ ∩ Q_λ = {id}: only the pair (id, id) in P × Q
 maps to the identity permutation. -/
 private lemma youngSymmetrizer_identity_coeff (n : ℕ) (la : Nat.Partition n) :
     (YoungSymmetrizer n la : A' n) 1 = 1 := by
-  -- (b * a)(1) = ∑_q sign(q) * a(q⁻¹). Only q = 1 contributes.
-  simp only [YoungSymmetrizer, ColumnAntisymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
+  -- (a * b)(1) = ∑_p (single p 1 * b)(1). Only p = 1 contributes.
+  simp only [YoungSymmetrizer, RowSymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
   rw [Finsupp.finset_sum_apply]
-  -- Rewrite each summand: (sign(q) • (single q 1 * a)) 1 = sign(q) * a(q⁻¹)
+  -- Rewrite each summand: (single p 1 * b) 1 = b(p⁻¹)
   rw [Finset.sum_congr rfl (fun i _ => show _ = _ from by
-    rw [Algebra.smul_mul_assoc, Finsupp.smul_apply, smul_eq_mul,
-      MonoidAlgebra.single_mul_apply, one_mul, mul_one])]
-  rw [Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ : ↑(ColumnSubgroup n la))]
-  · -- q = 1: sign(1) * a(1⁻¹) = 1 * a(1) = 1
-    simp only [Subgroup.coe_mk, inv_one, Equiv.Perm.sign_one, Units.val_one, Int.cast_one,
-      mul_one, one_mul]
-    -- a(1) = RowSym(1) = 1
-    simp only [RowSymmetrizer, MonoidAlgebra.of_apply]
+    rw [MonoidAlgebra.single_mul_apply, one_mul, mul_one])]
+  rw [Finset.sum_eq_single (⟨1, (RowSubgroup n la).one_mem⟩ : ↑(RowSubgroup n la))]
+  · -- p = 1: b(1⁻¹) = b(1) = 1
+    simp only [Subgroup.coe_mk, inv_one]
+    -- b(1) = ColumnAntisymmetrizer(1) = 1
+    simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
     rw [Finsupp.finset_sum_apply,
-      Finset.sum_eq_single (⟨1, (RowSubgroup n la).one_mem⟩ : ↑(RowSubgroup n la))]
-    · simp [Finsupp.single_apply]
-    · intro p _ hp; simp [Finsupp.single_apply, show (p : G' n) ≠ 1 from
-        fun h => hp (Subtype.ext h)]
+      Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ : ↑(ColumnSubgroup n la))]
+    · simp [Finsupp.single_apply, Equiv.Perm.sign_one]
+    · intro q _ hq
+      change ((↑(↑(Equiv.Perm.sign (q : G' n)) : ℤ) : ℂ) •
+        (Finsupp.single (q : G' n) (1 : ℂ))) 1 = 0
+      rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+      have hq_ne : (q : G' n) ≠ 1 := fun h => hq (Subtype.ext h)
+      simp [hq_ne]
     · intro h; exact absurd (Finset.mem_univ _) h
-  · -- q ≠ 1: sign(q) * a(q⁻¹) = sign(q) * 0 = 0
-    intro q _ hq
-    have hq_ne : (q : G' n) ≠ 1 := fun h => hq (Subtype.ext h)
-    suffices h : (RowSymmetrizer n la : A' n) (q : G' n)⁻¹ = 0 by
-      rw [h, mul_zero]
-    simp only [RowSymmetrizer, MonoidAlgebra.of_apply]
+  · -- p ≠ 1: b(p⁻¹) = 0
+    intro p _ hp
+    have hp_ne : (p : G' n) ≠ 1 := fun h => hp (Subtype.ext h)
+    suffices h : (ColumnAntisymmetrizer n la : A' n) (p : G' n)⁻¹ = 0 by
+      rw [h]
+    simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
     rw [Finsupp.finset_sum_apply]
-    apply Finset.sum_eq_zero; intro p _
-    simp only [Finsupp.single_apply]
+    apply Finset.sum_eq_zero; intro q _
+    change ((↑(↑(Equiv.Perm.sign (q : G' n)) : ℤ) : ℂ) •
+      (Finsupp.single (q : G' n) (1 : ℂ))) (p : G' n)⁻¹ = 0
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
     split_ifs with h
-    · exfalso; exact hq_ne (inv_eq_one.mp (row_col_inter_trivial n la (q : G' n)⁻¹
-        (h ▸ p.prop)
-        ((ColumnSubgroup n la).inv_mem q.prop)))
-    · rfl
+    · exfalso; exact hp_ne (inv_eq_one.mp (row_col_inter_trivial n la (p : G' n)⁻¹
+        ((RowSubgroup n la).inv_mem p.prop)
+        (h ▸ q.prop)))
+    · simp
   · intro h; exact absurd (Finset.mem_univ _) h
 
 /-- c_λ² ≠ 0. Proved via the trace argument: if c_λ² = 0 then left multiplication
