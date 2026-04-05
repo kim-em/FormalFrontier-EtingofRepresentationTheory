@@ -180,6 +180,37 @@ noncomputable def Etingof.reflFunctorMinus_equivAt_ne
   | .isTrue hvi => absurd hvi hv
   | .isFalse _ => LinearEquiv.refl k (ρ.obj v)
 
+/-- `LinearEquiv` at vertex i: `F⁻ᵢ(ρ).obj i ≃ₗ[k] coker(sourceMap)`.
+This reduces the `Decidable.casesOn` in the `reflectionFunctorMinus` definition at vertex i.
+Dual of `reflFunctorPlus_equivAt_eq`. -/
+noncomputable def Etingof.reflFunctorMinus_equivAt_eq
+    {k : Type*} [CommRing k] {Q : Type*} [inst : DecidableEq Q] [Quiver Q]
+    {i : Q} (hi : Etingof.IsSource Q i)
+    (ρ : Etingof.QuiverRepresentation k Q)
+    [Fintype (Etingof.ArrowsOutOf Q i)] :
+    letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+    letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) :=
+      Etingof.addCommGroupOfRing (k := k)
+    letI : DecidableEq (Etingof.ArrowsOutOf Q i) := Classical.decEq _
+    let ψ : ρ.obj i →ₗ[k] DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1) :=
+      ∑ a : Etingof.ArrowsOutOf Q i,
+        (DirectSum.lof k (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1) a).comp (ρ.mapLinear a.2)
+    @Etingof.QuiverRepresentation.obj k Q _ (Etingof.reversedAtVertex Q i)
+      (Etingof.reflectionFunctorMinus Q i hi ρ) i ≃ₗ[k]
+    (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) ⧸ LinearMap.range ψ := by
+  letI : ∀ v, AddCommGroup (ρ.obj v) := fun v => Etingof.addCommGroupOfRing (k := k)
+  letI : AddCommGroup (DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) :=
+    Etingof.addCommGroupOfRing (k := k)
+  letI : DecidableEq (Etingof.ArrowsOutOf Q i) := Classical.decEq _
+  unfold Etingof.reflectionFunctorMinus
+  simp only
+  exact match inst i i with
+  | .isTrue _ =>
+    LinearEquiv.refl k ((DirectSum (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1)) ⧸
+      LinearMap.range (∑ a : Etingof.ArrowsOutOf Q i,
+        (DirectSum.lof k (Etingof.ArrowsOutOf Q i) (fun a => ρ.obj a.1) a).comp (ρ.mapLinear a.2)))
+  | .isFalse h => absurd rfl h
+
 /-- For an arrow `j →_{Q̄ᵢ} i` in the reversed quiver (with i a source), the source vertex
 j ≠ i. This is because i is a sink in Q̄ᵢ. -/
 theorem Etingof.arrowsIntoReversed_ne
