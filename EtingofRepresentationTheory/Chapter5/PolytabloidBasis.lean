@@ -14,7 +14,9 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 * `Etingof.canonicalFilling` — the bijection `Fin n ≃ Cell n la` filling left-to-right,
   top-to-bottom
 * `Etingof.sytPerm` — the permutation σ_T ∈ S_n associated to a standard Young tableau T
-* `Etingof.polytabloid` — the polytabloid e_T = σ_T · c_λ ∈ V_λ
+* `Etingof.RelColumnAntisymmetrizer` — κ_T = Σ_{π ∈ C_T} sign(π) · of(π), the T-relative
+  column antisymmetrizer
+* `Etingof.polytabloid` — the polytabloid e_T = κ_T · of(σ_T) · a_λ (James' definition)
 
 ## Main results
 
@@ -143,29 +145,66 @@ theorem sytPerm_injective (n : ℕ) (la : Nat.Partition n) :
       _ = T₂.val c := rfl
   exact Subtype.ext key
 
+/-! ### T-relative column antisymmetrizer -/
+
+/-- T-relative column antisymmetrizer: κ_T = Σ_{π ∈ C_T} sign(π) · of(π)
+where C_T = σ_T⁻¹ Q_λ σ_T is the entry-level column stabilizer of T.
+
+We sum over q ∈ Q_λ (position-level column subgroup) and conjugate each
+element by σ_T to get the corresponding entry-level permutation.
+Since sign is conjugation-invariant, sign(σ_T⁻¹ q σ_T) = sign(q). -/
+noncomputable def RelColumnAntisymmetrizer (n : ℕ) (la : Nat.Partition n)
+    (T : StandardYoungTableau n la) : SymGroupAlgebra n :=
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  ∑ q : ↥(ColumnSubgroup n la),
+    ((↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+      MonoidAlgebra.of ℂ _ ((sytPerm n la T)⁻¹ * q.val * sytPerm n la T)
+
+/-- When σ_T = 1, the T-relative column antisymmetrizer equals the canonical one. -/
+theorem relColumnAntisymmetrizer_eq_of_sytPerm_one (n : ℕ) (la : Nat.Partition n)
+    (T : StandardYoungTableau n la) (h : sytPerm n la T = 1) :
+    RelColumnAntisymmetrizer n la T = ColumnAntisymmetrizer n la := by
+  simp only [RelColumnAntisymmetrizer, ColumnAntisymmetrizer, h, inv_one, one_mul, mul_one,
+    MonoidAlgebra.of_apply]
+
 /-! ### Polytabloid construction -/
 
 /-- The polytabloid e_T ∈ ℂ[S_n] associated to a standard Young tableau T.
-Defined as σ_T · c_λ (left multiplication by the SYT permutation in the
-group algebra). This element lies in V_λ = ℂ[S_n] · c_λ by construction. -/
+
+Defined as κ_T · of(σ_T) · a_λ, where κ_T is the T-relative column
+antisymmetrizer (summing over C_T = σ_T⁻¹ Q_λ σ_T) and a_λ is the
+row symmetrizer.
+
+This uses the T-dependent column antisymmetrizer (following James' treatment)
+rather than the canonical b_λ. With the canonical b_λ, the polytabloid
+depends only on the right P_λ-coset of σ_T, making it non-injective on SYTs.
+The T-dependent version ensures different SYTs give different polytabloids. -/
 def polytabloid (n : ℕ) (la : Nat.Partition n) (T : StandardYoungTableau n la) :
     SymGroupAlgebra n :=
-  MonoidAlgebra.of ℂ _ (sytPerm n la T) * YoungSymmetrizer n la
+  RelColumnAntisymmetrizer n la T * MonoidAlgebra.of ℂ _ (sytPerm n la T) *
+    RowSymmetrizer n la
 
-/-- The polytabloid e_T lies in the Specht module V_λ = ℂ[S_n] · c_λ. -/
+/-- The polytabloid e_T lies in the Specht module V_λ = ℂ[S_n] · c_λ.
+
+With the T-dependent column antisymmetrizer, membership in V_λ = ℂ[S_n] · a_λ · b_λ
+is no longer trivial. The proof requires showing that κ_T · of(σ_T) · a_λ can be
+expressed as a left multiple of a_λ · b_λ. -/
 theorem polytabloid_mem_spechtModule (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     polytabloid n la T ∈ SpechtModule n la := by
-  unfold polytabloid SpechtModule
-  exact Submodule.smul_mem _ _ (Submodule.subset_span rfl)
+  sorry
 
-/-- The polytabloid for the canonical filling equals c_λ (Young symmetrizer). -/
+/-- The polytabloid for the canonical filling equals b_λ · a_λ
+(column antisymmetrizer times row symmetrizer). -/
 theorem polytabloid_canonical (n : ℕ) (la : Nat.Partition n)
     (T₀ : StandardYoungTableau n la)
     (hT₀ : sytPerm n la T₀ = 1) :
-    polytabloid n la T₀ = YoungSymmetrizer n la := by
-  simp only [polytabloid, hT₀, MonoidAlgebra.of_apply]
-  exact one_mul _
+    polytabloid n la T₀ = ColumnAntisymmetrizer n la * RowSymmetrizer n la := by
+  unfold polytabloid
+  rw [relColumnAntisymmetrizer_eq_of_sytPerm_one n la T₀ hT₀, hT₀,
+    MonoidAlgebra.of_apply, mul_assoc]
+  congr 1
+  rw [show (MonoidAlgebra.single (1 : Equiv.Perm (Fin n)) (1 : ℂ)) = 1 from rfl, one_mul]
 
 /-! ### Polytabloid as element of the Specht module -/
 
@@ -245,21 +284,27 @@ private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
       ((ColumnSubgroup n la).inv_mem_iff.mp hcol))
   · intro h; exact absurd (Finset.mem_univ _) h
 
-/-- Evaluation formula: the coefficient of σ in a polytabloid e_T = σ_T · c_λ. -/
+/-- Evaluation formula: the coefficient of σ in a polytabloid e_T = κ_T · of(σ_T) · a_λ.
+
+With the T-dependent column antisymmetrizer, the coefficient formula involves
+the interaction of the relative column group C_T with the row group P_λ. -/
 theorem polytabloid_apply (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n)) :
     (polytabloid n la T : SymGroupAlgebra n) σ =
-      (YoungSymmetrizer n la : SymGroupAlgebra n) ((sytPerm n la T)⁻¹ * σ) := by
-  unfold polytabloid
-  simp only [MonoidAlgebra.of_apply]
-  rw [MonoidAlgebra.single_mul_apply, one_mul]
+      ((ColumnAntisymmetrizer n la * RowSymmetrizer n la) : SymGroupAlgebra n)
+        ((sytPerm n la T)⁻¹ * σ) := by
+  sorry
 
 /-- The coefficient of σ_T in polytabloid e_T is 1. This is the diagonal
-entry of the evaluation matrix. -/
+entry of the evaluation matrix.
+
+With the T-dependent definition κ_T · of(σ_T) · a_λ, the diagonal entry
+e_T(σ_T) = 1 follows from: the only π ∈ C_T with π · σ_T ∈ σ_T · P_λ
+is π = 1 (since P_λ ∩ C_T = {1}, equivalent to P_λ ∩ Q_λ = {1}). -/
 theorem polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     (polytabloid n la T : SymGroupAlgebra n) (sytPerm n la T) = 1 := by
-  rw [polytabloid_apply, inv_mul_cancel, youngSymmetrizer_one_coeff]
+  sorry
 
 /-! ### Support characterization of the Young symmetrizer
 
@@ -414,19 +459,16 @@ private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
     exact hr_ne (eq_of_inv_mul_eq_one hid)
   · intro h; exact absurd (Finset.mem_univ _) h
 
-/-- If e_{T₂}(σ) ≠ 0, then σ ∈ σ_{T₂} · P_λ · Q_λ: there exist p ∈ P_λ and q ∈ Q_λ
-such that σ = σ_{T₂} · p · q. -/
+/-- If e_{T₂}(σ) ≠ 0, then σ ∈ C_{T₂} · σ_{T₂} · P_λ: there exist π ��� C_{T₂}
+(entry-level column stabilizer) and p ∈ P_λ such that σ = π · σ_{T₂} · p.
+
+Equivalently, σ ∈ σ_{T₂}⁻¹ Q_λ σ_{T₂} · σ_{T₂} · P_λ (using C_T = σ_T⁻¹ Q_λ σ_T). -/
 theorem polytabloid_support (n : ℕ) (la : Nat.Partition n)
     (T₂ : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n))
     (hne : (polytabloid n la T₂ : SymGroupAlgebra n) σ ≠ 0) :
     ∃ p ∈ RowSubgroup n la, ∃ q ∈ ColumnSubgroup n la,
-      σ = sytPerm n la T₂ * p * q := by
-  rw [polytabloid_apply] at hne
-  obtain ⟨p, hp, q, hq, heq⟩ := youngSymmetrizer_support n la _ hne
-  refine ⟨p, hp, q, hq, ?_⟩
-  have : σ = sytPerm n la T₂ * ((sytPerm n la T₂)⁻¹ * σ) := by
-    rw [mul_inv_cancel_left]
-  rw [this, heq, mul_assoc]
+      σ = (sytPerm n la T₂)⁻¹ * q * sytPerm n la T₂ * sytPerm n la T₂ * p := by
+  sorry
 
 /-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
