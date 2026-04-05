@@ -309,7 +309,66 @@ theorem cycleRep_isIndecomposable (k : ℕ) (hk : 3 ≤ k) (m : ℕ) :
     change Nontrivial (Fin (m + 1) → ℂ)
     infer_instance
   · intro W₁ W₂ hW₁_inv hW₂_inv hcompl
-    sorry
+    -- The cycle quiver has arrows v → (v+1)%k. For non-last vertices (v ≠ k-1),
+    -- the map is id; for v = k-1, it's nilpotentShiftLin.
+    -- Step 1: For non-last arrows (v.val + 1 < k), the map is id.
+    -- Invariance under id gives W₁(v) ≤ W₁(v+1).
+    have hle_succ : ∀ (W : ∀ v, Submodule ℂ ((cycleRep k hk m).obj v)),
+        (∀ {a b : Fin k} (e : @Quiver.Hom _ (cycleQuiver k hk) a b),
+          ∀ x ∈ W a, (cycleRep k hk m).mapLinear e x ∈ W b) →
+        ∀ (v : Fin k) (hv : v.val + 1 < k), W v ≤ W ⟨v.val + 1, hv⟩ := by
+      intro W hW_inv v hv x hx
+      have harrow : @Quiver.Hom (Fin k) (cycleQuiver k hk) v
+          ⟨v.val + 1, by omega⟩ := ⟨by simp [Nat.mod_eq_of_lt hv]⟩
+      have := hW_inv harrow x hx
+      simp only [cycleRep] at this
+      have hne : v.val ≠ k - 1 := by have := v.isLt; omega
+      rw [if_neg hne] at this
+      exact this
+    -- Chain: W(i) ≤ W(j) for i ≤ j < k
+    have hchain_mono : ∀ (W : ∀ v, Submodule ℂ ((cycleRep k hk m).obj v)),
+        (∀ {a b : Fin k} (e : @Quiver.Hom _ (cycleQuiver k hk) a b),
+          ∀ x ∈ W a, (cycleRep k hk m).mapLinear e x ∈ W b) →
+        ∀ (i j : ℕ) (hi : i < k) (hj : j < k), i ≤ j → W ⟨i, hi⟩ ≤ W ⟨j, hj⟩ := by
+      intro W hW_inv i j hi hj hij
+      induction j with
+      | zero => simp at hij; subst hij; exact le_of_eq (by congr 1)
+      | succ n ih =>
+        rcases Nat.eq_or_lt_of_le hij with rfl | hlt
+        · exact le_refl _
+        · exact le_trans (ih (by omega) (by omega)) (hle_succ W hW_inv ⟨n, by omega⟩ hj)
+    -- In particular: W₁(0) ≤ W₁(k-1) and W₂(0) ≤ W₂(k-1)
+    -- Step 2: The shift (arrow k-1 → 0) sends W(k-1) into W(0) ≤ W(k-1).
+    -- So the shift preserves W(k-1).
+    set last : Fin k := ⟨k - 1, by omega⟩
+    have hlast_arrow : @Quiver.Hom (Fin k) (cycleQuiver k hk) last
+        ⟨0, by omega⟩ := ⟨by
+          show (0 : ℕ) = (k - 1 + 1) % k
+          rw [show k - 1 + 1 = k from by omega, Nat.mod_self]⟩
+    have hshift₁ : ∀ x ∈ W₁ last, nilpotentShiftLin m x ∈ W₁ last := by
+      intro x hx
+      have h_in_0 := hW₁_inv hlast_arrow x hx
+      simp only [cycleRep, show last.val = k - 1 from rfl, ite_true] at h_in_0
+      exact hchain_mono W₁ hW₁_inv 0 (k - 1) (by omega) (by omega) (by omega) h_in_0
+    have hshift₂ : ∀ x ∈ W₂ last, nilpotentShiftLin m x ∈ W₂ last := by
+      intro x hx
+      have h_in_0 := hW₂_inv hlast_arrow x hx
+      simp only [cycleRep, show last.val = k - 1 from rfl, ite_true] at h_in_0
+      exact hchain_mono W₂ hW₂_inv 0 (k - 1) (by omega) (by omega) (by omega) h_in_0
+    -- Step 3: Apply nilpotent_invariant_compl_trivial
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ last) (W₂ last) hshift₁ hshift₂ (hcompl last)
+    -- Step 4: If W₁(k-1) = ⊥, then W₁(v) = ⊥ for all v (since W₁(v) ≤ W₁(k-1))
+    rcases hresult with h | h
+    · left; intro v
+      have : W₁ v ≤ W₁ last :=
+        hchain_mono W₁ hW₁_inv v.val (k - 1) v.isLt (by omega) (by omega)
+      rwa [h, le_bot_iff] at this
+    · right; intro v
+      have : W₂ v ≤ W₂ last :=
+        hchain_mono W₂ hW₂_inv v.val (k - 1) v.isLt (by omega) (by omega)
+      rwa [h, le_bot_iff] at this
 
 /-! ## Section 6: Dimension vector and infinite type -/
 
