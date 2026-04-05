@@ -32,7 +32,8 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - `Lemma5_13_3` (Young symmetrizer idempotency) over general fields — currently only works over ℂ. Blocks the trace-based approach to Weyl character formula.
    - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
    - `basic_morita_algEquiv` (basic + Morita equivalent ⟹ isomorphic) — fundamental circularity: all non-circular approaches require Krull-Schmidt theorem or progenerator theory, neither in Mathlib.
-   - Right-multiplication dominance for polytabloids — `column_perm_dominance` proves LEFT multiplication dominance, but linear independence needs RIGHT multiplication. Left permutes positions, right permutes entries — fundamentally different. Blocks `polytabloid_linearIndependent'`.
+   - ~~Right-multiplication dominance for polytabloids~~ — **RESOLVED** (Wave 46): The tabloid module approach (`TabloidModule.lean`) bypasses the right-multiplication issue entirely. Linear independence uses tabloid projections + unitriangularity, not direct dominance comparison. The remaining bottleneck is `polytabloid_syt_dominance` which needs a cross-column entry comparison argument (issue #2124).
+   - `columnInvCount'` as straightening WF order — **PROVEN FALSE** (counterexample in #2104): for partition (2,2), σ = swap(1,2) has columnInvCount' = 1, but Garnir terms can also have columnInvCount' = 1. The correct WF order is tabloid dominance (multiset-based), not pointwise column inversion count. PR #2119 was closed as stale; straightening needs a fresh implementation using `tabloidDominance` from TabloidModule.lean.
    - Non-commutative `TensorProduct` — Mathlib requires `CommSemiring`. Balanced tensor product `A ⊗_{eAe} N` must be built as a manual quotient (~100 lines boilerplate). Blocks corner ring Morita equivalence and BasicAlgebraExistence.
    - `garnir_reduction'` algebraic approach — The standard approach using `a_λ · G = 0` (Garnir element annihilated by row symmetrizer) and Lemma 5.13.1 collapses to a tautology when trying to extract the linear combination. The algebraic identity only shows the existing tabloid is in the span — it doesn't produce the *smaller* tabloids needed for the inductive step. Needs tabloid-level reasoning (James' approach: work with equivalence classes of fillings under row permutations) instead.
 
@@ -389,6 +390,50 @@ def tree_branch_iso : G₁ ≃g G₂ where
 ```
 
 **Evidence:** PR #1634 used `tree_branch_iso` to prove all 4 arm cases (D_n, E₆, E₇, E₈) in `branch_classification`, reducing Theorem_Dynkin_classification from 6 sorries to 0. The key insight: express graph isomorphisms as path permutations with optional reversal.
+
+### PolytabloidBasis Dual-Track Architecture (Wave 46)
+
+The polytabloid basis proof uses **two complementary tracks**:
+
+**Track 1: Group algebra (PolytabloidBasis.lean)** — works with elements of ℂ[S_n]:
+- `polytabloid T = κ_T · of(σ_T) · a_λ` where κ_T is the T-dependent column antisymmetrizer
+- Coefficient formulas (`polytabloid_apply`, `polytabloid_self_coeff`, `polytabloid_support`)
+- Straightening: reducing arbitrary σ · c_λ to a sum of polytabloids (needs Garnir + WF order)
+- Handles the **spanning** direction
+
+**Track 2: Tabloid module (TabloidModule.lean)** — works with tabloid equivalence classes:
+- Tabloid = left P_λ-coset = equivalence class under row permutations
+- `tabloidDominance`: partial order via cumulative entry counts
+- `polytabloid_syt_dominance`: if e_{T₁}(σ_{T₂}) ≠ 0 then tabloid(T₁) dominates tabloid(T₂)
+- Unitriangular projection matrix → **linear independence**
+
+**When to use which track:**
+- Coefficient computations (evaluating e_T at σ) → Track 1
+- Linear independence arguments → Track 2 (via tabloid dominance + unitriangularity)
+- Spanning arguments → Track 1 (via straightening algorithm)
+- The two tracks connect through `polytabloid_support` (Track 1 feeds into Track 2's dominance argument)
+
+**Key pitfall:** Don't try to prove linear independence by direct evaluation in ℂ[S_n]. The evaluation matrix c_λ(σ_{T₁}⁻¹ · σ_{T₂}) is NOT upper-triangular — it can be nonzero in both directions for distinct T₁, T₂. Only the tabloid projection approach gives the triangularity structure.
+
+### MonoidAlgebra Coefficient Computation (Wave 46)
+
+For proving coefficient formulas in `MonoidAlgebra ℂ (Equiv.Perm (Fin n))`:
+
+```lean
+-- Evaluating (a * b)(σ) where a, b : MonoidAlgebra ℂ G
+-- Uses: MonoidAlgebra.mul_apply, Finsupp.sum
+-- Key: (a * b)(σ) = Σ_{g} a(g) * b(g⁻¹ * σ)
+
+-- For sums like RowSymmetrizer:
+-- (RowSymmetrizer)(σ) = if σ ∈ P_λ then 1 else 0
+-- Use: Finsupp.single_apply, Finset.sum_ite
+
+-- For products with of(σ):
+-- (of(σ) * a)(τ) = a(σ⁻¹ * τ)
+-- Use: MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_apply
+```
+
+**Pattern:** Expand definitions → use `Finsupp.sum` / `Finset.sum` manipulation → simplify using subgroup membership predicates. The hardest part is usually showing that sums over subgroups telescope to 0 or 1 using intersection triviality (e.g., `row_col_inter_trivial'`: P_λ ∩ Q_λ = {1}).
 
 ### FDRep Categorical Plumbing
 
