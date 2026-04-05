@@ -974,7 +974,150 @@ theorem subgraph_infinite_type_transfer (φ : Fin m ↪ Fin n)
         else 0
     refine ⟨⟨fun v => Fin (extDV d v) → k, V'mapLinear⟩, ?_, fun v => ⟨LinearEquiv.refl k _⟩⟩
     -- Indecomposability of V': any complement decomposition restricts to one of V
-    sorry
+    -- Define the composite equiv V.obj i ≃ Fin (extDV d (φ i)) → k
+    let e_at (i : Fin m) : V.obj i ≃ₗ[k] (Fin (extDV d (φ i)) → k) :=
+      (equiv_at i).trans (finCastEquiv (d i) (extDV d (φ i)) (extDV_apply d i).symm)
+    constructor
+    · -- V' is nonzero: V has a nontrivial vertex
+      obtain ⟨⟨v₀, hv₀⟩, _⟩ := hV_ind
+      exact ⟨φ v₀, (e_at v₀).toEquiv.symm.nontrivial⟩
+    · -- Indecomposability
+      intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+      -- For v ∉ range φ, extDV d v = 0, so both submodules are ⊥
+      have h_ext_zero : ∀ v, v ∉ Set.range φ → extDV d v = 0 := by
+        intro v hv; simp only [extDV, dif_neg (show ¬∃ i, φ i = v from fun ⟨i, hi⟩ => hv ⟨i, hi⟩)]
+      have h_bot_of_not_range : ∀ v, v ∉ Set.range φ →
+          ∀ (S : Submodule k (Fin (extDV d v) → k)), S = ⊥ := by
+        intro v hv S
+        have hze := h_ext_zero v hv
+        have : Subsingleton (Fin (extDV d v) → k) := by
+          rw [hze]; infer_instance
+        rw [eq_bot_iff]; intro x _; rw [Submodule.mem_bot]
+        exact Subsingleton.elim _ _
+      -- Pull back W₁, W₂ to V via e_at
+      let U₁ (i : Fin m) : Submodule k (V.obj i) := (W₁ (φ i)).comap (e_at i).toLinearMap
+      let U₂ (i : Fin m) : Submodule k (V.obj i) := (W₂ (φ i)).comap (e_at i).toLinearMap
+      -- Complements transfer through linear equiv
+      have hU_compl : ∀ i, IsCompl (U₁ i) (U₂ i) := by
+        intro i
+        have hc := hcompl (φ i)
+        constructor
+        · -- Disjoint
+          rw [disjoint_iff]
+          rw [eq_bot_iff]; intro x hx
+          rw [Submodule.mem_inf] at hx
+          have h1 : (e_at i) x ∈ W₁ (φ i) := hx.1
+          have h2 : (e_at i) x ∈ W₂ (φ i) := hx.2
+          have : (e_at i) x ∈ W₁ (φ i) ⊓ W₂ (φ i) := Submodule.mem_inf.mpr ⟨h1, h2⟩
+          rw [hc.1.eq_bot] at this
+          rw [Submodule.mem_bot]
+          have h_ez := (Submodule.mem_bot k).mp this
+          exact (e_at i).injective (h_ez.trans (map_zero _).symm)
+        · -- Codisjoint
+          rw [codisjoint_iff]
+          rw [eq_top_iff]; intro x _
+          have : (e_at i) x ∈ W₁ (φ i) ⊔ W₂ (φ i) := hc.2.eq_top ▸ Submodule.mem_top
+          obtain ⟨y₁, hy₁, y₂, hy₂, hsum⟩ := Submodule.mem_sup.mp this
+          rw [Submodule.mem_sup]
+          refine ⟨(e_at i).symm y₁, ?_, (e_at i).symm y₂, ?_, ?_⟩
+          · change (e_at i) ((e_at i).symm y₁) ∈ W₁ (φ i)
+            rw [LinearEquiv.apply_symm_apply]; exact hy₁
+          · change (e_at i) ((e_at i).symm y₂) ∈ W₂ (φ i)
+            rw [LinearEquiv.apply_symm_apply]; exact hy₂
+          · apply (e_at i).injective
+            rw [map_add, LinearEquiv.apply_symm_apply, LinearEquiv.apply_symm_apply]
+            exact hsum
+      -- Key: V'mapLinear for subgraph edges = e_at j ∘ V.mapLinear ∘ (e_at i)⁻¹
+      -- Construct ext edge from subgraph edge
+      have mk_ext_edge : ∀ (i j : Fin m), @Quiver.Hom _ Q_sub i j →
+          @Quiver.Hom _ Q_ext (φ i) (φ j) :=
+        fun i j e => PLift.up (Or.inl ⟨i, j, rfl, rfl, ⟨e⟩⟩)
+      -- Helper: for fresh variables i', j' that can be subst'd
+      have V'map_aux : ∀ (i j : Fin m) (e_sub_ij : @Quiver.Hom _ Q_sub i j)
+          (i' j' : Fin m) (hi : i' = i) (hj : j' = j)
+          (e' : @Quiver.Hom _ Q_sub i' j')
+          (x : Fin (extDV d (φ i)) → k),
+          (finCastEquiv _ _
+            ((extDV_apply d j').symm.trans
+              (congrArg (extDV d) (show φ j' = φ j by rw [hj])))).toLinearMap.comp
+            ((equiv_at j').toLinearMap.comp
+              ((@Etingof.QuiverRepresentation.mapLinear k (Fin m) _ Q_sub V _ _ e').comp
+                ((equiv_at i').symm.toLinearMap.comp
+                  (finCastEquiv _ _ ((extDV_apply d i').symm.trans
+                    (congrArg (extDV d) (show φ i' = φ i by rw [hi])))).symm.toLinearMap))) x =
+          (e_at j) (V.mapLinear e_sub_ij ((e_at i).symm x)) := by
+        intro i j e_sub_ij i' j' hi hj e' x
+        subst hi; subst hj
+        have : e' = e_sub_ij := Subsingleton.elim _ _
+        subst this
+        rfl
+      have V'map_compat : ∀ (i j : Fin m) (e_sub_ij : @Quiver.Hom _ Q_sub i j)
+          (x : Fin (extDV d (φ i)) → k),
+          V'mapLinear (mk_ext_edge i j e_sub_ij) x =
+          (e_at j) (V.mapLinear e_sub_ij ((e_at i).symm x)) := by
+        intro i j e_sub_ij x
+        change V'mapLinear (PLift.up (Or.inl ⟨i, j, rfl, rfl, ⟨e_sub_ij⟩⟩)) x = _
+        simp only [V'mapLinear]
+        have h_ex : ∃ i' j', φ i' = φ i ∧ φ j' = φ j ∧
+            Nonempty (@Quiver.Hom _ Q_sub i' j') := ⟨i, j, rfl, rfl, ⟨e_sub_ij⟩⟩
+        rw [dif_pos h_ex]
+        exact V'map_aux i j e_sub_ij
+          h_ex.choose h_ex.choose_spec.choose
+          (φ.injective h_ex.choose_spec.choose_spec.1)
+          (φ.injective h_ex.choose_spec.choose_spec.2.1)
+          h_ex.choose_spec.choose_spec.2.2.some x
+      -- U₁ is V-invariant
+      have hU₁_inv : ∀ {a b : Fin m} (e : @Quiver.Hom _ Q_sub a b),
+          ∀ x ∈ U₁ a, V.mapLinear e x ∈ U₁ b := by
+        intro a b e_ab x hx
+        -- hx : (e_at a) x ∈ W₁ (φ a)
+        -- Need: (e_at b) (V.mapLinear e_ab x) ∈ W₁ (φ b)
+        change (e_at b) (V.mapLinear e_ab x) ∈ W₁ (φ b)
+        have h_compat := V'map_compat a b e_ab ((e_at a) x)
+        rw [LinearEquiv.symm_apply_apply] at h_compat
+        rw [← h_compat]
+        exact hW₁_inv (mk_ext_edge a b e_ab) _ hx
+      -- U₂ is V-invariant
+      have hU₂_inv : ∀ {a b : Fin m} (e : @Quiver.Hom _ Q_sub a b),
+          ∀ x ∈ U₂ a, V.mapLinear e x ∈ U₂ b := by
+        intro a b e_ab x hx
+        change (e_at b) (V.mapLinear e_ab x) ∈ W₂ (φ b)
+        have h_compat := V'map_compat a b e_ab ((e_at a) x)
+        rw [LinearEquiv.symm_apply_apply] at h_compat
+        rw [← h_compat]
+        exact hW₂_inv (mk_ext_edge a b e_ab) _ hx
+      -- Apply V's indecomposability
+      rcases hV_ind.2 U₁ U₂ hU₁_inv hU₂_inv hU_compl with hU₁_bot | hU₂_bot
+      · -- U₁ = ⊥ everywhere → W₁ = ⊥ everywhere
+        left; intro v
+        by_cases hv : v ∈ Set.range φ
+        · obtain ⟨i, rfl⟩ := hv
+          rw [eq_bot_iff]; intro y hy
+          have hU := hU₁_bot i
+          have : (e_at i).symm y ∈ U₁ i := by
+            change (e_at i) ((e_at i).symm y) ∈ W₁ (φ i)
+            rw [LinearEquiv.apply_symm_apply]; exact hy
+          rw [hU, Submodule.mem_bot] at this
+          rw [Submodule.mem_bot]
+          calc y = (e_at i) ((e_at i).symm y) := (LinearEquiv.apply_symm_apply _ _).symm
+            _ = (e_at i) 0 := by rw [this]
+            _ = 0 := map_zero _
+        · exact h_bot_of_not_range v hv (W₁ v)
+      · -- U₂ = ⊥ everywhere → W₂ = ⊥ everywhere
+        right; intro v
+        by_cases hv : v ∈ Set.range φ
+        · obtain ⟨i, rfl⟩ := hv
+          rw [eq_bot_iff]; intro y hy
+          have hU := hU₂_bot i
+          have : (e_at i).symm y ∈ U₂ i := by
+            change (e_at i) ((e_at i).symm y) ∈ W₂ (φ i)
+            rw [LinearEquiv.apply_symm_apply]; exact hy
+          rw [hU, Submodule.mem_bot] at this
+          rw [Submodule.mem_bot]
+          calc y = (e_at i) ((e_at i).symm y) := (LinearEquiv.apply_symm_apply _ _).symm
+            _ = (e_at i) 0 := by rw [this]
+            _ = 0 := map_zero _
+        · exact h_bot_of_not_range v hv (W₂ v)
   -- The Q_sub dim vector set maps injectively into the finite Q_ext dim vector set
   exact (hfin.subset (Set.image_subset_iff.mpr hmem)).of_finite_image hinj.injOn
 
