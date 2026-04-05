@@ -1123,4 +1123,116 @@ theorem subgraph_infinite_type_transfer (φ : Fin m ↪ Fin n)
 
 end SubgraphTransfer
 
+/-! ## Section 12: Star subgraph implies infinite type -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- If a graph has a vertex with 4 pairwise non-adjacent neighbors (a K_{1,4} subgraph),
+    then it has infinite representation type. -/
+theorem star_subgraph_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hadj_symm : adj.IsSymm)
+    (hadj_diag : ∀ v, adj v v = 0)
+    (center : Fin n) (leaves : Fin 4 ↪ Fin n)
+    (hleaves_ne : ∀ i, leaves i ≠ center)
+    (hadj_edge : ∀ i, adj center (leaves i) = 1)
+    (hadj_indep : ∀ i j, adj (leaves i) (leaves j) = 0) :
+    ¬ Etingof.IsFiniteTypeQuiver n adj := by
+  -- Construct embedding φ : Fin 5 ↪ Fin n mapping star K_{1,4} into the graph
+  -- φ maps: 0 ↦ center, k+1 ↦ leaves k
+  have h_leaf (i : Fin 5) (h : i.val ≠ 0) : i.val - 1 < 4 := by omega
+  let φ_fun : Fin 5 → Fin n := fun i =>
+    if h : i.val = 0 then center
+    else leaves ⟨i.val - 1, h_leaf i h⟩
+  have hφ_inj : Function.Injective φ_fun := by
+    intro a b hab
+    simp only [φ_fun] at hab
+    by_cases ha0 : a.val = 0 <;> by_cases hb0 : b.val = 0
+    · exact Fin.ext (by omega)
+    · exfalso; rw [dif_pos ha0, dif_neg hb0] at hab; exact hleaves_ne _ hab.symm
+    · exfalso; rw [dif_neg ha0, dif_pos hb0] at hab; exact hleaves_ne _ hab
+    · rw [dif_neg ha0, dif_neg hb0] at hab
+      have h := congr_arg Fin.val (leaves.injective hab)
+      simp at h
+      exact Fin.ext (by omega)
+  let φ : Fin 5 ↪ Fin n := ⟨φ_fun, hφ_inj⟩
+  -- Verify adjacency embedding condition: starAdj i j = adj (φ i) (φ j)
+  have hembed : ∀ i j, starAdj i j = adj (φ i) (φ j) := by
+    intro i j
+    change (if (i.val = 0 ∧ j.val ≠ 0) ∨ (i.val ≠ 0 ∧ j.val = 0) then (1 : ℤ) else 0) =
+      adj (φ_fun i) (φ_fun j)
+    by_cases hi0 : i.val = 0 <;> by_cases hj0 : j.val = 0
+    · -- center-center
+      rw [if_neg (by rintro (⟨-, h⟩ | ⟨h, -⟩) <;> contradiction)]
+      simp only [φ_fun, dif_pos hi0, dif_pos hj0]
+      exact (hadj_diag center).symm
+    · -- center-leaf
+      rw [if_pos (Or.inl ⟨hi0, hj0⟩)]
+      simp only [φ_fun, dif_pos hi0, dif_neg hj0]
+      exact (hadj_edge ⟨j.val - 1, h_leaf j hj0⟩).symm
+    · -- leaf-center
+      rw [if_pos (Or.inr ⟨hi0, hj0⟩)]
+      simp only [φ_fun, dif_neg hi0, dif_pos hj0]
+      have := hadj_edge ⟨i.val - 1, h_leaf i hi0⟩
+      rw [adj_symm_of_isSymm hadj_symm] at this; exact this.symm
+    · -- leaf-leaf
+      rw [if_neg (by rintro (⟨h, -⟩ | ⟨-, h⟩) <;> contradiction)]
+      simp only [φ_fun, dif_neg hi0, dif_neg hj0]
+      exact (hadj_indep ⟨i.val - 1, h_leaf i hi0⟩ ⟨j.val - 1, h_leaf j hj0⟩).symm
+  exact subgraph_infinite_type_transfer φ adj starAdj hadj_symm
+    (fun v h => by linarith [hadj_diag v]) hembed star_not_finite_type
+
+/-! ## Section 13: Trees with degree ≥ 4 have infinite type -/
+
+/-- The degree of a vertex in a simple graph given by its adjacency matrix. -/
+def vertexDegree (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) (v : Fin n) : ℕ :=
+  (Finset.univ.filter (fun w => adj v w = 1)).card
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- A tree (connected simple graph with no triangles) having a vertex of degree ≥ 4
+    has infinite representation type. The triangle-free condition ensures neighbors
+    of the high-degree vertex form an independent set, giving a K_{1,4} subgraph. -/
+theorem tree_degree_ge_4_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hadj_symm : adj.IsSymm)
+    (hadj_diag : ∀ v, adj v v = 0)
+    -- Triangle-free: no two neighbors of the same vertex are adjacent
+    (htri_free : ∀ v w₁ w₂, adj v w₁ = 1 → adj v w₂ = 1 → w₁ ≠ w₂ → adj w₁ w₂ = 0)
+    (v : Fin n) (hv : 4 ≤ vertexDegree n adj v) :
+    ¬ Etingof.IsFiniteTypeQuiver n adj := by
+  -- Extract 4 distinct neighbors from the neighbor set of v
+  set S := Finset.univ.filter (fun w => adj v w = 1) with hS_def
+  -- Get a subset of size 4
+  obtain ⟨T, hTS, hTcard⟩ := Finset.exists_subset_card_eq hv
+  -- Get an equivalence Fin 4 ≃ T
+  have hT_fin : Fintype T := inferInstance
+  have hT_card : Fintype.card T = 4 := by
+    rwa [Fintype.card_coe]
+  let e := (Fintype.equivFinOfCardEq hT_card).symm
+  -- Define leaves as the composition
+  let leaves_fun : Fin 4 → Fin n := fun i => (e i).val
+  have hleaves_inj : Function.Injective leaves_fun := by
+    intro a b hab
+    exact e.injective (Subtype.val_injective hab)
+  let leaves : Fin 4 ↪ Fin n := ⟨leaves_fun, hleaves_inj⟩
+  -- Each leaf is a neighbor of v
+  have hleaves_adj : ∀ i, adj v (leaves i) = 1 := by
+    intro i
+    have hmem : (e i).val ∈ S := hTS (e i).property
+    exact (Finset.mem_filter.mp hmem).2
+  -- Each leaf is distinct from v (since adj v v = 0 ≠ 1)
+  have hleaves_ne : ∀ i, leaves i ≠ v := by
+    intro i habs
+    have := hleaves_adj i
+    rw [habs, hadj_diag] at this
+    exact one_ne_zero this.symm
+  -- Leaves are pairwise non-adjacent (triangle-free)
+  have hleaves_indep : ∀ i j, adj (leaves i) (leaves j) = 0 := by
+    intro i j
+    by_cases hij : i = j
+    · subst hij; exact hadj_diag (leaves i)
+    · exact htri_free v (leaves i) (leaves j) (hleaves_adj i) (hleaves_adj j)
+        (by intro h; exact hij (hleaves_inj h))
+  exact star_subgraph_not_finite_type adj hadj_symm hadj_diag v leaves hleaves_ne
+    hleaves_adj hleaves_indep
+
 end Etingof
