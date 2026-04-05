@@ -21,7 +21,8 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 ## Main results
 
 * `Etingof.polytabloid_mem_spechtModule` — polytabloids lie in the Specht module
-* `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry)
+* `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry;
+  proved at tabloid level as `polytabloidTab_linearIndependent` in `TabloidModule.lean`)
 * `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma
   (proved via WF induction on column inversions; depends on two sorry'd helpers)
 * `Etingof.polytabloid_span` — polytabloids span the Specht module (proved from straightening)
@@ -284,27 +285,26 @@ private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
       ((ColumnSubgroup n la).inv_mem_iff.mp hcol))
   · intro h; exact absurd (Finset.mem_univ _) h
 
-/-- Evaluation formula: the coefficient of σ in a polytabloid e_T = κ_T · of(σ_T) · a_λ.
+/-! ### Note on false group-algebra coefficient formulas
 
-With the T-dependent column antisymmetrizer, the coefficient formula involves
-the interaction of the relative column group C_T with the row group P_λ. -/
-theorem polytabloid_apply (n : ℕ) (la : Nat.Partition n)
-    (T : StandardYoungTableau n la) (σ : Equiv.Perm (Fin n)) :
-    (polytabloid n la T : SymGroupAlgebra n) σ =
-      ((ColumnAntisymmetrizer n la * RowSymmetrizer n la) : SymGroupAlgebra n)
-        ((sytPerm n la T)⁻¹ * σ) := by
-  sorry
+The following statements were previously conjectured here but are **false**
+for the T-dependent polytabloid definition `e_T = κ_T · of(σ_T) · a_λ`:
 
-/-- The coefficient of σ_T in polytabloid e_T is 1. This is the diagonal
-entry of the evaluation matrix.
+* `polytabloid_apply`: claimed `e_T(σ) = (b_λ · a_λ)(σ_T⁻¹ · σ)`, but this
+  requires `of(τ⁻¹) · b_λ · of(τ²) · a_λ = of(τ) · b_λ · a_λ`, which fails
+  because conjugating b_λ by τ² does not give b_λ in general.
 
-With the T-dependent definition κ_T · of(σ_T) · a_λ, the diagonal entry
-e_T(σ_T) = 1 follows from: the only π ∈ C_T with π · σ_T ∈ σ_T · P_λ
-is π = 1 (since P_λ ∩ C_T = {1}, equivalent to P_λ ∩ Q_λ = {1}). -/
-theorem polytabloid_self_coeff (n : ℕ) (la : Nat.Partition n)
-    (T : StandardYoungTableau n la) :
-    (polytabloid n la T : SymGroupAlgebra n) (sytPerm n la T) = 1 := by
-  sorry
+* `polytabloid_self_coeff`: claimed `e_T(σ_T) = 1`, but the actual formula
+  gives `Σ_{p ∈ P_λ ∩ τ⁻² Q_λ τ²} sgn(p)`, which equals 0 for some SYTs
+  (counterexample: n=6, λ=(3,3), T₂ = [0,1,4 / 2,3,5]).
+
+The **correct** self-coefficient result is at the tabloid level:
+`polytabloidTab_coeff_self` in `TabloidModule.lean` proves that the coefficient
+of tabloid {T} in the tabloid-module polytabloid e_T is 1. This uses
+`P_λ ∩ Q_λ = {1}` (which IS true), not `C_T ∩ τ P_λ τ⁻¹ = {1}` (which fails).
+
+See GitHub issue #2161 for the full analysis and counterexample.
+-/
 
 /-! ### Support characterization of the Young symmetrizer
 
@@ -472,9 +472,11 @@ theorem polytabloid_support (n : ℕ) (la : Nat.Partition n)
 
 /-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
-The proof is in `TabloidModule.lean` as `polytabloid_linearIndependent'`, using
-the tabloid module infrastructure (dominance order, tabloid projections).
-This sorry is closed by that proof. -/
+The tabloid-module version `polytabloidTab_linearIndependent` in `TabloidModule.lean`
+is proved. This group-algebra version requires a transfer argument (constructing a
+ℂ-linear map from ℂ[S_n] to M^λ sending polytabloids to tabloid-module polytabloids).
+The previous proof attempt here used `polytabloid_self_coeff` which is false
+(see issue #2161). -/
 theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
     LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
       (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
