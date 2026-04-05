@@ -878,12 +878,14 @@ theorem polytabloid_syt_dominance
     tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
   -- Get PQ decomposition: σ_{T₂} = σ_{T₁} · p · q with p ∈ P_λ, q ∈ Q_λ
   obtain ⟨p, hp, q, hq, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
-  -- The proof requires showing that for all k, i:
-  --   |{e ≤ k : rowOfPos(σ_{T₁}(e)) < i}| ≥ |{e ≤ k : rowOfPos(σ_{T₂}(e)) < i}|
-  -- where σ_{T₂}(e) = σ_{T₁}(p(q(e))).
-  -- Equivalently: the PQ right-action can only decrease dominance.
-  -- This is a deep combinatorial fact about standard Young tableaux and the
-  -- interaction of row/column permutations with the dominance order.
+  -- PROOF STRATEGY (see GitHub issue for full analysis):
+  -- Let g = p * q, so σ₂ = σ₁ * g. Then row_T₂(e) = row_T₁(g(e)).
+  -- Since T₂(cell) = g⁻¹(T₁(cell)), g⁻¹ is order-preserving on each column of T₁
+  -- (from T₂ being SYT). The dominance reduces to: for each i, the sorted entries
+  -- in the first i rows of T₂ are pointwise ≥ those of T₁. Per-column dominance
+  -- FAILS (counterexample: λ=(2,1,1), col 0 of T₁=[0,1,3], T₂=[0,1,2]).
+  -- A cross-column argument is needed, likely via the conjectured per-cell comparison:
+  -- for i < numRows, T₂(cell) ≥ T₁(cell) for all cells in the first i rows.
   sorry
 
 /-
