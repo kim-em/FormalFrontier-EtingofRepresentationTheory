@@ -584,4 +584,177 @@ theorem star_not_finite_type :
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
 
+/-! ## Section 11: Subgraph infinite type transfer
+
+Given an embedding φ : Fin m ↪ Fin n and an adjacency matrix adj on Fin n whose
+restriction to the image of φ equals adj_sub, we show that infinite representation
+type transfers from the subgraph to the full graph.
+
+The proof strategy:
+1. Given ¬ IsFiniteTypeQuiver m adj_sub, assume IsFiniteTypeQuiver n adj for contradiction.
+2. For any orientation Q_sub of adj_sub, extend it to an orientation Q of adj.
+3. Map each Q_sub-indecomposable to a Q-indecomposable via extension by zero.
+4. The dim vector injection gives a contradiction with finiteness. -/
+
+section SubgraphTransfer
+
+variable {m n : ℕ}
+
+/-- Predicate for arrows in the extended orientation: either the arrow comes from
+    the subgraph orientation, or (for edges not fully in the subgraph) we orient
+    by vertex index. -/
+def extArrowProp (φ : Fin m ↪ Fin n) (adj : Matrix (Fin n) (Fin n) ℤ)
+    (Q_sub : Quiver (Fin m)) (a b : Fin n) : Prop :=
+  (∃ i j, φ i = a ∧ φ j = b ∧ Nonempty (@Quiver.Hom _ Q_sub i j)) ∨
+  ((a ∉ Set.range φ ∨ b ∉ Set.range φ) ∧ a.val < b.val ∧ adj a b = 1)
+
+/-- Extend a subgraph orientation to the full graph. Within the subgraph, use
+    the given orientation. For other edges, orient by vertex index order. -/
+def extendOrientation (φ : Fin m ↪ Fin n) (adj : Matrix (Fin n) (Fin n) ℤ)
+    (Q_sub : Quiver (Fin m)) : Quiver (Fin n) where
+  Hom a b := PLift (extArrowProp φ adj Q_sub a b)
+
+instance extendOrientation_subsingleton (φ : Fin m ↪ Fin n) (adj : Matrix (Fin n) (Fin n) ℤ)
+    (Q_sub : Quiver (Fin m)) (a b : Fin n) :
+    Subsingleton (@Quiver.Hom _ (extendOrientation φ adj Q_sub) a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+private lemma adj_symm_of_isSymm {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hadj_symm : adj.IsSymm) (a b : Fin n) : adj a b = adj b a := by
+  have h1 : adj.transpose a b = adj a b := congr_fun (congr_fun hadj_symm a) b
+  rw [Matrix.transpose_apply] at h1; exact h1.symm
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem extendOrientation_isOrientationOf (φ : Fin m ↪ Fin n)
+    (adj : Matrix (Fin n) (Fin n) ℤ) (adj_sub : Matrix (Fin m) (Fin m) ℤ)
+    (hadj_symm : adj.IsSymm)
+    (hadj_noloop : ∀ v, adj v v ≠ 1)
+    (hembed : ∀ i j, adj_sub i j = adj (φ i) (φ j))
+    (Q_sub : Quiver (Fin m))
+    (hori : @Etingof.IsOrientationOf m Q_sub adj_sub) :
+    @Etingof.IsOrientationOf n (extendOrientation φ adj Q_sub) adj := by
+  obtain ⟨hQ_no, hQ_edge, hQ_unique⟩ := hori
+  have adj_sym := adj_symm_of_isSymm hadj_symm
+  -- Helper: if Q_sub.Hom i j is nonempty then adj (φ i) (φ j) = 1
+  have arrow_adj : ∀ i j, Nonempty (@Quiver.Hom _ Q_sub i j) → adj (φ i) (φ j) = 1 := by
+    intro i j ⟨e⟩
+    by_contra h
+    exact (hQ_no i j (by rwa [hembed])).elim e
+  refine ⟨fun a b hab => ?_, fun a b hab => ?_, fun a b ⟨ha⟩ ⟨hb⟩ => ?_⟩
+  · -- Non-edge: no arrow
+    constructor; intro ⟨harrow⟩
+    rcases harrow with ⟨i, j, rfl, rfl, he⟩ | ⟨_, _, hadj_eq⟩
+    · exact hab (arrow_adj i j he)
+    · exact hab hadj_eq
+  · -- Each edge has an arrow in one direction
+    have hab_ne : a ≠ b := fun h => by subst h; exact hadj_noloop a hab
+    by_cases ha : a ∈ Set.range φ <;> by_cases hb : b ∈ Set.range φ
+    · obtain ⟨i, rfl⟩ := ha; obtain ⟨j, rfl⟩ := hb
+      rcases hQ_edge i j (by rwa [hembed]) with he | he
+      · left; exact ⟨⟨Or.inl ⟨i, j, rfl, rfl, he⟩⟩⟩
+      · right; exact ⟨⟨Or.inl ⟨j, i, rfl, rfl, he⟩⟩⟩
+    all_goals {
+      have hne : a.val ≠ b.val := fun h => hab_ne (Fin.ext h)
+      rcases Nat.lt_or_gt_of_ne hne with hlt | hgt
+      · left; exact ⟨⟨Or.inr ⟨by tauto, hlt, hab⟩⟩⟩
+      · right; exact ⟨⟨Or.inr ⟨by tauto, hgt, adj_sym a b ▸ hab⟩⟩⟩ }
+  · -- No two-way arrows
+    rcases ha with ⟨i, j, hi, hj, ⟨eij⟩⟩ | ⟨hrange_ab, hlt_ab, _⟩ <;>
+    rcases hb with ⟨i', j', hi', hj', ⟨eji⟩⟩ | ⟨hrange_ba, hlt_ba, _⟩
+    · -- Both subgraph: Q_sub arrows both ways
+      have h1 : i' = j := φ.injective (hi'.trans hj.symm)
+      have h2 : j' = i := φ.injective (hj'.trans hi.symm)
+      rw [h1, h2] at eji
+      exact hQ_unique i j ⟨eij⟩ ⟨eji⟩
+    · -- a→b subgraph, b→a external: both a,b in range (from subgraph arrow), contradicts external
+      rcases hrange_ba with hb_nr | ha_nr
+      · exact hb_nr ⟨j, hj⟩
+      · exact ha_nr ⟨i, hi⟩
+    · -- a→b external, b→a subgraph: same contradiction
+      rcases hrange_ab with ha_nr | hb_nr
+      · exact ha_nr ⟨j', hj'⟩
+      · exact hb_nr ⟨i', hi'⟩
+    · -- Both external: a < b and b < a
+      omega
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- If a principal submatrix of adj has infinite representation type,
+    then adj itself has infinite representation type. This is proved by
+    extending each subgraph orientation and representation to the full graph. -/
+theorem subgraph_infinite_type_transfer (φ : Fin m ↪ Fin n)
+    (adj : Matrix (Fin n) (Fin n) ℤ) (adj_sub : Matrix (Fin m) (Fin m) ℤ)
+    (hadj_symm : adj.IsSymm)
+    (hadj_noloop : ∀ v, adj v v ≠ 1)
+    (hembed : ∀ i j, adj_sub i j = adj (φ i) (φ j))
+    (h_inf : ¬ Etingof.IsFiniteTypeQuiver m adj_sub) :
+    ¬ Etingof.IsFiniteTypeQuiver n adj := by
+  intro hft
+  apply h_inf
+  -- Show IsFiniteTypeQuiver m adj_sub by mapping dim vectors into the finite n-graph set
+  intro k _ _ Q_sub hss hori_sub
+  -- Extend orientation to full graph
+  letI Q_ext := extendOrientation φ adj Q_sub
+  have hori_ext := extendOrientation_isOrientationOf φ adj adj_sub hadj_symm hadj_noloop
+    hembed Q_sub hori_sub
+  have hfin := @hft k _ _ Q_ext (fun a b => extendOrientation_subsingleton φ adj Q_sub a b) hori_ext
+  -- Define the dim vector extension: d ↦ d' where d'(φ i) = d(i), d'(v) = 0 if v ∉ range φ
+  classical
+  let extDV : (Fin m → ℕ) → (Fin n → ℕ) := fun d v =>
+    if h : ∃ i, φ i = v then d h.choose else 0
+  -- extDV is injective (φ is injective → choose recovers the preimage)
+  have h_choose : ∀ i, (⟨i, rfl⟩ : ∃ j, φ j = φ i).choose = i :=
+    fun i => φ.injective (⟨i, rfl⟩ : ∃ j, φ j = φ i).choose_spec
+  have extDV_apply : ∀ d i, extDV d (φ i) = d i := by
+    intro d i; change (if h : ∃ j, φ j = φ i then d h.choose else 0) = d i
+    rw [dif_pos ⟨i, rfl⟩, h_choose]
+  have hinj : Function.Injective extDV := by
+    intro d₁ d₂ h; ext i
+    have := congr_fun h (φ i)
+    rwa [extDV_apply, extDV_apply] at this
+  -- extDV maps the Q_sub dim vector set into the Q_ext dim vector set
+  have hmem : ∀ d,
+      d ∈ {d : Fin m → ℕ |
+        ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} k (Fin m),
+          V.IsIndecomposable ∧
+          ∀ v, Nonempty (V.obj v ≃ₗ[k] (Fin (d v) → k))} →
+      extDV d ∈ {d : Fin n → ℕ |
+        ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} k (Fin n),
+          V.IsIndecomposable ∧
+          ∀ v, Nonempty (V.obj v ≃ₗ[k] (Fin (d v) → k))} := by
+    intro d ⟨V, hV_ind, hV_dim⟩
+    -- Extract chosen linear equivs for each vertex of V
+    let equiv_at : ∀ i : Fin m, V.obj i ≃ₗ[k] (Fin (d i) → k) := fun i => (hV_dim i).some
+    -- Helper: cast linear equiv between Fin spaces of equal size
+    let finCastEquiv (a b : ℕ) (h : a = b) : (Fin a → k) ≃ₗ[k] (Fin b → k) :=
+      LinearEquiv.funCongrLeft k k (Fin.castOrderIso h.symm).toEquiv
+    -- Construct the extended representation V' with obj v = Fin (extDV d v) → k
+    -- Maps at subgraph edges use V's maps transferred through equivs; external use 0
+    let V'mapLinear : ∀ {a b : Fin n},
+        @Quiver.Hom _ Q_ext a b → (Fin (extDV d a) → k) →ₗ[k] (Fin (extDV d b) → k) :=
+      fun {a b} _ =>
+        if h : ∃ i j, φ i = a ∧ φ j = b ∧ Nonempty (@Quiver.Hom _ Q_sub i j) then
+          have hi : φ h.choose = a := h.choose_spec.choose_spec.1
+          have hj : φ h.choose_spec.choose = b := h.choose_spec.choose_spec.2.1
+          have e_sub := h.choose_spec.choose_spec.2.2.some
+          let j := h.choose_spec.choose
+          let i := h.choose
+          (finCastEquiv _ _ ((extDV_apply d j).symm.trans (congrArg (extDV d) hj))).toLinearMap.comp
+            ((equiv_at j).toLinearMap.comp
+              ((@Etingof.QuiverRepresentation.mapLinear k (Fin m) _
+                Q_sub V _ _ e_sub).comp
+                ((equiv_at i).symm.toLinearMap.comp
+                  (finCastEquiv _ _
+                    ((extDV_apply d i).symm.trans
+                      (congrArg (extDV d) hi))).symm.toLinearMap)))
+        else 0
+    refine ⟨⟨fun v => Fin (extDV d v) → k, V'mapLinear⟩, ?_, fun v => ⟨LinearEquiv.refl k _⟩⟩
+    -- Indecomposability of V': any complement decomposition restricts to one of V
+    sorry
+  -- The Q_sub dim vector set maps injectively into the finite Q_ext dim vector set
+  exact (hfin.subset (Set.image_subset_iff.mpr hmem)).of_finite_image hinj.injOn
+
+end SubgraphTransfer
+
 end Etingof
