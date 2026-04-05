@@ -468,7 +468,64 @@ theorem polytabloid_support (n : ℕ) (la : Nat.Partition n)
     (hne : (polytabloid n la T₂ : SymGroupAlgebra n) σ ≠ 0) :
     ∃ p ∈ RowSubgroup n la, ∃ q ∈ ColumnSubgroup n la,
       σ = (sytPerm n la T₂)⁻¹ * q * sytPerm n la T₂ * sytPerm n la T₂ * p := by
-  sorry
+  classical
+  set τ := sytPerm n la T₂
+  -- σ is in the support of the polytabloid
+  have hmem : σ ∈ (polytabloid n la T₂ : SymGroupAlgebra n).support :=
+    Finsupp.mem_support_iff.mpr hne
+  -- polytabloid = (κ_T * of(τ)) * a_λ
+  change σ ∈ (RelColumnAntisymmetrizer n la T₂ * MonoidAlgebra.of ℂ _ τ *
+    RowSymmetrizer n la).support at hmem
+  -- Support of product ⊆ support(left) * support(right)
+  have h1 := MonoidAlgebra.support_mul
+    (RelColumnAntisymmetrizer n la T₂ * MonoidAlgebra.of ℂ _ τ)
+    (RowSymmetrizer n la) hmem
+  rw [Finset.mem_mul] at h1
+  obtain ⟨x, hx_mem, p', hp'_mem, hσ⟩ := h1
+  -- p' is in the support of RowSymmetrizer, so p' ∈ P_λ
+  have hp'_row : p' ∈ RowSubgroup n la := by
+    simp only [RowSymmetrizer, MonoidAlgebra.of_apply] at hp'_mem
+    rw [Finsupp.mem_support_iff] at hp'_mem
+    rw [Finsupp.finset_sum_apply] at hp'_mem
+    simp only [Finsupp.single_apply] at hp'_mem
+    by_contra h_not
+    apply hp'_mem
+    apply Finset.sum_eq_zero
+    intro ⟨r, hr⟩ _
+    split_ifs with heq
+    · exact absurd (heq ▸ hr) h_not
+    · rfl
+  -- x is in the support of κ_T * of(τ)
+  have h2 := MonoidAlgebra.support_mul
+    (RelColumnAntisymmetrizer n la T₂) (MonoidAlgebra.of ℂ _ τ) hx_mem
+  rw [Finset.mem_mul] at h2
+  obtain ⟨y, hy_mem, z, hz_mem, hx_eq⟩ := h2
+  -- z is in the support of of(τ), so z = τ
+  have hz_eq : z = τ := by
+    simp only [MonoidAlgebra.of_apply] at hz_mem
+    rwa [Finsupp.support_single_ne_zero _ one_ne_zero, Finset.mem_singleton] at hz_mem
+  -- y is in the support of κ_T, so y = τ⁻¹ * q * τ for some q ∈ Q_λ
+  have hy_col : ∃ q ∈ ColumnSubgroup n la, y = τ⁻¹ * q * τ := by
+    simp only [RelColumnAntisymmetrizer, MonoidAlgebra.of_apply] at hy_mem
+    rw [Finsupp.mem_support_iff] at hy_mem
+    rw [Finsupp.finset_sum_apply] at hy_mem
+    by_contra h_all
+    push_neg at h_all
+    apply hy_mem
+    apply Finset.sum_eq_zero
+    intro ⟨q, hq⟩ _
+    change ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) •
+      (Finsupp.single (τ⁻¹ * q * τ) (1 : ℂ))) y = 0
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+    have := h_all q hq
+    split_ifs with heq
+    · exact absurd heq.symm this
+    · ring
+  obtain ⟨q, hq, hy_eq⟩ := hy_col
+  -- Assemble: σ = x * p' = (y * z) * p' = (τ⁻¹ * q * τ * τ) * p'
+  refine ⟨p', hp'_row, q, hq, ?_⟩
+  -- hσ : x * p' = σ, hx_eq : y * z = x
+  rw [← hσ, ← hx_eq, hy_eq, hz_eq]
 
 /-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
 
