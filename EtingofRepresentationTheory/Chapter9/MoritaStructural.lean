@@ -464,17 +464,31 @@ private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClose
   set J₂ := Ring.jacobson B₂
   set JP := (J₂ • ⊤ : Submodule B₂ Pt) with hJP_def
   set JB := (J₂ • ⊤ : Submodule B₂ B₂) with hJB_def
-  -- STEP 1: Construct a surjection g : Pt → B₂/JB whose kernel is JP
-  -- This encodes the head isomorphism: F(B₁)/(J₂·F(B₁)) ≅ B₂/J₂.
-  -- Mathematical proof: For each simple B₂-module S,
-  --   dim_k Hom(F(B₁), S) = dim_k G(S) = 1 (adjunction + basic B₁)
-  --   dim_k Hom(B₂, S)    = dim_k S    = 1 (basic B₂)
-  -- Both heads have each simple with multiplicity 1, hence are isomorphic.
-  -- The surjection g = iso ∘ mkQ has kernel JP.
-  -- STEP 1: Construct a surjection g : Pt → B₂/JB whose kernel is JP
-  let g : Pt →ₗ[B₂] B₂ ⧸ JB := sorry
-  have hg_surj : Function.Surjective g := sorry
-  have hg_ker : LinearMap.ker g = JP := sorry
+  -- STEP 1: Construct a surjection g : Pt → B₂/JB whose kernel is JP.
+  -- This encodes the head isomorphism: F(B₁)/(J₂·F(B₁)) ≅ B₂/J₂ as B₂-modules.
+  --
+  -- Both quotients are semisimple B₂-modules (by module_jacobson_eq_smul_of_artinian).
+  -- For basic algebras, B₂/J₂ ≅ kⁿ as k-algebras (Wedderburn-Artin), so each simple
+  -- B₂-module Sᵢ has dim_k = 1, and B₂/J₂ = S₁ ⊕ ... ⊕ Sₙ (each simple once).
+  --
+  -- The key multiplicity computation uses the adjunction F ⊣ G = F⁻¹:
+  --   Hom_{B₂}(F(B₁), Sᵢ) ≅ Hom_{B₁}(B₁, G(Sᵢ)) ≅ G(Sᵢ)
+  -- Since G preserves simples (simple_of_equivalence) and B₁ is basic, dim_k G(Sᵢ) = 1.
+  -- So each simple Sᵢ appears with multiplicity 1 in the head F(B₁)/J₂·F(B₁).
+  --
+  -- Both heads have each simple with multiplicity 1, hence are isomorphic as B₂-modules.
+  -- This requires the classification of semisimple modules by simple multiplicities,
+  -- which is not yet available as a single Mathlib lemma.
+  -- Proof paths: (a) Krull-Schmidt for semisimple modules, or
+  --              (b) Wedderburn-Artin B₂/J ≅ kⁿ + classify kⁿ-modules by component dims.
+  have head_iso : (Pt ⧸ JP) ≃ₗ[B₂] (B₂ ⧸ JB) := sorry
+  let g : Pt →ₗ[B₂] B₂ ⧸ JB := head_iso.toLinearMap.comp JP.mkQ
+  have hg_surj : Function.Surjective g :=
+    head_iso.surjective.comp (Submodule.mkQ_surjective JP)
+  have hg_ker : LinearMap.ker g = JP := by
+    ext x
+    simp only [g, LinearMap.mem_ker, LinearMap.comp_apply]
+    exact (head_iso.map_eq_zero_iff).trans (Submodule.Quotient.mk_eq_zero JP)
   -- STEP 2: Lift g to f : P → B₂ by projectivity of P
   have hex_f := Module.projective_lifting_property JB.mkQ g (Submodule.mkQ_surjective _)
   let f : ↑P →ₗ[B₂] B₂ := hex_f.choose
