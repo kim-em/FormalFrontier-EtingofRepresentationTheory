@@ -399,7 +399,45 @@ private theorem module_jacobson_eq_smul_of_artinian
     exact h_le
   · exact Ring.jacobson_smul_top_le B₂ M
 
--- Helper 5: For a surjective B₂-linear map π : F(B₁) → S where S is semisimple,
+-- Helper 5: For an equivalence F, there exists a nonzero morphism F(B₁) → S
+-- for every simple S. Uses the adjunction: Hom(F(B₁), S) ≅ Hom(B₁, G(S)) ≅ G(S) ≠ 0.
+private theorem equiv_hom_to_simple_nonzero
+    {B₁ : Type u} [Ring B₁]
+    {B₂ : Type u} [Ring B₂]
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂)
+    (S : ModuleCat.{u} B₂) [hS : Simple S] :
+    ∃ (f : F.functor.obj (ModuleCat.of B₁ B₁) ⟶ S), f ≠ 0 := by
+  -- G(S) is simple (by simple_of_equivalence for the inverse)
+  haveI : Simple (F.inverse.obj S) := simple_of_equivalence F.symm S
+  -- G(S) is nontrivial: Simple objects are not the zero object
+  have hGS_nt : Nontrivial (F.inverse.obj S) := by
+    by_contra h
+    rw [not_nontrivial_iff_subsingleton] at h
+    exact Simple.not_isZero (F.inverse.obj S) (ModuleCat.isZero_of_subsingleton _)
+  -- Pick a nonzero element m ∈ G(S)
+  obtain ⟨m, hm⟩ := exists_ne (0 : F.inverse.obj S)
+  -- The B₁-linear map φ_m : B₁ → G(S) sending b ↦ b • m
+  let φ_m : ModuleCat.of B₁ B₁ ⟶ F.inverse.obj S :=
+    ModuleCat.ofHom (LinearMap.toSpanSingleton B₁ (F.inverse.obj S) m)
+  -- φ_m is nonzero (φ_m(1) = m ≠ 0)
+  have hφ_ne : φ_m ≠ 0 := by
+    intro h
+    apply hm
+    have h1 : φ_m.hom = (0 : ModuleCat.of B₁ B₁ ⟶ F.inverse.obj S).hom :=
+      congrArg ModuleCat.Hom.hom h
+    have h2 : φ_m.hom (1 : B₁) = 0 := by rw [h1]; rfl
+    simpa [φ_m, LinearMap.toSpanSingleton_apply] using h2
+  -- Under the adjunction F ⊣ G: nonzero φ_m maps to a nonzero morphism F(B₁) → S
+  let f : F.functor.obj (ModuleCat.of B₁ B₁) ⟶ S :=
+    (F.toAdjunction.homEquiv _ _).symm φ_m
+  refine ⟨f, ?_⟩
+  intro hf
+  apply hφ_ne
+  have h2 : φ_m = (F.toAdjunction.homEquiv _ _) f := by
+    rw [Equiv.apply_symm_apply]
+  rw [h2, hf, Adjunction.homEquiv_apply, F.inverse.map_zero, comp_zero]
+
+-- Helper 5b: For a surjective B₂-linear map π : F(B₁) → S where S is semisimple,
 -- the image of F(J₁·B₁) under π is zero. This means F(J₁·B₁) is contained in
 -- the kernel of every map to a semisimple quotient of F(B₁).
 -- Proof: J₂ annihilates S, and the image of J₁·B₁ under the adjunction
@@ -418,18 +456,72 @@ private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClose
     Σ' (f : (F.functor.obj (ModuleCat.of B₁ B₁)) →ₗ[B₂] B₂),
       Function.Surjective f ∧
       LinearMap.ker f ≤ Ring.jacobson B₂ • (LinearMap.ker f) := by
-  -- F(B₁) is projective (equivalences preserve projective objects, and B₁ is free rank 1)
   haveI := equiv_image_projective F
-  -- B₂ is Artinian (finite-dim over field), hence semiprimary
   haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
-  -- Strategy: construct a surjection f : F(B₁) → B₂ using projectivity,
-  -- then show ker f ≤ J • ker f via splitting.
-  -- Step 1: We use that equivalences preserve and reflect simple quotients,
-  -- so the module radical is preserved: F(J₁·B₁) = J₂·F(B₁).
-  -- Step 2: This gives F(B₁)/J₂·F(B₁) ≅ F(B₁/J₁) ≅ B₂/J₂ (both k^n for basic algebras).
-  -- Step 3: Lift the surjection g : F(B₁) → B₂/J₂ to f : F(B₁) → B₂ by projectivity.
-  -- Step 4: ker f ⊆ J₂·F(B₁), and splitting gives ker f ⊆ J₂·ker f.
-  sorry
+  -- Use Pt for the carrier type to work around HasQuotient synthesis issues
+  set Pt : Type u := ↑(F.functor.obj (ModuleCat.of B₁ B₁))
+  set P := F.functor.obj (ModuleCat.of B₁ B₁) with hP_def
+  set J₂ := Ring.jacobson B₂
+  set JP := (J₂ • ⊤ : Submodule B₂ Pt) with hJP_def
+  set JB := (J₂ • ⊤ : Submodule B₂ B₂) with hJB_def
+  -- STEP 1: Construct a surjection g : Pt → B₂/JB whose kernel is JP
+  -- This encodes the head isomorphism: F(B₁)/(J₂·F(B₁)) ≅ B₂/J₂.
+  -- Mathematical proof: For each simple B₂-module S,
+  --   dim_k Hom(F(B₁), S) = dim_k G(S) = 1 (adjunction + basic B₁)
+  --   dim_k Hom(B₂, S)    = dim_k S    = 1 (basic B₂)
+  -- Both heads have each simple with multiplicity 1, hence are isomorphic.
+  -- The surjection g = iso ∘ mkQ has kernel JP.
+  -- STEP 1: Construct a surjection g : Pt → B₂/JB whose kernel is JP
+  let g : Pt →ₗ[B₂] B₂ ⧸ JB := sorry
+  have hg_surj : Function.Surjective g := sorry
+  have hg_ker : LinearMap.ker g = JP := sorry
+  -- STEP 2: Lift g to f : P → B₂ by projectivity of P
+  have hex_f := Module.projective_lifting_property JB.mkQ g (Submodule.mkQ_surjective _)
+  let f : ↑P →ₗ[B₂] B₂ := hex_f.choose
+  have hf : JB.mkQ ∘ₗ f = g := hex_f.choose_spec
+  -- STEP 3: f is surjective (Nakayama via projective_lift_surjective)
+  have hf_surj : Function.Surjective f := projective_lift_surjective hg_surj hf
+  -- STEP 4: ker f ≤ J₂ • ker f using splitting argument
+  -- Split f: since B₂ is projective (free rank 1), ∃ section s with f ∘ s = id
+  have hex_s := LinearMap.exists_rightInverse_of_surjective f
+    (LinearMap.range_eq_top.mpr hf_surj)
+  let s : B₂ →ₗ[B₂] ↑P := hex_s.choose
+  have hs : f ∘ₗ s = LinearMap.id := hex_s.choose_spec
+  -- Step 4a: ker f ⊆ J₂ • P (g kills ker f and head_iso is injective)
+  have hker_le_JP : LinearMap.ker f ≤ JP := by
+    intro x hx
+    rw [LinearMap.mem_ker] at hx
+    have hgx : g x = 0 := by rw [← hf, LinearMap.comp_apply, hx, map_zero]
+    rw [← hg_ker]
+    exact LinearMap.mem_ker.mpr hgx
+  -- Step 4b: Upgrade ker f ⊆ J₂ • ⊤ to ker f ⊆ J₂ • ker f using the section
+  -- Define the kernel projection: proj = id - s ∘ f (projects onto ker f)
+  let proj : ↑P →ₗ[B₂] ↑P := LinearMap.id - s.comp f
+  have hproj_ker : ∀ p : ↑P, proj p ∈ LinearMap.ker f := fun p => by
+    rw [LinearMap.mem_ker]
+    change f (proj p) = 0
+    simp only [proj, LinearMap.sub_apply, LinearMap.id_apply, LinearMap.comp_apply, map_sub]
+    -- Goal: f p - f (s (f p)) = 0
+    have : (f ∘ₗ s) (f p) = f p := by rw [hs, LinearMap.id_apply]
+    simp only [LinearMap.comp_apply] at this
+    rw [this, sub_self]
+  have hproj_id : ∀ x ∈ LinearMap.ker f, proj x = x := fun x hx => by
+    simp only [proj, LinearMap.sub_apply, LinearMap.id_apply, LinearMap.comp_apply,
+      LinearMap.mem_ker.mp hx, map_zero, sub_zero]
+  have hker : LinearMap.ker f ≤ J₂ • LinearMap.ker f := by
+    intro x hx
+    -- proj(x) = x and x ∈ J₂ • ⊤, so suffices to show proj maps J₂ • ⊤ into J₂ • ker f
+    rw [← hproj_id x hx]
+    exact Submodule.smul_induction_on (hker_le_JP hx)
+      (fun j hj p _ => by
+        change proj (j • p) ∈ J₂ • LinearMap.ker f
+        rw [proj.map_smul]
+        exact Submodule.smul_mem_smul hj (hproj_ker p))
+      (fun a b ha hb => by
+        change proj (a + b) ∈ J₂ • LinearMap.ker f
+        rw [map_add]
+        exact Submodule.add_mem _ ha hb)
+  exact ⟨f, hf_surj, hker⟩
 
 /-- For basic Morita-equivalent algebras, the regular modules correspond under the
 equivalence. More precisely, if `F : ModuleCat B₁ ≌ ModuleCat B₂` and both `B₁`
