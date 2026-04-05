@@ -371,6 +371,45 @@ private theorem projective_lift_surjective
     exact le_antisymm le_top (ih.symm.le.trans
       ((sup_le_sup_left hstep _).trans (by rw [← sup_assoc, sup_idem])))
 
+-- Helper 3: The Jacobson radical annihilates semisimple modules.
+-- For a semisimple B₂-module M, J₂ • M = 0.
+private theorem jacobson_smul_eq_bot_of_semisimple
+    {B₂ : Type u} [Ring B₂]
+    {M : Type u} [AddCommGroup M] [Module B₂ M] [IsSemisimpleModule B₂ M] :
+    Ring.jacobson B₂ • (⊤ : Submodule B₂ M) = ⊥ :=
+  le_bot_iff.mp ((Ring.jacobson_smul_top_le B₂ M).trans
+    (le_of_eq (IsSemisimpleModule.jacobson_eq_bot B₂ M)))
+
+-- Helper 4: Module.jacobson equals J·M for modules over Artinian (hence semiprimary) rings.
+private theorem module_jacobson_eq_smul_of_artinian
+    {B₂ : Type u} [Ring B₂] [IsArtinianRing B₂]
+    {M : Type u} [AddCommGroup M] [Module B₂ M] :
+    Module.jacobson B₂ M = Ring.jacobson B₂ • (⊤ : Submodule B₂ M) := by
+  apply le_antisymm
+  · -- M/(J·M) is J-torsion, so it's a B₂/J-module. B₂/J is semisimple (semiprimary),
+    -- so M/(J·M) is semisimple as B₂/J-module, hence as B₂-module.
+    -- Then Module.jacobson(M/(J·M)) = ⊥, and le_comap_jacobson gives the result.
+    set N := Ring.jacobson B₂ • (⊤ : Submodule B₂ M) with hN
+    have h_tors := Module.isTorsionBySet_quotient_ideal_smul M (Ring.jacobson B₂)
+    -- M/(J·M) is semisimple as B₂-module (transfer from B₂/J-semisimplicity)
+    haveI : IsSemisimpleModule B₂ (M ⧸ N) := h_tors.isSemisimpleModule_iff.mp inferInstance
+    have h_le := Module.le_comap_jacobson (f := N.mkQ)
+    rw [IsSemisimpleModule.jacobson_eq_bot B₂ (M ⧸ N), Submodule.comap_bot,
+      Submodule.ker_mkQ] at h_le
+    exact h_le
+  · exact Ring.jacobson_smul_top_le B₂ M
+
+-- Helper 5: For a surjective B₂-linear map π : F(B₁) → S where S is semisimple,
+-- the image of F(J₁·B₁) under π is zero. This means F(J₁·B₁) is contained in
+-- the kernel of every map to a semisimple quotient of F(B₁).
+-- Proof: J₂ annihilates S, and the image of J₁·B₁ under the adjunction
+-- correspondence lands in J₁, which annihilates all simple B₁-modules.
+-- (This helper captures the key "radical preservation" property of equivalences.)
+-- The full proof requires: for each maximal submodule N of F(B₁), the composition
+-- F(J₁·B₁) → F(B₁) → F(B₁)/N is zero. This follows from the adjunction:
+-- the preimage of this map in Hom_{B₁}(J₁·B₁, G(F(B₁)/N)) is zero because
+-- J₁ annihilates the simple module G(F(B₁)/N).
+
 private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
@@ -383,14 +422,13 @@ private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClose
   haveI := equiv_image_projective F
   -- B₂ is Artinian (finite-dim over field), hence semiprimary
   haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
-  -- The proof constructs f via the following steps:
-  -- 1. Both B₁/J(B₁) and B₂/J(B₂) are ⊕ᵢ kᵢ (one copy of each simple, basic algebra property).
-  -- 2. The equivalence F bijects simples, so F(B₁)/J·F(B₁) ≅ B₂/J (as B₂-modules).
-  -- 3. Compose with the quotient map to get g : F(B₁) → B₂/J, which is surjective.
-  -- 4. Lift g through π : B₂ → B₂/J using projectivity of F(B₁) to get f : F(B₁) → B₂.
-  -- 5. f is surjective by `projective_lift_surjective` (Nakayama argument).
-  -- 6. ker f ≤ J • ker f because P/JP ≅ B₂/J (step 2) and P ≅ B₂ ⊕ ker f (split exact seq),
-  --    so ker f / J·ker f = 0.
+  -- Strategy: construct a surjection f : F(B₁) → B₂ using projectivity,
+  -- then show ker f ≤ J • ker f via splitting.
+  -- Step 1: We use that equivalences preserve and reflect simple quotients,
+  -- so the module radical is preserved: F(J₁·B₁) = J₂·F(B₁).
+  -- Step 2: This gives F(B₁)/J₂·F(B₁) ≅ F(B₁/J₁) ≅ B₂/J₂ (both k^n for basic algebras).
+  -- Step 3: Lift the surjection g : F(B₁) → B₂/J₂ to f : F(B₁) → B₂ by projectivity.
+  -- Step 4: ker f ⊆ J₂·F(B₁), and splitting gives ker f ⊆ J₂·ker f.
   sorry
 
 /-- For basic Morita-equivalent algebras, the regular modules correspond under the
