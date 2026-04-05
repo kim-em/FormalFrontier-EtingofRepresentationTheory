@@ -401,4 +401,187 @@ theorem cycle_not_finite_type (k : ℕ) (hk : 3 ≤ k) :
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
 
+/-! ## Section 7: Star graph K_{1,4} (D̃₄) definitions -/
+
+/-- The star graph K_{1,4}: vertex 0 is the center, vertices 1-4 are leaves.
+    adj i j = 1 iff exactly one of i,j is 0. -/
+def starAdj : Matrix (Fin 5) (Fin 5) ℤ :=
+  fun i j =>
+    if (i.val = 0 ∧ j.val ≠ 0) ∨ (i.val ≠ 0 ∧ j.val = 0) then 1 else 0
+
+theorem starAdj_symm : starAdj.IsSymm := by
+  ext i j; simp only [starAdj, Matrix.transpose_apply]; congr 1
+  exact propext ⟨fun h => h.elim (fun ⟨a,b⟩ => Or.inr ⟨b,a⟩) (fun ⟨a,b⟩ => Or.inl ⟨b,a⟩),
+                 fun h => h.elim (fun ⟨a,b⟩ => Or.inr ⟨b,a⟩) (fun ⟨a,b⟩ => Or.inl ⟨b,a⟩)⟩
+
+theorem starAdj_diag (i : Fin 5) : starAdj i i = 0 := by
+  simp only [starAdj]; rw [if_neg]; push_neg; exact ⟨fun h => h, fun h => h⟩
+
+theorem starAdj_01 (i j : Fin 5) : starAdj i j = 0 ∨ starAdj i j = 1 := by
+  simp only [starAdj]; split_ifs <;> simp
+
+/-- The star quiver K_{1,4} with all-sink orientation: arrows from leaves 1,2,3,4 to center 0. -/
+def starQuiver : Quiver (Fin 5) where
+  Hom i j := PLift (i.val ≠ 0 ∧ j.val = 0)
+
+instance starQuiver_subsingleton (a b : Fin 5) :
+    Subsingleton (@Quiver.Hom (Fin 5) starQuiver a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+theorem starOrientation_isOrientationOf :
+    @Etingof.IsOrientationOf 5 starQuiver starAdj := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    simp only [starAdj] at hij
+    obtain ⟨hi_ne, hj_eq⟩ := hp
+    rw [if_pos (Or.inr ⟨hi_ne, hj_eq⟩)] at hij
+    exact hij rfl
+  · -- Each edge has an arrow in one direction
+    simp only [starAdj] at hij
+    split_ifs at hij with h
+    · rcases h with ⟨hi_eq, hj_ne⟩ | ⟨hi_ne, hj_eq⟩
+      · right; exact ⟨⟨hj_ne, hi_eq⟩⟩
+      · left; exact ⟨⟨hi_ne, hj_eq⟩⟩
+    · simp at hij
+  · -- No two-way arrows
+    obtain ⟨⟨hi_ne, hj_eq⟩⟩ := hi
+    obtain ⟨⟨hj_ne, _⟩⟩ := hj
+    exact hj_ne hj_eq
+
+/-! ## Section 8: Star representation construction
+
+The star representation for K_{1,4} uses dimension vector (2(m+1), m+1, m+1, m+1, m+1).
+- Center (vertex 0): (Fin (m+1) → ℂ) × (Fin (m+1) → ℂ) ≅ ℂ^{2(m+1)}
+- Leaves (vertices 1-4): Fin (m+1) → ℂ ≅ ℂ^{m+1}
+
+Maps (all from leaf to center, all-sink orientation):
+- B₁(x) = (x, 0)       — first-component embedding
+- B₂(x) = (0, x)       — second-component embedding
+- B₃(x) = (x, x)       — diagonal embedding
+- B₄(x) = (x, Nx)      — nilpotent-twisted embedding
+
+Indecomposability proof:
+1. B₁, B₂ force W(center) = W(leaf₁) × W(leaf₂) by dimension counting
+2. B₃ forces W(leaf₁) = W(leaf₂) via intersection dimension analysis
+3. B₄ forces N to preserve W(leaf₁), then nilpotent_invariant_compl_trivial applies
+-/
+
+-- Embedding maps for the star representation.
+-- Each maps ℂ^{m+1} into ℂ^{2(m+1)} ≅ ℂ^{m+1} × ℂ^{m+1}.
+-- Indices 0..m = first component, (m+1)..2m+1 = second.
+
+/-- First-component embedding: x ↦ (x, 0). -/
+noncomputable def starEmbed1 (m : ℕ) :
+    (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) where
+  toFun x i := if h : i.val < m + 1 then x ⟨i.val, h⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Second-component embedding: x ↦ (0, x). -/
+noncomputable def starEmbed2 (m : ℕ) :
+    (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) where
+  toFun x i := if h : m + 1 ≤ i.val then x ⟨i.val - (m + 1), by omega⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Diagonal embedding: x ↦ (x, x). -/
+noncomputable def starEmbedDiag (m : ℕ) :
+    (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
+  starEmbed1 m + starEmbed2 m
+
+/-- Nilpotent-twisted embedding: x ↦ (x, Nx) where N is the nilpotent shift. -/
+noncomputable def starEmbedNilp (m : ℕ) :
+    (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
+  starEmbed1 m + (starEmbed2 m).comp (nilpotentShiftLin m)
+
+/-- Select the embedding map based on leaf index. -/
+noncomputable def starEmbedding (m : ℕ) (leaf : Fin 5) :
+    (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
+  match leaf with
+  | ⟨1, _⟩ => starEmbed1 m
+  | ⟨2, _⟩ => starEmbed2 m
+  | ⟨3, _⟩ => starEmbedDiag m
+  | ⟨4, _⟩ => starEmbedNilp m
+  | _ => 0
+
+-- The star representation with dimension vector (2(m+1), m+1, m+1, m+1, m+1).
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+noncomputable def starRep (m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (Fin 5) _ starQuiver := by
+  letI := starQuiver
+  exact {
+    obj := fun v => Fin (if v.val = 0 then 2 * (m + 1) else m + 1) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} e => by
+      obtain ⟨ha, hb⟩ := e.down
+      change (Fin (if a.val = 0 then 2 * (m + 1) else m + 1) → ℂ) →ₗ[ℂ]
+           (Fin (if b.val = 0 then 2 * (m + 1) else m + 1) → ℂ)
+      rw [if_neg ha, if_pos hb]
+      exact starEmbedding m a
+  }
+
+/-! ## Section 9: Indecomposability of star representations -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem starRep_isIndecomposable (m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 5)
+      starQuiver (starRep m) := by
+  letI := starQuiver
+  constructor
+  · -- Nontrivial at some vertex (leaf 1 has dim m+1 ≥ 1)
+    refine ⟨⟨1, by omega⟩, ?_⟩
+    change Nontrivial (Fin (if (1 : Fin 5).val = 0 then _ else m + 1) → ℂ)
+    simp only [show (1 : Fin 5).val = 1 from rfl, one_ne_zero, ↓reduceIte]
+    infer_instance
+  · -- Indecomposability: any complement decomposition is trivial
+    -- The proof uses dimension counting on the split center space
+    -- and nilpotent_invariant_compl_trivial.
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    sorry
+
+/-! ## Section 10: Dimension vectors and infinite type for star -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem starRep_dimVec (m : ℕ) (v : Fin 5) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 5) _
+      starQuiver (starRep m) v ≃ₗ[ℂ]
+      (Fin (if v.val = 0 then 2 * (m + 1) else m + 1) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- The star graph K_{1,4} has infinite representation type:
+    for each m, there is an indecomposable rep with distinct dim vector. -/
+theorem star_not_finite_type :
+    ¬ Etingof.IsFiniteTypeQuiver 5 starAdj := by
+  intro hft
+  letI := starQuiver
+  have hfin := @hft ℂ _ inferInstance starQuiver
+    (fun a b => starQuiver_subsingleton a b)
+    starOrientation_isOrientationOf
+  -- The dimension vector for starRep m maps m to
+  -- (2(m+1), m+1, m+1, m+1, m+1) which is injective in m
+  have hmem : ∀ m : ℕ,
+      (fun v : Fin 5 => if v.val = 0 then 2 * (m + 1) else m + 1) ∈
+      {d : Fin 5 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 5),
+        V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
+    intro m
+    exact ⟨starRep m, starRep_isIndecomposable m, starRep_dimVec m⟩
+  have hinj : Function.Injective
+      (fun m : ℕ => fun v : Fin 5 =>
+        if v.val = 0 then 2 * (m + 1) else m + 1) := by
+    intro m₁ m₂ h
+    have h0 := congr_fun h ⟨0, by omega⟩
+    simp only [ite_true] at h0
+    omega
+  exact (Set.infinite_range_of_injective hinj |>.mono
+    (Set.range_subset_iff.mpr hmem)).not_finite hfin
+
 end Etingof
