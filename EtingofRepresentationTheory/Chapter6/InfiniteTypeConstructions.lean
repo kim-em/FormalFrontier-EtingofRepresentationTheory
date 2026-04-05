@@ -507,6 +507,18 @@ noncomputable def starEmbedding (m : ℕ) (leaf : Fin 5) :
   | ⟨4, _⟩ => starEmbedNilp m
   | _ => 0
 
+-- Match-based map for the star representation, ensuring definitional reduction
+-- for specific vertex pairs.
+private noncomputable def starRepMap (m : ℕ) (a b : Fin 5) :
+    (Fin (if a.val = 0 then 2 * (m + 1) else m + 1) → ℂ) →ₗ[ℂ]
+    (Fin (if b.val = 0 then 2 * (m + 1) else m + 1) → ℂ) :=
+  match a, b with
+  | ⟨1, _⟩, ⟨0, _⟩ => starEmbed1 m
+  | ⟨2, _⟩, ⟨0, _⟩ => starEmbed2 m
+  | ⟨3, _⟩, ⟨0, _⟩ => starEmbedDiag m
+  | ⟨4, _⟩, ⟨0, _⟩ => starEmbedNilp m
+  | _, _ => 0
+
 -- The star representation with dimension vector (2(m+1), m+1, m+1, m+1, m+1).
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
@@ -517,18 +529,14 @@ noncomputable def starRep (m : ℕ) :
     obj := fun v => Fin (if v.val = 0 then 2 * (m + 1) else m + 1) → ℂ
     instAddCommMonoid := fun _ => inferInstance
     instModule := fun _ => inferInstance
-    mapLinear := fun {a b} e => by
-      obtain ⟨ha, hb⟩ := e.down
-      change (Fin (if a.val = 0 then 2 * (m + 1) else m + 1) → ℂ) →ₗ[ℂ]
-           (Fin (if b.val = 0 then 2 * (m + 1) else m + 1) → ℂ)
-      rw [if_neg ha, if_pos hb]
-      exact starEmbedding m a
+    mapLinear := fun {a b} _ => starRepMap m a b
   }
 
 /-! ## Section 9: Indecomposability of star representations -/
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
+set_option maxHeartbeats 1600000 in
 theorem starRep_isIndecomposable (m : ℕ) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 5)
       starQuiver (starRep m) := by
@@ -543,7 +551,222 @@ theorem starRep_isIndecomposable (m : ℕ) :
     -- The proof uses dimension counting on the split center space
     -- and nilpotent_invariant_compl_trivial.
     intro W₁ W₂ hW₁_inv hW₂_inv hcompl
-    sorry
+    -- Key disjointness: embed1(x) + embed2(y) = 0 → x = 0 ∧ y = 0
+    have embed_sum_zero : ∀ x y : Fin (m + 1) → ℂ,
+        starEmbed1 m x + starEmbed2 m y = 0 → x = 0 ∧ y = 0 := by
+      intro x y h
+      have heval : ∀ j : Fin (2 * (m + 1)),
+          starEmbed1 m x j + starEmbed2 m y j = 0 :=
+        fun j => by have := congr_fun h j; simpa using this
+      constructor <;> ext ⟨i, hi⟩ <;> simp only [Pi.zero_apply]
+      · have := heval ⟨i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1
+        · omega
+        · simpa using this
+      · have := heval ⟨m + 1 + i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1 h2
+        · omega
+        · omega
+        · simp only [zero_add] at this
+          have key : (⟨m + 1 + i - (m + 1), by omega⟩ : Fin (m + 1)) = ⟨i, hi⟩ := by
+            simp only [Fin.mk.injEq]; omega
+          rwa [key] at this
+        · omega
+    -- Core decomposition: if embed1(x) + embed2(z) ∈ W(center) and both W, W'
+    -- have subrepresentation invariance, then x ∈ W(leaf1) and z ∈ W(leaf2).
+    have core (W W' : ∀ v, Submodule ℂ ((starRep m).obj v))
+        (hW : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W a, (starRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W' a, (starRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x z : Fin (m + 1) → ℂ)
+        (hmem : starEmbed1 m x + starEmbed2 m z ∈ W ⟨0, by omega⟩) :
+        x ∈ W ⟨1, by omega⟩ ∧ z ∈ W ⟨2, by omega⟩ := by
+      -- Decompose x at leaf 1: x = a + b, a ∈ W(1), b ∈ W'(1)
+      have htop1 := (hc ⟨1, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop1
+      -- Decompose z at leaf 2: z = c + d, c ∈ W(2), d ∈ W'(2)
+      have htop2 := (hc ⟨2, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := z)
+      obtain ⟨c, hc2, d, hd, hcd⟩ := Submodule.mem_sup.mp htop2
+      -- embed1(a) ∈ W(0) and embed2(c) ∈ W(0) via invariance
+      have ha0 : starEmbed1 m a ∈ W ⟨0, by omega⟩ :=
+        hW (show @Quiver.Hom _ starQuiver ⟨1, by omega⟩ ⟨0, by omega⟩ from ⟨⟨by decide, rfl⟩⟩) a ha
+      have hc0 : starEmbed2 m c ∈ W ⟨0, by omega⟩ :=
+        hW (show @Quiver.Hom _ starQuiver ⟨2, by omega⟩ ⟨0, by omega⟩ from ⟨⟨by decide, rfl⟩⟩) c hc2
+      -- embed1(b) ∈ W'(0) and embed2(d) ∈ W'(0)
+      have hb0 : starEmbed1 m b ∈ W' ⟨0, by omega⟩ :=
+        hW' (show @Quiver.Hom _ starQuiver ⟨1, by omega⟩ ⟨0, by omega⟩ from ⟨⟨by decide, rfl⟩⟩) b hb
+      have hd0 : starEmbed2 m d ∈ W' ⟨0, by omega⟩ :=
+        hW' (show @Quiver.Hom _ starQuiver ⟨2, by omega⟩ ⟨0, by omega⟩ from ⟨⟨by decide, rfl⟩⟩) d hd
+      -- The cross-terms sum to zero via complement at center
+      have hsum : starEmbed1 m x + starEmbed2 m z =
+          (starEmbed1 m a + starEmbed2 m c) + (starEmbed1 m b + starEmbed2 m d) := by
+        rw [← hab, ← hcd]; simp [map_add]; abel
+      rw [hsum] at hmem
+      have hadd : starEmbed1 m a + starEmbed2 m c ∈ W ⟨0, by omega⟩ :=
+        (W ⟨0, by omega⟩).add_mem ha0 hc0
+      -- Deduce second summand is in W by subtracting first summand
+      have hw'_in_W : starEmbed1 m b + starEmbed2 m d ∈ W ⟨0, by omega⟩ := by
+        -- hmem : ac + bd ∈ W,  hadd : ac ∈ W,  so bd = (ac + bd) - ac ∈ W
+        have hsmul := (W ⟨0, by omega⟩).smul_mem (-1 : ℂ) hadd
+        have hadd2 := (W ⟨0, by omega⟩).add_mem hmem hsmul
+        have key : starEmbed1 m a + starEmbed2 m c + (starEmbed1 m b + starEmbed2 m d) +
+            (-1 : ℂ) • (starEmbed1 m a + starEmbed2 m c) = starEmbed1 m b + starEmbed2 m d := by
+          ext i; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+        rwa [key] at hadd2
+      have hzero : starEmbed1 m b + starEmbed2 m d = 0 := by
+        have := Submodule.mem_inf.mpr ⟨hw'_in_W,
+          (W' ⟨0, by omega⟩).add_mem hb0 hd0⟩
+        rwa [(hc ⟨0, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+      obtain ⟨hb0', hd0'⟩ := embed_sum_zero b d hzero
+      exact ⟨hab ▸ by rw [hb0', add_zero]; exact ha,
+             hcd ▸ by rw [hd0', add_zero]; exact hc2⟩
+    -- Extract leaf containments for W₁ and W₂
+    -- Leaf 3 (diagonal embedding): x ∈ W(3) → x ∈ W(1) ∧ x ∈ W(2)
+    -- Leaf 4 (nilpotent embedding): x ∈ W(4) → x ∈ W(1) ∧ Nx ∈ W(2)
+    have leaf3_sub (W W' : ∀ v, Submodule ℂ ((starRep m).obj v))
+        (hW : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W a, (starRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W' a, (starRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W ⟨3, by omega⟩) :
+        x ∈ W ⟨1, by omega⟩ ∧ x ∈ W ⟨2, by omega⟩ := by
+      have hmem := hW (show @Quiver.Hom _ starQuiver ⟨3, by omega⟩ ⟨0, by omega⟩
+        from ⟨⟨by decide, rfl⟩⟩) x hx
+      -- mapLinear for leaf 3 is starEmbedDiag = embed1 + embed2
+      change starEmbedDiag m x ∈ W ⟨0, by omega⟩ at hmem
+      rw [starEmbedDiag, LinearMap.add_apply] at hmem
+      exact core W W' hW hW' hc x x hmem
+    have leaf4_sub (W W' : ∀ v, Submodule ℂ ((starRep m).obj v))
+        (hW : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W a, (starRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W' a, (starRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W ⟨4, by omega⟩) :
+        x ∈ W ⟨1, by omega⟩ ∧ nilpotentShiftLin m x ∈ W ⟨2, by omega⟩ := by
+      have hmem := hW (show @Quiver.Hom _ starQuiver ⟨4, by omega⟩ ⟨0, by omega⟩
+        from ⟨⟨by decide, rfl⟩⟩) x hx
+      change starEmbedNilp m x ∈ W ⟨0, by omega⟩ at hmem
+      rw [starEmbedNilp, LinearMap.add_apply, LinearMap.comp_apply] at hmem
+      exact core W W' hW hW' hc x (nilpotentShiftLin m x) hmem
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- W₁(3) = W₁(1), W₁(3) = W₁(2), W₁(4) = W₁(1)
+    have heq31 : W₁ ⟨3, by omega⟩ = W₁ ⟨1, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf3_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).1)
+      (fun x hx => (leaf3_sub W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx).1)
+      (hcompl ⟨3, by omega⟩) (hcompl ⟨1, by omega⟩)
+    have heq32 : W₁ ⟨3, by omega⟩ = W₁ ⟨2, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf3_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).2)
+      (fun x hx => (leaf3_sub W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx).2)
+      (hcompl ⟨3, by omega⟩) (hcompl ⟨2, by omega⟩)
+    have heq41 : W₁ ⟨4, by omega⟩ = W₁ ⟨1, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf4_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).1)
+      (fun x hx => (leaf4_sub W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx).1)
+      (hcompl ⟨4, by omega⟩) (hcompl ⟨1, by omega⟩)
+    -- N preserves W₁(1): from B₄, x ∈ W₁(4) = W₁(1) → Nx ∈ W₁(2) = W₁(1)
+    have h12 : W₁ ⟨1, by omega⟩ = W₁ ⟨2, by omega⟩ := heq31.symm.trans heq32
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ ⟨1, by omega⟩ → nilpotentShiftLin m x ∈ W₁ ⟨1, by omega⟩ := by
+      intro x hx
+      have hx4 : x ∈ W₁ ⟨4, by omega⟩ := by rw [heq41]; exact hx
+      have h2 := (leaf4_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx4).2
+      exact h12 ▸ h2
+    -- Similarly: W₂(3) = W₂(1), etc., and N preserves W₂(1)
+    have heq31' : W₂ ⟨3, by omega⟩ = W₂ ⟨1, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf3_sub W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm) x hx).1)
+      (fun x hx => (leaf3_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).1)
+      ((hcompl ⟨3, by omega⟩).symm) ((hcompl ⟨1, by omega⟩).symm)
+    have heq32' : W₂ ⟨3, by omega⟩ = W₂ ⟨2, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf3_sub W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm) x hx).2)
+      (fun x hx => (leaf3_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).2)
+      ((hcompl ⟨3, by omega⟩).symm) ((hcompl ⟨2, by omega⟩).symm)
+    have heq41' : W₂ ⟨4, by omega⟩ = W₂ ⟨1, by omega⟩ := compl_eq_of_le _ _ _ _
+      (fun x hx => (leaf4_sub W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm) x hx).1)
+      (fun x hx => (leaf4_sub W₁ W₂ hW₁_inv hW₂_inv hcompl x hx).1)
+      ((hcompl ⟨4, by omega⟩).symm) ((hcompl ⟨1, by omega⟩).symm)
+    have h12' : W₂ ⟨1, by omega⟩ = W₂ ⟨2, by omega⟩ := heq31'.symm.trans heq32'
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ ⟨1, by omega⟩ → nilpotentShiftLin m x ∈ W₂ ⟨1, by omega⟩ := by
+      intro x hx
+      have hx4 : x ∈ W₂ ⟨4, by omega⟩ := by rw [heq41']; exact hx
+      have h2 := (leaf4_sub W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm)
+        x hx4).2
+      exact h12' ▸ h2
+    -- Apply nilpotent_invariant_compl_trivial at leaf 1
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ ⟨1, by omega⟩) (W₂ ⟨1, by omega⟩) hN₁ hN₂ (hcompl ⟨1, by omega⟩)
+    -- Propagate: if W(1) = ⊥ then all W(v) = ⊥
+    -- Center argument: W'(1) = ⊤ → embed(any x) ∈ W'(center) → W'(center) = ⊤ → W(center) = ⊥
+    have center_decomp : ∀ w : Fin (2 * (m + 1)) → ℂ,
+        w = starEmbed1 m (fun i => w ⟨i.val, by omega⟩) +
+            starEmbed2 m (fun i => w ⟨m + 1 + i.val, by omega⟩) := by
+      intro w; ext ⟨j, hj⟩
+      simp only [Pi.add_apply, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases hjlt : j < m + 1
+      · simp only [dif_pos hjlt, show ¬(m + 1 ≤ j) from by omega, dite_false, add_zero]
+      · simp only [dif_neg hjlt, show m + 1 ≤ j from by omega, dite_true, zero_add]
+        congr 1; ext; simp; omega
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((starRep m).obj v)),
+        (∀ {a b : Fin 5} (e : @Quiver.Hom _ starQuiver a b),
+          ∀ x ∈ W' a, (starRep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W ⟨1, by omega⟩ = W ⟨2, by omega⟩ →
+        W ⟨3, by omega⟩ = W ⟨1, by omega⟩ →
+        W ⟨4, by omega⟩ = W ⟨1, by omega⟩ →
+        W ⟨1, by omega⟩ = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₂_inv hcompl (heq31.symm.trans heq32) heq31 heq41 h
+      · right; exact propagate W₂ W₁ hW₁_inv (fun v => (hcompl v).symm)
+          (heq31'.symm.trans heq32') heq31' heq41' h
+    intro W W' hW'_inv hc h12 h31 h41 hbot v
+    fin_cases v
+    · -- Center
+      show W ⟨0, by omega⟩ = ⊥
+      have hW'1_top : W' ⟨1, by omega⟩ = ⊤ := by
+        have := (hc ⟨1, by omega⟩).sup_eq_top; rwa [hbot, bot_sup_eq] at this
+      have hW'2_top : W' ⟨2, by omega⟩ = ⊤ := by
+        have := (hc ⟨2, by omega⟩).sup_eq_top; rwa [← h12, hbot, bot_sup_eq] at this
+      -- Any element from leaf 1 or 2 maps into W'(center)
+      have h_emb1 : ∀ (x : Fin (m + 1) → ℂ), starEmbed1 m x ∈ W' ⟨0, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ starQuiver ⟨1, by omega⟩ ⟨0, by omega⟩
+          from ⟨⟨by decide, rfl⟩⟩) x (hW'1_top ▸ Submodule.mem_top)
+      have h_emb2 : ∀ (x : Fin (m + 1) → ℂ), starEmbed2 m x ∈ W' ⟨0, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ starQuiver ⟨2, by omega⟩ ⟨0, by omega⟩
+          from ⟨⟨by decide, rfl⟩⟩) x (hW'2_top ▸ Submodule.mem_top)
+      -- Every w in center decomposes as embed1 + embed2, both in W'
+      rw [eq_bot_iff]; intro (w : Fin (2 * (m + 1)) → ℂ) hw
+      have hw' : w ∈ W' ⟨0, by omega⟩ :=
+        center_decomp w ▸ (W' ⟨0, by omega⟩).add_mem (h_emb1 _) (h_emb2 _)
+      have := Submodule.mem_inf.mpr ⟨hw, hw'⟩
+      rwa [(hc ⟨0, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+    · -- v = 1
+      exact hbot
+    · -- v = 2
+      show W ⟨2, by omega⟩ = ⊥; rw [← h12]; exact hbot
+    · -- v = 3
+      show W ⟨3, by omega⟩ = ⊥; rw [h31]; exact hbot
+    · -- v = 4
+      show W ⟨4, by omega⟩ = ⊥; rw [h41]; exact hbot
+
 
 /-! ## Section 10: Dimension vectors and infinite type for star -/
 
