@@ -651,8 +651,8 @@ private lemma quotient_X_torsion_mem_span (n : ℕ)
     rw [show (X : ℂ[X]) = X - C 0 by simp, Polynomial.dvd_iff_isRoot]
     simp [Polynomial.IsRoot, Polynomial.coeff_zero_eq_eval_zero]
 
--- PID structure theorem and direct sum manipulation require extra heartbeats
 set_option maxHeartbeats 800000 in
+-- PID structure theorem and direct sum manipulation require extra heartbeats
 set_option synthInstance.maxHeartbeats 40000 in
 /-- A nilpotent endomorphism with kernel of dimension ≥ 2 admits a nontrivial
 invariant direct sum decomposition.
@@ -1108,6 +1108,119 @@ private lemma product_decomp_of_ker_A_not_range_B
         Submodule.finrank_le _
       linarith
 
+/-- The swap operator X : V × W → V × W defined by X(v,w) = (Bw, Av).
+Used in Problem 6.9.1(c): when AB is nilpotent, X is nilpotent on V ⊕ W
+and admits a compatible chain basis. -/
+private noncomputable def swapOp
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) : (V × W) →ₗ[ℂ] (V × W) :=
+  LinearMap.coprod ((LinearMap.inr ℂ V W).comp A) ((LinearMap.inl ℂ V W).comp B)
+
+private lemma swapOp_apply
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (v : V) (w : W) :
+    swapOp A B (v, w) = (B w, A v) := by
+  simp [swapOp, LinearMap.coprod_apply, LinearMap.comp_apply,
+    LinearMap.inl_apply, LinearMap.inr_apply, Prod.mk_add_mk]
+
+private lemma swapOp_sq
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) :
+    (swapOp A B) ^ 2 = (B.comp A).prodMap (A.comp B) := by
+  ext <;> simp [sq, swapOp_apply, LinearMap.prodMap_apply, LinearMap.comp_apply]
+
+private lemma swapOp_nilpotent
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
+    (hAB : IsNilpotent (A.comp B)) (hBA : IsNilpotent (B.comp A)) :
+    IsNilpotent (swapOp A B) := by
+  obtain ⟨n, hn⟩ := hAB
+  obtain ⟨m, hm⟩ := hBA
+  refine ⟨2 * max n m, ?_⟩
+  suffices h : ∀ k, (swapOp A B) ^ (2 * k) =
+      ((B.comp A) ^ k).prodMap ((A.comp B) ^ k) by
+    rw [h]
+    have hBA_zero : (B.comp A) ^ max n m = 0 := by
+      rw [← Nat.sub_add_cancel (Nat.le_max_right n m), pow_add, hm, mul_zero]
+    have hAB_zero : (A.comp B) ^ max n m = 0 := by
+      rw [← Nat.sub_add_cancel (Nat.le_max_left n m), pow_add, hn, mul_zero]
+    simp [hBA_zero, hAB_zero, LinearMap.prodMap_zero]
+  intro k
+  have hsq := swapOp_sq A B
+  induction k with
+  | zero => simp [LinearMap.prodMap_one]
+  | succ k ih =>
+    rw [show 2 * (k + 1) = 2 * k + 2 from by omega, pow_add, ih, hsq,
+      LinearMap.prodMap_mul, pow_succ, pow_succ]
+
+private lemma swapOp_ker_finrank
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) :
+    Module.finrank ℂ (LinearMap.ker (swapOp A B)) =
+      Module.finrank ℂ (LinearMap.ker A) + Module.finrank ℂ (LinearMap.ker B) := by
+  -- ker(swapOp A B) = {(v,w) : Bw = 0 ∧ Av = 0} = (ker A) × (ker B)
+  have hker : LinearMap.ker (swapOp A B) =
+      (LinearMap.ker A).prod (LinearMap.ker B) := by
+    ext ⟨v, w⟩
+    simp only [LinearMap.mem_ker, swapOp_apply, Prod.mk_eq_zero, Submodule.mem_prod,
+      LinearMap.mem_ker]
+    exact ⟨fun ⟨h1, h2⟩ => ⟨h2, h1⟩, fun ⟨h1, h2⟩ => ⟨h2, h1⟩⟩
+  rw [hker]
+  let e : ↥((LinearMap.ker A).prod (LinearMap.ker B)) ≃ₗ[ℂ]
+      ↥(LinearMap.ker A) × ↥(LinearMap.ker B) :=
+    { toFun := fun x => (⟨x.1.1, (Submodule.mem_prod.mp x.2).1⟩,
+                          ⟨x.1.2, (Submodule.mem_prod.mp x.2).2⟩)
+      invFun := fun x => ⟨(x.1.1, x.2.1), Submodule.mem_prod.mpr ⟨x.1.2, x.2.2⟩⟩
+      left_inv := fun ⟨⟨_, _⟩, _⟩ => rfl
+      right_inv := fun ⟨⟨_, _⟩, ⟨_, _⟩⟩ => rfl
+      map_add' := fun _ _ => rfl
+      map_smul' := fun _ _ => rfl }
+  rw [LinearEquiv.finrank_eq e, Module.finrank_prod]
+
+set_option maxHeartbeats 800000 in
+-- The PID decomposition + generator replacement argument requires many rewrites.
+/-- In the hard case (ker A ≤ range B, ker B ≤ range A), the swap operator X
+on V × W provides a nontrivial compatible decomposition via the PID structure
+theorem and compatible chain basis argument (Problem 6.9.1(c)). -/
+private lemma compatible_product_decomp
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
+    (hAB : IsNilpotent (A.comp B)) (hBA : IsNilpotent (B.comp A))
+    (_h_kerA_le : LinearMap.ker A ≤ LinearMap.range B)
+    (_h_kerB_le : LinearMap.ker B ≤ LinearMap.range A)
+    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker A) +
+              Module.finrank ℂ (LinearMap.ker B)) :
+    ∃ (pV qV : Submodule ℂ V) (pW qW : Submodule ℂ W),
+      IsCompl pV qV ∧ IsCompl pW qW ∧
+      (∀ x ∈ pV, A x ∈ pW) ∧ (∀ x ∈ qV, A x ∈ qW) ∧
+      (∀ x ∈ pW, B x ∈ pV) ∧ (∀ x ∈ qW, B x ∈ qV) ∧
+      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
+  -- Use the swap operator X(v,w) = (Bw, Av) on V × W
+  set X := swapOp A B
+  have hX_nil := swapOp_nilpotent A B hAB hBA
+  have hX_ker : 2 ≤ Module.finrank ℂ (LinearMap.ker X) := by
+    rw [swapOp_ker_finrank]; exact hker
+  -- Apply nilpotent_nontrivial_decomp to X on V × W
+  obtain ⟨M₁, M₂, hM1_ne, hM2_ne, hMc, hM1_inv, hM2_inv⟩ :=
+    nilpotent_nontrivial_decomp X hX_nil hX_ker
+  -- The images under fst/snd projections give compatible subspaces:
+  -- pV = fst(M₁), pW = snd(M₁) etc. satisfy A/B-compatibility.
+  -- But they may not satisfy IsCompl (projections of complementary subspaces
+  -- aren't necessarily complementary).
+  -- The compatible chain basis argument (Problem 6.9.1(c)) shows that the
+  -- X-invariant decomposition can be chosen so that each summand splits as
+  -- a product of V and W subspaces. This requires replacing each cyclic
+  -- generator (v,w) with a pure element (v,0) or (0,w) of the same X-order,
+  -- then grouping the resulting split summands.
+  -- TODO: implement the generator replacement argument
+  sorry
+
 private lemma off_diagonal_nilpotent_product_decomp
     {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
@@ -1239,13 +1352,9 @@ private lemma off_diagonal_nilpotent_product_decomp
         have hRN' := A_S'.finrank_range_add_finrank_ker
         rw [hA_S'_range, hA_S'_ker] at hRN'
         linarith
-      -- Step 2: Construct the product-compatible decomposition.
-      -- This requires the compatible chain basis argument:
-      -- Define X : V×W → V×W by X(v,w) = (Bw,Av), show X nilpotent with
-      -- dim(ker X) ≥ 2, apply PID decomposition, replace generators to be
-      -- pure V or W elements, then group chains.
-      -- See issue #2083 for the full argument.
-      sorry
+      -- Step 2: Construct the product-compatible decomposition
+      -- using the swap operator X(v,w) = (Bw,Av) on V × W.
+      exact compatible_product_decomp A B _hAB hBA h1 h2 hker
 
 /-- If dim(ker A) + dim(ker B) ≥ 2 for a Q₂-rep with AB nilpotent and both dims > 0,
 then the rep is decomposable. Uses `off_diagonal_nilpotent_product_decomp` to construct
