@@ -126,6 +126,34 @@ theorem nilpotentShiftLin_ker_finrank (m : ℕ) :
 
 /-! ## Section 2: Nilpotent-invariant complement triviality -/
 
+-- Helper: nilpotent endomorphism on nontrivial space has nontrivial kernel
+private theorem ker_ne_bot_of_isNilpotent
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [Nontrivial V]
+    (N : V →ₗ[ℂ] V) (hN : IsNilpotent N) :
+    LinearMap.ker N ≠ ⊥ := by
+  obtain ⟨k, hk⟩ := hN
+  rw [Submodule.ne_bot_iff]
+  -- Pick any nonzero v. Since N^k v = 0, find minimal j with N^j v = 0.
+  -- Then N^(j-1) v ≠ 0 and N(N^(j-1) v) = 0, so N^(j-1) v ∈ ker N \ {0}.
+  obtain ⟨v, hv⟩ := exists_ne (0 : V)
+  classical
+  -- Find the first j ≤ k such that N^j v = 0
+  have hNkv : (N ^ k) v = 0 := by rw [hk]; simp
+  -- Use strong induction / Nat.find
+  have hex : ∃ j, (N ^ j) v = 0 := ⟨k, hNkv⟩
+  set j := Nat.find hex with hj_def
+  have hj_spec : (N ^ j) v = 0 := Nat.find_spec hex
+  have hj_min : ∀ i < j, (N ^ i) v ≠ 0 := fun i hi => Nat.find_min hex hi
+  by_cases hj_pos : 0 < j
+  · refine ⟨(N ^ (j - 1)) v, ?_, ?_⟩
+    · rw [LinearMap.mem_ker]
+      have hjsucc : j - 1 + 1 = j := Nat.succ_pred_eq_of_pos hj_pos
+      have : (N ^ j) v = 0 := hj_spec
+      rw [← hjsucc] at this
+      rwa [pow_succ'] at this
+    · exact hj_min (j - 1) (Nat.sub_lt hj_pos Nat.one_pos)
+  · exfalso; push_neg at hj_pos; interval_cases j; simp at hj_spec; exact hv hj_spec
+
 theorem nilpotent_invariant_compl_trivial
     {V : Type*} [AddCommGroup V] [Module ℂ V] [Module.Finite ℂ V]
     (N : V →ₗ[ℂ] V) (hN : IsNilpotent N)
@@ -135,7 +163,56 @@ theorem nilpotent_invariant_compl_trivial
     (hW₂_inv : ∀ x ∈ W₂, N x ∈ W₂)
     (hcompl : IsCompl W₁ W₂) :
     W₁ = ⊥ ∨ W₂ = ⊥ := by
-  sorry
+  -- By contradiction: if both W₁ ≠ ⊥ and W₂ ≠ ⊥, the restriction of N
+  -- to each is nilpotent with nontrivial kernel, giving dim(ker N) ≥ 2.
+  by_contra h
+  push_neg at h
+  obtain ⟨hW₁_ne, hW₂_ne⟩ := h
+  -- The restrictions are nilpotent
+  have hmap₁ : Set.MapsTo N W₁ W₁ := fun x hx => hW₁_inv x hx
+  have hmap₂ : Set.MapsTo N W₂ W₂ := fun x hx => hW₂_inv x hx
+  have hN₁ := Module.End.isNilpotent.restrict hmap₁ hN
+  have hN₂ := Module.End.isNilpotent.restrict hmap₂ hN
+  -- Each W_i is nontrivial
+  have hnt₁ : Nontrivial W₁ := Submodule.nontrivial_iff_ne_bot.mpr hW₁_ne
+  have hnt₂ : Nontrivial W₂ := Submodule.nontrivial_iff_ne_bot.mpr hW₂_ne
+  -- Each restriction has nontrivial kernel
+  have hker₁ := ker_ne_bot_of_isNilpotent (N.restrict hmap₁) hN₁
+  have hker₂ := ker_ne_bot_of_isNilpotent (N.restrict hmap₂) hN₂
+  -- Extract nonzero elements in ker(N) ∩ W₁ and ker(N) ∩ W₂
+  rw [Submodule.ne_bot_iff] at hker₁ hker₂
+  obtain ⟨⟨w₁, hw₁_mem⟩, hw₁_ker, hw₁_ne⟩ := hker₁
+  obtain ⟨⟨w₂, hw₂_mem⟩, hw₂_ker, hw₂_ne⟩ := hker₂
+  simp only [LinearMap.mem_ker, Submodule.ne_bot_iff] at hw₁_ker hw₂_ker
+  -- w₁ and w₂ are in ker(N)
+  have hw₁_inker : w₁ ∈ LinearMap.ker N := by
+    rw [LinearMap.mem_ker]
+    have := hw₁_ker
+    simp only [LinearMap.restrict_apply, Subtype.ext_iff] at this
+    exact this
+  have hw₂_inker : w₂ ∈ LinearMap.ker N := by
+    rw [LinearMap.mem_ker]
+    have := hw₂_ker
+    simp only [LinearMap.restrict_apply, Subtype.ext_iff] at this
+    exact this
+  -- w₁ ≠ 0 and w₂ ≠ 0
+  have hw₁_ne0 : w₁ ≠ 0 := fun h => hw₁_ne (Subtype.ext h)
+  have hw₂_ne0 : w₂ ≠ 0 := fun h => hw₂_ne (Subtype.ext h)
+  -- ker(N) has dim 1, so all nonzero elements are scalar multiples of each other.
+  -- In particular, w₂ = c • w₁ for some c.
+  -- But w₁ ∈ W₁ implies c • w₁ ∈ W₁, so w₂ ∈ W₁ ∩ W₂ = {0}. Contradiction.
+  have hw₁_ker_elt : (⟨w₁, hw₁_inker⟩ : ↥(LinearMap.ker N)) ≠ 0 := by
+    simp [Subtype.ext_iff]; exact hw₁_ne0
+  have hdim1 := (finrank_eq_one_iff_of_nonzero' (⟨w₁, hw₁_inker⟩ : ↥(LinearMap.ker N))
+    hw₁_ker_elt).mp hker (⟨w₂, hw₂_inker⟩ : ↥(LinearMap.ker N))
+  obtain ⟨c, hc⟩ := hdim1
+  have hw₂_eq : w₂ = c • w₁ := by
+    have := congr_arg Subtype.val hc
+    simpa [Submodule.coe_smul] using this.symm
+  have hw₂_in_W₁ : w₂ ∈ W₁ := hw₂_eq ▸ W₁.smul_mem c hw₁_mem
+  have hmem : w₂ ∈ W₁ ⊓ W₂ := Submodule.mem_inf.mpr ⟨hw₂_in_W₁, hw₂_mem⟩
+  rw [hcompl.inf_eq_bot, Submodule.mem_bot] at hmem
+  exact hw₂_ne0 hmem
 
 /-! ## Section 3: Cycle quiver definitions and orientation -/
 
