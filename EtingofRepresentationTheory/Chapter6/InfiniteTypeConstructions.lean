@@ -27,9 +27,45 @@ noncomputable def nilpotentShiftLin (m : ℕ) :
     (Fin (m + 1) → ℂ) →ₗ[ℂ] (Fin (m + 1) → ℂ) :=
   Matrix.mulVecLin (nilpotentShiftMatrix m)
 
+private theorem mulVecLin_pow {n : ℕ} (M : Matrix (Fin n) (Fin n) ℂ) (k : ℕ) :
+    Matrix.mulVecLin (M ^ k) = (Matrix.mulVecLin M) ^ k := by
+  induction k with
+  | zero => ext v; simp [Matrix.mulVecLin_one]
+  | succ k ih =>
+    rw [pow_succ, Matrix.mulVecLin_mul, ih]
+    rfl
+
+private theorem nilpotentShiftMatrix_pow_entry (m n : ℕ) (a b : Fin (m + 1)) :
+    (nilpotentShiftMatrix m ^ n) a b = if b.val = a.val + n then 1 else 0 := by
+  induction n generalizing a b with
+  | zero =>
+    simp only [pow_zero, Nat.add_zero, Matrix.one_apply]
+    congr 1; exact propext ⟨fun h => (Fin.val_eq_of_eq h).symm, fun h => Fin.ext h.symm⟩
+  | succ n ih =>
+    rw [pow_succ, Matrix.mul_apply]
+    by_cases hb : b.val = a.val + (n + 1)
+    · have hbn : a.val + n < m + 1 := by omega
+      rw [show (if b.val = a.val + (n + 1) then (1 : ℂ) else 0) = 1 from if_pos hb]
+      rw [Finset.sum_eq_single ⟨a.val + n, hbn⟩]
+      · rw [ih]; simp only [ite_true, one_mul, nilpotentShiftMatrix]
+        rw [if_pos (by show b.val = (a.val + n) + 1; omega)]
+      · intro c _ hc; rw [ih]; split_ifs with h1
+        · exfalso; exact hc (Fin.ext h1)
+        · ring
+      · intro h; exact absurd (Finset.mem_univ _) h
+    · rw [show (if b.val = a.val + (n + 1) then (1 : ℂ) else 0) = 0 from if_neg hb]
+      apply Finset.sum_eq_zero; intro c _; rw [ih]; split_ifs with h1
+      · simp only [one_mul, nilpotentShiftMatrix]; rw [if_neg]; intro hbc; exact hb (by omega)
+      · ring
+
 theorem nilpotentShiftLin_nilpotent (m : ℕ) :
     IsNilpotent (nilpotentShiftLin m) := by
-  sorry
+  use m + 1
+  have hmat : nilpotentShiftMatrix m ^ (m + 1) = 0 := by
+    ext i j; rw [nilpotentShiftMatrix_pow_entry, Matrix.zero_apply, if_neg]
+    intro h; exact absurd h (by have := j.isLt; omega)
+  change (nilpotentShiftLin m) ^ (m + 1) = 0
+  rw [nilpotentShiftLin, ← mulVecLin_pow, hmat, Matrix.mulVecLin_zero]
 
 theorem nilpotentShiftLin_ker_finrank (m : ℕ) :
     Module.finrank ℂ (LinearMap.ker (nilpotentShiftLin m)) = 1 := by
