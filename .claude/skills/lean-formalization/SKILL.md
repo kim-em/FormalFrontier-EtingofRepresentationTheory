@@ -20,7 +20,9 @@ This downloads pre-built Mathlib oleans. Skipping it triggers a full Mathlib reb
 
 Run this checklist before writing a single tactic. Skipping it has caused agents to waste entire context windows on dead-ends.
 
-1. **Check Known Dead-Ends.** Scan the "Known Dead-Ends" section below. If your proof requires any of these patterns, sorry it immediately and move on:
+1. **Check if the sorry is actually used.** Before investing time in a proof, `grep` for all references to the sorry'd theorem/def across the codebase. If nothing references it, it may be dead code superseded by a different approach. Removing dead sorry'd code is a valid resolution (see `polytabloid_syt_dominance` removal in PR #2168 as an example). This check takes 5 seconds and can save hours.
+
+2. **Check Known Dead-Ends.** Scan the "Known Dead-Ends" section below. If your proof requires any of these patterns, sorry it immediately and move on:
    - ExteriorAlgebra ↔ PiTensorProduct bridging
    - `if`-branching `obj` fields in QuiverRepresentation-like structures
    - `Decidable.casesOn` **composition** (double round-trip) in `reflectionFunctorPlus`/`Minus` proofs — the composition F⁻(F⁺(V)) creates types Lean can't reduce through. **Note:** Individual arrow-level helper lemmas (e.g., `reversedArrow_ne_ne_is_cast`, `reversedArrow_ne_ne_twice`) ARE provable using `eqRec_heq_self` and `Subsingleton.elim` patterns (see HEq section below). The dead-end is the full Sigma-level round-trip, not individual components.
