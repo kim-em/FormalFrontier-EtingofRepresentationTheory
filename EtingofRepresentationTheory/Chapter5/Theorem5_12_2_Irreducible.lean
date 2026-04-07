@@ -134,9 +134,10 @@ private lemma youngSymmetrizer_identity_coeff (n : ℕ) (la : Nat.Partition n) :
   -- Expand b = ∑_q sign(q) · single q 1
   simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply, Finset.sum_mul]
   rw [Finsupp.finset_sum_apply]
-  -- Each summand: (sign(q) • single(q, 1) * a)(1) = sign(q) * a(q⁻¹ * 1)
-  conv_lhs => arg 2; ext q; rw [Finsupp.smul_apply, smul_eq_mul,
-    MonoidAlgebra.single_mul_apply, one_mul, mul_one]
+  -- Each summand: (sign(q) • single(q, 1) * a)(1) = sign(q) * a(q⁻¹)
+  rw [Finset.sum_congr rfl (fun q _ => show _ = _ from by
+    rw [Algebra.smul_mul_assoc, Finsupp.smul_apply, smul_eq_mul,
+      MonoidAlgebra.single_mul_apply, one_mul, mul_one])]
   rw [Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ : ↑(ColumnSubgroup n la))]
   · -- q = 1: sign(1) * a(1) = 1
     simp only [Subgroup.coe_mk, inv_one, Equiv.Perm.sign_one, Int.cast_one,
