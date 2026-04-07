@@ -266,12 +266,62 @@ private lemma rowSymmetrizer_apply_not_mem' (n : ℕ) (la : Nat.Partition n)
   · exact absurd (h ▸ p.prop) hσ
   · rfl
 
+/-- The RowSymmetrizer evaluates to 1 at permutations in P_λ. -/
+private lemma rowSymmetrizer_apply_mem' (n : ℕ) (la : Nat.Partition n)
+    (σ : Equiv.Perm (Fin n)) (hσ : σ ∈ RowSubgroup n la) :
+    (RowSymmetrizer n la : SymGroupAlgebra n) σ = 1 := by
+  classical
+  simp only [RowSymmetrizer, MonoidAlgebra.of_apply]
+  rw [Finsupp.finset_sum_apply]
+  rw [Finset.sum_eq_single ⟨σ, hσ⟩]
+  · rw [Finsupp.single_apply, if_pos rfl]
+  · intro ⟨p, _⟩ _ hne
+    rw [Finsupp.single_apply, if_neg (show p ≠ σ from fun h => hne (Subtype.ext h))]
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- The ColumnAntisymmetrizer evaluates to sign(q) at permutations in Q_λ. -/
+private lemma columnAntisymmetrizer_apply_mem' (n : ℕ) (la : Nat.Partition n)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    (ColumnAntisymmetrizer n la : SymGroupAlgebra n) q =
+      (↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) := by
+  classical
+  simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+  rw [Finsupp.finset_sum_apply, Finset.sum_eq_single ⟨q, hq⟩]
+  · rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply, if_pos rfl, mul_one]
+  · intro ⟨q', _⟩ _ hne
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply,
+      if_neg (show q' ≠ q from fun h => hne (Subtype.ext h)), mul_zero]
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- If h is in the support of ColumnAntisymmetrizer, then h ∈ Q_λ. -/
+private lemma columnAntisymmetrizer_support_subset (n : ℕ) (la : Nat.Partition n)
+    (h : Equiv.Perm (Fin n))
+    (hsupp : h ∈ (ColumnAntisymmetrizer n la : SymGroupAlgebra n).support) :
+    h ∈ ColumnSubgroup n la := by
+  by_contra h_not
+  exact (Finsupp.mem_support_iff.mp hsupp)
+    (columnAntisymmetrizer_apply_not_mem' n la h h_not)
+
 /-- The coefficient of the identity permutation in the Young symmetrizer is 1.
 Uses P_λ ∩ Q_λ = {id}. -/
 private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) 1 = 1 := by
-  -- c = b * a. c(1) = Σ_q sign(q) * a(q⁻¹). Only q = 1 contributes (P∩Q = {1}).
-  sorry
+  classical
+  rw [show YoungSymmetrizer n la = ColumnAntisymmetrizer n la * RowSymmetrizer n la from rfl,
+    MonoidAlgebra.mul_apply_left]
+  simp_rw [mul_one]
+  rw [Finsupp.sum, Finset.sum_eq_single (1 : Equiv.Perm (Fin n))]
+  · rw [inv_one, rowSymmetrizer_apply_mem' n la 1 (RowSubgroup n la).one_mem, mul_one,
+      columnAntisymmetrizer_apply_mem' n la 1 (ColumnSubgroup n la).one_mem,
+      Equiv.Perm.sign_one]; norm_cast
+  · intro h h_supp h_ne
+    rw [rowSymmetrizer_apply_not_mem' n la h⁻¹, mul_zero]
+    intro h_row
+    exact h_ne (inv_eq_one.mp (row_col_inter_trivial' n la h⁻¹ h_row
+      ((ColumnSubgroup n la).inv_mem (columnAntisymmetrizer_support_subset n la h h_supp))))
+  · intro h_not
+    simp only [Finsupp.mem_support_iff, ne_eq, not_not] at h_not
+    rw [h_not, zero_mul]
 
 /-! ### Note on false group-algebra coefficient formulas
 
