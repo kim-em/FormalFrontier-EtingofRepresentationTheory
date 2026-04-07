@@ -1184,7 +1184,7 @@ private lemma swapOp_pow_odd_fst
     (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (v : V) :
     (swapOp A B ^ (2 * m + 1)) (v, (0 : W)) =
       ((0 : V), A (((B.comp A) ^ m) v)) := by
-  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_fst, swapOp_apply, map_zero]
+  rw [pow_succ', Module.End.mul_apply, swapOp_pow_even_fst, swapOp_apply, map_zero]
 
 /-- X^{2m}(0, w) = (0, (AB)^m w): even powers of swapOp on pure W-elements stay in {0}×W. -/
 private lemma swapOp_pow_even_snd
@@ -1201,7 +1201,7 @@ private lemma swapOp_pow_odd_snd
     (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (w : W) :
     (swapOp A B ^ (2 * m + 1)) ((0 : V), w) =
       (B (((A.comp B) ^ m) w), (0 : W)) := by
-  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_snd, swapOp_apply, map_zero]
+  rw [pow_succ', Module.End.mul_apply, swapOp_pow_even_snd, swapOp_apply, map_zero]
 
 /-- If X^k kills (v,w), it also kills (v,0) and (0,w) separately.
 This follows because X^k(v,0) and X^k(0,w) live in complementary subspaces
@@ -1224,16 +1224,16 @@ private lemma swapOp_pow_zero_of_pure
     rw [swapOp_pow_even_fst, swapOp_pow_even_snd] at hlin ⊢
     constructor
     · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
+        ⟨by simpa using (congr_arg Prod.fst hlin).symm, rfl⟩
     · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
+        ⟨rfl, by simpa using (congr_arg Prod.snd hlin).symm⟩
   · -- k = 2*m+1: swapped
     rw [swapOp_pow_odd_fst, swapOp_pow_odd_snd] at hlin ⊢
     constructor
     · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
+        ⟨rfl, by simpa using (congr_arg Prod.snd hlin).symm⟩
     · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
+        ⟨by simpa using (congr_arg Prod.fst hlin).symm, rfl⟩
 
 /-- For (v,w) with X^{k-1}(v,w) ≠ 0, at least one of (v,0) or (0,w) also has
 X^{k-1} ≠ 0. Combined with `swapOp_pow_zero_of_pure` (both have order ≤ k),
