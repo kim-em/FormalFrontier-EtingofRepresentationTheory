@@ -437,16 +437,53 @@ private theorem equiv_hom_to_simple_nonzero
     rw [Equiv.apply_symm_apply]
   rw [h2, hf, Adjunction.homEquiv_apply, F.inverse.map_zero, comp_zero]
 
--- Helper 5b: For a surjective B₂-linear map π : F(B₁) → S where S is semisimple,
--- the image of F(J₁·B₁) under π is zero. This means F(J₁·B₁) is contained in
--- the kernel of every map to a semisimple quotient of F(B₁).
--- Proof: J₂ annihilates S, and the image of J₁·B₁ under the adjunction
--- correspondence lands in J₁, which annihilates all simple B₁-modules.
--- (This helper captures the key "radical preservation" property of equivalences.)
--- The full proof requires: for each maximal submodule N of F(B₁), the composition
--- F(J₁·B₁) → F(B₁) → F(B₁)/N is zero. This follows from the adjunction:
--- the preimage of this map in Hom_{B₁}(J₁·B₁, G(F(B₁)/N)) is zero because
--- J₁ annihilates the simple module G(F(B₁)/N).
+-- Helper 5b: Head isomorphism for basic Morita-equivalent algebras.
+-- Both F(B₁)/(J₂·F(B₁)) and B₂/J₂ are semisimple B₂-modules where
+-- each simple appears with multiplicity exactly 1.
+--
+-- Proof outline (not yet fully formalized):
+-- 1. Both quotients are semisimple (Artinian + quotient by Jacobson).
+-- 2. For B₂ basic over alg. closed k: B₂/J₂ ≅ kⁿ (Wedderburn-Artin),
+--    and each simple Sᵢ has dim_k = 1.
+-- 3. Multiplicity of Sᵢ in B₂/J₂ = 1 (regular representation of kⁿ).
+-- 4. Multiplicity of Sᵢ in F(B₁)/(J₂·F(B₁)):
+--    Using the adjunction F ⊣ G = F⁻¹:
+--      Hom_{B₂}(F(B₁), Sᵢ) ≅ Hom_{B₁}(B₁, G(Sᵢ)) ≅ G(Sᵢ)
+--    Since G preserves simples and B₁ is basic: dim_k G(Sᵢ) = 1.
+--    Since J₂ kills Sᵢ: Hom(F(B₁), Sᵢ) = Hom(F(B₁)/J₂·F(B₁), Sᵢ).
+--    So multiplicity of Sᵢ = dim_k Hom(head, Sᵢ) = 1.
+-- 5. Both heads have identical simple decomposition → isomorphic.
+--
+-- The key missing infrastructure is step 5: the semisimple module classification
+-- theorem stating that two finite semisimple modules with the same simple
+-- multiplicities are isomorphic. This requires either Krull-Schmidt or
+-- an explicit construction via the Wedderburn-Artin decomposition B₂/J₂ ≅ kⁿ.
+private noncomputable def head_isomorphism [IsAlgClosed k]
+    (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
+    (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
+    (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    let Pt := (F.functor.obj (ModuleCat.of B₁ B₁) : Type u)
+    let J₂ := Ring.jacobson B₂
+    (Pt ⧸ (J₂ • ⊤ : Submodule B₂ Pt)) ≃ₗ[B₂]
+    (B₂ ⧸ (J₂ • ⊤ : Submodule B₂ B₂)) := by
+  -- Both quotients are semisimple B₂-modules (killed by J₂, hence B₂/J₂-modules,
+  -- and B₂/J₂ is semisimple since B₂ is Artinian → semiprimary)
+  haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
+  haveI : IsArtinianRing B₁ := IsArtinianRing.of_finite k B₁
+  set Pt : Type u := ↑(F.functor.obj (ModuleCat.of B₁ B₁))
+  set J₂ := Ring.jacobson B₂
+  set JP := (J₂ • ⊤ : Submodule B₂ Pt)
+  set JB := (J₂ • ⊤ : Submodule B₂ B₂)
+  -- Both quotients are semisimple (standard: killed by Jacobson + Artinian)
+  have h_tors_P := Module.isTorsionBySet_quotient_ideal_smul Pt (Ring.jacobson B₂)
+  haveI : IsSemisimpleModule B₂ (Pt ⧸ JP) := h_tors_P.isSemisimpleModule_iff.mp inferInstance
+  have h_tors_B := Module.isTorsionBySet_quotient_ideal_smul B₂ (Ring.jacobson B₂)
+  haveI : IsSemisimpleModule B₂ (B₂ ⧸ JB) := h_tors_B.isSemisimpleModule_iff.mp inferInstance
+  -- Both are finite-dimensional over k (quotients of finite-dim modules)
+  -- The head isomorphism follows from both having the same simple multiplicities.
+  -- See the detailed proof outline above.
+  sorry
 
 private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
@@ -481,7 +518,8 @@ private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClose
   -- which is not yet available as a single Mathlib lemma.
   -- Proof paths: (a) Krull-Schmidt for semisimple modules, or
   --              (b) Wedderburn-Artin B₂/J ≅ kⁿ + classify kⁿ-modules by component dims.
-  have head_iso : (Pt ⧸ JP) ≃ₗ[B₂] (B₂ ⧸ JB) := sorry
+  have head_iso : (Pt ⧸ JP) ≃ₗ[B₂] (B₂ ⧸ JB) :=
+    head_isomorphism (k := k) B₁ B₂ _hB₁ _hB₂ F
   let g : Pt →ₗ[B₂] B₂ ⧸ JB := head_iso.toLinearMap.comp JP.mkQ
   have hg_surj : Function.Surjective g :=
     head_iso.surjective.comp (Submodule.mkQ_surjective JP)
