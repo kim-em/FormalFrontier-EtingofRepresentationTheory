@@ -1530,6 +1530,36 @@ noncomputable def d5tildeGamma (m : ℕ) :
   map_smul' c x := by
     ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
 
+/-! ## Section 16: Ẽ_6 representation construction
+
+The Ẽ_6 = T_{2,2,2} representation uses dimension vector δ = (3,2,1,2,1,2,1)·(m+1),
+where δ is the null root of the Ẽ_6 Cartan matrix.
+
+- Center (vertex 0): ℂ^{3(m+1)} with three blocks A, B, C each ℂ^{m+1}
+- Inner vertices (1,3,5): ℂ^{2(m+1)} with two blocks each
+- Tips (2,4,6): ℂ^{m+1}
+
+Maps along each arm (tip → inner → center):
+- Arm 1 (2→1→0): x ↦ (x,0) ↦ (x,0,0) — embeds into blocks A,B of center
+- Arm 2 (4→3→0): x ↦ (x,0) ↦ (0,x,0) — embeds into blocks B,C of center
+- Arm 3 (6→5→0): x ↦ (x,Nx) ↦ (Nx,0,x) — nilpotent-twisted, blocks A,C
+-/
+
+/-- Dimension function for Ẽ_6 vertices: center gets 3(m+1), inner vertices 2(m+1), tips m+1. -/
+def etilde6Dim (m : ℕ) (v : Fin 7) : ℕ :=
+  match v.val with
+  | 0 => 3 * (m + 1)
+  | 1 | 3 | 5 => 2 * (m + 1)
+  | _ => m + 1  -- vertices 2, 4, 6
+
+/-- Embedding from 2-block space into blocks (A,B,_) of 3-block center: (a,b) ↦ (a,b,0). -/
+noncomputable def embed2to3_AB (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (3 * (m + 1)) → ℂ) where
+  toFun x i := if h : i.val < 2 * (m + 1) then x ⟨i.val, h⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
 /-- Dimension of vertex v in the D̃₅ representation:
     vertices 0,1,4,5 get m+1; vertices 2,3 get 2(m+1). -/
 def d5tildeDim (m : ℕ) (v : Fin 6) : ℕ :=
@@ -1930,6 +1960,97 @@ theorem d5tildeRep_dimVec (m : ℕ) (v : Fin 6) :
       (Fin (d5tildeDim m v) → ℂ)) :=
   ⟨LinearEquiv.refl ℂ _⟩
 
+/-- Embedding from 2-block space into blocks (_,B,C) of 3-block center: (a,b) ↦ (0,a,b). -/
+noncomputable def embed2to3_BC (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (3 * (m + 1)) → ℂ) where
+  toFun x i := if h : m + 1 ≤ i.val then
+    (if h2 : i.val - (m + 1) < 2 * (m + 1) then x ⟨i.val - (m + 1), h2⟩ else 0) else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Embedding from 2-block space into blocks (C,_,A) of 3-block center: (a,b) ↦ (b,0,a).
+    First component of input goes to block C, second goes to block A. -/
+noncomputable def embed2to3_CA (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (3 * (m + 1)) → ℂ) where
+  toFun x i :=
+    if h : i.val < m + 1 then
+      -- Block A: gets second component of input (positions m+1 to 2(m+1)-1)
+      x ⟨i.val + (m + 1), by omega⟩
+    else if h2 : 2 * (m + 1) ≤ i.val then
+      -- Block C: gets first component of input (positions 0 to m)
+      (if h3 : i.val - 2 * (m + 1) < m + 1 then x ⟨i.val - 2 * (m + 1), by omega⟩ else 0)
+    else 0  -- Block B: zero
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- The representation map for Ẽ_6. Maps along arrows of the quiver. -/
+private noncomputable def etilde6RepMap (m : ℕ) (a b : Fin 7) :
+    (Fin (etilde6Dim m a) → ℂ) →ₗ[ℂ] (Fin (etilde6Dim m b) → ℂ) :=
+  match a, b with
+  -- Arm 1: 2→1→0
+  | ⟨2, _⟩, ⟨1, _⟩ => starEmbed1 m      -- x ↦ (x, 0)
+  | ⟨1, _⟩, ⟨0, _⟩ => embed2to3_AB m    -- (a,b) ↦ (a, b, 0)
+  -- Arm 2: 4→3→0
+  | ⟨4, _⟩, ⟨3, _⟩ => starEmbed1 m      -- x ↦ (x, 0)
+  | ⟨3, _⟩, ⟨0, _⟩ => embed2to3_BC m    -- (a,b) ↦ (0, a, b)
+  -- Arm 3: 6→5→0
+  | ⟨6, _⟩, ⟨5, _⟩ => starEmbedNilp m   -- x ↦ (x, Nx)
+  | ⟨5, _⟩, ⟨0, _⟩ => embed2to3_CA m    -- (a,b) ↦ (b, 0, a)
+  | _, _ => 0
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+noncomputable def etilde6Rep (m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (Fin 7) _ etilde6Quiver := by
+  letI := etilde6Quiver
+  exact {
+    obj := fun v => Fin (etilde6Dim m v) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} _ => etilde6RepMap m a b
+  }
+
+
+/-! ## Section 17: Ẽ_6 indecomposability
+
+The indecomposability proof uses the 3-block structure of the center and the
+nilpotent twist in arm 3. The three arms' compositions tip→center are:
+- Arm 1: embedA(x) = (x, 0, 0)
+- Arm 2: embedB(x) = (0, x, 0)
+- Arm 3: embedA(Nx) + embedC(x) = (Nx, 0, x)
+
+The block disjointness of embedA, embedB, embedC combined with the complement
+structure at the center forces W₁(2) = W₁(4) = W₁(6), and the nilpotent twist
+forces N-invariance, allowing `nilpotent_invariant_compl_trivial` to conclude. -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem etilde6Rep_isIndecomposable (m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 7)
+      etilde6Quiver (etilde6Rep m) := by
+  letI := etilde6Quiver
+  constructor
+  · -- Nontrivial at tip vertex 2 (dim m+1 ≥ 1)
+    refine ⟨⟨2, by omega⟩, ?_⟩
+    change Nontrivial (Fin (etilde6Dim m ⟨2, by omega⟩) → ℂ)
+    show Nontrivial (Fin (m + 1) → ℂ)
+    infer_instance
+  · -- Indecomposability: the 3-arm structure with nilpotent twist forces triviality
+    -- of any complement decomposition. See Section 17 comments for proof sketch.
+    sorry
+
+/-! ## Section 18: Dimension vectors and infinite type for Ẽ_6 -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem etilde6Rep_dimVec (m : ℕ) (v : Fin 7) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 7) _
+      etilde6Quiver (etilde6Rep m) v ≃ₗ[ℂ]
+      (Fin (etilde6Dim m v) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 /-- The extended Dynkin diagram D̃₅ has infinite representation type:
@@ -1956,6 +2077,28 @@ theorem d5tilde_not_finite_type :
            (if (⟨0, by omega⟩ : Fin 6).val = 2 ∨ (⟨0, by omega⟩ : Fin 6).val = 3
             then 2 * (m₂ + 1) else m₂ + 1) at h0
     simp only [Fin.val_mk, show ¬(0 = 2 ∨ 0 = 3) from by omega, ite_false] at h0
+    omega
+  exact (Set.infinite_range_of_injective hinj |>.mono
+    (Set.range_subset_iff.mpr hmem)).not_finite hfin
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem etilde6_not_finite_type :
+    ¬ Etingof.IsFiniteTypeQuiver 7 etilde6Adj := by
+  intro hft
+  letI := etilde6Quiver
+  have hfin := @hft ℂ _ inferInstance etilde6Quiver
+    (fun a b => etilde6Quiver_subsingleton a b)
+    etilde6Orientation_isOrientationOf
+  have hmem : ∀ m : ℕ, (fun v : Fin 7 => etilde6Dim m v) ∈
+      {d : Fin 7 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 7),
+        V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
+    intro m
+    exact ⟨etilde6Rep m, etilde6Rep_isIndecomposable m, etilde6Rep_dimVec m⟩
+  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 7 => etilde6Dim m v) := by
+    intro m₁ m₂ h
+    have h0 := congr_fun h ⟨0, by omega⟩
+    simp only [etilde6Dim] at h0
     omega
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
