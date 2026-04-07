@@ -1178,6 +1178,36 @@ theorem polytabloid_linearIndependent' :
   -- Apply the coefficient extraction lemma to T₀
   exact hfT₀ (polytabloid_coeff_zero_of_maximal S f hf T₀ hT₀ hmax)
 
+/-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
+
+Proved via the dominance-order triangularity argument in `polytabloid_linearIndependent'`. -/
+theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
+    LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
+      (polytabloidInSpecht n la T : SymGroupAlgebra n)) :=
+  polytabloid_linearIndependent'
+
+/-! ### Dimension theorem from polytabloid basis -/
+
+/-- The polytabloids form a basis of V_λ, so dim V_λ = |SYT(λ)|.
+
+This combines linear independence and spanning of polytabloids to
+construct an explicit basis of the Specht module indexed by standard
+Young tableaux of shape λ.
+
+This is the key infrastructure needed for the hook length formula
+(Theorem 5.17.1). -/
+theorem finrank_spechtModule_eq_card_syt (n : ℕ) (la : Nat.Partition n) :
+    Module.finrank ℂ (SpechtModule n la) =
+      Fintype.card (StandardYoungTableau n la) := by
+  have hli := polytabloid_linearIndependent n la
+  have hspan := polytabloid_span n la
+  have h1 : Module.finrank ℂ (Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+      (polytabloidInSpecht n la T : SymGroupAlgebra n)))) =
+      Fintype.card (StandardYoungTableau n la) :=
+    finrank_span_eq_card hli
+  rw [hspan] at h1
+  convert h1 using 1
+
 end
 
 end Etingof

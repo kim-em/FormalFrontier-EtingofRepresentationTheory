@@ -21,11 +21,13 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 ## Main results
 
 * `Etingof.polytabloid_mem_spechtModule` — polytabloids lie in the Specht module
-* `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry)
+* `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent
+  (in `TabloidModule.lean`)
 * `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma
   (proved via WF induction on column inversions; depends on two sorry'd helpers)
 * `Etingof.polytabloid_span` — polytabloids span the Specht module (proved from straightening)
-* `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)| (proved from independence + span)
+* `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)|
+  (in `TabloidModule.lean`)
 
 ## References
 
@@ -526,16 +528,6 @@ theorem polytabloid_support (n : ℕ) (la : Nat.Partition n)
   refine ⟨p', hp'_row, q, hq, ?_⟩
   -- hσ : x * p' = σ, hx_eq : y * z = x
   rw [← hσ, ← hx_eq, hy_eq, hz_eq]
-
-/-- The polytabloids {e_T : T ∈ SYT(λ)} are linearly independent in V_λ.
-
-The proof is in `TabloidModule.lean` as `polytabloid_linearIndependent'`, using
-the tabloid module infrastructure (dominance order, tabloid projections).
-This sorry is closed by that proof. -/
-theorem polytabloid_linearIndependent (n : ℕ) (la : Nat.Partition n) :
-    LinearIndependent ℂ (fun T : StandardYoungTableau n la =>
-      (polytabloidInSpecht n la T : SymGroupAlgebra n)) := by
-  sorry
 
 /-! ### Sorted comparison lemma -/
 
@@ -1471,33 +1463,12 @@ theorem polytabloid_span (n : ℕ) (la : Nat.Partition n) :
     intro σ _
     exact Submodule.smul_mem _ _ (perm_mul_youngSymmetrizer_mem_span_polytabloids n la σ)
 
-/-! ### Dimension theorem from polytabloid basis -/
+/-! ### Dimension theorem
 
-/-- The polytabloids form a basis of V_λ, so dim V_λ = |SYT(λ)|.
-
-This combines linear independence and spanning of polytabloids to
-construct an explicit basis of the Specht module indexed by standard
-Young tableaux of shape λ.
-
-This is the key infrastructure needed for the hook length formula
-(Theorem 5.17.1). -/
-theorem finrank_spechtModule_eq_card_syt (n : ℕ) (la : Nat.Partition n) :
-    Module.finrank ℂ (SpechtModule n la) =
-      Fintype.card (StandardYoungTableau n la) := by
-  -- The polytabloids are linearly independent in SymGroupAlgebra n (as a ℂ-module)
-  have hli := polytabloid_linearIndependent n la
-  -- Their ℂ-span equals V_λ (as a ℂ-submodule of SymGroupAlgebra n)
-  have hspan := polytabloid_span n la
-  -- finrank of the span of linearly independent vectors equals cardinality
-  have h1 : Module.finrank ℂ (Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
-      (polytabloidInSpecht n la T : SymGroupAlgebra n)))) =
-      Fintype.card (StandardYoungTableau n la) :=
-    finrank_span_eq_card hli
-  -- The span equals V_λ.restrictScalars ℂ, so their finranks are equal
-  rw [hspan] at h1
-  -- finrank of restrictScalars = finrank of the original module
-  -- Both ↥(M.restrictScalars ℂ) and ↥M have the same ℂ-module structure
-  convert h1 using 1
+`finrank_spechtModule_eq_card_syt` and `polytabloid_linearIndependent` are proved in
+`TabloidModule.lean` (which imports this file) using the dominance-order triangularity
+argument.
+-/
 
 end
 

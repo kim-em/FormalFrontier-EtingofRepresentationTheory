@@ -1,6 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_14_2
-import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
+import EtingofRepresentationTheory.Chapter5.TabloidModule
 import EtingofRepresentationTheory.Chapter5.FRTHelpers
 
 /-!
