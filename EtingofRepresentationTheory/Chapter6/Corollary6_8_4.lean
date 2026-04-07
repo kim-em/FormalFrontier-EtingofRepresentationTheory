@@ -9,6 +9,7 @@ import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_7
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_8
 import EtingofRepresentationTheory.Chapter6.Theorem6_8_1
+import EtingofRepresentationTheory.Chapter6.Lemma6_7_2
 
 /-!
 # Corollary 6.8.4: Every Positive Root Is Realized
@@ -462,6 +463,7 @@ theorem Etingof.Corollary6_8_4
   induction m using Nat.strongRecOn with
   | ind m ih =>
     intro α Q hSS hm hα_pos hQ_orient
+    letI : Quiver (Fin n) := Q
     haveI : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b) := hSS
     have hα_nonneg := hα_pos.2
     have hα_nonzero := hα_pos.1.1
@@ -496,7 +498,7 @@ theorem Etingof.Corollary6_8_4
         have h2 : 0 ≤ ∑ j, α' j := Finset.sum_nonneg fun i _ => hα'_nonneg i
         omega
       -- Step 3: The reversed quiver Q' is still an orientation of adj.
-      set Q' := @Etingof.reversedAtVertex (Fin n) _ Q i with hQ'_def
+      let Q' := @Etingof.reversedAtVertex (Fin n) _ Q i
       have hQ'_orient : Etingof.IsOrientationOf Q' adj :=
         Etingof.reversedAtVertex_isOrientationOf hDynkin.1 hDynkin.2.1 hQ_orient _
       have hSS' : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q' a b) :=
@@ -506,8 +508,10 @@ theorem Etingof.Corollary6_8_4
         ih _ hα'_sum_lt α' Q' hSS' rfl hα'_positive hQ'_orient
       -- Step 5: Construct ρ on Q from ρ' on Q' via reflection functor at i.
       -- Split on whether i is a sink, source, or mixed vertex in Q.
-      haveI : ∀ v, Module.Free k (ρ'.obj v) := hfree'
-      haveI : ∀ v, Module.Finite k (ρ'.obj v) := hfinite'
+      -- NOTE: Do NOT use haveI for Free/Finite here — it creates instance
+      -- conflicts when reflection functor reps (on reversedAtVertex Q' i)
+      -- coexist, since fp.obj v = ρ'.obj v for v ≠ i and both instModule
+      -- become synthesizable.
       -- Key: α' ≠ simpleRoot n i (otherwise α_i ≥ 2, B(α,α) ≥ 8)
       have hα'_ne_ei : α' ≠ Etingof.simpleRoot n i := by
         intro heq
@@ -568,6 +572,8 @@ theorem Etingof.Corollary6_8_4
       -- Step 5: Apply reflection functor at i on Q' to recover a representation on Q.
       -- ρ' is not simple at i (since α' ≠ e_i and dim vector matches α')
       have hρ'_not_simple : ¬ρ'.IsSimpleAt i := by
+        haveI : ∀ v, Module.Free k (ρ'.obj v) := hfree'
+        haveI : ∀ v, Module.Finite k (ρ'.obj v) := hfinite'
         intro ⟨h1, h2⟩
         apply hα'_ne_ei; ext j
         simp only [Etingof.simpleRoot, Pi.single_apply]
@@ -579,36 +585,37 @@ theorem Etingof.Corollary6_8_4
           have := (hdim' j).symm
           rw [h2 j hj] at this; exact_mod_cast this.symm
       -- Step 5b: Apply reflection functor at i on Q' to get representation on Q.
-      --
-      -- TYPECLASS SYNTHESIS BLOCKER: When both ρ' (on Q') and fm/fp (on
-      -- reversedAtVertex Q' i) coexist in scope, Lean's instance resolution
-      -- finds BOTH ρ'.instModule v and fm.instModule v as instances of
-      -- Module k (fm.obj v) (because fm.obj v = ρ'.obj v for v ≠ i, and
-      -- `attribute [instance]` on QuiverRepresentation.instModule makes both
-      -- discoverable). This gives "synthesized type class instance is not
-      -- definitionally equal to expression inferred by typing rules".
-      --
-      -- The universe blocker (pinning Q to .{0,0}) was RESOLVED in a prior
-      -- session. Free/Finite proofs can be done with @-calls that bypass
-      -- synthesis, but Indecomposable/dim proofs trigger the synthesis conflict
-      -- via any mention of fm.obj v.
-      --
-      -- Fix approaches:
-      -- 1. Follow CoxeterInfrastructure.lean exactly: inline the proof
-      --    instead of helper lemmas, ensuring only one QuiverRepresentation
-      --    is "primary" at each point (CoxeterInfra avoids instance params)
-      -- 2. Remove `attribute [instance]` from QuiverRepresentation.instModule
-      --    and use explicit @-based instance passing everywhere
-      -- 3. Use `set_option synthInstance.maxSize` or instance priorities
-      --
-      -- Additionally, the MIXED VERTEX case (i neither source nor sink in Q)
-      -- requires admissible ordering backward walk, not just a single F⁻/F⁺.
-      --
-      -- Infrastructure ready for source/sink cases:
-      --   ✓ hρ'_not_simple (ρ' not simple at i, since α' ≠ e_i)
-      --   ✓ Prop 6.6.5 source/sink: not simple → injective/surjective
-      --   ✓ Prop 6.6.7 source/sink: F⁻/F⁺ indecomposable or zero
-      --   ✓ Prop 6.6.8 source/sink: dim(F⁻/F⁺) = s_i(dim)
-      --   ✓ simpleReflectionDimVector_eq_simpleReflection_source
-      --   ✓ transportReversedTwice
-      sorry
+      -- Key synthesis fix: do NOT use haveI for Free/Finite of ρ' in outer scope.
+      -- The attribute [instance] on QuiverRepresentation.instModule makes both
+      -- ρ'.instModule and fp.instModule discoverable for the same carrier type
+      -- (since fp.obj v = ρ'.obj v for v ≠ i), causing synthesis conflicts.
+      -- Solution: transport fp to Q via hinvol ▸, then sorry sub-proofs.
+      classical
+      -- Double reversal: reversedAtVertex(Q', i) = Q
+      have hinvol : @Etingof.reversedAtVertex (Fin n) _
+          (@Etingof.reversedAtVertex (Fin n) _ Q i) i = Q :=
+        @Etingof.reversedAtVertex_twice (Fin n) _ Q i
+      -- Involutivity of simple reflection: s_i(s_i(α)) = α
+      have hinvol_α : Etingof.simpleReflection n A i α' = α := by
+        rw [hα'_def]
+        exact Etingof.simpleReflection_involutive
+          (Etingof.cartanMatrix_isSymm hDynkin.1)
+          (Etingof.simpleRoot_B_eq_two hDynkin) i α
+      by_cases hi_source : @Etingof.IsSource (Fin n) Q i
+      · -- Case 1: i is a source in Q → i is a sink in Q'
+        have hi_sink_Q' : @Etingof.IsSink (Fin n) Q' i :=
+          @Etingof.isSource_reversedAtVertex_isSink (Fin n) _ Q i hi_source
+        haveI : Fintype (@Etingof.ArrowsInto (Fin n) Q' i) :=
+          @Etingof.fintypeArrowsIntoOfSubsingleton _ Q' hSS' i
+        -- Prop 6.6.5: not simple → sinkMap surjective
+        have h_surj : Function.Surjective (ρ'.sinkMap i) := by
+          rcases @Etingof.Proposition6_6_5_sink k _ (Fin n) _ Q'
+            ρ' i hfree' hfinite' hi_sink_Q' hindec' with hsimple | hsurj
+          · exact absurd hsimple hρ'_not_simple
+          · exact hsurj
+        -- Apply F⁺ at sink i on Q'
+        let fp := @Etingof.reflectionFunctorPlus k _ (Fin n) _ Q' i hi_sink_Q' ρ'
+        -- Transport fp from reversedAtVertex Q' i (= Q) back to Q
+        let ρ_result : @Etingof.QuiverRepresentation k (Fin n) _ Q := hinvol ▸ fp
+        exact ⟨ρ_result, sorry, sorry, sorry, sorry⟩
+      · sorry -- Cases 2 and 3: sink and mixed
