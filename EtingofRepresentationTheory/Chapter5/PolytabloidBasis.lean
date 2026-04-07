@@ -193,7 +193,38 @@ expressed as a left multiple of a_λ · b_λ. -/
 theorem polytabloid_mem_spechtModule (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     polytabloid n la T ∈ SpechtModule n la := by
-  sorry
+  classical
+  set τ := sytPerm n la T
+  set b := ColumnAntisymmetrizer n la
+  set a := RowSymmetrizer n la
+  set c := YoungSymmetrizer n la
+  -- Step 1: κ_T = of(τ⁻¹) * b * of(τ) (conjugation identity)
+  have h_conj : RelColumnAntisymmetrizer n la T =
+      MonoidAlgebra.of ℂ _ τ⁻¹ * b * MonoidAlgebra.of ℂ _ τ := by
+    simp only [RelColumnAntisymmetrizer, ColumnAntisymmetrizer, b]
+    rw [Finset.mul_sum, Finset.sum_mul]
+    congr 1; ext ⟨q, _⟩
+    rw [Algebra.mul_smul_comm, Algebra.smul_mul_assoc]
+    congr 1
+    simp only [show sytPerm n la T = τ from rfl,
+      MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_single, mul_one]
+  -- Step 2: polytabloid = of(τ⁻¹) * (b * of(τ²) * a)
+  have h_poly : polytabloid n la T =
+      MonoidAlgebra.of ℂ _ τ⁻¹ * (b * MonoidAlgebra.of ℂ _ (τ * τ) * a) := by
+    unfold polytabloid
+    rw [h_conj]
+    simp only [show sytPerm n la T = τ from rfl,
+      show RowSymmetrizer n la = a from rfl,
+      mul_assoc, ← map_mul (MonoidAlgebra.of ℂ _)]
+  -- Step 3: By Lemma 5.13.1, b * of(τ²) * a = ℓ(of(τ²)) • c
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  rw [show b * MonoidAlgebra.of ℂ _ (τ * τ) * a =
+    ColumnAntisymmetrizer n la * MonoidAlgebra.of ℂ _ (τ * τ) * RowSymmetrizer n la from rfl,
+    hℓ] at h_poly
+  -- Step 4: polytabloid = of(τ⁻¹) * (ℓ_val • c) ∈ SpechtModule
+  rw [h_poly]
+  exact (SpechtModule n la).smul_mem _
+    ((SpechtModule n la).smul_of_tower_mem _ (Submodule.subset_span rfl))
 
 /-- The polytabloid for the canonical filling equals b_λ · a_λ
 (column antisymmetrizer times row symmetrizer). -/
