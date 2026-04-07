@@ -23,10 +23,10 @@ of the Specht module V_λ = ℂ[S_n] · c_λ.
 * `Etingof.polytabloid_mem_spechtModule` — polytabloids lie in the Specht module
 * `Etingof.polytabloid_linearIndependent` — polytabloids are linearly independent (sorry;
   proved at tabloid level as `polytabloidTab_linearIndependent` in `TabloidModule.lean`)
-* `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma
-  (proved via WF induction on column inversions; depends on two sorry'd helpers)
-* `Etingof.polytabloid_span` — polytabloids span the Specht module (proved from straightening)
-* `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)| (proved from independence + span)
+* `Etingof.perm_mul_youngSymmetrizer_mem_span_polytabloids` — straightening lemma (sorry;
+  requires tabloid-level straightening or dimension argument; see issue #2104)
+* `Etingof.polytabloid_span` — polytabloids span the Specht module (from straightening)
+* `Etingof.finrank_spechtModule_eq_card_syt` — dim V_λ = |SYT(λ)| (from independence + span)
 
 ## References
 
@@ -963,6 +963,15 @@ private theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
 
 /-! ### Garnir element infrastructure
 
+**Status**: This section proves `a_λ · G = 0` (the Garnir annihilation identity).
+This result is mathematically correct and potentially useful for tabloid-level
+straightening. However, the original plan to use it for group-algebra-level
+straightening (steps 4-5 below) is **flawed**: by Lemma 5.13.1,
+`a_λ · of(w) · b_λ = ℓ(of(w)) · c_λ`, so the Garnir expansion at the group
+algebra level collapses to a scalar multiple of `of(σ) · c_λ` — a tautology.
+The Garnir expansion only produces non-trivial reductions at the **tabloid
+module** level, where the sandwich property does not apply. See issue #2104.
+
 The Garnir reduction uses the following strategy:
 1. Find a column inversion: positions p₁ (row r₁) and p₂ (row r₂) in column j
    with r₁ < r₂ and σ⁻¹(p₂) < σ⁻¹(p₁).
@@ -972,12 +981,6 @@ The Garnir reduction uses the following strategy:
    P_λ ∩ S_{A∪B} contains a transposition t, and a_λ · t = a_λ while t · G = -G,
    giving a_λ · G = a_λ · t · G = -a_λ · G, hence 2 · a_λ · G = 0, so a_λ · G = 0
    (in characteristic 0).
-4. Extracting the identity term: from a_λ · G = 0, we get
-   a_λ = -Σ_{w ≠ id} sign(w) · a_λ · of(w)
-   Hence c_λ = a_λ · b_λ = -Σ_{w ≠ id} sign(w) · a_λ · of(w) · b_λ
-   And of(σ) · c_λ = -Σ_{w ≠ id} sign(w) · of(σ) · a_λ · of(w) · b_λ
-5. Each term of(σ) · a_λ · of(w) · b_λ equals Σ_p of(σ·p·w) · b_λ, and the
-   resulting permutations σ·p·w have fewer column inversions than σ.
 -/
 
 /-- The Garnir set positions: right part of row r₁ from column j,
@@ -1355,83 +1358,35 @@ private theorem columnInvCount'_one (n : ℕ) (la : Nat.Partition n) :
   have hb : b.val < la.sortedParts.sum := by omega
   exact Nat.not_lt.mpr (Nat.le_of_lt (lt_of_lt_rowOfPos la.sortedParts a.val b.val hb hrow))
 
-/-- The column inversion count strictly decreases after applying a Garnir-type
-reduction. This is the combinatorial heart of the straightening algorithm.
-
-For a column inversion at (p₁, p₂) with hwidth (row(p₁) has width ≥ 2),
-the Garnir element produces permutations of the Garnir set that, when
-composed with σ, have strictly fewer column inversions.
-
-For the ¬hwidth case (single-column rows), a different argument based on
-the column antisymmetrizer is used. -/
-private theorem garnir_columnInvCount_decrease (n : ℕ) (la : Nat.Partition n)
-    (σ : Equiv.Perm (Fin n))
-    (p₁ p₂ : Fin n)
-    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
-    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
-    (hinv : σ.symm p₂ < σ.symm p₁) :
-    ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
-      (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
-      MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
-        S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) := by
-  -- Single-column case: all parts = 1
-  by_cases h_single : ∀ i, i < la.sortedParts.length → la.sortedParts.getD i 0 = 1
-  · refine ⟨{1}, fun _ => ((↑(↑(Equiv.Perm.sign σ) : ℤ) : ℂ)), ?_, ?_⟩
-    · intro τ hτ
-      rw [Finset.mem_singleton.mp hτ, columnInvCount'_one]
-      exact columnInvCount'_pos_of_inv n la σ p₁ p₂ hcol hrow hinv
-    · rw [Finset.sum_singleton, single_column_garnir n la σ h_single]
-  · -- General case: not all parts = 1, so Garnir element approach applies
-    sorry
-
-private theorem garnir_identity_expansion (n : ℕ) (la : Nat.Partition n)
-    (σ : Equiv.Perm (Fin n))
-    (p₁ p₂ : Fin n)
-    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
-    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
-    (hinv : σ.symm p₂ < σ.symm p₁) :
-    ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
-      (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
-      MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
-        S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) :=
-  garnir_columnInvCount_decrease n la σ p₁ p₂ hcol hrow hinv
-
-/-- Garnir reduction: for a non-column-standard filling, of(σ) · c_λ
-can be expressed as a combination of of(τᵢ) · c_λ with fewer column inversions.
-
-The standard proof uses the Garnir element (see James, Ch. 7). -/
-private theorem garnir_reduction' (n : ℕ) (la : Nat.Partition n)
-    (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
-    ∃ (S : Finset (Equiv.Perm (Fin n))) (c : Equiv.Perm (Fin n) → ℂ),
-      (∀ τ ∈ S, columnInvCount' n la τ < columnInvCount' n la σ) ∧
-      MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la =
-        S.sum (fun τ => c τ • (MonoidAlgebra.of ℂ _ τ * YoungSymmetrizer n la)) := by
-  obtain ⟨p₁, p₂, hcol, hrow, hinv⟩ := exists_column_inversion n la σ h
-  exact garnir_identity_expansion n la σ p₁ p₂ hcol hrow hinv
-
 /-- **Straightening lemma**: any permutation applied to the Young symmetrizer
 lies in the ℂ-span of standard polytabloids.
 
-Proved by well-founded induction on column inversions:
-- Base case (0 inversions): σ is column-standard → row-sort within right
-  P_λ-coset to get an SYT, using row absorption of c_λ.
-- Inductive step: Garnir reduction expresses σ · c_λ as a combination
-  of terms with fewer column inversions. -/
+**Proof approach (revised)**: The original Garnir-based induction claimed
+pointwise decrease of `columnInvCount'` under Garnir expansion. This is
+FALSE: counterexample on partition (2,2) shows a Garnir coset representative
+that preserves the column inversion count (see issue #2104).
+
+Moreover, the Garnir identity `a_λ * G = 0`, when applied at the group
+algebra level, yields a tautology via Lemma 5.13.1: each term
+`of(σ) * a_λ * of(w) * b_λ = ℓ(of(w)) • of(σ) * c_λ`, so the expansion
+collapses to `of(σ) * c_λ = -K • of(σ) * c_λ` with K = -1. The Garnir
+expansion only produces non-trivial reductions at the **tabloid module**
+level, where the sandwich property does not apply.
+
+The correct approach requires one of:
+1. **Tabloid-level straightening**: prove the straightening in M^λ using
+   tabloid dominance order, then transfer to V_λ via the tabloid projection
+   map (which is injective by irreducibility of V_λ, Theorem 5.12.2).
+2. **Dimension argument**: show dim V_λ = |SYT(λ)| via the hook length
+   formula or representation-theoretic dimension counting.
+
+Both approaches require significant infrastructure not yet in this file. -/
 theorem perm_mul_youngSymmetrizer_mem_span_polytabloids (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) :
     MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la ∈
       Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
         (polytabloidInSpecht n la T : SymGroupAlgebra n))) := by
-  induction h : columnInvCount' n la σ using Nat.strongRecOn generalizing σ with
-  | ind m ih =>
-  by_cases hcs : isColumnStandard' n la σ
-  · exact column_standard_in_span' n la σ hcs
-  · obtain ⟨S, c, hlt, heq⟩ := garnir_reduction' n la σ hcs
-    rw [heq]
-    apply Submodule.sum_mem
-    intro τ hτ
-    apply Submodule.smul_mem
-    exact ih (columnInvCount' n la τ) (h ▸ hlt τ hτ) τ rfl
+  sorry
 
 /-- The polytabloids {e_T : T ∈ SYT(λ)} span V_λ.
 
