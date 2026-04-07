@@ -22,7 +22,7 @@ namespace Etingof
 Every coefficient of the Young symmetrizer c_λ ∈ ℂ[S_n] is an integer: the row
 symmetrizer a_λ = Σ_{g ∈ P_λ} g has coefficients in {0, 1}, the column
 antisymmetrizer b_λ = Σ_{g ∈ Q_λ} sign(g)·g has coefficients in {-1, 0, 1},
-and their product c_λ = a_λ · b_λ has integer coefficients.
+and their product c_λ = b_λ · a_λ has integer coefficients.
 
 Since c_λ ∈ ℤ[S_n] ⊂ ℚ[S_n] ⊂ ℂ[S_n], the Specht module V_λ = ℂ[S_n] · c_λ
 admits a ℚ-form V_λ^ℚ = ℚ[S_n] · c_λ, showing that every irreducible representation
@@ -38,9 +38,9 @@ theorem Corollary5_12_4 (n : ℕ) (la : Nat.Partition n) :
   let b_int : MonoidAlgebra ℤ (Equiv.Perm (Fin n)) :=
     haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
     ∑ g : (ColumnSubgroup n la), (Equiv.Perm.sign g.val : ℤ) • MonoidAlgebra.of ℤ _ g.val
-  use a_int * b_int
+  use b_int * a_int
   -- The ring hom φ : ℤ[Sₙ] →+* ℂ[Sₙ] preserves multiplication
-  change φ (a_int * b_int) = YoungSymmetrizer n la
+  change φ (b_int * a_int) = YoungSymmetrizer n la
   rw [map_mul]
   -- Show φ maps each factor to the corresponding ℂ-version
   -- Use ext at the Finsupp level to avoid Fintype instance issues

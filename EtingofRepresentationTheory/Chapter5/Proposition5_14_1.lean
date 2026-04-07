@@ -110,10 +110,12 @@ private lemma rowSymmetrizer_annihilates_specht (n : ℕ) (la mu : Nat.Partition
   rw [show v = x • YoungSymmetrizer n mu from hx.symm]
   change RowSymmetrizer n la * (x * YoungSymmetrizer n mu) = 0
   simp only [YoungSymmetrizer]
-  rw [show RowSymmetrizer n la * (x * (RowSymmetrizer n mu * ColumnAntisymmetrizer n mu)) =
-    RowSymmetrizer n la * (x * RowSymmetrizer n mu) * ColumnAntisymmetrizer n mu
+  rw [show RowSymmetrizer n la * (x * (ColumnAntisymmetrizer n mu * RowSymmetrizer n mu)) =
+    (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n mu)) * RowSymmetrizer n mu
     from by simp only [mul_assoc],
-    Lemma5_13_2_general n la mu h]
+    show RowSymmetrizer n la * (x * ColumnAntisymmetrizer n mu) =
+      RowSymmetrizer n la * x * ColumnAntisymmetrizer n mu from by rw [mul_assoc],
+    Lemma5_13_2_general n la mu h, zero_mul]
 
 end
 
@@ -238,21 +240,31 @@ private lemma youngSymmetrizer_ne_zero (n : ℕ) (la : Nat.Partition n) :
   have hbot : SpechtModule n la = ⊥ := Submodule.span_singleton_eq_bot.mpr h
   exact (isSimpleModule_iff_isAtom.mp ‹_›).1 hbot
 
-/-- The product a_λ * c_λ is nonzero. With c_λ = a_λ · b_λ, left P_λ absorption
-gives a_λ * c_λ = |P_λ| • c_λ ≠ 0. -/
+/-- The product a_λ * c_λ is nonzero. With c_λ = b_λ · a_λ, this follows from
+c_λ * (a_λ * c_λ) = (c_λ * a_λ) * c_λ = |P_λ| • c_λ² ≠ 0. -/
 private lemma rowSym_youngSym_ne_zero (n : ℕ) (la : Nat.Partition n) :
     RowSymmetrizer n la * YoungSymmetrizer n la ≠ 0 := by
   classical
-  -- a * c = Σ_{p ∈ P} of(p) * c = Σ_{p ∈ P} c = |P| • c (since of(p)*c = c)
-  suffices h : RowSymmetrizer n la * YoungSymmetrizer n la =
-      (Fintype.card (RowSubgroup n la) : ℂ) • YoungSymmetrizer n la by
-    rw [h]; exact smul_ne_zero (Nat.cast_ne_zero.mpr Fintype.card_pos.ne')
-      (youngSymmetrizer_ne_zero n la)
-  simp only [RowSymmetrizer, Finset.sum_mul]
-  have key : ∀ g : ↥(RowSubgroup n la),
-      MonoidAlgebra.of ℂ _ g.val * YoungSymmetrizer n la = YoungSymmetrizer n la :=
-    fun g => by rw [YoungSymmetrizer, ← mul_assoc, of_row_mul_RowSymmetrizer g.val g.prop]
-  simp_rw [key, Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
+  set c := YoungSymmetrizer n la
+  -- c * a = |P| • c (right row absorption: c * of(p) = b*(a*of(p)) = b*a = c)
+  have h_ca : c * RowSymmetrizer n la =
+      (Fintype.card (RowSubgroup n la) : ℂ) • c := by
+    simp only [RowSymmetrizer, Finset.mul_sum]
+    have key : ∀ g : ↥(RowSubgroup n la),
+        c * MonoidAlgebra.of ℂ _ g.val = c :=
+      fun g => by
+        change YoungSymmetrizer n la * MonoidAlgebra.of ℂ _ g.val = YoungSymmetrizer n la
+        rw [YoungSymmetrizer, mul_assoc, RowSymmetrizer_mul_of_row g.val g.prop]
+    simp_rw [key, Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
+  -- c * (a * c) = |P| • c² ≠ 0
+  have h_cac : c * (RowSymmetrizer n la * c) =
+      (Fintype.card (RowSubgroup n la) : ℂ) • (c * c) := by
+    rw [← mul_assoc, h_ca, smul_mul_assoc]
+  have h_csq_ne := young_symmetrizer_sq_ne_zero n la
+  have h_P_ne : (Fintype.card (RowSubgroup n la) : ℂ) ≠ 0 :=
+    Nat.cast_ne_zero.mpr Fintype.card_pos.ne'
+  intro h_ac_zero
+  exact smul_ne_zero h_P_ne h_csq_ne (by rw [← h_cac, h_ac_zero, mul_zero])
 
 /-- of(g) * a_λ * c_λ ≠ 0 since of(g) is a unit and a_λ * c_λ ≠ 0. -/
 private lemma of_mul_rowSym_youngSymmetrizer_ne_zero (n : ℕ) (la : Nat.Partition n) (g : G' n) :
@@ -287,36 +299,22 @@ private lemma row_invariant_is_scalar_of_rowSym_youngSym (n : ℕ) (la : Nat.Par
       intro p; have h := hinv p.val p.prop; rwa [← hx] at h
     simp only [RowSymmetrizer, Finset.sum_mul, key, Finset.sum_const, Finset.card_univ,
       ← Nat.cast_smul_eq_nsmul ℂ]
-  -- By dual sandwich: a * (x * c) = a * (x * a * b) = ℓ'(x*a) • c
+  -- By dual sandwich: a * (x * c) = (a * x * b) * a = ℓ'(x) • (a * b) * a = ℓ'(x) • (a * c)
   obtain ⟨ℓ', hℓ'⟩ := Etingof.Lemma5_13_1_dual n la
   have h_sandwich : RowSymmetrizer n la * (x * YoungSymmetrizer n la) =
-      ℓ' (x * RowSymmetrizer n la) • YoungSymmetrizer n la := by
-    rw [show RowSymmetrizer n la * (x * YoungSymmetrizer n la) =
-        RowSymmetrizer n la * (x * RowSymmetrizer n la) *
-          ColumnAntisymmetrizer n la from by
-      simp only [YoungSymmetrizer, mul_assoc]]
-    rw [hℓ']
+      ℓ' x • (RowSymmetrizer n la * YoungSymmetrizer n la) := by
+    simp only [YoungSymmetrizer]
+    rw [show RowSymmetrizer n la * (x * (ColumnAntisymmetrizer n la * RowSymmetrizer n la)) =
+        (RowSymmetrizer n la * x * ColumnAntisymmetrizer n la) * RowSymmetrizer n la from by
+      simp only [mul_assoc]]
+    rw [hℓ', smul_mul_assoc, mul_assoc]
   have h_card_ne_zero : (Fintype.card (RowSubgroup n la) : ℂ) ≠ 0 :=
     Nat.cast_ne_zero.mpr Fintype.card_pos.ne'
-  -- Combining: |P| • v = ℓ'(x*a) • c, so v = (ℓ'(x*a)/|P|) • c
+  -- Combining: |P| • v = ℓ'(x) • (a * c), so v = (ℓ'(x)/|P|) • (a * c)
   rw [h_sandwich] at h_sum
   replace h_sum := congr_arg ((Fintype.card (RowSubgroup n la) : ℂ)⁻¹ • ·) h_sum.symm
   simp only [smul_smul, inv_mul_cancel₀ h_card_ne_zero, one_smul] at h_sum
-  -- h_sum : x * c = (|P|⁻¹ * ℓ') • c. And a*c = |P| • c.
-  -- So v = (|P|⁻¹ * ℓ' * |P|⁻¹) • (a * c).
-  have h_ac : RowSymmetrizer n la * YoungSymmetrizer n la =
-      (Fintype.card (RowSubgroup n la) : ℂ) • YoungSymmetrizer n la := by
-    simp only [RowSymmetrizer, Finset.sum_mul]
-    have key : ∀ g : ↥(RowSubgroup n la),
-        MonoidAlgebra.of ℂ _ g.val * YoungSymmetrizer n la = YoungSymmetrizer n la :=
-      fun g => by rw [YoungSymmetrizer, ← mul_assoc, of_row_mul_RowSymmetrizer g.val g.prop]
-    simp_rw [key, Finset.sum_const, Finset.card_univ, ← Nat.cast_smul_eq_nsmul ℂ]
-  refine ⟨(Fintype.card (RowSubgroup n la) : ℂ)⁻¹ *
-      ℓ' (x * RowSymmetrizer n la) *
-      (Fintype.card (RowSubgroup n la) : ℂ)⁻¹, ?_⟩
-  rw [h_ac, smul_smul, mul_assoc _ _ ((Fintype.card (RowSubgroup n la) : ℂ)),
-    inv_mul_cancel₀ h_card_ne_zero, mul_one]
-  exact h_sum
+  exact ⟨(Fintype.card (RowSubgroup n la) : ℂ)⁻¹ * ℓ' x, h_sum⟩
 
 /-- Coset representative equivariance for a_λ * c_λ:
 of(out(σ·q)) * a_λ * c_λ = of(σ) * of(out q) * a_λ * c_λ. -/

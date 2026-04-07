@@ -29,11 +29,11 @@ private lemma young_symmetrizer_annihilates_specht (n : ℕ) (la mu : Nat.Partit
   rw [← hx]
   change YoungSymmetrizer n la * (x * YoungSymmetrizer n mu) = 0
   simp only [YoungSymmetrizer]
-  rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la *
-    (x * (RowSymmetrizer n mu * ColumnAntisymmetrizer n mu)) =
-    RowSymmetrizer n la * (ColumnAntisymmetrizer n la * x * RowSymmetrizer n mu) *
-    ColumnAntisymmetrizer n mu from by simp only [mul_assoc],
-    Lemma5_13_2_general n la mu h]
+  rw [show ColumnAntisymmetrizer n la * RowSymmetrizer n la *
+    (x * (ColumnAntisymmetrizer n mu * RowSymmetrizer n mu)) =
+    ColumnAntisymmetrizer n la * (RowSymmetrizer n la * x * ColumnAntisymmetrizer n mu) *
+    RowSymmetrizer n mu from by simp only [mul_assoc],
+    Lemma5_13_2_general n la mu h, mul_zero, zero_mul]
 
 /-- For distinct partitions λ ≠ μ, the Specht modules V_λ and V_μ are not isomorphic
 as ℂ[S_n]-modules. (Etingof Theorem 5.12.2, part 2a)

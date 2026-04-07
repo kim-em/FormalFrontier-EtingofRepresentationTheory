@@ -183,16 +183,16 @@ private lemma mul_mem_specht_proportional (n : ℕ) (la : Nat.Partition n)
   set c := YoungSymmetrizer n la
   obtain ⟨a, ha⟩ := Submodule.mem_span_singleton.mp v.prop
   rw [smul_eq_mul] at ha
-  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1_dual n la
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
   have h_sandwich : ∀ x,
-      c * x * c = ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) • c := by
+      c * x * c = ℓ (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) • c := by
     intro x
-    change RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
-        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) = _
-    rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
-          (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
-        RowSymmetrizer n la * (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) *
-          ColumnAntisymmetrizer n la from by simp only [mul_assoc]]
+    change ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
+        (ColumnAntisymmetrizer n la * RowSymmetrizer n la) = _
+    rw [show ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
+          (ColumnAntisymmetrizer n la * RowSymmetrizer n la) =
+        ColumnAntisymmetrizer n la * (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) *
+          RowSymmetrizer n la from by simp only [mul_assoc]]
     rw [hℓ]
   have hsand := h_sandwich a
   conv_lhs at hsand => rw [mul_assoc]
