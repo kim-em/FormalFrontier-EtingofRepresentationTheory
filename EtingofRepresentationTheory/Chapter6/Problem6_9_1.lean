@@ -1157,6 +1157,103 @@ private lemma swapOp_nilpotent
     rw [show 2 * (k + 1) = 2 * k + 2 from by omega, pow_add, ih, hsq,
       LinearMap.prodMap_mul, pow_succ, pow_succ]
 
+/-- Even powers of swapOp decompose as a product map: X^{2m} = (BA)^m × (AB)^m. -/
+private lemma swapOp_pow_even
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) :
+    (swapOp A B) ^ (2 * m) = ((B.comp A) ^ m).prodMap ((A.comp B) ^ m) := by
+  induction m with
+  | zero => simp [LinearMap.prodMap_one]
+  | succ m ih =>
+    rw [show 2 * (m + 1) = 2 * m + 2 from by omega, pow_add, ih, swapOp_sq,
+      LinearMap.prodMap_mul, pow_succ, pow_succ]
+
+/-- X^{2m}(v, 0) = ((BA)^m v, 0): even powers of swapOp on pure V-elements stay in V×{0}. -/
+private lemma swapOp_pow_even_fst
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (v : V) :
+    (swapOp A B ^ (2 * m)) (v, (0 : W)) = (((B.comp A) ^ m) v, (0 : W)) := by
+  rw [swapOp_pow_even, LinearMap.prodMap_apply, map_zero]
+
+/-- X^{2m+1}(v, 0) = (0, A(BA)^m v): odd powers of swapOp on pure V-elements land in {0}×W. -/
+private lemma swapOp_pow_odd_fst
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (v : V) :
+    (swapOp A B ^ (2 * m + 1)) (v, (0 : W)) =
+      ((0 : V), A (((B.comp A) ^ m) v)) := by
+  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_fst, swapOp_apply, map_zero]
+
+/-- X^{2m}(0, w) = (0, (AB)^m w): even powers of swapOp on pure W-elements stay in {0}×W. -/
+private lemma swapOp_pow_even_snd
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (w : W) :
+    (swapOp A B ^ (2 * m)) ((0 : V), w) = ((0 : V), ((A.comp B) ^ m) w) := by
+  rw [swapOp_pow_even, LinearMap.prodMap_apply, map_zero]
+
+/-- X^{2m+1}(0, w) = (B(AB)^m w, 0): odd powers of swapOp on pure W-elements land in V×{0}. -/
+private lemma swapOp_pow_odd_snd
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (w : W) :
+    (swapOp A B ^ (2 * m + 1)) ((0 : V), w) =
+      (B (((A.comp B) ^ m) w), (0 : W)) := by
+  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_snd, swapOp_apply, map_zero]
+
+/-- If X^k kills (v,w), it also kills (v,0) and (0,w) separately.
+This follows because X^k(v,0) and X^k(0,w) live in complementary subspaces
+(one in V×{0}, the other in {0}×W) for any given k, so their sum being zero
+forces both to be zero. -/
+private lemma swapOp_pow_zero_of_pure
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (k : ℕ) (v : V) (w : W)
+    (hk : (swapOp A B ^ k) (v, w) = 0) :
+    (swapOp A B ^ k) (v, (0 : W)) = 0 ∧
+    (swapOp A B ^ k) ((0 : V), w) = 0 := by
+  have hlin : (swapOp A B ^ k) (v, w) =
+      (swapOp A B ^ k) (v, (0 : W)) + (swapOp A B ^ k) ((0 : V), w) := by
+    rw [← map_add]; congr 1; simp
+  rw [hk] at hlin
+  -- The two summands live in complementary subspaces depending on parity of k
+  obtain ⟨m, rfl | rfl⟩ := k.even_or_odd'
+  · -- k = 2*m: both land in V×{0} and {0}×W respectively
+    rw [swapOp_pow_even_fst, swapOp_pow_even_snd] at hlin ⊢
+    constructor
+    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
+        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
+    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
+        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
+  · -- k = 2*m+1: swapped
+    rw [swapOp_pow_odd_fst, swapOp_pow_odd_snd] at hlin ⊢
+    constructor
+    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
+        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
+    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
+        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
+
+/-- For (v,w) with X^{k-1}(v,w) ≠ 0, at least one of (v,0) or (0,w) also has
+X^{k-1} ≠ 0. Combined with `swapOp_pow_zero_of_pure` (both have order ≤ k),
+this means at least one pure component has the same X-order as (v,w). -/
+private lemma swapOp_pure_order
+    {V : Type*} [AddCommGroup V] [Module ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (k : ℕ) (v : V) (w : W)
+    (hk1 : (swapOp A B ^ k) (v, w) ≠ 0) :
+    (swapOp A B ^ k) (v, (0 : W)) ≠ 0 ∨
+    (swapOp A B ^ k) ((0 : V), w) ≠ 0 := by
+  by_contra h
+  push_neg at h
+  obtain ⟨h1, h2⟩ := h
+  apply hk1
+  have : (swapOp A B ^ k) (v, w) =
+      (swapOp A B ^ k) (v, (0 : W)) + (swapOp A B ^ k) ((0 : V), w) := by
+    rw [← map_add]; congr 1; simp
+  rw [this, h1, h2, add_zero]
+
 private lemma swapOp_ker_finrank
     {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
