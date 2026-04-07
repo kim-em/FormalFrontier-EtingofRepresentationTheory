@@ -45,14 +45,14 @@ def weightToPartition (N : ℕ) (lam : Fin N → ℕ) :
 
 /-! ### Young symmetrizer over a general field -/
 
-/-- The Young symmetrizer `c_λ = a_λ · b_λ` in `k[S_n]`, over a general field `k`. -/
+/-- The Young symmetrizer `c_λ = b_λ · a_λ` in `k[S_n]`, over a general field `k`. -/
 def YoungSymmetrizerK (k : Type*) [CommRing k] (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra k (Equiv.Perm (Fin n)) :=
   haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
   haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
-  (∑ g : (RowSubgroup n la), MonoidAlgebra.of k _ g.val) *
   (∑ g : (ColumnSubgroup n la),
-    ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val)
+    ((↑(Equiv.Perm.sign g.val) : ℤ) : k) • MonoidAlgebra.of k _ g.val) *
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of k _ g.val)
 
 /-! ### Young symmetrizer over ℤ and scalar transfer -/
 
@@ -62,9 +62,9 @@ def YoungSymmetrizerZ (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℤ (Equiv.Perm (Fin n)) :=
   haveI : DecidablePred (· ∈ RowSubgroup n la) := Classical.decPred _
   haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
-  (∑ g : (RowSubgroup n la), MonoidAlgebra.of ℤ _ g.val) *
   (∑ g : (ColumnSubgroup n la),
-    (↑(Equiv.Perm.sign g.val) : ℤ) • MonoidAlgebra.of ℤ _ g.val)
+    (↑(Equiv.Perm.sign g.val) : ℤ) • MonoidAlgebra.of ℤ _ g.val) *
+  (∑ g : (RowSubgroup n la), MonoidAlgebra.of ℤ _ g.val)
 
 /-- Base change maps `of ℤ g` to `of k g`. -/
 private theorem mapRange_of {G : Type*} [Monoid G] (R : Type*) [CommRing R]
@@ -127,21 +127,21 @@ theorem YoungSymmetrizerZ_apply_one (n : ℕ) (la : Nat.Partition n) :
       (MonoidAlgebra.mapRangeRingHom _ (Int.castRingHom ℂ) (YoungSymmetrizerZ n la)) 1
     from (MonoidAlgebra.mapRangeRingHom_apply (Int.castRingHom ℂ) _ _).symm]
   rw [← YoungSymmetrizer_eq_mapRange, (Int.castRingHom ℂ).map_one]
-  -- YoungSymmetrizer = RowSymmetrizer * ColumnAntisymmetrizer
+  -- YoungSymmetrizer = ColumnAntisymmetrizer * RowSymmetrizer
   simp only [YoungSymmetrizer, RowSymmetrizer, ColumnAntisymmetrizer]
   -- Distribute the product of sums
-  rw [Finset.sum_mul]
-  simp_rw [Finset.mul_sum, mul_smul_comm]
+  rw [Finset.mul_sum]
+  simp_rw [Finset.sum_mul, smul_mul_assoc]
   -- Unfold of to single, then simplify multiplication of singles
   have hof : ∀ (g : Equiv.Perm (Fin n)),
       (MonoidAlgebra.of ℂ _ g : MonoidAlgebra ℂ _) = Finsupp.single g 1 := fun _ => rfl
   simp_rw [hof, MonoidAlgebra.single_mul_single, mul_one]
-  -- Goal: (∑ p ∑ q, (sign q) • single (p*q) 1)(1) = 1
+  -- Goal: (∑ p ∑ q, (sign q) • single (q*p) 1)(1) = 1
   rw [Finset.sum_apply']
   conv_lhs => arg 2; ext k; rw [Finset.sum_apply']
   simp only [MonoidAlgebra.smul_apply, smul_eq_mul, MonoidAlgebra.single_apply,
     mul_ite, mul_one, mul_zero]
-  -- ∑_p ∑_q, if p * q = 1 then (sign q : ℂ) else 0 = 1
+  -- ∑_p ∑_q, if q * p = 1 then (sign q : ℂ) else 0 = 1
   rw [Fintype.sum_eq_single ⟨1, (RowSubgroup n la).one_mem⟩]
   · rw [Fintype.sum_eq_single ⟨1, (ColumnSubgroup n la).one_mem⟩]
     · simp [Equiv.Perm.sign_one]
@@ -153,9 +153,12 @@ theorem YoungSymmetrizerZ_apply_one (n : ℕ) (la : Nat.Partition n) :
     apply Fintype.sum_eq_zero
     intro ⟨q, hq⟩
     rw [if_neg]
-    intro hpq
-    have heq : p = q⁻¹ := mul_eq_one_iff_eq_inv.mp hpq
-    have hp_in_Q : p ∈ ColumnSubgroup n la := heq ▸ (ColumnSubgroup n la).inv_mem hq
+    intro hqp
+    have heq : q = p⁻¹ := mul_eq_one_iff_eq_inv.mp hqp
+    have hp_in_Q : p ∈ ColumnSubgroup n la := by
+      have : q ∈ ColumnSubgroup n la := hq
+      rw [heq] at this
+      exact (ColumnSubgroup n la).inv_mem_iff.mp this
     exact hne (Subtype.ext (row_col_preserving_eq_one n la p hp hp_in_Q))
 
 /-- The Young symmetrizer over any CharZero ring satisfies c² = α·c for some scalar α.
