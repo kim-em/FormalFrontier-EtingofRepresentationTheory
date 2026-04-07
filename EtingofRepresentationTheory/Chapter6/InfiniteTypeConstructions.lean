@@ -2103,4 +2103,49 @@ theorem etilde6_not_finite_type :
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
 
+/-! ## Section 17: Ẽ_8 has infinite representation type via subgraph embedding
+
+The graph T_{2,3,5} (our "Ẽ_8") contains T_{2,2,2} (Ẽ_6) as a subgraph.
+Embedding: φ maps 0→0, 1→1, 2→2, 3→3, 4→4, 5→6, 6→7.
+Arms of Ẽ_6 (lengths 2,2,2) embed into the first two edges of each arm of T_{2,3,5}. -/
+
+/-- Embedding of Ẽ_6 (7 vertices) into Ẽ_8 (11 vertices).
+Maps: 0→0, 1→1, 2→2, 3→3, 4→4, 5→6, 6→7. -/
+def etilde6_to_etilde8_fun : Fin 7 → Fin 11
+  | ⟨0, _⟩ => ⟨0, by omega⟩
+  | ⟨1, _⟩ => ⟨1, by omega⟩
+  | ⟨2, _⟩ => ⟨2, by omega⟩
+  | ⟨3, _⟩ => ⟨3, by omega⟩
+  | ⟨4, _⟩ => ⟨4, by omega⟩
+  | ⟨5, _⟩ => ⟨6, by omega⟩
+  | ⟨6, _⟩ => ⟨7, by omega⟩
+
+private theorem etilde6_to_etilde8_injective : Function.Injective etilde6_to_etilde8_fun := by
+  intro a b hab
+  fin_cases a <;> fin_cases b <;> simp_all [etilde6_to_etilde8_fun]
+
+def etilde6_to_etilde8 : Fin 7 ↪ Fin 11 :=
+  ⟨etilde6_to_etilde8_fun, etilde6_to_etilde8_injective⟩
+
+-- Ẽ_6 has 7 vertices; fin_cases creates 49 goals for adjacency compatibility
+set_option maxHeartbeats 3200000 in
+private theorem etilde6_etilde8_adj_compat :
+    ∀ i j : Fin 7, etilde6Adj i j = etilde8Adj (etilde6_to_etilde8 i) (etilde6_to_etilde8 j) := by
+  intro i j
+  fin_cases i <;> fin_cases j <;> simp [etilde6Adj, etilde8Adj, etilde6_to_etilde8,
+    etilde6_to_etilde8_fun]
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- The extended Dynkin graph T_{2,3,5} (our "Ẽ_8") has infinite representation type.
+This follows because it contains Ẽ_6 = T_{2,2,2} as a subgraph, which itself has
+infinite representation type. -/
+theorem etilde8_not_finite_type :
+    ¬ Etingof.IsFiniteTypeQuiver 11 etilde8Adj :=
+  subgraph_infinite_type_transfer etilde6_to_etilde8 etilde8Adj etilde6Adj
+    etilde8Adj_symm
+    (fun v h => by linarith [etilde8Adj_diag v])
+    etilde6_etilde8_adj_compat
+    etilde6_not_finite_type
+
 end Etingof
