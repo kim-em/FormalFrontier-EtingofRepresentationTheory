@@ -436,9 +436,9 @@ theorem Etingof.Corollary6_8_4
     (hDynkin : Etingof.IsDynkinDiagram n adj)
     (α : Fin n → ℤ) (hα : Etingof.IsPositiveRoot n adj α)
     (k : Type u) [Field k]
-    {Q : Quiver (Fin n)} (hQ : Etingof.IsOrientationOf Q adj)
+    {Q : @Quiver.{0, 0} (Fin n)} (hQ : Etingof.IsOrientationOf Q adj)
     [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)] :
-    ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
+    ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, 0} k (Fin n) _ Q)
       (_ : ∀ v, Module.Free k (ρ.obj v))
       (_ : ∀ v, Module.Finite k (ρ.obj v)),
       ρ.IsIndecomposable ∧
@@ -448,12 +448,12 @@ theorem Etingof.Corollary6_8_4
   -- For mixed vertices: sorry (requires admissible ordering backward construction).
   set A := Etingof.cartanMatrix n adj with hA_def
   have hAsymm : A.IsSymm := Etingof.cartanMatrix_isSymm hDynkin.1
-  suffices h : ∀ (m : ℕ) (α : Fin n → ℤ) (Q : Quiver (Fin n)),
+  suffices h : ∀ (m : ℕ) (α : Fin n → ℤ) (Q : @Quiver.{0, 0} (Fin n)),
       (∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)) →
       (∑ j, α j).toNat = m →
       Etingof.IsPositiveRoot n adj α →
       Etingof.IsOrientationOf Q adj →
-      ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, _} k (Fin n) _ Q)
+      ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, 0} k (Fin n) _ Q)
         (_ : ∀ v, Module.Free k (ρ.obj v))
         (_ : ∀ v, Module.Finite k (ρ.obj v)),
         ρ.IsIndecomposable ∧ ∀ v, (α v : ℤ) = ↑(Module.finrank k (ρ.obj v)) from
