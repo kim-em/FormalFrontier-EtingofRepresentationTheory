@@ -1235,4 +1235,157 @@ theorem tree_degree_ge_4_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n)
   exact star_subgraph_not_finite_type adj hadj_symm hadj_diag v leaves hleaves_ne
     hleaves_adj hleaves_indep
 
+/-! ## Section 14: Extended Dynkin graph Ẽ_6 = T_{2,2,2}
+
+The graph T_{2,2,2} has 7 vertices: a center vertex (0) with three arms of length 2.
+- Arm 1: 0-1-2
+- Arm 2: 0-3-4
+- Arm 3: 0-5-6
+
+The orientation sends all arrows toward the center: 2→1→0, 4→3→0, 6→5→0.
+-/
+
+/-- Adjacency matrix for Ẽ_6 = T_{2,2,2} (7 vertices, 3 arms of length 2). -/
+def etilde6Adj : Matrix (Fin 7) (Fin 7) ℤ := fun i j =>
+  match i.val, j.val with
+  | 0, 1 | 1, 0 | 1, 2 | 2, 1 | 0, 3 | 3, 0 | 3, 4 | 4, 3
+  | 0, 5 | 5, 0 | 5, 6 | 6, 5 => 1
+  | _, _ => 0
+
+theorem etilde6Adj_symm : etilde6Adj.IsSymm := by
+  ext i j; simp only [etilde6Adj, Matrix.transpose_apply]
+  fin_cases i <;> fin_cases j <;> simp
+
+theorem etilde6Adj_diag (i : Fin 7) : etilde6Adj i i = 0 := by
+  fin_cases i <;> simp [etilde6Adj]
+
+theorem etilde6Adj_01 (i j : Fin 7) : etilde6Adj i j = 0 ∨ etilde6Adj i j = 1 := by
+  fin_cases i <;> fin_cases j <;> simp [etilde6Adj]
+
+/-- The Ẽ_6 quiver: all arrows directed toward the center (vertex 0).
+Arrows: 2→1, 1→0, 4→3, 3→0, 6→5, 5→0. -/
+def etilde6Quiver : Quiver (Fin 7) where
+  Hom i j := PLift (
+    (i.val = 2 ∧ j.val = 1) ∨ (i.val = 1 ∧ j.val = 0) ∨
+    (i.val = 4 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 0) ∨
+    (i.val = 6 ∧ j.val = 5) ∨ (i.val = 5 ∧ j.val = 0))
+
+instance etilde6Quiver_subsingleton (a b : Fin 7) :
+    Subsingleton (@Quiver.Hom (Fin 7) etilde6Quiver a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+private theorem etilde6_arrow_implies_edge (i j : Fin 7)
+    (hp : (i.val = 2 ∧ j.val = 1) ∨ (i.val = 1 ∧ j.val = 0) ∨
+      (i.val = 4 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 0) ∨
+      (i.val = 6 ∧ j.val = 5) ∨ (i.val = 5 ∧ j.val = 0)) :
+    etilde6Adj i j = 1 := by
+  rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+    simp only [etilde6Adj, h1, h2]
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem etilde6Orientation_isOrientationOf :
+    @Etingof.IsOrientationOf 7 etilde6Quiver etilde6Adj := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    exact hij (etilde6_arrow_implies_edge i j hp)
+  · -- Each edge has an arrow in one direction
+    fin_cases i <;> fin_cases j <;> simp [etilde6Adj] at hij <;>
+      first
+      | (left; exact ⟨⟨by decide⟩⟩)
+      | (right; exact ⟨⟨by decide⟩⟩)
+  · -- No two-way arrows
+    obtain ⟨hp⟩ := hi; obtain ⟨hq⟩ := hj
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      rcases hq with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+        omega
+
+/-! ## Section 15: Extended Dynkin graph Ẽ_8 = T_{2,3,5}
+
+The graph T_{2,3,5} has 11 vertices: a center vertex (0) with arms of length 2, 3, and 5.
+- Arm 1 (length 2): 0-1-2
+- Arm 2 (length 3): 0-3-4-5
+- Arm 3 (length 5): 0-6-7-8-9-10
+
+The orientation sends all arrows toward the center.
+-/
+
+/-- Adjacency matrix for Ẽ_8 = T_{2,3,5} (11 vertices). -/
+def etilde8Adj : Matrix (Fin 11) (Fin 11) ℤ := fun i j =>
+  match i.val, j.val with
+  -- Arm 1: 0-1-2
+  | 0, 1 | 1, 0 | 1, 2 | 2, 1
+  -- Arm 2: 0-3-4-5
+  | 0, 3 | 3, 0 | 3, 4 | 4, 3 | 4, 5 | 5, 4
+  -- Arm 3: 0-6-7-8-9-10
+  | 0, 6 | 6, 0 | 6, 7 | 7, 6 | 7, 8 | 8, 7 | 8, 9 | 9, 8 | 9, 10 | 10, 9 => 1
+  | _, _ => 0
+
+theorem etilde8Adj_symm : etilde8Adj.IsSymm := by
+  ext i j; simp only [etilde8Adj, Matrix.transpose_apply]
+  fin_cases i <;> fin_cases j <;> simp
+
+theorem etilde8Adj_diag (i : Fin 11) : etilde8Adj i i = 0 := by
+  fin_cases i <;> simp [etilde8Adj]
+
+theorem etilde8Adj_01 (i j : Fin 11) : etilde8Adj i j = 0 ∨ etilde8Adj i j = 1 := by
+  fin_cases i <;> fin_cases j <;> simp [etilde8Adj]
+
+/-- The Ẽ_8 quiver: all arrows directed toward the center (vertex 0).
+Arrows: 2→1, 1→0, 5→4, 4→3, 3→0, 10→9, 9→8, 8→7, 7→6, 6→0. -/
+def etilde8Quiver : Quiver (Fin 11) where
+  Hom i j := PLift (
+    -- Arm 1: 2→1→0
+    (i.val = 2 ∧ j.val = 1) ∨ (i.val = 1 ∧ j.val = 0) ∨
+    -- Arm 2: 5→4→3→0
+    (i.val = 5 ∧ j.val = 4) ∨ (i.val = 4 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 0) ∨
+    -- Arm 3: 10→9→8→7→6→0
+    (i.val = 10 ∧ j.val = 9) ∨ (i.val = 9 ∧ j.val = 8) ∨ (i.val = 8 ∧ j.val = 7) ∨
+    (i.val = 7 ∧ j.val = 6) ∨ (i.val = 6 ∧ j.val = 0))
+
+instance etilde8Quiver_subsingleton (a b : Fin 11) :
+    Subsingleton (@Quiver.Hom (Fin 11) etilde8Quiver a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+private theorem etilde8_arrow_implies_edge (i j : Fin 11)
+    (hp : (i.val = 2 ∧ j.val = 1) ∨ (i.val = 1 ∧ j.val = 0) ∨
+      (i.val = 5 ∧ j.val = 4) ∨ (i.val = 4 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 0) ∨
+      (i.val = 10 ∧ j.val = 9) ∨ (i.val = 9 ∧ j.val = 8) ∨ (i.val = 8 ∧ j.val = 7) ∨
+      (i.val = 7 ∧ j.val = 6) ∨ (i.val = 6 ∧ j.val = 0)) :
+    etilde8Adj i j = 1 := by
+  rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ |
+    ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+    simp only [etilde8Adj, h1, h2]
+
+-- Ẽ_8 has 11 vertices; fin_cases creates 121 goals
+set_option maxHeartbeats 3200000 in
+private theorem etilde8_edge_has_arrow (i j : Fin 11) (hij : etilde8Adj i j = 1) :
+    Nonempty (@Quiver.Hom (Fin 11) etilde8Quiver i j) ∨
+    Nonempty (@Quiver.Hom (Fin 11) etilde8Quiver j i) := by
+  fin_cases i <;> fin_cases j <;> simp [etilde8Adj] at hij <;>
+    first
+    | (left; exact ⟨⟨by decide⟩⟩)
+    | (right; exact ⟨⟨by decide⟩⟩)
+
+-- orientation proof delegates to helpers; still needs extra heartbeats for 11-vertex quiver
+set_option maxHeartbeats 800000 in
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem etilde8Orientation_isOrientationOf :
+    @Etingof.IsOrientationOf 11 etilde8Quiver etilde8Adj := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    exact hij (etilde8_arrow_implies_edge i j hp)
+  · -- Each edge has an arrow in one direction
+    exact etilde8_edge_has_arrow i j hij
+  · -- No two-way arrows
+    obtain ⟨hp⟩ := hi; obtain ⟨hq⟩ := hj
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ |
+      ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      rcases hq with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ |
+        ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+        omega
+
 end Etingof
