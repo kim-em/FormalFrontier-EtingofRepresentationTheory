@@ -535,9 +535,36 @@ theorem Etingof.Corollary6_8_4
         -- B(α,α) = ∑_j α_j * (Aα)_j. Since α_j = 0 for j ≠ i: B = α_i * (Aα)_i
         -- B(α,α) = α_i * (Aα)_i since α_j = 0 for j ≠ i.
         -- With (Aα)_i = α_i - 1 and B = 2: α_i * (α_i - 1) = 2, so α_i = 2.
-        -- For α = 2*e_i on connected Dynkin graph: B = 8 - 4*deg(i) ≠ 2.
-        -- This uses connectivity of the Dynkin graph (deg(i) ≥ 1 for n ≥ 2).
-        sorry
+        -- Compute B(α,α) directly: since α_j = 0 for j ≠ i, B = α_i² * A_{i,i} = 2α_i².
+        -- B(α,α) = 2 gives α_i = 1, contradicting α_i ≥ 2.
+        have hB_direct : dotProduct α (A.mulVec α) = 2 * α i ^ 2 := by
+          -- Since α_j = 0 for j ≠ i, the bilinear form reduces to A_{i,i} * α_i²
+          have h1 : ∀ j, j ≠ i → α j * A.mulVec α j = 0 := fun j hj => by
+            rw [hαj j hj, zero_mul]
+          have h2 : A.mulVec α i = 2 * α i := by
+            simp only [Matrix.mulVec, dotProduct]
+            rw [← Finset.add_sum_erase _ _ (Finset.mem_univ i)]
+            have : ∀ k ∈ Finset.univ.erase i, A i k * α k = 0 :=
+              fun k hk => by rw [hαj k (Finset.ne_of_mem_erase hk), mul_zero]
+            rw [Finset.sum_eq_zero this, add_zero]
+            have hAii : A i i = 2 := by
+              show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) i i = 2
+              simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply_eq]
+              norm_num; have := hDynkin.2.1 i; omega
+            rw [hAii]
+          simp only [dotProduct]
+          rw [← Finset.add_sum_erase _ _ (Finset.mem_univ i)]
+          have : ∀ j ∈ Finset.univ.erase i, α j * A.mulVec α j = 0 :=
+            fun j hj => h1 j (Finset.ne_of_mem_erase hj)
+          rw [Finset.sum_eq_zero this, add_zero, h2]; ring
+        -- B(α,α) = 2 gives α_i² = 1, so α_i = 1, contradicting α_i ≥ 2
+        -- hα_root uses expanded (2•1-adj), align with A = cartanMatrix
+        have hα_root_A : α ⬝ᵥ A *ᵥ α = 2 := hα_root
+        have : α i ^ 2 = 1 := by linarith
+        have : α i = 1 := by
+          have := hα_nonneg i
+          nlinarith [sq_nonneg (α i - 1)]
+        omega
       -- Step 5: Apply reflection functor at i on Q' to recover a representation on Q.
       --
       -- The approach:
