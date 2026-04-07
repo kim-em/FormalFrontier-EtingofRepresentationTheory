@@ -580,18 +580,26 @@ theorem Etingof.Corollary6_8_4
           rw [h2 j hj] at this; exact_mod_cast this.symm
       -- Step 5b: Apply reflection functor at i on Q' to get representation on Q.
       --
-      -- UNIVERSE BLOCKER: The reflection functor F⁻/F⁺ at vertex i constructs
-      -- a cokernel/kernel whose universe Lean cannot unify with the target
-      -- universe u. Specifically, reflectionFunctorMinus produces
-      -- QuiverRepresentation.{u, 0, max u₁ ?, u₁} but we need .{u, 0, u, _}.
+      -- TYPECLASS SYNTHESIS BLOCKER: When both ρ' (on Q') and fm/fp (on
+      -- reversedAtVertex Q' i) coexist in scope, Lean's instance resolution
+      -- finds BOTH ρ'.instModule v and fm.instModule v as instances of
+      -- Module k (fm.obj v) (because fm.obj v = ρ'.obj v for v ≠ i, and
+      -- `attribute [instance]` on QuiverRepresentation.instModule makes both
+      -- discoverable). This gives "synthesized type class instance is not
+      -- definitionally equal to expression inferred by typing rules".
       --
-      -- Possible fixes:
-      -- 1. Reconstruct the representation at universe u using the LinearEquiv
-      --    from reflFunctorMinus_equivAt_eq (cokernel ≃ₗ direct sum quotient)
-      --    combined with Module.Free + finrank to get Fin m → k at vertex i
-      -- 2. Add universe annotations to reflectionFunctorMinus/Plus definitions
-      -- 3. Restructure the proof to use universe 0 internally (matching
-      --    CoxeterInfrastructure) and transport to universe u at the end
+      -- The universe blocker (pinning Q to .{0,0}) was RESOLVED in a prior
+      -- session. Free/Finite proofs can be done with @-calls that bypass
+      -- synthesis, but Indecomposable/dim proofs trigger the synthesis conflict
+      -- via any mention of fm.obj v.
+      --
+      -- Fix approaches:
+      -- 1. Follow CoxeterInfrastructure.lean exactly: inline the proof
+      --    instead of helper lemmas, ensuring only one QuiverRepresentation
+      --    is "primary" at each point (CoxeterInfra avoids instance params)
+      -- 2. Remove `attribute [instance]` from QuiverRepresentation.instModule
+      --    and use explicit @-based instance passing everywhere
+      -- 3. Use `set_option synthInstance.maxSize` or instance priorities
       --
       -- Additionally, the MIXED VERTEX case (i neither source nor sink in Q)
       -- requires admissible ordering backward walk, not just a single F⁻/F⁺.
