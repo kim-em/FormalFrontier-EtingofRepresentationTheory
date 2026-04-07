@@ -566,27 +566,41 @@ theorem Etingof.Corollary6_8_4
           nlinarith [sq_nonneg (α i - 1)]
         omega
       -- Step 5: Apply reflection functor at i on Q' to recover a representation on Q.
+      -- ρ' is not simple at i (since α' ≠ e_i and dim vector matches α')
+      have hρ'_not_simple : ¬ρ'.IsSimpleAt i := by
+        intro ⟨h1, h2⟩
+        apply hα'_ne_ei; ext j
+        simp only [Etingof.simpleRoot, Pi.single_apply]
+        by_cases hj : j = i
+        · simp only [hj, ite_true]
+          have := (hdim' i).symm
+          rw [h1] at this; exact_mod_cast this.symm
+        · simp only [hj, ite_false]
+          have := (hdim' j).symm
+          rw [h2 j hj] at this; exact_mod_cast this.symm
+      -- Step 5b: Apply reflection functor at i on Q' to get representation on Q.
       --
-      -- The approach:
-      -- - If i is a SINK in Q: i is source in Q', apply F⁻ at i to ρ' on Q',
-      --   get representation on reversedAtVertex Q' i = Q via transportReversedTwice.
-      --   ρ' is not simple at i (since α' ≠ e_i), so sourceMap is injective (Prop 6.6.5),
-      --   F⁻ is indecomposable (Prop 6.6.7) with dimvec s_i(α') = α (Prop 6.6.8).
+      -- UNIVERSE BLOCKER: The reflection functor F⁻/F⁺ at vertex i constructs
+      -- a cokernel/kernel whose universe Lean cannot unify with the target
+      -- universe u. Specifically, reflectionFunctorMinus produces
+      -- QuiverRepresentation.{u, 0, max u₁ ?, u₁} but we need .{u, 0, u, _}.
       --
-      -- - If i is a SOURCE in Q: symmetric, using F⁺ at sink i of Q'.
+      -- Possible fixes:
+      -- 1. Reconstruct the representation at universe u using the LinearEquiv
+      --    from reflFunctorMinus_equivAt_eq (cokernel ≃ₗ direct sum quotient)
+      --    combined with Module.Free + finrank to get Fin m → k at vertex i
+      -- 2. Add universe annotations to reflectionFunctorMinus/Plus definitions
+      -- 3. Restructure the proof to use universe 0 internally (matching
+      --    CoxeterInfrastructure) and transport to universe u at the end
       --
-      -- - If i is MIXED: requires admissible ordering backward walk.
+      -- Additionally, the MIXED VERTEX case (i neither source nor sink in Q)
+      -- requires admissible ordering backward walk, not just a single F⁻/F⁺.
       --
-      -- Proof infrastructure ready:
-      --   ✓ reflFunctorMinus_equivAt_eq, reflFunctorMinus_free/finite_eq/ne
-      --   ✓ Prop 6.6.5 (source), Prop 6.6.7 (source), Prop 6.6.8 (source)
-      --   ✓ isSink_reversedAtVertex_isSource, isSource_reversedAtVertex_isSink
-      --   ✓ reversedAtVertex_twice, transportReversedTwice
-      --   ✓ hα'_ne_ei (α' ≠ simple root at i)
-      --
-      -- Blocked on: universe-polymorphic transport of reflection functor output
-      -- (the suffices uses .{u, 0, u, _} but reflection functors produce
-      -- representations at different universe levels). Needs restructuring the
-      -- suffices to use universe 0 (matching CoxeterInfrastructure) or adding
-      -- explicit universe annotations to the reflection functor definitions.
+      -- Infrastructure ready for source/sink cases:
+      --   ✓ hρ'_not_simple (ρ' not simple at i, since α' ≠ e_i)
+      --   ✓ Prop 6.6.5 source/sink: not simple → injective/surjective
+      --   ✓ Prop 6.6.7 source/sink: F⁻/F⁺ indecomposable or zero
+      --   ✓ Prop 6.6.8 source/sink: dim(F⁻/F⁺) = s_i(dim)
+      --   ✓ simpleReflectionDimVector_eq_simpleReflection_source
+      --   ✓ transportReversedTwice
       sorry
