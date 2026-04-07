@@ -857,48 +857,25 @@ private theorem tabloidCumulCount_full (σ : Equiv.Perm (Fin n)) (i : ℕ) (hn :
   · intro e _; exact σ.symm_apply_apply e
   · intro p _; exact σ.apply_symm_apply p
 
-/-- If e_{T₁}(σ_{T₂}) ≠ 0, then the tabloid of T₁ dominates the tabloid of T₂.
-This is the key triangularity property for polytabloid linear independence.
+/-! ### Note on the group algebra vs tabloid module approach
 
-The PQ decomposition σ_{T₂} = σ_{T₁} · q · p gives row₂(e) = row₁(q(p(e))),
-where q preserves canonical columns and p preserves canonical rows. The SYT
-properties of both T₁ and T₂ constrain which (q,p) pairs are possible, ensuring
-the dominance inequality: T₁ (the polytabloid's SYT) is at least as dominant
-as T₂ (the "evaluated-at" SYT). This is the "dominance lemma" for standard
-Young tableaux (cf. James, "The Representation Theory of the Symmetric Groups",
-or Sagan, "The Symmetric Group").
+The group algebra polytabloid `polytabloid n la T` (in `PolytabloidBasis.lean`)
+and the tabloid polytabloid `polytabloidTab T` (below) have different supports:
+the group algebra polytabloid sums over P_λ × Q_λ coset representatives,
+while the tabloid polytabloid sums over Q_λ alone. The group algebra coefficient
+at a permutation σ can be nonzero even when the tabloid coefficient at
+`toTabloid σ` is zero (since different P_λ coset representatives can cancel).
 
-Note on direction: T₁ dominates T₂ (the polytabloid's tableau dominates the
-evaluated-at tableau). Concretely, for λ=(2,1,1), T₁=[0 2/1/3], T₂=[0 3/1/2],
-we have e_{T₁}(σ_{T₂})≠0, and T₁ packs entries {0,2} into the first row while
-T₂ only has entry {0} in the first row among entries ≤ 2. -/
-theorem polytabloid_syt_dominance
-    (T₁ T₂ : StandardYoungTableau n la)
-    (hne : (polytabloid n la T₁ : SymGroupAlgebra n) (sytPerm n la T₂) ≠ 0) :
-    tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
-  -- Get PQ decomposition: σ_{T₂} = σ_{T₁} · p · q with p ∈ P_λ, q ∈ Q_λ
-  obtain ⟨p, hp, q, hq, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
-  -- PROOF STRATEGY (see GitHub issue for full analysis):
-  -- Let g = p * q, so σ₂ = σ₁ * g. Then row_T₂(e) = row_T₁(g(e)).
-  -- Since T₂(cell) = g⁻¹(T₁(cell)), g⁻¹ is order-preserving on each column of T₁
-  -- (from T₂ being SYT). The dominance reduces to: for each i, the sorted entries
-  -- in the first i rows of T₂ are pointwise ≥ those of T₁. Per-column dominance
-  -- FAILS (counterexample: λ=(2,1,1), col 0 of T₁=[0,1,3], T₂=[0,1,2]).
-  -- A cross-column argument is needed, likely via the conjectured per-cell comparison:
-  -- for i < numRows, T₂(cell) ≥ T₁(cell) for all cells in the first i rows.
-  sorry
+A dominance theorem for the group algebra polytabloid (analagous to
+`polytabloidTab_coeff_dominance` below) would require a novel combinatorial
+argument handling both row and column permutations simultaneously. Per-column
+dominance fails for the row-permutation component.
 
-/-! ### Note on the group algebra linear independence proof
-
-The group algebra version of the linear independence proof (evaluating
-polytabloids at permutations) was previously here but depended on
-`polytabloid_self_coeff`, which is **false** for the T-dependent polytabloid
-definition (see PolytabloidBasis.lean and GitHub issue #2161).
-
-The correct proof is via the tabloid module: `polytabloidTab_linearIndependent`
-below proves linear independence using `polytabloidTab_coeff_self` (which IS
-true at the tabloid level). See `polytabloidTab_coeff_zero_of_maximal` for
-the correct coefficient extraction argument.
+The correct proof of polytabloid linear independence is via the tabloid module:
+`polytabloidTab_linearIndependent` below uses `polytabloidTab_coeff_self` (which
+IS true at the tabloid level) and `polytabloidTab_coeff_dominance`. The group
+algebra version (`polytabloid_linearIndependent` in `PolytabloidBasis.lean`)
+requires a transfer argument from the tabloid module.
 -/
 
 /-- In any finset with a dominance-like relation, a nonempty subset has a maximal
