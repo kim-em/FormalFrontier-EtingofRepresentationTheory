@@ -3,6 +3,7 @@ import EtingofRepresentationTheory.Chapter9.Definition9_7_1
 import EtingofRepresentationTheory.Chapter9.Definition9_7_2
 import EtingofRepresentationTheory.Infrastructure.CornerRing
 import EtingofRepresentationTheory.Infrastructure.BasicAlgebraExistence
+import EtingofRepresentationTheory.Chapter9.EquivFinite
 import Mathlib.Algebra.Category.ModuleCat.Basic
 import Mathlib.Algebra.Algebra.Opposite
 import Mathlib.CategoryTheory.Equivalence
@@ -21,6 +22,7 @@ import Mathlib.RingTheory.Jacobson.Radical
 import Mathlib.RingTheory.Artinian.Module
 import Mathlib.RingTheory.HopkinsLevitzki
 import Mathlib.Algebra.Category.ModuleCat.Projective
+import Mathlib.Algebra.Category.ModuleCat.Subobject
 
 universe u v
 
@@ -308,6 +310,20 @@ private noncomputable def iso_of_surjection_with_trivial_kernel_head
        → B₂/J·B₂ through the quotient B₂ → B₂/J·B₂.
     3. By Nakayama, the lifted map is surjective (image covers B₂ mod J).
     4. Splitting (B₂ projective) gives F(B₁) ≅ B₂ ⊕ K where K/J·K = 0. -/
+-- Helper 0: An equivalence of module categories preserves finite generation of the
+-- regular module. The proof constructs a strictly monotone map from B₂-submodules
+-- of F(B₁) to B₁-submodules of B₁ using the inverse functor and the unit isomorphism,
+-- then transfers the descending chain condition.
+private theorem module_finite_equiv_image
+    (k : Type u) [Field k]
+    {B₁ : Type u} [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
+    {B₂ : Type u} [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    Module.Finite B₂ (F.functor.obj (ModuleCat.of B₁ B₁)) := by
+  haveI : IsArtinianRing B₁ := IsArtinianRing.of_finite k B₁
+  haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
+  exact module_finite_of_equiv_artinian F
+
 -- Helper 1: An equivalence of module categories preserves projectivity.
 -- F(B₁) is projective as a B₂-module because B₁ is projective (free rank 1)
 -- and equivalences preserve projective objects.
