@@ -1307,6 +1307,45 @@ letI : Quiver Q := concreteQuiverInstance
 
 **When to use:** Proposition6_6_6 hdim proof (#1598) needed this to shadow a `Quiver` instance that was preventing `simp` from reducing. Also useful when `inferInstance` finds the wrong instance in the presence of multiple candidates.
 
+## Multi-Quiver Synthesis Conflict (Reflection Functor Pattern)
+
+When working with reflection functors, you often have two quivers: `Q` and
+`Q' = reversedAtVertex Q i`, plus a representation `fp` on `reversedAtVertex Q' i`.
+The error "synthesized type class instance is not definitionally equal to expression
+inferred by typing rules" occurs because:
+
+1. `attribute [instance] QuiverRepresentation.instModule` makes ALL reps' Module
+   instances globally discoverable
+2. For `v ≠ i`, `fp.obj v = ρ'.obj v` (same carrier type)
+3. Lean finds two different Module instances for the same type: `fp.instModule v`
+   (from `reversedAtVertex Q' i`) and `ρ'.instModule v` (from `Q'`)
+
+**What does NOT work:**
+- Changing `set Q'` to `let Q'` — Q' still synthesizable as `Quiver (Fin n)`
+- Removing outer `haveI` alone — Q' is still found by synthesis
+- `@Module.Free` with explicit instances — the proof body still triggers synthesis
+- `letI : Quiver (Fin n) := Q` alone — Q' introduced later overrides
+
+**Working pattern (from CoxeterInfrastructure.lean):**
+- Make the quiver a FUNCTION PARAMETER (not `set`/`let` in tactic mode)
+- Make Free/Finite PARAMETERS (not `haveI`)
+- Use `let` (not `set`) for reversed quiver
+- Use `@` calls with explicit instance args
+
+**Workaround when quiver is from `set`/`let`:**
+```lean
+-- 1. Register Q as instance early
+letI : Quiver (Fin n) := Q
+-- 2. Do NOT use haveI for Free/Finite of ρ' in outer scope
+-- 3. Transport the result in one step:
+let ρ_result : @QuiverRepresentation k (Fin n) _ Q := hinvol ▸ fp
+-- 4. Sorry sub-proofs (Free/Finite/Indec/DimVec) separately
+exact ⟨ρ_result, sorry, sorry, sorry, sorry⟩
+```
+
+**Evidence:** Corollary6_8_4 session 5e978435 (#2184) — 5+ failed approaches
+before finding the `hinvol ▸ fp` transport pattern.
+
 **Caution:** Only shadow when you're sure the shadowed instance agrees with the one you're replacing — otherwise proofs may become inconsistent.
 
 ## Inductive Construction on Finite Sets (Finset.strongInduction)
