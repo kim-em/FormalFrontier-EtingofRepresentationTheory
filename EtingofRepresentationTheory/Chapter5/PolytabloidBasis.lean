@@ -361,8 +361,25 @@ only q = 1 contributes, giving sign(1)·a(p) = 1. -/
 private lemma youngSymmetrizer_rowPerm_coeff (n : ℕ) (la : Nat.Partition n)
     (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) p = 1 := by
-  -- c = b * a. c(p) = Σ_q sign(q) * a(q⁻¹*p). Only q = 1 contributes (P∩Q = {1}).
-  sorry
+  classical
+  rw [show YoungSymmetrizer n la = ColumnAntisymmetrizer n la * RowSymmetrizer n la from rfl,
+    MonoidAlgebra.mul_apply_left]
+  rw [Finsupp.sum, Finset.sum_eq_single (1 : Equiv.Perm (Fin n))]
+  · rw [inv_one, one_mul, rowSymmetrizer_apply_mem' n la p hp, mul_one,
+      columnAntisymmetrizer_apply_mem' n la 1 (ColumnSubgroup n la).one_mem,
+      Equiv.Perm.sign_one]; norm_cast
+  · intro h h_supp h_ne
+    have h_col := columnAntisymmetrizer_support_subset n la h h_supp
+    rw [rowSymmetrizer_apply_not_mem' n la (h⁻¹ * p), mul_zero]
+    intro h_row
+    -- h⁻¹ * p ∈ P and p ∈ P, so h⁻¹ ∈ P. Also h ∈ Q, so h⁻¹ ∈ Q.
+    have : h⁻¹ ∈ RowSubgroup n la :=
+      (RowSubgroup n la).mul_mem_cancel_right hp |>.mp h_row
+    exact h_ne (inv_eq_one.mp (row_col_inter_trivial' n la h⁻¹ this
+      ((ColumnSubgroup n la).inv_mem h_col)))
+  · intro h_not
+    simp only [Finsupp.mem_support_iff, ne_eq, not_not] at h_not
+    rw [h_not, zero_mul]
 
 /-! ### Tabloid projection for linear independence
 
@@ -403,9 +420,21 @@ private theorem youngSymmetrizer_support (n : ℕ) (la : Nat.Partition n)
     (hg : (YoungSymmetrizer n la : SymGroupAlgebra n) g ≠ 0) :
     ∃ q ∈ ColumnSubgroup n la, ∃ p ∈ RowSubgroup n la,
       g = q * p := by
-  -- c = b * a. c(g) = Σ_q sign(q) * a(q⁻¹*g). If c(g) ≠ 0, some q has a(q⁻¹*g) ≠ 0,
-  -- meaning q⁻¹*g ∈ P, so g = q*p.
-  sorry
+  -- c = b * a. c(g) = Σ_q sign(q) * a(q⁻¹*g). If c(g) ≠ 0, some q has a(q⁻¹*g) ≠ 0.
+  classical
+  rw [show YoungSymmetrizer n la = ColumnAntisymmetrizer n la * RowSymmetrizer n la from rfl,
+    MonoidAlgebra.mul_apply_left] at hg
+  -- hg : (ColumnAntisymmetrizer).sum (fun h r => r * (RowSymmetrizer)(h⁻¹ * g)) ≠ 0
+  rw [Finsupp.sum] at hg
+  -- Some term in the sum is nonzero
+  obtain ⟨h, h_supp, hne⟩ := Finset.exists_ne_zero_of_sum_ne_zero hg
+  have h_col := columnAntisymmetrizer_support_subset n la h h_supp
+  -- a(h⁻¹ * g) ≠ 0, so h⁻¹ * g ∈ P_λ
+  have h_coeff : (RowSymmetrizer n la : SymGroupAlgebra n) (h⁻¹ * g) ≠ 0 := by
+    intro h_zero; exact hne (by rw [h_zero, mul_zero])
+  have h_row : h⁻¹ * g ∈ RowSubgroup n la := by
+    by_contra h_not; exact h_coeff (rowSymmetrizer_apply_not_mem' n la _ h_not)
+  exact ⟨h, h_col, h⁻¹ * g, h_row, by group⟩
 
 /-- The coefficient of g in c_λ = b·a when g = q · p (q ∈ Q_λ, p ∈ P_λ) is sign(q). -/
 private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
@@ -413,9 +442,27 @@ private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
     (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) (q * p) =
       (↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) := by
-  -- c = b * a. c(q*p) = Σ_{q'} sign(q') * a(q'⁻¹*q*p). Only q' = q contributes
-  -- (giving a(p) = 1), since q'⁻¹*q ∈ P ∩ Q = {1}.
-  sorry
+  classical
+  rw [show YoungSymmetrizer n la = ColumnAntisymmetrizer n la * RowSymmetrizer n la from rfl,
+    MonoidAlgebra.mul_apply_left]
+  rw [Finsupp.sum, Finset.sum_eq_single q]
+  · rw [inv_mul_cancel_left, rowSymmetrizer_apply_mem' n la p hp, mul_one,
+      columnAntisymmetrizer_apply_mem' n la q hq]
+  · intro h h_supp h_ne
+    have h_col := columnAntisymmetrizer_support_subset n la h h_supp
+    rw [rowSymmetrizer_apply_not_mem' n la (h⁻¹ * (q * p)), mul_zero]
+    intro h_row
+    -- h⁻¹ * q * p ∈ P and p ∈ P, so h⁻¹ * q ∈ P
+    have : h⁻¹ * q ∈ RowSubgroup n la :=
+      ((RowSubgroup n la).mul_mem_cancel_right hp).mp (mul_assoc _ q p ▸ h_row)
+    -- Also h⁻¹ * q ∈ Q (both h, q ∈ Q), so h⁻¹ * q ∈ P ∩ Q = {1}
+    have h_inv_q_col : h⁻¹ * q ∈ ColumnSubgroup n la :=
+      (ColumnSubgroup n la).mul_mem ((ColumnSubgroup n la).inv_mem h_col) hq
+    have := row_col_inter_trivial' n la (h⁻¹ * q) this h_inv_q_col
+    exact h_ne (inv_injective (mul_eq_one_iff_eq_inv.mp this))
+  · intro h_not
+    simp only [Finsupp.mem_support_iff, ne_eq, not_not] at h_not
+    rw [h_not, zero_mul]
 
 /-- If e_{T₂}(σ) ≠ 0, then σ ∈ C_{T₂} · σ_{T₂} · P_λ: there exist π ��� C_{T₂}
 (entry-level column stabilizer) and p ∈ P_λ such that σ = π · σ_{T₂} · p.
