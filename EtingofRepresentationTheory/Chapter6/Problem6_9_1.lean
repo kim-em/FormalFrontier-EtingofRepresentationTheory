@@ -1184,7 +1184,7 @@ private lemma swapOp_pow_odd_fst
     (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (v : V) :
     (swapOp A B ^ (2 * m + 1)) (v, (0 : W)) =
       ((0 : V), A (((B.comp A) ^ m) v)) := by
-  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_fst, swapOp_apply, map_zero]
+  rw [pow_succ', Module.End.mul_apply, swapOp_pow_even_fst, swapOp_apply, map_zero]
 
 /-- X^{2m}(0, w) = (0, (AB)^m w): even powers of swapOp on pure W-elements stay in {0}×W. -/
 private lemma swapOp_pow_even_snd
@@ -1201,7 +1201,7 @@ private lemma swapOp_pow_odd_snd
     (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V) (m : ℕ) (w : W) :
     (swapOp A B ^ (2 * m + 1)) ((0 : V), w) =
       (B (((A.comp B) ^ m) w), (0 : W)) := by
-  rw [pow_succ, LinearMap.mul_apply, swapOp_pow_even_snd, swapOp_apply, map_zero]
+  rw [pow_succ', Module.End.mul_apply, swapOp_pow_even_snd, swapOp_apply, map_zero]
 
 /-- If X^k kills (v,w), it also kills (v,0) and (0,w) separately.
 This follows because X^k(v,0) and X^k(0,w) live in complementary subspaces
@@ -1220,20 +1220,16 @@ private lemma swapOp_pow_zero_of_pure
   rw [hk] at hlin
   -- The two summands live in complementary subspaces depending on parity of k
   obtain ⟨m, rfl | rfl⟩ := k.even_or_odd'
-  · -- k = 2*m: both land in V×{0} and {0}×W respectively
+  · -- k = 2*m: even powers stay in respective components
     rw [swapOp_pow_even_fst, swapOp_pow_even_snd] at hlin ⊢
-    constructor
-    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
-    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
-  · -- k = 2*m+1: swapped
+    simp only [Prod.mk_add_mk, add_zero, zero_add] at hlin
+    obtain ⟨h1, h2⟩ := Prod.mk.inj hlin
+    exact ⟨by ext <;> simp [h1], by ext <;> simp [h2]⟩
+  · -- k = 2*m+1: odd powers swap components
     rw [swapOp_pow_odd_fst, swapOp_pow_odd_snd] at hlin ⊢
-    constructor
-    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨rfl, by simpa using congr_arg Prod.snd hlin⟩
-    · exact Prod.eq_iff_fst_eq_snd_eq.mpr
-        ⟨by simpa using congr_arg Prod.fst hlin, rfl⟩
+    simp only [Prod.mk_add_mk, add_zero, zero_add] at hlin
+    obtain ⟨h1, h2⟩ := Prod.mk.inj hlin
+    exact ⟨by ext <;> simp [h2], by ext <;> simp [h1]⟩
 
 /-- For (v,w) with X^{k-1}(v,w) ≠ 0, at least one of (v,0) or (0,w) also has
 X^{k-1} ≠ 0. Combined with `swapOp_pow_zero_of_pure` (both have order ≤ k),
@@ -1279,8 +1275,147 @@ private lemma swapOp_ker_finrank
       map_smul' := fun _ _ => rfl }
   rw [LinearEquiv.finrank_eq e, Module.finrank_prod]
 
+set_option maxHeartbeats 1600000 in
+/-- If V × W = M ⊕ C where M = V' × W' is a product subspace and both M, C are
+X-invariant (for X = swapOp A B), then V and W decompose compatibly.
+
+Key: the projection proj onto M along C commutes with X. Define π_V(v) = fst(proj(v,0)),
+σ_W(w) = snd(proj(0,w)). These are idempotent (M is a product), so V = V' ⊕ ker(π_V),
+W = W' ⊕ ker(σ_W). Commutativity of proj with X gives A/B-compatibility. -/
+private lemma product_complement_decomp
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
+    (V' : Submodule ℂ V) (W' : Submodule ℂ W) (C : Submodule ℂ (V × W))
+    (hcompl : IsCompl (V'.prod W') C)
+    (hM_inv : ∀ p ∈ V'.prod W', swapOp A B p ∈ V'.prod W')
+    (hC_inv : ∀ p ∈ C, swapOp A B p ∈ C) :
+    ∃ (qV : Submodule ℂ V) (qW : Submodule ℂ W),
+      IsCompl V' qV ∧ IsCompl W' qW ∧
+      (∀ x ∈ V', A x ∈ W') ∧ (∀ x ∈ qV, A x ∈ qW) ∧
+      (∀ x ∈ W', B x ∈ V') ∧ (∀ x ∈ qW, B x ∈ qV) := by
+  set M := V'.prod W'
+  set projM := M.linearProjOfIsCompl C hcompl
+  set proj : (V × W) →ₗ[ℂ] (V × W) := M.subtype.comp projM
+  -- proj fixes M
+  have hproj_M : ∀ x ∈ M, proj x = x := by
+    intro x hx
+    have : projM x = ⟨x, hx⟩ :=
+      Submodule.linearProjOfIsCompl_apply_left hcompl ⟨x, hx⟩
+    simp [proj, this]
+  -- proj kills C
+  have hproj_C : ∀ x ∈ C, proj x = 0 := by
+    intro x hx
+    have : projM x = 0 := Submodule.linearProjOfIsCompl_apply_right' hcompl x hx
+    simp [proj, this]
+  -- image ⊆ M
+  have hproj_mem : ∀ x, proj x ∈ M := fun x => (projM x).2
+  -- x - proj(x) ∈ C
+  have hx_sub_proj : ∀ x, x - proj x ∈ C := by
+    intro x
+    rw [← Submodule.linearProjOfIsCompl_ker hcompl, LinearMap.mem_ker,
+      show projM (x - proj x) = projM x - projM (proj x) from map_sub _ _ _]
+    have : projM (proj x) = projM x := by
+      show projM ↑(projM x) = projM x
+      exact Submodule.linearProjOfIsCompl_apply_left hcompl (projM x)
+    rw [this, sub_self]
+  -- proj commutes with X
+  set X := swapOp A B
+  have hcomm : ∀ x, proj (X x) = X (proj x) := by
+    intro x
+    have hXm : X (proj x) ∈ M := hM_inv _ (hproj_mem x)
+    have hXc : X (x - proj x) ∈ C := hC_inv _ (hx_sub_proj x)
+    have hXx : X x = X (proj x) + X (x - proj x) := by rw [map_sub, add_sub_cancel]
+    rw [hXx, map_add, hproj_M _ hXm, hproj_C _ hXc, add_zero]
+  -- Define π_V, σ_W
+  set ιV := LinearMap.inl ℂ V W
+  set ιW := LinearMap.inr ℂ V W
+  set π_V : V →ₗ[ℂ] V := (LinearMap.fst ℂ V W).comp (proj.comp ιV)
+  set σ_W : W →ₗ[ℂ] W := (LinearMap.snd ℂ V W).comp (proj.comp ιW)
+  -- π_V maps into V', σ_W maps into W'
+  have hπ_range : ∀ v, π_V v ∈ V' :=
+    fun v => (Submodule.mem_prod.mp (hproj_mem (ιV v))).1
+  have hσ_range : ∀ w, σ_W w ∈ W' :=
+    fun w => (Submodule.mem_prod.mp (hproj_mem (ιW w))).2
+  -- π_V fixes V'
+  have hπ_fix : ∀ v ∈ V', π_V v = v := by
+    intro v hv
+    have hmem : ιV v ∈ M := Submodule.mem_prod.mpr ⟨hv, Submodule.zero_mem _⟩
+    show (proj (ιV v)).1 = v
+    rw [hproj_M _ hmem]; rfl
+  -- σ_W fixes W'
+  have hσ_fix : ∀ w ∈ W', σ_W w = w := by
+    intro w hw
+    have hmem : ιW w ∈ M := Submodule.mem_prod.mpr ⟨Submodule.zero_mem _, hw⟩
+    show (proj (ιW w)).2 = w
+    rw [hproj_M _ hmem]; rfl
+  -- Build π_V' : V →ₗ V' and σ_W' : W →ₗ W'
+  set π_V' : V →ₗ[ℂ] V' :=
+    { toFun := fun v => ⟨π_V v, hπ_range v⟩
+      map_add' := fun a b => by ext; simp [π_V]
+      map_smul' := fun r v => by ext; simp [π_V] }
+  have hπ_V'_proj : ∀ x : V', π_V' x = x := by
+    intro ⟨v, hv⟩; ext; exact hπ_fix v hv
+  set σ_W' : W →ₗ[ℂ] W' :=
+    { toFun := fun w => ⟨σ_W w, hσ_range w⟩
+      map_add' := fun a b => by ext; simp [σ_W]
+      map_smul' := fun r w => by ext; simp [σ_W] }
+  have hσ_W'_proj : ∀ x : W', σ_W' x = x := by
+    intro ⟨w, hw⟩; ext; exact hσ_fix w hw
+  -- qV, qW
+  set qV := LinearMap.ker π_V'
+  set qW := LinearMap.ker σ_W'
+  have hqV_iff : ∀ v, v ∈ qV ↔ π_V v = 0 := by
+    intro v; simp [qV, π_V', LinearMap.mem_ker, Subtype.ext_iff]
+  have hqW_iff : ∀ w, w ∈ qW ↔ σ_W w = 0 := by
+    intro w; simp [qW, σ_W', LinearMap.mem_ker, Subtype.ext_iff]
+  refine ⟨qV, qW, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · exact LinearMap.isCompl_of_proj hπ_V'_proj
+  · exact LinearMap.isCompl_of_proj hσ_W'_proj
+  · -- A : V' → W'
+    intro v hv
+    have h_M : ιV v ∈ M := Submodule.mem_prod.mpr ⟨hv, Submodule.zero_mem _⟩
+    have hX := hM_inv _ h_M
+    have : X (ιV v) = ιW (A v) := by simp [X, ιV, ιW, swapOp_apply]
+    rw [this] at hX
+    exact (Submodule.mem_prod.mp hX).2
+  · -- A : qV → qW (proj commutes with X, pure element argument)
+    intro v hv
+    rw [hqW_iff]
+    have hv0 := (hqV_iff v).mp hv
+    have hXeq : X (ιV v) = ιW (A v) := by simp [X, ιV, ιW, swapOp_apply]
+    have hm_fst : (proj (ιV v)).1 = 0 := hv0
+    have key : (X (proj (ιV v))).2 = 0 := by
+      change (swapOp A B (proj (ιV v))).2 = 0
+      rw [show proj (ιV v) = ((proj (ιV v)).1, (proj (ιV v)).2) from (Prod.eta _).symm,
+        swapOp_apply, hm_fst, map_zero]
+    calc σ_W (A v) = (proj (ιW (A v))).2 := rfl
+      _ = (proj (X (ιV v))).2 := by rw [hXeq]
+      _ = (X (proj (ιV v))).2 := by rw [hcomm]
+      _ = 0 := key
+  · -- B : W' → V'
+    intro w hw
+    have h_M : ιW w ∈ M := Submodule.mem_prod.mpr ⟨Submodule.zero_mem _, hw⟩
+    have hX := hM_inv _ h_M
+    have : X (ιW w) = ιV (B w) := by simp [X, ιV, ιW, swapOp_apply]
+    rw [this] at hX
+    exact (Submodule.mem_prod.mp hX).1
+  · -- B : qW → qV (symmetric to A : qV → qW)
+    intro w hw
+    rw [hqV_iff]
+    have hw0 := (hqW_iff w).mp hw
+    have hXeq : X (ιW w) = ιV (B w) := by simp [X, ιV, ιW, swapOp_apply]
+    have hm_snd : (proj (ιW w)).2 = 0 := hw0
+    have key : (X (proj (ιW w))).1 = 0 := by
+      change (swapOp A B (proj (ιW w))).1 = 0
+      rw [show proj (ιW w) = ((proj (ιW w)).1, (proj (ιW w)).2) from (Prod.eta _).symm,
+        swapOp_apply, hm_snd, map_zero]
+    calc π_V (B w) = (proj (ιV (B w))).1 := rfl
+      _ = (proj (X (ιW w))).1 := by rw [hXeq]
+      _ = (X (proj (ιW w))).1 := by rw [hcomm]
+      _ = 0 := key
+
 set_option maxHeartbeats 800000 in
--- The PID decomposition + generator replacement argument requires many rewrites.
 /-- In the hard case (ker A ≤ range B, ker B ≤ range A), the swap operator X
 on V × W provides a nontrivial compatible decomposition via the PID structure
 theorem and compatible chain basis argument (Problem 6.9.1(c)). -/
@@ -1306,16 +1441,101 @@ private lemma compatible_product_decomp
   -- Apply nilpotent_nontrivial_decomp to X on V × W
   obtain ⟨M₁, M₂, hM1_ne, hM2_ne, hMc, hM1_inv, hM2_inv⟩ :=
     nilpotent_nontrivial_decomp X hX_nil hX_ker
-  -- The images under fst/snd projections give compatible subspaces:
-  -- pV = fst(M₁), pW = snd(M₁) etc. satisfy A/B-compatibility.
-  -- But they may not satisfy IsCompl (projections of complementary subspaces
-  -- aren't necessarily complementary).
-  -- The compatible chain basis argument (Problem 6.9.1(c)) shows that the
-  -- X-invariant decomposition can be chosen so that each summand splits as
-  -- a product of V and W subspaces. This requires replacing each cyclic
-  -- generator (v,w) with a pure element (v,0) or (0,w) of the same X-order,
-  -- then grouping the resulting split summands.
-  -- TODO: implement the generator replacement argument
+  -- M₁ and M₂ are X-invariant complementary non-zero subspaces, but not product subspaces.
+  -- Strategy: use PID structure theorem on V×W as ℂ[X]-module to find a pure cyclic summand.
+  -- Step A: Set up V×W as a ℂ[X]-module via AEval'
+  open Polynomial in
+  have htors : Module.IsTorsion' (Module.AEval' (R := ℂ) X)
+      (Submonoid.powers (Polynomial.X : ℂ[X])) := by
+    obtain ⟨n, hn⟩ := hX_nil
+    intro m
+    refine ⟨⟨Polynomial.X ^ n, n, rfl⟩, ?_⟩
+    set v := (Module.AEval'.of (R := ℂ) X).symm m
+    have hm : m = Module.AEval'.of X v := (LinearEquiv.apply_symm_apply _ m).symm
+    rw [hm, Submonoid.smul_def, Module.AEval'.X_pow_smul_of,
+      LinearEquiv.map_eq_zero_iff]
+    change (X ^ n) v = 0
+    rw [hn]; rfl
+  -- Step B: Apply PID structure theorem
+  open Polynomial in
+  obtain ⟨d, k, ⟨e⟩⟩ := Module.torsion_by_prime_power_decomposition
+    Polynomial.irreducible_X htors
+  -- Step C: d ≥ 2 (each summand contributes 1 to ker X)
+  set_option synthInstance.maxHeartbeats 40000 in
+  have hd : 2 ≤ d := by
+    by_contra hd_lt
+    push_neg at hd_lt
+    -- Same argument as nilpotent_nontrivial_decomp
+    let N : Fin d → Type := fun i => ℂ[X] ⧸ ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k i
+    have N_subsingleton : ∀ j, k j = 0 → Subsingleton (N j) := by
+      intro j hj
+      exact Submodule.Quotient.subsingleton_iff.mpr
+        (by rw [hj, pow_zero]; exact Ideal.span_singleton_one)
+    interval_cases d
+    · -- d = 0: V×W = 0, contradicts dim(ker X) ≥ 2
+      haveI : Subsingleton (V × W) := by
+        constructor; intro a b
+        have ha : e (Module.AEval'.of (R := ℂ) X a) = 0 :=
+          DFinsupp.ext (fun i => Fin.elim0 i)
+        have hb : e (Module.AEval'.of (R := ℂ) X b) = 0 :=
+          DFinsupp.ext (fun i => Fin.elim0 i)
+        exact (Module.AEval'.of (R := ℂ) X).injective (e.injective (ha.trans hb.symm))
+      have : Module.finrank ℂ (V × W) = 0 := Module.finrank_zero_of_subsingleton
+      have := Submodule.finrank_le (LinearMap.ker X)
+      omega
+    · -- d = 1: dim(ker X) ≤ 1, contradiction
+      exfalso
+      have h1 : Module.finrank ℂ (LinearMap.ker X) ≤ 1 := by
+        set j₀ : Fin 1 := ⟨0, by omega⟩
+        set gen := (Submodule.Quotient.mk ((Polynomial.X : ℂ[X]) ^ (k j₀ - 1)) :
+          ℂ[X] ⧸ ℂ[X] ∙ Polynomial.X ^ k j₀)
+        set w : V × W := (Module.AEval'.of (R := ℂ) X).symm
+          (e.symm (DirectSum.of N j₀ gen)) with hw_def
+        suffices h_le : LinearMap.ker X ≤ Submodule.span ℂ ({w} : Set (V × W)) by
+          exact (Submodule.finrank_mono h_le).trans
+            ((finrank_span_le_card ({w} : Set (V × W))).trans (by simp))
+        intro v hv
+        rw [LinearMap.mem_ker] at hv
+        have hXv : (Polynomial.X : ℂ[X]) • e (Module.AEval'.of (R := ℂ) X v) = 0 := by
+          have h := e.map_smul (Polynomial.X : ℂ[X]) (Module.AEval'.of (R := ℂ) X v)
+          rw [Module.AEval'.X_smul_of, hv, map_zero, map_zero] at h
+          exact h.symm
+        set c₀ := DirectSum.component ℂ[X] _ _ j₀ (e (Module.AEval'.of (R := ℂ) X v))
+        have hc₀_tors : (Polynomial.X : ℂ[X]) • c₀ = 0 := by
+          have h := (DirectSum.component ℂ[X] _ _ j₀).map_smul
+            (Polynomial.X : ℂ[X]) (e (Module.AEval'.of (R := ℂ) X v))
+          rw [hXv, map_zero] at h; exact h.symm
+        have hc₀_span := quotient_X_torsion_mem_span (k j₀) c₀ hc₀_tors
+        rw [Submodule.mem_span_singleton] at hc₀_span
+        obtain ⟨c, hc⟩ := hc₀_span
+        have hds_eq : e (Module.AEval'.of (R := ℂ) X v) = DirectSum.of _ j₀ c₀ := by
+          apply DFinsupp.ext; intro ⟨i, hi⟩
+          have : i = 0 := by omega
+          subst this; rw [DirectSum.of_eq_same]; rfl
+        have hv_eq : v = c • w := by
+          apply (Module.AEval'.of (R := ℂ) X).injective
+          apply e.injective
+          have lhs : e (Module.AEval'.of (R := ℂ) X v) =
+              DirectSum.of _ j₀ (c • gen) := by
+            rw [hds_eq]; congr 1; exact hc.symm
+          have rhs : e (Module.AEval'.of (R := ℂ) X (c • w)) =
+              DirectSum.of _ j₀ (c • gen) := by
+            rw [map_smul, hw_def, LinearEquiv.apply_symm_apply]
+            conv_lhs =>
+              rw [← IsScalarTower.algebraMap_smul ℂ[X] c
+                (e.symm (DirectSum.of _ j₀ gen))]
+            rw [e.map_smul, LinearEquiv.apply_symm_apply]
+            conv_rhs =>
+              rw [← IsScalarTower.algebraMap_smul ℂ[X] c gen]
+            exact ((DirectSum.lof ℂ[X] (Fin 1)
+              (fun i => ℂ[X] ⧸ ℂ[X] ∙ Polynomial.X ^ k i) j₀).map_smul _ gen).symm
+          exact lhs.trans rhs.symm
+        rw [hv_eq]
+        exact Submodule.smul_mem _ c (Submodule.subset_span rfl)
+      omega
+  -- Step D: Find a pure element with maximal X-order among the generators
+  -- Get any generator from any summand with k > 0
+  -- The PID decomposition gives at least 2 nontrivial summands
   sorry
 
 private lemma off_diagonal_nilpotent_product_decomp
