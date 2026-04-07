@@ -983,7 +983,40 @@ When two `Finset.univ` expressions use different `Fintype` instances:
 convert rfl using 2  -- handles instance mismatch via Subsingleton
 ```
 
-### Pattern 5: `unfold + match` for `Decidable.casesOn` composition
+### Pattern 5: `rw [hv]` not `subst hv` in quiver reflection proofs
+
+When doing `by_cases hv : v = i` in proofs involving `let Q' := reversedAtVertex ...`, **never use `subst hv`**. In the `letI : Quiver (Fin n) := Q` scope, `subst hv` may eliminate `i` from the context (since both `v` and `i` are `Fin n` local variables), causing "Unknown identifier `i`" cascading errors. Use `rw [hv]` instead — it rewrites the goal without eliminating any variable.
+
+```lean
+-- WRONG: can eliminate i from context
+by_cases hv : v = i
+· subst hv
+  exact @reflFunctorPlus_free_eq k _ (Fin n) _ Q' i ...  -- "Unknown identifier `i`"
+
+-- RIGHT: rewrites goal, preserves all variables
+by_cases hv : v = i
+· rw [hv]; exact @reflFunctorPlus_free_eq k _ (Fin n) _ Q' i ...
+```
+
+This is how CoxeterInfrastructure.lean handles the same pattern (line ~1480).
+
+### Pattern 5b: Fintype instance mismatch in `simpleReflectionDimVector_eq_simpleReflection`
+
+The bridge lemma `simpleReflectionDimVector_eq_simpleReflection` internally creates its own `Fintype (ArrowsInto ...)` instance via `haveI`. If the calling context has a DIFFERENT `Fintype` instance (e.g., from an earlier `haveI hFT_into := ...`), then `rw [congr_fun hbridge v]` will fail with "pattern not found" even though the pattern is visually identical in the goal.
+
+**Solution**: Don't rewrite directly with `hbridge`. Instead:
+1. Prove the equality via `simpleReflection` (which has no Fintype dependency)
+2. Use `convert ... using 2` to bridge back to `simpleReflectionDimVector`
+
+```lean
+-- Prove α v = simpleReflection ... d' v (no Fintype involved)
+have hgoal : (α v : ℤ) = simpleReflection n (cartanMatrix n adj) i d' v := by
+  rw [← hA_def, hd_eq]; exact (congr_fun hinvol_α v).symm
+-- Bridge to simpleReflectionDimVector via convert (handles Fintype mismatch)
+rw [hgoal]; convert (congr_fun hbridge v).symm using 2
+```
+
+### Pattern 6: `unfold + match` for `Decidable.casesOn` composition (originally Pattern 5)
 When two functions both use `match inst a b, inst c d with ...` on the same decidable instances,
 their composition should reduce to identity. Standard tactics (`rw`, `simp`, `▸`, `split`, `cases`)
 ALL fail because the scrutinee is an opaque application. Use `match` in the proof itself:
