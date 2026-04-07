@@ -13,7 +13,7 @@ A **Young tableau** of shape λ is a filling of the Young diagram with numbers 1
 The **row subgroup** P_λ ⊂ S_n consists of permutations preserving each row.
 The **column subgroup** Q_λ ⊂ S_n consists of permutations preserving each column.
 
-The **Young symmetrizer** c_λ = b_λ · a_λ where:
+The **Young symmetrizer** c_λ = b_λ · a_λ (column antisymmetrizer × row symmetrizer) where:
 - a_λ = Σ_{g ∈ P_λ} g
 - b_λ = Σ_{g ∈ Q_λ} sign(g) · g
 
@@ -116,19 +116,19 @@ noncomputable def ColumnAntisymmetrizer (n : ℕ) (la : Nat.Partition n) :
   ∑ g : (ColumnSubgroup n la),
     ((↑(Equiv.Perm.sign g.val) : ℤ) : ℂ) • MonoidAlgebra.of ℂ _ g.val
 
-/-- The Young symmetrizer c_λ = a_λ · b_λ in the group algebra ℂ[S_n].
+/-- The Young symmetrizer c_λ = b_λ · a_λ in the group algebra ℂ[S_n].
 (Etingof Definition 5.12.1)
 
 Here a_λ = ∑_{g ∈ P_λ} g and b_λ = ∑_{g ∈ Q_λ} sign(g) · g,
 where P_λ is the row subgroup and Q_λ is the column subgroup.
 
-**Convention**: We use c_λ = a_λ · b_λ (row × column) following James,
-"The Representation Theory of the Symmetric Groups". This convention
-gives left P_λ absorption: of(p) · c_λ = c_λ for p ∈ P_λ, which is
-needed for the straightening lemma in the polytabloid basis proof. -/
+**Convention**: We use c_λ = b_λ · a_λ (column × row) following Fulton-Harris
+and Etingof. This convention ensures polytabloids lie in the Specht module:
+the polytabloid e_T = κ_T · of(σ_T) · a_λ is a left multiple of b_λ · a_λ
+for the canonical filling. -/
 noncomputable def YoungSymmetrizer (n : ℕ) (la : Nat.Partition n) :
     MonoidAlgebra ℂ (Equiv.Perm (Fin n)) :=
-  RowSymmetrizer n la * ColumnAntisymmetrizer n la
+  ColumnAntisymmetrizer n la * RowSymmetrizer n la
 
 /-! ## Helper lemmas for rowOfPos and colOfPos -/
 

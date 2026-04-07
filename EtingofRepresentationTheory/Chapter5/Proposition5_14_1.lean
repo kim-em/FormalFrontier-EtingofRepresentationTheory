@@ -110,10 +110,12 @@ private lemma rowSymmetrizer_annihilates_specht (n : ℕ) (la mu : Nat.Partition
   rw [show v = x • YoungSymmetrizer n mu from hx.symm]
   change RowSymmetrizer n la * (x * YoungSymmetrizer n mu) = 0
   simp only [YoungSymmetrizer]
-  rw [show RowSymmetrizer n la * (x * (RowSymmetrizer n mu * ColumnAntisymmetrizer n mu)) =
-    RowSymmetrizer n la * (x * RowSymmetrizer n mu) * ColumnAntisymmetrizer n mu
+  rw [show RowSymmetrizer n la * (x * (ColumnAntisymmetrizer n mu * RowSymmetrizer n mu)) =
+    (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n mu)) * RowSymmetrizer n mu
     from by simp only [mul_assoc],
-    Lemma5_13_2_general n la mu h]
+    show RowSymmetrizer n la * (x * ColumnAntisymmetrizer n mu) =
+      RowSymmetrizer n la * x * ColumnAntisymmetrizer n mu from by rw [mul_assoc],
+    Lemma5_13_2_general n la mu h, zero_mul]
 
 end
 

@@ -463,17 +463,18 @@ private theorem sandwich_not_mem {n : ℕ} {la : Nat.Partition n}
   exact h1.trans (hσt ▸ h2)
 
 /-- Dual sandwich (member case): for p ∈ P_λ, q ∈ Q_λ,
-a_λ * of(p*q) * b_λ = sign(q) • c_λ. (With c_λ = a_λ · b_λ.) -/
+a_λ * of(p*q) * b_λ = sign(q) • (a_λ · b_λ). -/
 private theorem dual_sandwich_mem {n : ℕ} {la : Nat.Partition n}
     (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la)
     (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
     RowSymmetrizer n la * MonoidAlgebra.of ℂ _ (p * q) * ColumnAntisymmetrizer n la =
-      ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ)) • YoungSymmetrizer n la := by
+      ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ)) •
+        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
   rw [map_mul (MonoidAlgebra.of ℂ _)]
   simp only [mul_assoc]
   rw [of_col_mul_ColumnAntisymmetrizer q hq, Algebra.mul_smul_comm, Algebra.mul_smul_comm]
   congr 1
-  rw [← mul_assoc, RowSymmetrizer_mul_of_row p hp, YoungSymmetrizer]
+  rw [← mul_assoc, RowSymmetrizer_mul_of_row p hp]
 
 open Pointwise in
 /-- Dual sandwich (non-member case): for σ ∉ P_λ · Q_λ,
@@ -524,24 +525,24 @@ private theorem dual_sandwich_not_mem {n : ℕ} {la : Nat.Partition n}
 end Etingof
 
 open Etingof Pointwise in
-/-- For x ∈ ℂ[S_n], b_λ · x · a_λ is a scalar multiple of b_λ · a_λ.
+/-- For x ∈ ℂ[S_n], b_λ · x · a_λ is a scalar multiple of c_λ = b_λ · a_λ.
 More precisely, there exists a linear functional ℓ_λ on ℂ[S_n] such that
-b_λ * x * a_λ = ℓ_λ(x) • (b_λ * a_λ) for all x. -/
+b_λ * x * a_λ = ℓ_λ(x) • c_λ for all x. (Etingof Lemma 5.13.1) -/
 theorem Etingof.Lemma5_13_1
     (n : ℕ) (la : Nat.Partition n) :
     ∃ ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ,
       ∀ x, ColumnAntisymmetrizer n la * x * RowSymmetrizer n la =
-        ℓ x • (ColumnAntisymmetrizer n la * RowSymmetrizer n la) := by
+        ℓ x • YoungSymmetrizer n la := by
   classical
   -- For each basis element σ, compute the coefficient
   have basis_mul : ∀ σ : Equiv.Perm (Fin n), ∃ coeff : ℂ,
       ColumnAntisymmetrizer n la * MonoidAlgebra.of ℂ _ σ * RowSymmetrizer n la =
-        coeff • (ColumnAntisymmetrizer n la * RowSymmetrizer n la) := by
+        coeff • YoungSymmetrizer n la := by
     intro σ
     by_cases hmem : σ ∈ (ColumnSubgroup n la : Set (Equiv.Perm (Fin n))) *
         (RowSubgroup n la : Set (Equiv.Perm (Fin n)))
     · obtain ⟨q, hq, p, hp, hqp⟩ := Set.mem_mul.mp hmem
-      exact ⟨↑(↑(Equiv.Perm.sign q) : ℤ), hqp ▸ sandwich_mem q hq p hp⟩
+      exact ⟨↑(↑(Equiv.Perm.sign q) : ℤ), by rw [YoungSymmetrizer]; exact hqp ▸ sandwich_mem q hq p hp⟩
     · exact ⟨0, by rw [zero_smul]; exact sandwich_not_mem σ hmem⟩
   -- Extract coefficient function and build linear functional
   choose f hf using basis_mul
@@ -564,19 +565,19 @@ theorem Etingof.Lemma5_13_1
     rw [Algebra.mul_smul_comm, Algebra.smul_mul_assoc, hf, smul_smul, hℓ, mul_comm]
 
 open Etingof Pointwise in
-/-- For x ∈ ℂ[S_n], a_λ · x · b_λ is a scalar multiple of c_λ = a_λ · b_λ.
+/-- For x ∈ ℂ[S_n], a_λ · x · b_λ is a scalar multiple of a_λ · b_λ.
 More precisely, there exists a linear functional ℓ_λ on ℂ[S_n] such that
-a_λ * x * b_λ = ℓ_λ(x) • c_λ for all x.
-(Etingof Lemma 5.13.1, with c_λ = a_λ · b_λ convention.) -/
+a_λ * x * b_λ = ℓ_λ(x) • (a_λ · b_λ) for all x.
+(Dual of Lemma 5.13.1; note a_λ · b_λ is NOT the Young symmetrizer.) -/
 theorem Etingof.Lemma5_13_1_dual
     (n : ℕ) (la : Nat.Partition n) :
     ∃ ℓ : MonoidAlgebra ℂ (Equiv.Perm (Fin n)) →ₗ[ℂ] ℂ,
       ∀ x, RowSymmetrizer n la * x * ColumnAntisymmetrizer n la =
-        ℓ x • YoungSymmetrizer n la := by
+        ℓ x • (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
   classical
   have basis_mul : ∀ σ : Equiv.Perm (Fin n), ∃ coeff : ℂ,
       RowSymmetrizer n la * MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la =
-        coeff • YoungSymmetrizer n la := by
+        coeff • (RowSymmetrizer n la * ColumnAntisymmetrizer n la) := by
     intro σ
     by_cases hmem : σ ∈ (RowSubgroup n la : Set (Equiv.Perm (Fin n))) *
         (ColumnSubgroup n la : Set (Equiv.Perm (Fin n)))

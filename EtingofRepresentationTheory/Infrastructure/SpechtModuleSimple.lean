@@ -61,24 +61,24 @@ theorem YoungSymmetrizerZ_sandwich_basis (n : ℕ) (la : Nat.Partition n)
   have hφσ : φ (MonoidAlgebra.of ℤ _ σ) = MonoidAlgebra.of ℂ _ σ := by
     change MonoidAlgebra.mapRangeRingHom _ _ (Finsupp.single σ 1) = Finsupp.single σ 1
     rw [MonoidAlgebra.mapRangeRingHom_single, map_one]
-  -- Over ℂ: a * x * b = ℓ(x) • c (Lemma 5.13.1 dual)
-  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1_dual n la
-  -- The sandwich for c: c * x * c = ℓ(b * (x * a)) • c
+  -- Over ℂ: b * x * a = ℓ(x) • c (Lemma 5.13.1)
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  -- The sandwich for c: c * x * c = ℓ(a * (x * b)) • c
   have h_sandwich : ∀ x,
       YoungSymmetrizer n la * x * YoungSymmetrizer n la =
-        ℓ (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) •
+        ℓ (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) •
           YoungSymmetrizer n la := by
     intro x
-    change RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
-        (RowSymmetrizer n la * ColumnAntisymmetrizer n la) = _
-    rw [show RowSymmetrizer n la * ColumnAntisymmetrizer n la * x *
-          (RowSymmetrizer n la * ColumnAntisymmetrizer n la) =
-        RowSymmetrizer n la * (ColumnAntisymmetrizer n la * (x * RowSymmetrizer n la)) *
-          ColumnAntisymmetrizer n la from by simp only [mul_assoc]]
+    change ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
+        (ColumnAntisymmetrizer n la * RowSymmetrizer n la) = _
+    rw [show ColumnAntisymmetrizer n la * RowSymmetrizer n la * x *
+          (ColumnAntisymmetrizer n la * RowSymmetrizer n la) =
+        ColumnAntisymmetrizer n la * (RowSymmetrizer n la * (x * ColumnAntisymmetrizer n la)) *
+          RowSymmetrizer n la from by simp only [mul_assoc]]
     rw [hℓ]
   -- φ(y) = f_val • φ(cZ) over ℂ
-  set f_val := ℓ (ColumnAntisymmetrizer n la *
-    (MonoidAlgebra.of ℂ _ σ * RowSymmetrizer n la))
+  set f_val := ℓ (RowSymmetrizer n la *
+    (MonoidAlgebra.of ℂ _ σ * ColumnAntisymmetrizer n la))
   have h_ℂ : φ y = f_val • φ cZ := by
     change φ (cZ * MonoidAlgebra.of ℤ _ σ * cZ) = _ • φ cZ
     rw [map_mul, map_mul, hφc, hφσ]
