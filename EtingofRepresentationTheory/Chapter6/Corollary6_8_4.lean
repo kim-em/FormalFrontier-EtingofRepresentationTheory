@@ -421,6 +421,391 @@ private lemma simpleReflectionDimVector_eq_simpleReflection_source
   · simp only [hv, ite_false, Pi.sub_apply, Pi.smul_apply, smul_eq_mul,
       Pi.single_apply, mul_zero, sub_zero]
 
+open Etingof in
+/-- For a positive root α on a Dynkin diagram, there exists a prefix of the replicated
+admissible ordering that reduces α to a simple root. All intermediates are nonneg.
+
+The proof uses `generalized_Lemma6_7_2` (iteration must produce a negative entry)
+and `positive_root_cartan_bound` (intermediates stay nonneg while sum ≥ 2). -/
+private lemma exists_prefix_to_simpleRoot
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hDynkin : Etingof.IsDynkinDiagram n adj)
+    {Q : @Quiver.{0, 0} (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
+    [∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b)]
+    (σ : List (Fin n)) (hσ : Etingof.IsAdmissibleOrdering Q σ)
+    (α : Fin n → ℤ) (hα_nonneg : ∀ i, 0 ≤ α i)
+    (hα_nonzero : α ≠ 0)
+    (hα_B : dotProduct α ((Etingof.cartanMatrix n adj).mulVec α) = 2) :
+    ∃ (vertices : List (Fin n)) (p : Fin n),
+      Etingof.iteratedSimpleReflection n (Etingof.cartanMatrix n adj) vertices α =
+        Etingof.simpleRoot n p ∧
+      (∀ m (hm : m < vertices.length),
+        @Etingof.IsSink (Fin n)
+          (@Etingof.iteratedReversedAtVertices _ _ Q (vertices.take m))
+          (vertices.get ⟨m, hm⟩)) := by
+  set A := Etingof.cartanMatrix n adj with hA_def
+  -- By generalized_Lemma6_7_2, iterating the Coxeter element produces a negative entry
+  obtain ⟨N, v_neg, hN⟩ := Etingof.generalized_Lemma6_7_2 hDynkin σ hσ.perm α hα_nonneg hα_nonzero
+  -- The full vertex list for N rounds
+  set fullList := (List.replicate N σ).flatten with hfullList_def
+  -- fullList has the sinks property (from admissible_sinks_replicated with j = 0)
+  have hSinks_full : ∀ m (hm : m < fullList.length),
+      @Etingof.IsSink (Fin n)
+        (@Etingof.iteratedReversedAtVertices _ _ Q (fullList.take m))
+        (fullList.get ⟨m, hm⟩) := by
+    intro m hm
+    have hm' : m < ((List.replicate N σ).flatten ++ σ.take 0).length := by
+      simp only [List.take_zero, List.append_nil, ← hfullList_def]; exact hm
+    have h := Etingof.admissible_sinks_replicated Q σ hσ N 0 (Nat.zero_le _) m hm'
+    have htake_eq : ((List.replicate N σ).flatten ++ σ.take 0).take m =
+        fullList.take m := by
+      congr 1; simp [hfullList_def]
+    rw [htake_eq] at h
+    have helem_eq : ((List.replicate N σ).flatten ++ σ.take 0).get ⟨m, hm'⟩ =
+        fullList.get ⟨m, hm⟩ := by
+      simp only [List.get_eq_getElem, List.take_zero,
+        List.append_nil, hfullList_def]
+    rw [helem_eq] at h
+    exact h
+  -- iteratedSimpleReflection on fullList = c^N(α)
+  have hfull_eq : Etingof.iteratedSimpleReflection n A fullList α =
+      (fun w => Etingof.iteratedSimpleReflection n A σ w)^[N] α := by
+    rw [hfullList_def, Etingof.iteratedSimpleReflection_replicate_eq_iterate]
+  -- c^N(α) has a negative entry, so some intermediate must have sum ≤ 1
+  -- Find the first index where the intermediate is NOT (nonneg with sum ≥ 2)
+  -- by showing all intermediates are nonneg as long as sum ≥ 2.
+  -- Use well-ordering on the set of "bad" indices.
+  have hAsymm : A.IsSymm := Etingof.cartanMatrix_isSymm hDynkin.1
+  -- Key: for any prefix where all prior intermediates have sum ≥ 2,
+  -- the current intermediate is nonneg with B = 2.
+  have hprefix_nonneg_B : ∀ k ≤ fullList.length,
+      (∀ j < k, 2 ≤ ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take j) α i) →
+      (∀ i, 0 ≤ Etingof.iteratedSimpleReflection n A (fullList.take k) α i) ∧
+      dotProduct (Etingof.iteratedSimpleReflection n A (fullList.take k) α)
+        (A.mulVec (Etingof.iteratedSimpleReflection n A (fullList.take k) α)) = 2 := by
+    intro k hk hall
+    induction k with
+    | zero => simp [Etingof.iteratedSimpleReflection]; exact ⟨hα_nonneg, hα_B⟩
+    | succ k ih =>
+      have hk' : k ≤ fullList.length := by omega
+      obtain ⟨ih_nn, ih_B⟩ := ih hk' (fun j hj => hall j (by omega))
+      have hk_sum := hall k (by omega)
+      set dk := Etingof.iteratedSimpleReflection n A (fullList.take k) α
+      have hcartan := Etingof.positive_root_cartan_bound hDynkin dk ih_nn ih_B hk_sum
+      have hk1 : k + 1 ≤ fullList.length := hk
+      have hk_lt : k < fullList.length := by omega
+      have htake : fullList.take (k + 1) =
+          fullList.take k ++ [fullList.get ⟨k, hk_lt⟩] := by
+        apply List.ext_getElem
+        · simp [List.length_take, Nat.min_eq_left (by omega : k + 1 ≤ _)]
+        · intro i hi1 hi2
+          simp only [List.getElem_append]
+          split
+          · next hi => simp [List.getElem_take]
+          · next hi =>
+            simp [List.length_take] at hi1 hi
+            have : i = k := by omega
+            subst this
+            simp [List.get_eq_getElem]
+      rw [htake, Etingof.iteratedSimpleReflection_append]
+      simp only [Etingof.iteratedSimpleReflection, List.foldl]
+      set vk := fullList.get ⟨k, by omega⟩
+      constructor
+      · exact Etingof.simpleReflection_nonneg hAsymm dk vk ih_nn (hcartan vk)
+      · exact (Etingof.simpleReflection_preserves_B hDynkin dk vk).trans ih_B
+  -- The last intermediate c^N(α) has a negative entry
+  have hbad : ¬(∀ j < fullList.length,
+      2 ≤ ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take j) α i) := by
+    intro hall
+    obtain ⟨hnn, _⟩ := hprefix_nonneg_B fullList.length le_rfl hall
+    rw [List.take_length] at hnn
+    rw [hfull_eq] at hnn
+    exact not_le.mpr (hN) (hnn v_neg)
+  -- Find the first "bad" index (where sum < 2)
+  push_neg at hbad
+  obtain ⟨k₀, hk₀_lt, hk₀_sum⟩ := hbad
+  -- Get the minimal such index using Nat.find
+  have hexists : ∃ m, m < fullList.length ∧
+      ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take m) α i < 2 :=
+    ⟨k₀, hk₀_lt, hk₀_sum⟩
+  -- Use well-founded recursion to find the minimum
+  have hexists' : ∃ m, (m < fullList.length ∧
+      ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take m) α i < 2) := hexists
+  set m := Nat.find hexists' with hm_def
+  have hm_spec := Nat.find_spec hexists'
+  have hm_lt := hm_spec.1
+  have hm_sum : ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take m) α i < 2 :=
+    hm_spec.2
+  have hm_min : ∀ j < m,
+      2 ≤ ∑ i, Etingof.iteratedSimpleReflection n A (fullList.take j) α i := by
+    intro j hj
+    by_contra h; push_neg at h
+    exact Nat.find_min hexists' hj ⟨by omega, h⟩
+  -- All intermediates before m have sum ≥ 2, so the m-th is nonneg with B = 2
+  obtain ⟨hm_nn, hm_B⟩ := hprefix_nonneg_B m (by omega) hm_min
+  set dm := Etingof.iteratedSimpleReflection n A (fullList.take m) α
+  -- dm is nonneg, nonzero (B=2), and sum < 2
+  have hm_nonzero : dm ≠ 0 := by
+    intro h0
+    have : dotProduct dm (A.mulVec dm) = 0 := by rw [h0]; simp [dotProduct, Matrix.mulVec]
+    linarith
+  have hm_sum_pos := Etingof.sum_pos_of_nonneg_ne_zero dm hm_nn hm_nonzero
+  have hm_sum1 : ∑ i, dm i = 1 := by omega
+  obtain ⟨p, hp⟩ := Etingof.sum_one_is_simpleRoot dm hm_nn hm_nonzero hm_sum1
+  -- The prefix fullList.take m reduces α to simpleRoot p
+  refine ⟨fullList.take m, p, hp, ?_⟩
+  -- Sinks property for the prefix
+  intro j hj
+  have hj_lt_m : j < m := by
+    rw [List.length_take] at hj; exact lt_of_lt_of_le hj (min_le_left _ _)
+  have hj_lt : j < fullList.length := by omega
+  rw [List.take_take, min_eq_left (by omega : j ≤ m)]
+  have : (fullList.take m).get ⟨j, hj⟩ = fullList.get ⟨j, hj_lt⟩ := by
+    simp [List.get_eq_getElem, List.getElem_take]
+  rw [this]
+  exact hSinks_full j hj_lt
+
+universe u in
+set_option maxHeartbeats 800000 in
+/-- **Backward construction**: given a vertex list where each vertex is a sink at the
+appropriate iterated-reversed quiver, and a positive root d that reduces to a simple root
+along this list, construct an indecomposable representation on Q with dimension vector d.
+
+The proof is by induction on the vertex list. At each step, v is a sink of Q, so v is a
+source of Q' = reversedAtVertex Q v. We recurse on Q' with reflected dim vector s_v(d),
+then apply F⁻ at source v on Q' to get back to Q. -/
+private lemma backward_construct_rep
+    {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    (hDynkin : Etingof.IsDynkinDiagram n adj)
+    (k : Type u) [Field k]
+    (vertices : List (Fin n))
+    {Q : @Quiver.{0, 0} (Fin n)}
+    (hOrient : Etingof.IsOrientationOf Q adj)
+    (hSS : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q a b))
+    (hSinks : ∀ m (hm : m < vertices.length),
+      @Etingof.IsSink (Fin n)
+        (@Etingof.iteratedReversedAtVertices _ _ Q (vertices.take m))
+        (vertices.get ⟨m, hm⟩))
+    (d : Fin n → ℤ)
+    (hd_nonneg : ∀ v, 0 ≤ d v)
+    (hd_nonzero : d ≠ 0)
+    (hd_B : dotProduct d ((Etingof.cartanMatrix n adj).mulVec d) = 2)
+    (p : Fin n)
+    (hreduce : Etingof.iteratedSimpleReflection n (Etingof.cartanMatrix n adj) vertices d =
+      Etingof.simpleRoot n p) :
+    ∃ (ρ : @Etingof.QuiverRepresentation.{u, 0, u, 0} k (Fin n) _ Q)
+      (_ : ∀ v, Module.Free k (ρ.obj v))
+      (_ : ∀ v, Module.Finite k (ρ.obj v)),
+      ρ.IsIndecomposable ∧ ∀ v, (d v : ℤ) = ↑(Module.finrank k (ρ.obj v)) := by
+  set A := Etingof.cartanMatrix n adj with hA_def
+  have hAsymm : A.IsSymm := Etingof.cartanMatrix_isSymm hDynkin.1
+  induction vertices generalizing Q d with
+  | nil =>
+    -- d = simpleRoot p
+    simp [Etingof.iteratedSimpleReflection] at hreduce
+    subst hreduce
+    exact Etingof.Corollary6_8_4_simpleRoot p k
+  | cons v rest ih =>
+    -- Check if d is already a simple root (sum ≤ 1)
+    by_cases hle : ∑ j : Fin n, d j ≤ 1
+    · -- d is a simple root: use base case directly
+      have hsum_pos := Etingof.sum_pos_of_nonneg_ne_zero d hd_nonneg hd_nonzero
+      have hd_sum1 : ∑ j, d j = 1 := by omega
+      obtain ⟨q, hq⟩ := Etingof.sum_one_is_simpleRoot d hd_nonneg hd_nonzero hd_sum1
+      subst hq
+      exact Etingof.Corollary6_8_4_simpleRoot q k
+    · -- d has sum ≥ 2: reflect at v (sink of Q), recurse
+      push_neg at hle
+      have hd_sum2 : 2 ≤ ∑ j, d j := by omega
+      -- v is a sink of Q
+      have hv_sink : @Etingof.IsSink (Fin n) Q v := by
+        have := hSinks 0 (by simp)
+        simp only [List.take_zero, Etingof.iteratedReversedAtVertices] at this
+        exact this
+      -- Q_rev = reversedAtVertex Q v; v is source in Q_rev
+      let Q_rev := @Etingof.reversedAtVertex (Fin n) _ Q v
+      have hv_source : @Etingof.IsSource (Fin n) Q_rev v :=
+        @Etingof.isSink_reversedAtVertex_isSource (Fin n) _ Q v hv_sink
+      have hOrient_rev : @Etingof.IsOrientationOf n Q_rev adj :=
+        Etingof.reversedAtVertex_isOrientationOf hDynkin.1 hDynkin.2.1 hOrient v
+      have hSS_rev : ∀ (a b : Fin n), Subsingleton (@Quiver.Hom (Fin n) Q_rev a b) :=
+        fun a b => Etingof.subsingleton_hom_reversedAtVertex v a b
+      -- Reflected dimension vector
+      set d₁ := Etingof.simpleReflection n A v d with hd₁_def
+      have hd₁_nonneg : ∀ j, 0 ≤ d₁ j :=
+        Etingof.simpleReflection_nonneg hAsymm d v hd_nonneg
+          (Etingof.positive_root_cartan_bound hDynkin d hd_nonneg hd_B hd_sum2 v)
+      have hd₁_nonzero : d₁ ≠ 0 := Etingof.simpleReflection_nonzero hDynkin d v hd_B
+      have hd₁_B : dotProduct d₁ (A.mulVec d₁) = 2 :=
+        (Etingof.simpleReflection_preserves_B hDynkin d v).trans hd_B
+      -- iter rest d₁ = simpleRoot p
+      have hreduce_rest : Etingof.iteratedSimpleReflection n A rest d₁ =
+          Etingof.simpleRoot n p := by
+        rw [← hreduce]; rfl
+      -- Sinks property for rest on Q_rev
+      have hSinks_rest : ∀ m (hm : m < rest.length),
+          @Etingof.IsSink (Fin n)
+            (@Etingof.iteratedReversedAtVertices _ _ Q_rev (rest.take m))
+            (rest.get ⟨m, hm⟩) := by
+        intro m hm
+        have hm1 : m + 1 < (v :: rest).length := by simp; omega
+        have h := hSinks (m + 1) hm1
+        -- Simplify: (v :: rest).take (m+1) = v :: rest.take m
+        have htake : (v :: rest).take (m + 1) = v :: rest.take m := by
+          rfl
+        -- (v :: rest)[m+1] = rest[m]
+        have hget : (v :: rest).get ⟨m + 1, hm1⟩ = rest.get ⟨m, hm⟩ := by
+          simp [List.get_eq_getElem]
+        rw [htake, hget] at h
+        -- iteratedReversedAtVertices Q (v :: rest.take m) =
+        --   iteratedReversedAtVertices Q_rev (rest.take m)
+        show @Etingof.IsSink (Fin n)
+          (@Etingof.iteratedReversedAtVertices _ _ Q_rev (rest.take m))
+          (rest.get ⟨m, hm⟩)
+        convert h using 2
+      -- IH gives ρ₁ on Q_rev with dim d₁
+      obtain ⟨ρ₁, hFree₁, hFinite₁, hIndec₁, hDim₁⟩ :=
+        ih hOrient_rev hSS_rev hSinks_rest d₁ hd₁_nonneg hd₁_nonzero hd₁_B hreduce_rest
+      -- d₁ ≠ simpleRoot v (otherwise d = s_v(e_v) has sum = -1, contradicting nonneg)
+      have hd₁_ne_ev : d₁ ≠ Etingof.simpleRoot n v := by
+        intro heq
+        have hinv : d = Etingof.simpleReflection n A v (Etingof.simpleRoot n v) := by
+          rw [← heq, hd₁_def]
+          exact (Etingof.simpleReflection_involutive hAsymm
+            (Etingof.simpleRoot_B_eq_two hDynkin) v d).symm
+        have hd_sum_eq : ∑ j, d j =
+            (∑ j, Etingof.simpleRoot n v j) -
+            (A.mulVec (Etingof.simpleRoot n v)) v := by
+          conv_lhs => rw [hinv]
+          exact Etingof.simpleReflection_sum hAsymm (Etingof.simpleRoot n v) v
+        simp only [Etingof.simpleRoot, Finset.sum_pi_single', Finset.mem_univ, ite_true] at hd_sum_eq
+        have hAev : (A.mulVec (Pi.single v (1 : ℤ))) v = 2 := by
+          simp only [Matrix.mulVec, dotProduct, Pi.single_apply, mul_ite, mul_one, mul_zero,
+            Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+          show (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) v v = 2
+          simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply_eq]
+          norm_num; have := hDynkin.2.1 v; omega
+        rw [hAev] at hd_sum_eq
+        linarith [Finset.sum_nonneg (fun j (_ : j ∈ Finset.univ) => hd_nonneg j)]
+      -- ρ₁ not simple at v
+      have hρ₁_not_simple : ¬ρ₁.IsSimpleAt v := by
+        intro ⟨h1, h2⟩
+        apply hd₁_ne_ev; ext j
+        simp only [Etingof.simpleRoot, Pi.single_apply]
+        by_cases hj : j = v
+        · simp only [hj, ite_true]
+          have := (hDim₁ v).symm; rw [h1] at this; exact_mod_cast this.symm
+        · simp only [hj, ite_false]
+          have := (hDim₁ j).symm; rw [h2 j hj] at this; exact_mod_cast this.symm
+      classical
+      -- Set up Fintype for ArrowsOutOf
+      haveI hFT_out : Fintype (@Etingof.ArrowsOutOf (Fin n) Q_rev v) :=
+        fintypeArrowsOutOfOfSubsingleton (Q := Q_rev) v
+      -- Prop 6.6.5: sourceMap injective
+      have h_inj : Function.Injective (ρ₁.sourceMap v) := by
+        haveI : ∀ w, Module.Free k (ρ₁.obj w) := hFree₁
+        haveI : ∀ w, Module.Finite k (ρ₁.obj w) := hFinite₁
+        rcases @Etingof.Proposition6_6_5_source k _ (Fin n) _ Q_rev
+          ρ₁ v _ _ _ hv_source hIndec₁ with hsimple | hinj
+        · exact absurd hsimple hρ₁_not_simple
+        · exact hinj
+      -- Apply F⁻ at source v on Q_rev
+      set fm := @Etingof.reflectionFunctorMinus k _ (Fin n) _ Q_rev v hv_source ρ₁ _
+      -- Involutivity: reversedAtVertex Q_rev v = Q
+      have hinvol : @Etingof.reversedAtVertex (Fin n) _
+          (@Etingof.reversedAtVertex (Fin n) _ Q v) v = Q :=
+        @Etingof.reversedAtVertex_twice (Fin n) _ Q v
+      -- Bridge dim vector
+      set d' := fun w => (@Module.finrank k (ρ₁.obj w)
+          _ (ρ₁.instAddCommMonoid w) (ρ₁.instModule w) : ℤ)
+      have hd_eq : d' = fun w => (d₁ w : ℤ) := by
+        ext w; simp only [d']; exact (hDim₁ w).symm
+      have hbridge :=
+        @simpleReflectionDimVector_eq_simpleReflection_source _ _
+          hDynkin Q_rev hOrient_rev hSS_rev v hv_source d'
+      -- Involutivity of simple reflection: s_v(s_v(d)) = d
+      have hinvol_d : Etingof.simpleReflection n A v d₁ = d := by
+        rw [hd₁_def]
+        exact Etingof.simpleReflection_involutive hAsymm
+          (Etingof.simpleRoot_B_eq_two hDynkin) v d
+      -- Prop 6.6.7: F⁻(ρ₁) indecomposable or zero
+      have hIndec_or_zero :
+          @Etingof.QuiverRepresentation.IsIndecomposable k _ _
+            (@Etingof.reversedAtVertex (Fin n) _ Q_rev v) fm ∨
+          @Etingof.QuiverRepresentation.IsZero k _ _
+            (@Etingof.reversedAtVertex (Fin n) _ Q_rev v) fm := by
+        haveI : ∀ w, Module.Free k (ρ₁.obj w) := hFree₁
+        haveI : ∀ w, Module.Finite k (ρ₁.obj w) := hFinite₁
+        exact @Etingof.Proposition6_6_7_source k _ _ _ Q_rev v hv_source ρ₁ _ _ _ hIndec₁
+      -- Prop 6.6.8: dim vector
+      have h668 : ∀ w,
+          (fm.finrankAt' k w : ℤ) =
+          Etingof.simpleReflectionDimVector
+            (fun (a : @Etingof.ArrowsOutOf (Fin n) Q_rev v) => a.1) v d' w := by
+        haveI : ∀ w, Module.Free k (ρ₁.obj w) := hFree₁
+        haveI : ∀ w, Module.Finite k (ρ₁.obj w) := hFinite₁
+        exact @Etingof.Proposition6_6_8_source k _ (Fin n) _ Q_rev v hv_source ρ₁ _ _ _ h_inj
+      -- Free for fm
+      have hFree_fm : ∀ w, Module.Free k
+          (@Etingof.QuiverRepresentation.obj k (Fin n) _
+            (@Etingof.reversedAtVertex (Fin n) _ Q_rev v) fm w) := by
+        intro w
+        haveI : ∀ w, Module.Free k (ρ₁.obj w) := hFree₁
+        haveI : ∀ w, Module.Finite k (ρ₁.obj w) := hFinite₁
+        by_cases hw : w = v
+        · rw [hw]; exact @reflFunctorMinus_free_eq k _ (Fin n) _ Q_rev v hv_source ρ₁ _ _ _
+        · exact @reflFunctorMinus_free_ne k _ (Fin n) _ Q_rev v hv_source ρ₁ _ _ w hw
+      -- Finite for fm
+      have hFinite_fm : ∀ w, Module.Finite k
+          (@Etingof.QuiverRepresentation.obj k (Fin n) _
+            (@Etingof.reversedAtVertex (Fin n) _ Q_rev v) fm w) := by
+        intro w
+        haveI : ∀ w, Module.Free k (ρ₁.obj w) := hFree₁
+        haveI : ∀ w, Module.Finite k (ρ₁.obj w) := hFinite₁
+        by_cases hw : w = v
+        · rw [hw]; exact @reflFunctorMinus_finite_eq k _ (Fin n) _ Q_rev v hv_source ρ₁ _ _ _
+        · exact @reflFunctorMinus_finite_ne k _ (Fin n) _ Q_rev v hv_source ρ₁ _ _ w hw
+      -- Exclude zero case
+      have hIndec_fm : @Etingof.QuiverRepresentation.IsIndecomposable k _ _
+          (@Etingof.reversedAtVertex (Fin n) _ Q_rev v) fm := by
+        rcases hIndec_or_zero with h | h_zero
+        · exact h
+        · exfalso
+          obtain ⟨⟨w, hw⟩, _⟩ := hIndec₁
+          suffices hs : ∀ w, Subsingleton (ρ₁.obj w) from
+            absurd (hs w) (not_subsingleton_iff_nontrivial.mpr hw)
+          intro w
+          by_cases hw : w = v
+          · rw [hw]
+            refine ⟨fun a b => ?_⟩
+            have hsub : ∀ (a : @Etingof.ArrowsOutOf (Fin n) Q_rev v),
+                Subsingleton (ρ₁.obj a.1) :=
+              fun ⟨m, hm⟩ => (Equiv.subsingleton_congr
+                (@Etingof.reflFunctorMinus_equivAt_ne k _ (Fin n) _ Q_rev
+                  v hv_source ρ₁ _ m (fun h => (hv_source m).false (h ▸ hm))).toEquiv).mp
+                (h_zero m)
+            haveI h_ds_ss : Subsingleton (DirectSum (@Etingof.ArrowsOutOf (Fin n) Q_rev v)
+                (fun a => ρ₁.obj a.1)) :=
+              ⟨fun x y => DFinsupp.ext (fun a => @Subsingleton.elim _ (hsub a) _ _)⟩
+            exact @Subsingleton.elim _ h_inj.subsingleton a b
+          · exact (Equiv.subsingleton_congr
+              (@Etingof.reflFunctorMinus_equivAt_ne k _ (Fin n) _ Q_rev
+                v hv_source ρ₁ _ w hw).toEquiv).mp (h_zero w)
+      -- Dim vector
+      have hDim_fm : ∀ w, (d w : ℤ) = ↑(fm.finrankAt' k w) := by
+        intro w; rw [h668 w]
+        show (d w : ℤ) = Etingof.simpleReflectionDimVector
+          (fun (a : @Etingof.ArrowsOutOf (Fin n) Q_rev v) => a.1) v d' w
+        have hgoal : (d w : ℤ) =
+            Etingof.simpleReflection n (Etingof.cartanMatrix n adj) v d' w := by
+          rw [← hA_def, hd_eq]; exact (congr_fun hinvol_d w).symm
+        rw [hgoal]; convert (congr_fun hbridge w).symm using 2
+      -- Transport to Q via double reversal
+      exact hinvol ▸
+        ⟨fm, hFree_fm, hFinite_fm, hIndec_fm, fun w => by
+         change (d w : ℤ) = _; rw [hDim_fm w]; rfl⟩
+
 end BackwardConstruction
 
 universe u in
@@ -814,5 +1199,9 @@ theorem Etingof.Corollary6_8_4
             ⟨fm, hFree_fm, hFinite_fm, hIndec_fm, fun v => by
              change (α v : ℤ) = _; rw [hDim_fm v]; rfl⟩
         · -- Case 3: i is mixed (neither source nor sink)
-          -- Requires admissible ordering backward construction — separate issue
-          sorry
+          -- Use admissible ordering backward construction
+          obtain ⟨σ, hσ⟩ := Etingof.admissibleOrdering_exists hDynkin hQ_orient
+          obtain ⟨vertices, p, hreduce, hSinks_v⟩ :=
+            exists_prefix_to_simpleRoot hDynkin hQ_orient σ hσ α hα_nonneg hα_nonzero hα_root
+          exact backward_construct_rep hDynkin k vertices hQ_orient hSS hSinks_v
+            α hα_nonneg hα_nonzero hα_root p hreduce
