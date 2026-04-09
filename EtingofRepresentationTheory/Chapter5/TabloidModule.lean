@@ -836,58 +836,6 @@ theorem column_perm_strict_dominance (T : StandardYoungTableau n la)
   ⟨column_perm_dominance T q hq,
    (ColumnSubgroup_ne_tabloid T q hq hne).symm⟩
 
-/-! ### Polytabloid dominance for linear independence -/
-
-/-- Helper: the total number of entries in the first i rows is the same for any
-permutation of shape λ (it equals Σ_{r<i} λ_r, the number of cells in the first i rows). -/
-private theorem tabloidCumulCount_full (σ : Equiv.Perm (Fin n)) (i : ℕ) (hn : 0 < n) :
-    tabloidCumulCount la σ ⟨n - 1, by omega⟩ i =
-    (Finset.univ.filter fun pos : Fin n =>
-      rowOfPos la.sortedParts pos.val < i).card := by
-  simp only [tabloidCumulCount]
-  apply Finset.card_nbij' (fun e => σ e) (fun p => σ.symm p)
-  · intro e he
-    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at he ⊢
-    exact he.2
-  · intro p hp
-    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hp ⊢
-    refine ⟨?_, by rwa [Equiv.apply_symm_apply]⟩
-    change (σ.symm p).val ≤ n - 1
-    omega
-  · intro e _; exact σ.symm_apply_apply e
-  · intro p _; exact σ.apply_symm_apply p
-
-/-- If e_{T₁}(σ_{T₂}) ≠ 0, then the tabloid of T₁ dominates the tabloid of T₂.
-This is the key triangularity property for polytabloid linear independence.
-
-The PQ decomposition σ_{T₂} = σ_{T₁} · q · p gives row₂(e) = row₁(q(p(e))),
-where q preserves canonical columns and p preserves canonical rows. The SYT
-properties of both T₁ and T₂ constrain which (q,p) pairs are possible, ensuring
-the dominance inequality: T₁ (the polytabloid's SYT) is at least as dominant
-as T₂ (the "evaluated-at" SYT). This is the "dominance lemma" for standard
-Young tableaux (cf. James, "The Representation Theory of the Symmetric Groups",
-or Sagan, "The Symmetric Group").
-
-Note on direction: T₁ dominates T₂ (the polytabloid's tableau dominates the
-evaluated-at tableau). Concretely, for λ=(2,1,1), T₁=[0 2/1/3], T₂=[0 3/1/2],
-we have e_{T₁}(σ_{T₂})≠0, and T₁ packs entries {0,2} into the first row while
-T₂ only has entry {0} in the first row among entries ≤ 2. -/
-theorem polytabloid_syt_dominance
-    (T₁ T₂ : StandardYoungTableau n la)
-    (hne : (polytabloid n la T₁ : SymGroupAlgebra n) (sytPerm n la T₂) ≠ 0) :
-    tabloidDominates la (sytPerm n la T₁) (sytPerm n la T₂) := by
-  -- Get PQ decomposition: σ_{T₂} = σ_{T₁} · p · q with p ∈ P_λ, q ∈ Q_λ
-  obtain ⟨p, hp, q, hq, hσ⟩ := polytabloid_support n la T₁ (sytPerm n la T₂) hne
-  -- PROOF STRATEGY (see GitHub issue for full analysis):
-  -- Let g = p * q, so σ₂ = σ₁ * g. Then row_T₂(e) = row_T₁(g(e)).
-  -- Since T₂(cell) = g⁻¹(T₁(cell)), g⁻¹ is order-preserving on each column of T₁
-  -- (from T₂ being SYT). The dominance reduces to: for each i, the sorted entries
-  -- in the first i rows of T₂ are pointwise ≥ those of T₁. Per-column dominance
-  -- FAILS (counterexample: λ=(2,1,1), col 0 of T₁=[0,1,3], T₂=[0,1,2]).
-  -- A cross-column argument is needed, likely via the conjectured per-cell comparison:
-  -- for i < numRows, T₂(cell) ≥ T₁(cell) for all cells in the first i rows.
-  sorry
-
 /-! ### Note on the group algebra linear independence proof
 
 The group algebra version of the linear independence proof (evaluating
