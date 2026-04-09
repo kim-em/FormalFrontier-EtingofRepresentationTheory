@@ -615,6 +615,29 @@ private lemma decomp_of_AB_BA_zero (ρ : Q₂Rep ℂ)
   · exact hqW_ne h2
 
 open Polynomial in
+/-- In `ℂ[X] ⧸ (X ^ n)`, an element with `X ^ (n-1) • a ≠ 0` is a unit.
+Such elements have maximal X-order, implying their lift is coprime to X. -/
+private lemma quotient_X_pow_isUnit_of_maxOrder (n : ℕ) (hn : 0 < n)
+    (a : ℂ[X] ⧸ Ideal.span {(X : ℂ[X]) ^ n})
+    (ha : (X : ℂ[X]) ^ (n - 1) • a ≠ 0) : IsUnit a := by
+  obtain ⟨pa, rfl⟩ := Ideal.Quotient.mk_surjective a
+  -- X ∤ pa (otherwise X^n | X^{n-1} * pa, contradicting ha)
+  have hXndvd : ¬ ((X : ℂ[X]) ∣ pa) := by
+    intro ⟨q, hq⟩; apply ha
+    rw [Algebra.smul_def, Ideal.Quotient.algebraMap_eq, ← map_mul,
+      Ideal.Quotient.eq_zero_iff_mem, Ideal.mem_span_singleton]
+    exact ⟨q, by rw [hq, ← mul_assoc, ← pow_succ, show n - 1 + 1 = n from by omega]⟩
+  -- pa and X^n are coprime (X is irreducible and doesn't divide pa)
+  have hcoprime : IsCoprime pa ((X : ℂ[X]) ^ n) :=
+    ((Polynomial.irreducible_X.isRelPrime_iff_not_dvd.mpr hXndvd).isCoprime.symm).pow_right
+  -- Bezout gives inverse
+  obtain ⟨u, v, huv⟩ := hcoprime
+  exact IsUnit.of_mul_eq_one (Ideal.Quotient.mk _ u) (by
+    rw [← map_mul, show pa * u = 1 - v * X ^ n from by linear_combination (mul_comm u pa) + huv]
+    rw [map_sub, map_one, map_mul, Ideal.Quotient.eq_zero_iff_mem.mpr
+      (Ideal.mem_span_singleton_self _), mul_zero, sub_zero])
+
+open Polynomial in
 /-- In `ℂ[X] ⧸ (X ^ n)`, any element annihilated by `X` lies in the ℂ-span of
 the image of `X ^ (n - 1)`. This shows the X-torsion is at most 1-dimensional. -/
 private lemma quotient_X_torsion_mem_span (n : ℕ)
@@ -1415,7 +1438,7 @@ private lemma product_complement_decomp
       _ = (X (proj (ιW w))).1 := by rw [hcomm]
       _ = 0 := key
 
-set_option maxHeartbeats 1600000 in
+set_option maxHeartbeats 6400000 in
 -- The PID and AEval' manipulations are expensive
 /-- A nilpotent operator on V × W (acting via swapOp) with ker dimension ≥ 2
 admits a nonzero X-invariant product subspace V' × W' with an X-invariant
@@ -1706,11 +1729,190 @@ private lemma exists_invariant_product_complement
     -- onto N j₀ ≅ ℂ[X]/(X^k_max). The pure element (v₁, 0) generates a cyclic module
     -- of dimension k_max that bijects onto N j₀ via φ, giving both disjointness
     -- (injectivity of φ on V'₀.prod W'₀) and dimension equality (rank-nullity).
-    have hcompl : IsCompl (V'₀.prod W'₀) C := by sorry
+    -- φ(p) is a unit in N j₀ (X^{k-1}•φ(p) ≠ 0 → coprime to X → unit)
+    set p : V × W := (v₁, (0 : W))
+    have hφp_ne : (Polynomial.X : ℂ[X]) ^ (k j₀ - 1) • φ p ≠ 0 := by
+      show (Polynomial.X : ℂ[X]) ^ (k j₀ - 1) •
+        (DirectSum.component ℂ[X] (Fin d) N j₀ (e p_aeval)) ≠ 0
+      rw [← map_smul, show k j₀ - 1 = k j_max - 1 from by omega]
+      exact hj₀_ne
+    have hφp_unit : IsUnit (φ p) :=
+      quotient_X_pow_isUnit_of_maxOrder (k j₀) (hk_j₀ ▸ hk_pos) (φ p) hφp_ne
+    -- X^m(p) ∈ V'₀.prod W'₀ for all m (by X-invariance + p ∈ V'₀.prod W'₀)
+    have hp_mem : p ∈ V'₀.prod W'₀ := by
+      rw [Submodule.mem_prod]
+      exact ⟨Submodule.subset_span ⟨0, by simp [p]⟩, Submodule.zero_mem _⟩
+    have hXm_mem : ∀ m : ℕ, (X ^ m) p ∈ V'₀.prod W'₀ := by
+      intro m; induction m with
+      | zero => simpa using hp_mem
+      | succ n ih =>
+        have : (X ^ (n + 1)) p = X ((X ^ n) p) := by
+          rw [pow_succ']; rfl
+        rw [this]; exact hVW_inv _ ih
+    -- φ(X^m(p)) = X^m • φ(p) (iterated commutation)
+    have hφ_iter : ∀ m : ℕ, φ ((X ^ m) p) = (Polynomial.X : ℂ[X]) ^ m • φ p := by
+      intro m; induction m with
+      | zero => simp
+      | succ n ih =>
+        have : (X ^ (n + 1)) p = X ((X ^ n) p) := by
+          rw [pow_succ']; rfl
+        rw [this, hφ_comm, ih, smul_smul, pow_succ']
+    -- IsCompl via codisjoint (unit section) + disjoint (dimension)
+    -- Step A: φ composed with polynomial evaluation = polynomial action on φ(p)
+    have hφ_aeval : ∀ f : ℂ[X], φ ((Polynomial.aeval X f) p) = f • φ p := by
+      intro f
+      show (DirectSum.component ℂ[X] (Fin d) N j₀)
+        (e ((Module.AEval'.of (R := ℂ) X) ((Polynomial.aeval X f) p))) =
+        f • (DirectSum.component ℂ[X] (Fin d) N j₀)
+          (e ((Module.AEval'.of (R := ℂ) X) p))
+      conv_lhs => rw [show (Module.AEval'.of (R := ℂ) X) ((Polynomial.aeval X f) p) =
+          f • (Module.AEval'.of (R := ℂ) X) p from Module.AEval.of_aeval_smul ..]
+      rw [map_smul, map_smul]
+    -- Step B: polynomial evaluation at X preserves V'₀.prod W'₀
+    have haeval_mem : ∀ f : ℂ[X], (Polynomial.aeval X f) p ∈ V'₀.prod W'₀ := by
+      intro f; induction f using Polynomial.induction_on' with
+      | add f g hf hg => rw [map_add, LinearMap.add_apply]; exact Submodule.add_mem _ hf hg
+      | monomial n c =>
+        rw [Polynomial.aeval_monomial, Algebra.algebraMap_eq_smul_one, smul_mul_assoc,
+          one_mul, LinearMap.smul_apply]
+        exact Submodule.smul_mem _ _ (hXm_mem n)
+    -- Step C: φ is surjective (component ∘ iso ∘ iso)
+    have hφ_surj : Function.Surjective φ := by
+      intro a
+      refine ⟨(Module.AEval'.of (R := ℂ) X).symm
+        (e.symm ((DirectSum.lof ℂ[X] (Fin d) N j₀) a)), ?_⟩
+      change (DirectSum.component ℂ[X] (Fin d) N j₀)
+        (e ((Module.AEval'.of (R := ℂ) X)
+          ((Module.AEval'.of (R := ℂ) X).symm
+            (e.symm ((DirectSum.lof ℂ[X] (Fin d) N j₀) a))))) = a
+      rw [LinearEquiv.apply_symm_apply, LinearEquiv.apply_symm_apply,
+        DirectSum.component.lof_self]
+    -- Step D: finrank(N j₀) = k j₀
+    have hfr_N : Module.finrank ℂ (N j₀) = k j₀ := by
+      show Module.finrank ℂ (ℂ[X] ⧸ (ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k j₀)) = k j₀
+      rw [show (ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k j₀ : Submodule ℂ[X] ℂ[X]) =
+          (Ideal.span {(Polynomial.X : ℂ[X]) ^ k j₀} : Ideal ℂ[X]) from
+        (Ideal.submodule_span_eq).symm]
+      rw [finrank_quotient_span_eq_natDegree, Polynomial.natDegree_pow,
+        Polynomial.natDegree_X, mul_one]
+    -- Step E: finrank(V'₀.prod W'₀) ≤ k j₀ (finite span)
+    have hfr_le : Module.finrank ℂ ↥(V'₀.prod W'₀) ≤ k j₀ := by
+      have hX_kill : ∀ m, k j₀ ≤ m → (X ^ m) p = 0 := by
+        intro m hm
+        have hm' : k j_max ≤ m := hk_j₀ ▸ hm
+        calc (X ^ m) p = (X ^ (m - k j_max) * X ^ k j_max) p := by
+              rw [← pow_add, Nat.sub_add_cancel hm']
+            _ = (X ^ (m - k j_max)) ((X ^ k j_max) p) := by
+              rw [Module.End.mul_apply]
+            _ = 0 := by rw [hv1_kill, map_zero]
+      -- V'₀.prod W'₀ ≤ ℂ-span{X^m p | m < k j₀} via generator containment
+      classical
+      set SF := Finset.univ.image (fun m : Fin (k j₀) => (X ^ (m : ℕ)) p)
+      have h_le : V'₀.prod W'₀ ≤ Submodule.span ℂ (↑SF) := by
+        intro ⟨v, w⟩ ⟨hv, hw⟩
+        -- Decompose (v, w) = (v, 0) + (0, w)
+        have hsum : (v, w) = (v, (0 : W)) + ((0 : V), w) := by ext <;> simp
+        rw [hsum]; apply Submodule.add_mem
+        -- (v, 0) ∈ span SF: use LinearMap.inl to map V'₀ generators into SF
+        · have hmap : Submodule.map (LinearMap.inl ℂ V W) V'₀ ≤ Submodule.span ℂ (↑SF) := by
+            rw [V'₀_def, Submodule.map_span]; apply Submodule.span_le.mpr
+            rintro _ ⟨_, ⟨m, rfl⟩, rfl⟩
+            show (((B.comp A) ^ m) v₁, (0 : W)) ∈ Submodule.span ℂ (↑SF)
+            by_cases hm : 2 * m < k j₀
+            · apply Submodule.subset_span; simp [SF]
+              exact ⟨⟨2 * m, hm⟩, swapOp_pow_even_fst A B m v₁⟩
+            · have hk := hX_kill (2 * m) (by omega)
+              rw [swapOp_pow_even_fst A B m v₁, Prod.mk.injEq] at hk
+              rw [hk.1]; exact Submodule.zero_mem _
+          exact hmap ⟨v, hv, rfl⟩
+        -- (0, w) ∈ span SF: use LinearMap.inr to map W'₀ generators into SF
+        · have hmap : Submodule.map (LinearMap.inr ℂ V W) W'₀ ≤ Submodule.span ℂ (↑SF) := by
+            rw [W'₀_def, Submodule.map_span]; apply Submodule.span_le.mpr
+            rintro _ ⟨_, ⟨m, rfl⟩, rfl⟩
+            show ((0 : V), A (((B.comp A) ^ m) v₁)) ∈ Submodule.span ℂ (↑SF)
+            by_cases hm : 2 * m + 1 < k j₀
+            · apply Submodule.subset_span; simp [SF]
+              exact ⟨⟨2 * m + 1, hm⟩, swapOp_pow_odd_fst A B m v₁⟩
+            · have hk := hX_kill (2 * m + 1) (by omega)
+              rw [swapOp_pow_odd_fst A B m v₁, Prod.mk.injEq] at hk
+              rw [hk.2]; exact Submodule.zero_mem _
+          exact hmap ⟨w, hw, rfl⟩
+      have h1 : Module.finrank ℂ ↥(V'₀.prod W'₀)
+          ≤ Module.finrank ℂ ↥(Submodule.span ℂ (↑SF : Set (V × W))) :=
+        Submodule.finrank_mono h_le
+      have h2 : Module.finrank ℂ ↥(Submodule.span ℂ (↑SF : Set (V × W))) ≤ SF.card :=
+        finrank_span_finset_le_card SF
+      have h3 : SF.card ≤ k j₀ := by
+        exact le_trans Finset.card_image_le (le_of_eq (Finset.card_fin _))
+      linarith
+    -- Step F: Codisjoint (unit section gives decomposition)
+    have hcodisjoint : Codisjoint (V'₀.prod W'₀) C := by
+      obtain ⟨u, hu⟩ := hφp_unit
+      rw [codisjoint_iff, eq_top_iff]; intro q _
+      obtain ⟨g, hg⟩ := Ideal.Quotient.mk_surjective (φ q * ↑u⁻¹ : N j₀)
+      have hker : q - (Polynomial.aeval X g) p ∈ LinearMap.ker φ := by
+        rw [LinearMap.mem_ker, map_sub, hφ_aeval, Algebra.smul_def,
+          Ideal.Quotient.algebraMap_eq, hg, ← hu, mul_assoc,
+          Units.inv_mul, mul_one, sub_self]
+      have hq_decomp : q = (Polynomial.aeval X g) p + (q - (Polynomial.aeval X g) p) := by
+        abel
+      rw [hq_decomp]
+      exact Submodule.add_mem_sup (haeval_mem g) hker
+    -- Step G: Disjoint (dimension argument from codisjoint)
+    have hdisjoint : Disjoint (V'₀.prod W'₀) C := by
+      -- From codisjoint + rank-nullity + finrank bound
+      have hfr_eq := Submodule.finrank_sup_add_finrank_inf_eq (V'₀.prod W'₀) C
+      rw [hcodisjoint.eq_top, finrank_top] at hfr_eq
+      have hfr_rn := LinearMap.finrank_range_add_finrank_ker φ
+      rw [LinearMap.range_eq_top.mpr hφ_surj, finrank_top, hfr_N] at hfr_rn
+      -- hfr_rn mentions LinearMap.ker φ, but C = LinearMap.ker φ; unify for omega
+      change k j₀ + Module.finrank ℂ ↥C = Module.finrank ℂ (V × W) at hfr_rn
+      have hfr_inf : Module.finrank ℂ ↥(V'₀.prod W'₀ ⊓ C) = 0 := by omega
+      rw [disjoint_iff]
+      exact Submodule.finrank_eq_zero.mp hfr_inf
+    have hcompl : IsCompl (V'₀.prod W'₀) C := ⟨hdisjoint, hcodisjoint⟩
     -- C ≠ ⊥: φ is not injective since finrank(V×W) = Σ k_i > k_max = finrank(N j₀)
     -- (at least 2 nontrivial summands exist because dim(ker X) ≥ 2, and each
     -- nontrivial cyclic summand contributes exactly 1 to dim(ker X))
-    have hC_ne : C ≠ ⊥ := by sorry
+    have hC_ne : C ≠ ⊥ := by
+      intro hC_bot
+      have hinj : Function.Injective φ := LinearMap.ker_eq_bot.mp hC_bot
+      -- The X-torsion of N j₀ is at most 1-dimensional (quotient_X_torsion_mem_span)
+      set gen : N j₀ := Submodule.Quotient.mk ((Polynomial.X : ℂ[X]) ^ (k j₀ - 1))
+      -- Pick w₀ ∈ ker X, w₀ ≠ 0
+      haveI : Nontrivial (LinearMap.ker X) :=
+        Module.finrank_pos_iff.mp (by linarith)
+      obtain ⟨⟨w₀, hw₀_mem⟩, hw₀_ne⟩ := exists_ne (0 : LinearMap.ker X)
+      have hw₀' : w₀ ≠ 0 := fun h => hw₀_ne (Subtype.ext h)
+      have hw₀_ker : X w₀ = 0 := LinearMap.mem_ker.mp hw₀_mem
+      -- φ(w₀) is X-torsion and nonzero (by injectivity)
+      have hXφw₀ : (Polynomial.X : ℂ[X]) • φ w₀ = 0 := by
+        rw [← hφ_comm, hw₀_ker, map_zero]
+      have hφw₀_ne : φ w₀ ≠ 0 := fun h => hw₀' (hinj (h.trans (map_zero φ).symm))
+      -- φ(w₀) ∈ span{gen}, so get scalar c₀ ≠ 0
+      have hφw₀_span := quotient_X_torsion_mem_span (k j₀) (φ w₀) hXφw₀
+      rw [Submodule.mem_span_singleton] at hφw₀_span
+      obtain ⟨c₀, hc₀⟩ := hφw₀_span
+      have hc₀_ne : c₀ ≠ 0 := by intro h; rw [h, zero_smul] at hc₀; exact hφw₀_ne hc₀.symm
+      -- ker X ≤ span{w₀}, giving finrank ≤ 1, contradicting hX_ker ≥ 2
+      suffices h_le : LinearMap.ker X ≤ Submodule.span ℂ ({w₀} : Set (V × W)) by
+        have h1 := Submodule.finrank_mono h_le
+        rw [finrank_span_singleton hw₀'] at h1
+        linarith
+      intro v hv
+      have hv_ker : X v = 0 := LinearMap.mem_ker.mp hv
+      have hXφv : (Polynomial.X : ℂ[X]) • φ v = 0 := by
+        rw [← hφ_comm, hv_ker, map_zero]
+      have hφv_span := quotient_X_torsion_mem_span (k j₀) (φ v) hXφv
+      rw [Submodule.mem_span_singleton] at hφv_span
+      obtain ⟨c, hc⟩ := hφv_span
+      -- v = (c * c₀⁻¹) • w₀ by injectivity (both map to scalar multiples of gen)
+      have hv_eq : v = (c * c₀⁻¹) • w₀ := by
+        apply hinj; rw [map_smul]
+        rw [show φ w₀ = c₀ • gen from hc₀.symm, smul_smul,
+          mul_assoc, inv_mul_cancel₀ hc₀_ne, mul_one]
+        exact hc.symm
+      rw [hv_eq]; exact Submodule.smul_mem _ _ (Submodule.subset_span rfl)
     exact ⟨V'₀, W'₀, C, hcompl, hVW_inv, hC_inv, hVW_ne, hC_ne⟩
   · -- Case: (0, w₁) has X-order k_max — symmetric (swap A↔B, V↔W roles)
     open Polynomial in
@@ -1777,8 +1979,174 @@ private lemma exists_invariant_product_complement
       rw [Submodule.mem_bot] at hw₁_mem
       have : ((0 : V), w₁) = 0 := Prod.ext_iff.mpr ⟨rfl, hw₁_mem⟩
       exact hp_w (by rw [this, map_zero])
-    have hcompl : IsCompl (V'₀.prod W'₀) C := by sorry
-    have hC_ne : C ≠ ⊥ := by sorry
+    -- φ(p) is a unit in N j₀ (X^{k-1}•φ(p) ≠ 0 → coprime to X → unit)
+    set p : V × W := ((0 : V), w₁)
+    have hφp_ne : (Polynomial.X : ℂ[X]) ^ (k j₀ - 1) • φ p ≠ 0 := by
+      show (Polynomial.X : ℂ[X]) ^ (k j₀ - 1) •
+        (DirectSum.component ℂ[X] (Fin d) N j₀ (e p_aeval)) ≠ 0
+      rw [← map_smul, show k j₀ - 1 = k j_max - 1 from by omega]
+      exact hj₀_ne
+    have hφp_unit : IsUnit (φ p) :=
+      quotient_X_pow_isUnit_of_maxOrder (k j₀) (hk_j₀ ▸ hk_pos) (φ p) hφp_ne
+    have hp_mem : p ∈ V'₀.prod W'₀ := by
+      rw [Submodule.mem_prod]
+      exact ⟨Submodule.zero_mem _, Submodule.subset_span ⟨0, by simp [p]⟩⟩
+    have hXm_mem : ∀ m : ℕ, (X ^ m) p ∈ V'₀.prod W'₀ := by
+      intro m; induction m with
+      | zero => simpa using hp_mem
+      | succ n ih =>
+        have : (X ^ (n + 1)) p = X ((X ^ n) p) := by
+          rw [pow_succ']; rfl
+        rw [this]; exact hVW_inv _ ih
+    have hφ_iter : ∀ m : ℕ, φ ((X ^ m) p) = (Polynomial.X : ℂ[X]) ^ m • φ p := by
+      intro m; induction m with
+      | zero => simp
+      | succ n ih =>
+        have : (X ^ (n + 1)) p = X ((X ^ n) p) := by
+          rw [pow_succ']; rfl
+        rw [this, hφ_comm, ih, smul_smul, pow_succ']
+    -- Step A: φ ∘ aeval = polynomial action on φ(p)
+    have hφ_aeval : ∀ f : ℂ[X], φ ((Polynomial.aeval X f) p) = f • φ p := by
+      intro f
+      show (DirectSum.component ℂ[X] (Fin d) N j₀)
+        (e ((Module.AEval'.of (R := ℂ) X) ((Polynomial.aeval X f) p))) =
+        f • (DirectSum.component ℂ[X] (Fin d) N j₀)
+          (e ((Module.AEval'.of (R := ℂ) X) p))
+      conv_lhs => rw [show (Module.AEval'.of (R := ℂ) X) ((Polynomial.aeval X f) p) =
+          f • (Module.AEval'.of (R := ℂ) X) p from Module.AEval.of_aeval_smul ..]
+      rw [map_smul, map_smul]
+    -- Step B: aeval at X preserves V'₀.prod W'₀
+    have haeval_mem : ∀ f : ℂ[X], (Polynomial.aeval X f) p ∈ V'₀.prod W'₀ := by
+      intro f; induction f using Polynomial.induction_on' with
+      | add f g hf hg => rw [map_add, LinearMap.add_apply]; exact Submodule.add_mem _ hf hg
+      | monomial n c =>
+        rw [Polynomial.aeval_monomial, Algebra.algebraMap_eq_smul_one, smul_mul_assoc,
+          one_mul, LinearMap.smul_apply]
+        exact Submodule.smul_mem _ _ (hXm_mem n)
+    -- Step C: φ is surjective
+    have hφ_surj : Function.Surjective φ := by
+      intro a
+      refine ⟨(Module.AEval'.of (R := ℂ) X).symm
+        (e.symm ((DirectSum.lof ℂ[X] (Fin d) N j₀) a)), ?_⟩
+      change (DirectSum.component ℂ[X] (Fin d) N j₀)
+        (e ((Module.AEval'.of (R := ℂ) X)
+          ((Module.AEval'.of (R := ℂ) X).symm
+            (e.symm ((DirectSum.lof ℂ[X] (Fin d) N j₀) a))))) = a
+      rw [LinearEquiv.apply_symm_apply, LinearEquiv.apply_symm_apply,
+        DirectSum.component.lof_self]
+    -- Step D: finrank(N j₀) = k j₀
+    have hfr_N : Module.finrank ℂ (N j₀) = k j₀ := by
+      show Module.finrank ℂ (ℂ[X] ⧸ (ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k j₀)) = k j₀
+      rw [show (ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k j₀ : Submodule ℂ[X] ℂ[X]) =
+          (Ideal.span {(Polynomial.X : ℂ[X]) ^ k j₀} : Ideal ℂ[X]) from
+        (Ideal.submodule_span_eq).symm]
+      rw [finrank_quotient_span_eq_natDegree, Polynomial.natDegree_pow,
+        Polynomial.natDegree_X, mul_one]
+    -- Step E: finrank(V'₀.prod W'₀) ≤ k j₀
+    have hfr_le : Module.finrank ℂ ↥(V'₀.prod W'₀) ≤ k j₀ := by
+      have hX_kill : ∀ m, k j₀ ≤ m → (X ^ m) p = 0 := by
+        intro m hm
+        have hm' : k j_max ≤ m := hk_j₀ ▸ hm
+        calc (X ^ m) p = (X ^ (m - k j_max) * X ^ k j_max) p := by
+              rw [← pow_add, Nat.sub_add_cancel hm']
+            _ = (X ^ (m - k j_max)) ((X ^ k j_max) p) := by
+              rw [Module.End.mul_apply]
+            _ = 0 := by rw [hw1_kill, map_zero]
+      classical
+      set SF := Finset.univ.image (fun m : Fin (k j₀) => (X ^ (m : ℕ)) p)
+      have h_le : V'₀.prod W'₀ ≤ Submodule.span ℂ (↑SF) := by
+        intro ⟨v, w⟩ ⟨hv, hw⟩
+        have hsum : (v, w) = (v, (0 : W)) + ((0 : V), w) := by ext <;> simp
+        rw [hsum]; apply Submodule.add_mem
+        -- (v, 0): V'₀ = span{B((AB)^m w₁)} → odd powers of X on p
+        · have hmap : Submodule.map (LinearMap.inl ℂ V W) V'₀ ≤ Submodule.span ℂ (↑SF) := by
+            rw [V'₀_def, Submodule.map_span]; apply Submodule.span_le.mpr
+            rintro _ ⟨_, ⟨m, rfl⟩, rfl⟩
+            show (B (((A.comp B) ^ m) w₁), (0 : W)) ∈ Submodule.span ℂ (↑SF)
+            by_cases hm : 2 * m + 1 < k j₀
+            · apply Submodule.subset_span; simp [SF]
+              exact ⟨⟨2 * m + 1, hm⟩, swapOp_pow_odd_snd A B m w₁⟩
+            · have hk := hX_kill (2 * m + 1) (by omega)
+              rw [swapOp_pow_odd_snd A B m w₁, Prod.mk.injEq] at hk
+              rw [hk.1]; exact Submodule.zero_mem _
+          exact hmap ⟨v, hv, rfl⟩
+        -- (0, w): W'₀ = span{(AB)^m w₁} → even powers of X on p
+        · have hmap : Submodule.map (LinearMap.inr ℂ V W) W'₀ ≤ Submodule.span ℂ (↑SF) := by
+            rw [W'₀_def, Submodule.map_span]; apply Submodule.span_le.mpr
+            rintro _ ⟨_, ⟨m, rfl⟩, rfl⟩
+            show ((0 : V), ((A.comp B) ^ m) w₁) ∈ Submodule.span ℂ (↑SF)
+            by_cases hm : 2 * m < k j₀
+            · apply Submodule.subset_span; simp [SF]
+              exact ⟨⟨2 * m, hm⟩, swapOp_pow_even_snd A B m w₁⟩
+            · have hk := hX_kill (2 * m) (by omega)
+              rw [swapOp_pow_even_snd A B m w₁, Prod.mk.injEq] at hk
+              rw [hk.2]; exact Submodule.zero_mem _
+          exact hmap ⟨w, hw, rfl⟩
+      have h1 : Module.finrank ℂ ↥(V'₀.prod W'₀)
+          ≤ Module.finrank ℂ ↥(Submodule.span ℂ (↑SF : Set (V × W))) :=
+        Submodule.finrank_mono h_le
+      have h2 : Module.finrank ℂ ↥(Submodule.span ℂ (↑SF : Set (V × W))) ≤ SF.card :=
+        finrank_span_finset_le_card SF
+      have h3 : SF.card ≤ k j₀ := by
+        exact le_trans Finset.card_image_le (le_of_eq (Finset.card_fin _))
+      linarith
+    -- Step F: Codisjoint
+    have hcodisjoint : Codisjoint (V'₀.prod W'₀) C := by
+      obtain ⟨u, hu⟩ := hφp_unit
+      rw [codisjoint_iff, eq_top_iff]; intro q _
+      obtain ⟨g, hg⟩ := Ideal.Quotient.mk_surjective (φ q * ↑u⁻¹ : N j₀)
+      have hker : q - (Polynomial.aeval X g) p ∈ LinearMap.ker φ := by
+        rw [LinearMap.mem_ker, map_sub, hφ_aeval, Algebra.smul_def,
+          Ideal.Quotient.algebraMap_eq, hg, ← hu, mul_assoc,
+          Units.inv_mul, mul_one, sub_self]
+      have hq_decomp : q = (Polynomial.aeval X g) p + (q - (Polynomial.aeval X g) p) := by
+        abel
+      rw [hq_decomp]
+      exact Submodule.add_mem_sup (haeval_mem g) hker
+    -- Step G: Disjoint
+    have hdisjoint : Disjoint (V'₀.prod W'₀) C := by
+      have hfr_eq := Submodule.finrank_sup_add_finrank_inf_eq (V'₀.prod W'₀) C
+      rw [hcodisjoint.eq_top, finrank_top] at hfr_eq
+      have hfr_rn := LinearMap.finrank_range_add_finrank_ker φ
+      rw [LinearMap.range_eq_top.mpr hφ_surj, finrank_top, hfr_N] at hfr_rn
+      change k j₀ + Module.finrank ℂ ↥C = Module.finrank ℂ (V × W) at hfr_rn
+      have hfr_inf : Module.finrank ℂ ↥(V'₀.prod W'₀ ⊓ C) = 0 := by omega
+      rw [disjoint_iff]
+      exact Submodule.finrank_eq_zero.mp hfr_inf
+    have hcompl : IsCompl (V'₀.prod W'₀) C := ⟨hdisjoint, hcodisjoint⟩
+    have hC_ne : C ≠ ⊥ := by
+      intro hC_bot
+      have hinj : Function.Injective φ := LinearMap.ker_eq_bot.mp hC_bot
+      set gen : N j₀ := Submodule.Quotient.mk ((Polynomial.X : ℂ[X]) ^ (k j₀ - 1))
+      haveI : Nontrivial (LinearMap.ker X) :=
+        Module.finrank_pos_iff.mp (by linarith)
+      obtain ⟨⟨w₀, hw₀_mem⟩, hw₀_ne⟩ := exists_ne (0 : LinearMap.ker X)
+      have hw₀' : w₀ ≠ 0 := fun h => hw₀_ne (Subtype.ext h)
+      have hw₀_ker : X w₀ = 0 := LinearMap.mem_ker.mp hw₀_mem
+      have hXφw₀ : (Polynomial.X : ℂ[X]) • φ w₀ = 0 := by
+        rw [← hφ_comm, hw₀_ker, map_zero]
+      have hφw₀_ne : φ w₀ ≠ 0 := fun h => hw₀' (hinj (h.trans (map_zero φ).symm))
+      have hφw₀_span := quotient_X_torsion_mem_span (k j₀) (φ w₀) hXφw₀
+      rw [Submodule.mem_span_singleton] at hφw₀_span
+      obtain ⟨c₀, hc₀⟩ := hφw₀_span
+      have hc₀_ne : c₀ ≠ 0 := by intro h; rw [h, zero_smul] at hc₀; exact hφw₀_ne hc₀.symm
+      suffices h_le : LinearMap.ker X ≤ Submodule.span ℂ ({w₀} : Set (V × W)) by
+        have h1 := Submodule.finrank_mono h_le
+        rw [finrank_span_singleton hw₀'] at h1
+        linarith
+      intro v hv
+      have hv_ker : X v = 0 := LinearMap.mem_ker.mp hv
+      have hXφv : (Polynomial.X : ℂ[X]) • φ v = 0 := by
+        rw [← hφ_comm, hv_ker, map_zero]
+      have hφv_span := quotient_X_torsion_mem_span (k j₀) (φ v) hXφv
+      rw [Submodule.mem_span_singleton] at hφv_span
+      obtain ⟨c, hc⟩ := hφv_span
+      have hv_eq : v = (c * c₀⁻¹) • w₀ := by
+        apply hinj; rw [map_smul]
+        rw [show φ w₀ = c₀ • gen from hc₀.symm, smul_smul,
+          mul_assoc, inv_mul_cancel₀ hc₀_ne, mul_one]
+        exact hc.symm
+      rw [hv_eq]; exact Submodule.smul_mem _ _ (Submodule.subset_span rfl)
     exact ⟨V'₀, W'₀, C, hcompl, hVW_inv, hC_inv, hVW_ne, hC_ne⟩
 
 set_option maxHeartbeats 800000 in
