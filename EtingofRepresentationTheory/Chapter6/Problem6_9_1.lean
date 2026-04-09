@@ -1415,35 +1415,31 @@ private lemma product_complement_decomp
       _ = (X (proj (ιW w))).1 := by rw [hcomm]
       _ = 0 := key
 
-set_option maxHeartbeats 800000 in
-/-- In the hard case (ker A ≤ range B, ker B ≤ range A), the swap operator X
-on V × W provides a nontrivial compatible decomposition via the PID structure
-theorem and compatible chain basis argument (Problem 6.9.1(c)). -/
-private lemma compatible_product_decomp
+set_option maxHeartbeats 1600000 in
+-- The PID and AEval' manipulations are expensive
+/-- A nilpotent operator on V × W (acting via swapOp) with ker dimension ≥ 2
+admits a nonzero X-invariant product subspace V' × W' with an X-invariant
+complement. This is the pure generator replacement lemma: in the PID decomposition,
+replace a generator of maximal-order summand with its pure component (which has the
+same X-order by swapOp_pure_order), show the cyclic module is a product subspace,
+and split it off via the retraction r(m) = (u⁻¹ · πᵢ(m)) • p. -/
+private lemma exists_invariant_product_complement
     {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
     {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
     (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
     (hAB : IsNilpotent (A.comp B)) (hBA : IsNilpotent (B.comp A))
-    (_h_kerA_le : LinearMap.ker A ≤ LinearMap.range B)
-    (_h_kerB_le : LinearMap.ker B ≤ LinearMap.range A)
     (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker A) +
               Module.finrank ℂ (LinearMap.ker B)) :
-    ∃ (pV qV : Submodule ℂ V) (pW qW : Submodule ℂ W),
-      IsCompl pV qV ∧ IsCompl pW qW ∧
-      (∀ x ∈ pV, A x ∈ pW) ∧ (∀ x ∈ qV, A x ∈ qW) ∧
-      (∀ x ∈ pW, B x ∈ pV) ∧ (∀ x ∈ qW, B x ∈ qV) ∧
-      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
-  -- Use the swap operator X(v,w) = (Bw, Av) on V × W
+    ∃ (V' : Submodule ℂ V) (W' : Submodule ℂ W) (C : Submodule ℂ (V × W)),
+      IsCompl (V'.prod W') C ∧
+      (∀ p ∈ V'.prod W', swapOp A B p ∈ V'.prod W') ∧
+      (∀ p ∈ C, swapOp A B p ∈ C) ∧
+      ¬(V' = ⊥ ∧ W' = ⊥) ∧ C ≠ ⊥ := by
   set X := swapOp A B
   have hX_nil := swapOp_nilpotent A B hAB hBA
   have hX_ker : 2 ≤ Module.finrank ℂ (LinearMap.ker X) := by
     rw [swapOp_ker_finrank]; exact hker
-  -- Apply nilpotent_nontrivial_decomp to X on V × W
-  obtain ⟨M₁, M₂, hM1_ne, hM2_ne, hMc, hM1_inv, hM2_inv⟩ :=
-    nilpotent_nontrivial_decomp X hX_nil hX_ker
-  -- M₁ and M₂ are X-invariant complementary non-zero subspaces, but not product subspaces.
-  -- Strategy: use PID structure theorem on V×W as ℂ[X]-module to find a pure cyclic summand.
-  -- Step A: Set up V×W as a ℂ[X]-module via AEval'
+  -- PID decomposition of V×W as ℂ[X]-module
   open Polynomial in
   have htors : Module.IsTorsion' (Module.AEval' (R := ℂ) X)
       (Submonoid.powers (Polynomial.X : ℂ[X])) := by
@@ -1456,35 +1452,26 @@ private lemma compatible_product_decomp
       LinearEquiv.map_eq_zero_iff]
     change (X ^ n) v = 0
     rw [hn]; rfl
-  -- Step B: Apply PID structure theorem
   open Polynomial in
   obtain ⟨d, k, ⟨e⟩⟩ := Module.torsion_by_prime_power_decomposition
     Polynomial.irreducible_X htors
-  -- Step C: d ≥ 2 (each summand contributes 1 to ker X)
+  -- d ≥ 2 (reuse the argument from nilpotent_nontrivial_decomp)
   set_option synthInstance.maxHeartbeats 40000 in
   have hd : 2 ≤ d := by
     by_contra hd_lt
     push_neg at hd_lt
-    -- Same argument as nilpotent_nontrivial_decomp
     let N : Fin d → Type := fun i => ℂ[X] ⧸ ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k i
-    have N_subsingleton : ∀ j, k j = 0 → Subsingleton (N j) := by
-      intro j hj
-      exact Submodule.Quotient.subsingleton_iff.mpr
-        (by rw [hj, pow_zero]; exact Ideal.span_singleton_one)
     interval_cases d
-    · -- d = 0: V×W = 0, contradicts dim(ker X) ≥ 2
-      haveI : Subsingleton (V × W) := by
+    · haveI : Subsingleton (V × W) := by
         constructor; intro a b
         have ha : e (Module.AEval'.of (R := ℂ) X a) = 0 :=
           DFinsupp.ext (fun i => Fin.elim0 i)
         have hb : e (Module.AEval'.of (R := ℂ) X b) = 0 :=
           DFinsupp.ext (fun i => Fin.elim0 i)
         exact (Module.AEval'.of (R := ℂ) X).injective (e.injective (ha.trans hb.symm))
-      have : Module.finrank ℂ (V × W) = 0 := Module.finrank_zero_of_subsingleton
-      have := Submodule.finrank_le (LinearMap.ker X)
-      omega
-    · -- d = 1: dim(ker X) ≤ 1, contradiction
-      exfalso
+      have := Module.finrank_zero_of_subsingleton (R := ℂ) (M := V × W)
+      linarith [Submodule.finrank_le (LinearMap.ker X)]
+    · exfalso
       have h1 : Module.finrank ℂ (LinearMap.ker X) ≤ 1 := by
         set j₀ : Fin 1 := ⟨0, by omega⟩
         set gen := (Submodule.Quotient.mk ((Polynomial.X : ℂ[X]) ^ (k j₀ - 1)) :
@@ -1533,10 +1520,72 @@ private lemma compatible_product_decomp
         rw [hv_eq]
         exact Submodule.smul_mem _ c (Submodule.subset_span rfl)
       omega
-  -- Step D: Find a pure element with maximal X-order among the generators
-  -- Get any generator from any summand with k > 0
-  -- The PID decomposition gives at least 2 nontrivial summands
+  -- Now: d ≥ 2, we have the PID decomposition.
+  -- Step D: Find j_max with maximal k, take generator, find pure component.
+  open Polynomial in
+  let N : Fin d → Type := fun i => ℂ[X] ⧸ ℂ[X] ∙ (Polynomial.X : ℂ[X]) ^ k i
+  -- Find j_max maximizing k
+  have ⟨j_max, _, hj_max⟩ := Finset.exists_max_image Finset.univ k
+    ⟨⟨0, by omega⟩, Finset.mem_univ _⟩
+  -- Generator of j_max-th summand
+  set gen_jmax : N j_max := Submodule.Quotient.mk (1 : ℂ[X])
+  set g : V × W := (Module.AEval'.of (R := ℂ) X).symm
+    (e.symm (DirectSum.of N j_max gen_jmax))
+  -- The proof from here is involved: we need to find a pure element with maximal
+  -- X-order, show its cyclic ℂ[X]-module is a product subspace, and show it's
+  -- a direct summand. We factor this out:
+  --
+  -- 1. Take generator g of j_max summand (max k). Write g = (v₁, w₁).
+  -- 2. X^{k j_max} kills g, X^{k j_max - 1} doesn't (gen has exact order).
+  -- 3. By swapOp_pure_order, WLOG p = (v₁, 0) has X-order k j_max.
+  -- 4. ⟨p⟩_ℂ[X] ≅ ℂ[X]/(X^{k j_max}) is a product subspace.
+  -- 5. Since k j_max is maximal, π_{i₀}(e(p)) is a unit in N_{i₀} for some i₀.
+  -- 6. Build retraction via this unit; kernel is X-invariant complement.
+  -- 7. Both ⟨p⟩ ≠ 0 and complement ≠ 0 (since d ≥ 2).
+  --
+  -- We construct the product subspace and complement directly, using
+  -- the pure cyclic module structure.
+  --
+  -- For now, the pure generator replacement is sorry'd pending formalization
+  -- of the retraction map through the PID decomposition.
   sorry
+
+set_option maxHeartbeats 800000 in
+/-- In the hard case (ker A ≤ range B, ker B ≤ range A), the swap operator X
+on V × W provides a nontrivial compatible decomposition via the PID structure
+theorem and compatible chain basis argument (Problem 6.9.1(c)). -/
+private lemma compatible_product_decomp
+    {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
+    {W : Type*} [AddCommGroup W] [Module ℂ W] [FiniteDimensional ℂ W]
+    (A : V →ₗ[ℂ] W) (B : W →ₗ[ℂ] V)
+    (hAB : IsNilpotent (A.comp B)) (hBA : IsNilpotent (B.comp A))
+    (_h_kerA_le : LinearMap.ker A ≤ LinearMap.range B)
+    (_h_kerB_le : LinearMap.ker B ≤ LinearMap.range A)
+    (hker : 2 ≤ Module.finrank ℂ (LinearMap.ker A) +
+              Module.finrank ℂ (LinearMap.ker B)) :
+    ∃ (pV qV : Submodule ℂ V) (pW qW : Submodule ℂ W),
+      IsCompl pV qV ∧ IsCompl pW qW ∧
+      (∀ x ∈ pV, A x ∈ pW) ∧ (∀ x ∈ qV, A x ∈ qW) ∧
+      (∀ x ∈ pW, B x ∈ pV) ∧ (∀ x ∈ qW, B x ∈ qV) ∧
+      ¬(pV = ⊥ ∧ pW = ⊥) ∧ ¬(qV = ⊥ ∧ qW = ⊥) := by
+  -- Step 1: Get an X-invariant product subspace with X-invariant complement
+  obtain ⟨V', W', C, hcompl, hM_inv, hC_inv, hVW_ne, hC_ne⟩ :=
+    exists_invariant_product_complement A B hAB hBA hker
+  -- Step 2: Apply product_complement_decomp to extract compatible decompositions
+  obtain ⟨qV, qW, hcV, hcW, hA_V', hA_qV, hB_W', hB_qV⟩ :=
+    product_complement_decomp A B V' W' C hcompl hM_inv hC_inv
+  -- Step 3: Package the result with nontriviality
+  refine ⟨V', qV, W', qW, hcV, hcW, hA_V', hA_qV, hB_W', hB_qV, hVW_ne, ?_⟩
+  -- qV = ⊥ ∧ qW = ⊥ would mean V' = ⊤ ∧ W' = ⊤, so V'.prod W' = ⊤, so C = ⊥
+  intro ⟨hqV, hqW⟩
+  apply hC_ne
+  rw [hqV] at hcV; rw [hqW] at hcW
+  have hV' : V' = ⊤ := by
+    have h := hcV.sup_eq_top; simp [hqV] at h; exact h
+  have hW' : W' = ⊤ := by
+    have h := hcW.sup_eq_top; simp [hqW] at h; exact h
+  have htop : V'.prod W' = ⊤ := by rw [hV', hW']; ext ⟨v, w⟩; simp [Submodule.mem_prod]
+  have := hcompl.inf_eq_bot; rw [htop, top_inf_eq] at this; exact this
 
 private lemma off_diagonal_nilpotent_product_decomp
     {V : Type*} [AddCommGroup V] [Module ℂ V] [FiniteDimensional ℂ V]
