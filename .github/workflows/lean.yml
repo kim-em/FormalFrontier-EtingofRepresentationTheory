@@ -30,9 +30,9 @@ jobs:
         run: |
           # Build individual modules, excluding:
           # - Chapter/root aggregation files (mindepth 2 skips these)
-          # - Infrastructure files that import full Mathlib + chapter content,
+          # - Modules that import full Mathlib + large chapter environments,
           #   which require >15GB to compile (exceeds runner capacity)
-          EXCLUDE="SpechtModuleSimple|YoungSymTraceKronecker|FrobeniusCharacterBridge"
+          EXCLUDE="SpechtModuleSimple|YoungSymTraceKronecker|FrobeniusCharacterBridge|Proposition5_22_2|Example6_4_9_EType|Example6_4_9\.lean"
           find EtingofRepresentationTheory -mindepth 2 -name '*.lean' \
             | grep -vE "$EXCLUDE" \
             | sed 's|/|.|g; s|\.lean$||' \
