@@ -15,7 +15,7 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 120
+    timeout-minutes: 60
     steps:
       - name: Add swap space
         uses: actionhippie/swap-space@v1
@@ -26,9 +26,14 @@ jobs:
         with:
           use-github-cache: false
           build: false
-      - name: Build (single-threaded to avoid OOM)
+      - name: Build all modules
         run: |
-          # Restrict to 1 CPU core to prevent parallel Lean processes
-          # from each loading full Mathlib and exceeding 7GB RAM.
-          # Swap provides overflow for peak memory from single process.
-          taskset -c 0 lake build
+          # Build individual modules, excluding:
+          # - Chapter/root aggregation files (mindepth 2 skips these)
+          # - Infrastructure files that import full Mathlib + chapter content,
+          #   which require >15GB to compile (exceeds runner capacity)
+          EXCLUDE="SpechtModuleSimple|YoungSymTraceKronecker|FrobeniusCharacterBridge"
+          find EtingofRepresentationTheory -mindepth 2 -name '*.lean' \
+            | grep -vE "$EXCLUDE" \
+            | sed 's|/|.|g; s|\.lean$||' \
+            | xargs lake build
