@@ -22,15 +22,11 @@ jobs:
         with:
           use-github-cache: false
           build: false
-      - name: Build all chapters individually
+      - name: Build all individual modules
         run: |
-          lake build EtingofRepresentationTheory.Chapter2 \
-                     EtingofRepresentationTheory.Chapter3 \
-                     EtingofRepresentationTheory.Chapter4 \
-                     EtingofRepresentationTheory.Chapter5 \
-                     EtingofRepresentationTheory.Chapter6 \
-                     EtingofRepresentationTheory.Chapter7 \
-                     EtingofRepresentationTheory.Chapter8 \
-                     EtingofRepresentationTheory.Chapter9 \
-                     EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration \
-                     EtingofRepresentationTheory.Infrastructure.RegularCharacter
+          # Build all individual .lean files but skip chapter/root aggregation
+          # files which OOM the 7GB runner by loading all oleans at once.
+          # Individual files verify all code compiles correctly.
+          find EtingofRepresentationTheory -mindepth 2 -name '*.lean' \
+            | sed 's|/|.|g; s|\.lean$||' \
+            | xargs lake build
