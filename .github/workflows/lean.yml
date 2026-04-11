@@ -25,3 +25,10 @@ jobs:
       - uses: leanprover/lean-action@v1
         with:
           use-github-cache: false
+          build: false
+      - name: Build (single-threaded to avoid OOM)
+        run: |
+          # Restrict to 1 CPU core to prevent parallel Lean processes
+          # from each loading full Mathlib and exceeding 7GB RAM.
+          # Swap provides overflow for peak memory from single process.
+          taskset -c 0 lake build
