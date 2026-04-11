@@ -21,3 +21,16 @@ jobs:
       - uses: leanprover/lean-action@v1
         with:
           use-github-cache: false
+          build: false
+      - name: Build all chapters individually
+        run: |
+          lake build EtingofRepresentationTheory.Chapter2 \
+                     EtingofRepresentationTheory.Chapter3 \
+                     EtingofRepresentationTheory.Chapter4 \
+                     EtingofRepresentationTheory.Chapter5 \
+                     EtingofRepresentationTheory.Chapter6 \
+                     EtingofRepresentationTheory.Chapter7 \
+                     EtingofRepresentationTheory.Chapter8 \
+                     EtingofRepresentationTheory.Chapter9 \
+                     EtingofRepresentationTheory.Infrastructure.IrreducibleEnumeration \
+                     EtingofRepresentationTheory.Infrastructure.RegularCharacter
