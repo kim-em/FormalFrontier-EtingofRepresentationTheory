@@ -266,12 +266,122 @@ private lemma rowSymmetrizer_apply_not_mem' (n : ℕ) (la : Nat.Partition n)
   · exact absurd (h ▸ p.prop) hσ
   · rfl
 
-/-- The coefficient of the identity permutation in the Young symmetrizer is 1.
-Uses P_λ ∩ Q_λ = {id}. -/
+/-! ### Support characterization of the Young symmetrizer
+
+The Young symmetrizer c_λ = b_λ · a_λ = (Σ_{q ∈ Q_λ} sign(q) · q) · (Σ_{p ∈ P_λ} p).
+Since P_λ ∩ Q_λ = {id} (proved as `row_col_inter_trivial'`), the map (q,p) ↦ q*p is
+injective from Q_λ × P_λ to S_n. Therefore:
+- c_λ(g) = 0 if g ∉ Q_λ · P_λ
+- c_λ(q*p) = sign(q) for the unique decomposition g = q*p
+
+This is the "support characterization" used in the dominance triangularity analysis.
+-/
+
+/-- The Young symmetrizer c_λ = b·a is supported on Q_λ · P_λ: if c_λ(g) ≠ 0 then g = q · p
+for some q ∈ Q_λ and p ∈ P_λ, with c_λ(g) = sign(q). -/
+private theorem youngSymmetrizer_support (n : ℕ) (la : Nat.Partition n)
+    (g : Equiv.Perm (Fin n))
+    (hg : (YoungSymmetrizer n la : SymGroupAlgebra n) g ≠ 0) :
+    ∃ q ∈ ColumnSubgroup n la, ∃ p ∈ RowSubgroup n la,
+      g = q * p := by
+  classical
+  change (ColumnAntisymmetrizer n la * RowSymmetrizer n la) g ≠ 0 at hg
+  have hmem : g ∈ (ColumnAntisymmetrizer n la * RowSymmetrizer n la).support :=
+    Finsupp.mem_support_iff.mpr hg
+  obtain ⟨q', hq'_mem, p', hp'_mem, hg_eq⟩ :=
+    Finset.mem_mul.mp (MonoidAlgebra.support_mul _ _ hmem)
+  have hq'_col : q' ∈ ColumnSubgroup n la := by
+    simp only [ColumnAntisymmetrizer, MonoidAlgebra.of_apply] at hq'_mem
+    rw [Finsupp.mem_support_iff, Finsupp.finset_sum_apply] at hq'_mem
+    by_contra h_not
+    apply hq'_mem
+    apply Finset.sum_eq_zero
+    intro ⟨r, hr⟩ _
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+    split_ifs with heq
+    · exact absurd (heq ▸ hr) h_not
+    · ring
+  have hp'_row : p' ∈ RowSubgroup n la := by
+    simp only [RowSymmetrizer, MonoidAlgebra.of_apply] at hp'_mem
+    rw [Finsupp.mem_support_iff, Finsupp.finset_sum_apply] at hp'_mem
+    by_contra h_not
+    apply hp'_mem
+    apply Finset.sum_eq_zero
+    intro ⟨r, hr⟩ _
+    rw [Finsupp.single_apply]
+    split_ifs with heq
+    · exact absurd (heq ▸ hr) h_not
+    · rfl
+  exact ⟨q', hq'_col, p', hp'_row, hg_eq.symm⟩
+
+/-- The coefficient of g in c_λ = b·a when g = q · p (q ∈ Q_λ, p ∈ P_λ) is sign(q). -/
+private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la)
+    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
+    (YoungSymmetrizer n la : SymGroupAlgebra n) (q * p) =
+      (↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) := by
+  classical
+  -- Use support_mul approach: first show q * p ∈ support implies it factors through Q_λ × P_λ
+  -- Direct evaluation via support analysis
+  change (ColumnAntisymmetrizer n la * RowSymmetrizer n la) (q * p) = _
+  -- The support of b_λ * a_λ ⊆ Q_λ * P_λ with the unique decomposition giving sign(q)
+  -- We prove this by showing: for any decomposition g = q' * p' with q' ∈ Q_λ and p' ∈ P_λ,
+  -- we must have q' = q and p' = p (by P∩Q = {1}).
+  -- Use the convolution formula: (f * g)(x) = Σ_{y} f(y) * g(y⁻¹ * x)
+  have heval : (ColumnAntisymmetrizer n la * RowSymmetrizer n la) (q * p) =
+      ∑ q' : ↥(ColumnSubgroup n la),
+        ((↑(↑(Equiv.Perm.sign q'.val) : ℤ) : ℂ) *
+          (RowSymmetrizer n la : SymGroupAlgebra n) (q'.val⁻¹ * (q * p))) := by
+    unfold ColumnAntisymmetrizer
+    simp only [MonoidAlgebra.of_apply, Finset.sum_mul]
+    rw [Finsupp.finset_sum_apply (N := ℂ)]
+    congr 1; ext ⟨q', hq'⟩
+    rw [Algebra.smul_mul_assoc, Finsupp.smul_apply, smul_eq_mul,
+        MonoidAlgebra.single_mul_apply, one_mul]
+  rw [heval]
+  -- Only q' = q contributes: q'⁻¹ * (q * p) ∈ P_λ iff q' = q
+  rw [Finset.sum_eq_single (⟨q, hq⟩ : ↥(ColumnSubgroup n la))]
+  · -- q' = q: q⁻¹ * (q * p) = p ∈ P_λ, so a_λ(p) = 1
+    simp only [inv_mul_cancel_left]
+    rw [show (RowSymmetrizer n la : SymGroupAlgebra n) p = 1 from by
+      simp only [RowSymmetrizer, MonoidAlgebra.of_apply]
+      rw [Finsupp.finset_sum_apply]
+      rw [Finset.sum_eq_single (⟨p, hp⟩ : ↥(RowSubgroup n la))]
+      · simp
+      · intro ⟨p', _⟩ _ hne
+        rw [Finsupp.single_apply, if_neg (fun h => hne (Subtype.ext h))]
+      · intro h; exact absurd (Finset.mem_univ _) h]
+    ring
+  · -- q' ≠ q: q'⁻¹ * (q * p) = (q'⁻¹ * q) * p, and a_λ at this is 0 unless q'⁻¹q ∈ P_λ
+    intro ⟨q', hq'⟩ _ hne
+    suffices h : (RowSymmetrizer n la : SymGroupAlgebra n) (q'⁻¹ * (q * p)) = 0 by
+      rw [h, mul_zero]
+    simp only [RowSymmetrizer, MonoidAlgebra.of_apply]
+    rw [Finsupp.finset_sum_apply]
+    apply Finset.sum_eq_zero
+    intro ⟨p', hp'⟩ _
+    rw [Finsupp.single_apply]
+    rw [if_neg]
+    intro heq
+    -- q'⁻¹ * q * p = p' implies q'⁻¹ * q = p' * p⁻¹ ∈ P_λ
+    have : q'⁻¹ * q = p' * p⁻¹ := by
+      have h : p' = q'⁻¹ * (q * p) := heq
+      calc q'⁻¹ * q = q'⁻¹ * (q * p) * p⁻¹ := by group
+        _ = p' * p⁻¹ := by rw [← h]
+    have hqp_row : q'⁻¹ * q ∈ RowSubgroup n la := by
+      rw [this]; exact (RowSubgroup n la).mul_mem hp' ((RowSubgroup n la).inv_mem hp)
+    have hqp_col : q'⁻¹ * q ∈ ColumnSubgroup n la :=
+      (ColumnSubgroup n la).mul_mem ((ColumnSubgroup n la).inv_mem hq') hq
+    exact hne (Subtype.ext (inv_mul_eq_one.mp
+      (row_col_inter_trivial' n la _ hqp_row hqp_col)))
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- The coefficient of the identity permutation in the Young symmetrizer is 1. -/
 private lemma youngSymmetrizer_one_coeff (n : ℕ) (la : Nat.Partition n) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) 1 = 1 := by
-  -- c = b * a. c(1) = Σ_q sign(q) * a(q⁻¹). Only q = 1 contributes (P∩Q = {1}).
-  sorry
+  have h := youngSymmetrizer_pq_coeff n la 1 (ColumnSubgroup n la).one_mem
+    1 (RowSubgroup n la).one_mem
+  simpa [Equiv.Perm.sign_one] using h
 
 /-! ### Note on false group-algebra coefficient formulas
 
@@ -294,25 +404,12 @@ of tabloid {T} in the tabloid-module polytabloid e_T is 1. This uses
 See GitHub issue #2161 for the full analysis and counterexample.
 -/
 
-/-! ### Support characterization of the Young symmetrizer
-
-The Young symmetrizer c_λ = a_λ · b_λ = (Σ_{p ∈ P_λ} p) · (Σ_{q ∈ Q_λ} sign(q) · q).
-Since P_λ ∩ Q_λ = {id} (proved as `row_col_inter_trivial'`), the map (p,q) ↦ p*q is
-injective from P_λ × Q_λ to S_n. Therefore:
-- c_λ(g) = 0 if g ∉ P_λ · Q_λ
-- c_λ(p*q) = sign(q) for the unique decomposition g = p*q
-
-This is the "support characterization" used in the dominance triangularity analysis.
--/
-
-/-- The coefficient of p ∈ P_λ in the Young symmetrizer equals 1.
-With c = b·a, c(p) = Σ_q sign(q)·a(q⁻¹·p). Since q⁻¹·p ∈ P iff q ∈ P∩Q = {1},
-only q = 1 contributes, giving sign(1)·a(p) = 1. -/
+/-- The coefficient of p ∈ P_λ in the Young symmetrizer equals 1. -/
 private lemma youngSymmetrizer_rowPerm_coeff (n : ℕ) (la : Nat.Partition n)
     (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
     (YoungSymmetrizer n la : SymGroupAlgebra n) p = 1 := by
-  -- c = b * a. c(p) = Σ_q sign(q) * a(q⁻¹*p). Only q = 1 contributes (P∩Q = {1}).
-  sorry
+  have h := youngSymmetrizer_pq_coeff n la 1 (ColumnSubgroup n la).one_mem p hp
+  simpa [Equiv.Perm.sign_one] using h
 
 /-! ### Tabloid projection for linear independence
 
@@ -343,29 +440,6 @@ in both directions. The tabloid projection approach is needed instead.
 - For q ∈ Q_λ \ {id}: the tabloid σ · q · P_λ is strictly dominated by σ · P_λ
   (column permutations decrease dominance)
 -/
-
-/-! ### Support characterization of the Young symmetrizer -/
-
-/-- The Young symmetrizer c_λ = b·a is supported on Q_λ · P_λ: if c_λ(g) ≠ 0 then g = q · p
-for some q ∈ Q_λ and p ∈ P_λ, with c_λ(g) = sign(q). -/
-private theorem youngSymmetrizer_support (n : ℕ) (la : Nat.Partition n)
-    (g : Equiv.Perm (Fin n))
-    (hg : (YoungSymmetrizer n la : SymGroupAlgebra n) g ≠ 0) :
-    ∃ q ∈ ColumnSubgroup n la, ∃ p ∈ RowSubgroup n la,
-      g = q * p := by
-  -- c = b * a. c(g) = Σ_q sign(q) * a(q⁻¹*g). If c(g) ≠ 0, some q has a(q⁻¹*g) ≠ 0,
-  -- meaning q⁻¹*g ∈ P, so g = q*p.
-  sorry
-
-/-- The coefficient of g in c_λ = b·a when g = q · p (q ∈ Q_λ, p ∈ P_λ) is sign(q). -/
-private theorem youngSymmetrizer_pq_coeff (n : ℕ) (la : Nat.Partition n)
-    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la)
-    (p : Equiv.Perm (Fin n)) (hp : p ∈ RowSubgroup n la) :
-    (YoungSymmetrizer n la : SymGroupAlgebra n) (q * p) =
-      (↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) := by
-  -- c = b * a. c(q*p) = Σ_{q'} sign(q') * a(q'⁻¹*q*p). Only q' = q contributes
-  -- (giving a(p) = 1), since q'⁻¹*q ∈ P ∩ Q = {1}.
-  sorry
 
 /-- If e_{T₂}(σ) ≠ 0, then σ ∈ C_{T₂} · σ_{T₂} · P_λ: there exist π ��� C_{T₂}
 (entry-level column stabilizer) and p ∈ P_λ such that σ = π · σ_{T₂} · p.
