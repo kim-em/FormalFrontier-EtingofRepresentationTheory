@@ -185,15 +185,42 @@ def polytabloid (n : ℕ) (la : Nat.Partition n) (T : StandardYoungTableau n la)
   RelColumnAntisymmetrizer n la T * MonoidAlgebra.of ℂ _ (sytPerm n la T) *
     RowSymmetrizer n la
 
+/-- The T-relative column antisymmetrizer is the conjugation of the canonical one:
+κ_T = of(σ_T⁻¹) * b_λ * of(σ_T). -/
+private theorem relColumnAntisymmetrizer_eq_conj (n : ℕ) (la : Nat.Partition n)
+    (T : StandardYoungTableau n la) :
+    RelColumnAntisymmetrizer n la T =
+    MonoidAlgebra.of ℂ _ (sytPerm n la T)⁻¹ * ColumnAntisymmetrizer n la *
+      MonoidAlgebra.of ℂ _ (sytPerm n la T) := by
+  simp only [RelColumnAntisymmetrizer, ColumnAntisymmetrizer, MonoidAlgebra.of_apply]
+  conv_rhs =>
+    arg 1; rw [Finset.mul_sum]
+  rw [Finset.sum_mul]
+  congr 1; ext ⟨q, hq⟩
+  simp only [mul_smul_comm, smul_mul_assoc,
+    MonoidAlgebra.single_mul_single, mul_one]
+
 /-- The polytabloid e_T lies in the Specht module V_λ = ℂ[S_n] · c_λ.
 
-With the T-dependent column antisymmetrizer, membership in V_λ = ℂ[S_n] · a_λ · b_λ
-is no longer trivial. The proof requires showing that κ_T · of(σ_T) · a_λ can be
-expressed as a left multiple of a_λ · b_λ. -/
+The proof uses Lemma 5.13.1: b_λ · x · a_λ = ℓ(x) · c_λ for a linear functional ℓ.
+Since κ_T = of(σ_T⁻¹) · b_λ · of(σ_T), we get:
+  e_T = κ_T · of(σ_T) · a_λ = of(σ_T⁻¹) · (b_λ · of(σ_T²) · a_λ)
+  = of(σ_T⁻¹) · ℓ(of(σ_T²)) · c_λ ∈ V_λ. -/
 theorem polytabloid_mem_spechtModule (n : ℕ) (la : Nat.Partition n)
     (T : StandardYoungTableau n la) :
     polytabloid n la T ∈ SpechtModule n la := by
-  sorry
+  obtain ⟨ℓ, hℓ⟩ := Etingof.Lemma5_13_1 n la
+  -- Rewrite polytabloid using conjugation identity for κ_T
+  have key : polytabloid n la T =
+      MonoidAlgebra.of ℂ _ (sytPerm n la T)⁻¹ *
+      (ColumnAntisymmetrizer n la *
+        MonoidAlgebra.of ℂ _ (sytPerm n la T * sytPerm n la T) *
+        RowSymmetrizer n la) := by
+    unfold polytabloid
+    rw [relColumnAntisymmetrizer_eq_conj]
+    simp only [mul_assoc, ← map_mul (MonoidAlgebra.of ℂ (Equiv.Perm (Fin n)))]
+  rw [key, hℓ, Algebra.smul_def, ← mul_assoc]
+  exact (SpechtModule n la).smul_mem _ (Submodule.subset_span rfl)
 
 /-- The polytabloid for the canonical filling equals b_λ · a_λ
 (column antisymmetrizer times row symmetrizer). -/
