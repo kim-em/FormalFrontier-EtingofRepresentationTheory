@@ -1388,4 +1388,576 @@ theorem etilde8Orientation_isOrientationOf :
         ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
         omega
 
+/-! ## Section 16: Extended Dynkin D̃₅ — definitions
+
+The extended Dynkin diagram D̃₅ has 6 vertices with edges:
+  0-2, 1-2, 2-3, 3-4, 3-5
+Vertices 2 and 3 have degree 3; the rest have degree 1.
+
+```
+0     4
+ \   / \
+  2-3   5
+ /
+1
+```
+
+The null root is δ = (1,1,2,2,1,1), meaning (2I-adj)δ = 0.
+-/
+
+/-- Adjacency matrix for the extended Dynkin diagram D̃₅ on 6 vertices.
+    Edges: 0-2, 1-2, 2-3, 3-4, 3-5. -/
+def d5tildeAdj : Matrix (Fin 6) (Fin 6) ℤ :=
+  fun i j =>
+    if (i.val = 0 ∧ j.val = 2) ∨ (i.val = 2 ∧ j.val = 0) ∨
+       (i.val = 1 ∧ j.val = 2) ∨ (i.val = 2 ∧ j.val = 1) ∨
+       (i.val = 2 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 2) ∨
+       (i.val = 3 ∧ j.val = 4) ∨ (i.val = 4 ∧ j.val = 3) ∨
+       (i.val = 3 ∧ j.val = 5) ∨ (i.val = 5 ∧ j.val = 3)
+    then 1 else 0
+
+theorem d5tildeAdj_symm : d5tildeAdj.IsSymm := by
+  ext i j; fin_cases i <;> fin_cases j <;> simp [d5tildeAdj]
+
+theorem d5tildeAdj_diag (i : Fin 6) : d5tildeAdj i i = 0 := by
+  simp only [d5tildeAdj]; rw [if_neg]; push_neg
+  exact ⟨fun h => by omega, fun h => by omega, fun h => by omega,
+         fun h => by omega, fun h => by omega, fun h => by omega,
+         fun h => by omega, fun h => by omega, fun h => by omega,
+         fun h => by omega⟩
+
+theorem d5tildeAdj_01 (i j : Fin 6) : d5tildeAdj i j = 0 ∨ d5tildeAdj i j = 1 := by
+  simp only [d5tildeAdj]; split_ifs <;> simp
+
+/-- Orientation for D̃₅: arrows 0→2, 1→2, 2→3, 4→3, 5→3.
+    Vertex 3 is a pure sink; vertex 2 receives from 0,1 and sends to 3. -/
+def d5tildeQuiver : Quiver (Fin 6) where
+  Hom i j := PLift (
+    (i.val = 0 ∧ j.val = 2) ∨
+    (i.val = 1 ∧ j.val = 2) ∨
+    (i.val = 2 ∧ j.val = 3) ∨
+    (i.val = 4 ∧ j.val = 3) ∨
+    (i.val = 5 ∧ j.val = 3))
+
+instance d5tildeQuiver_subsingleton (a b : Fin 6) :
+    Subsingleton (@Quiver.Hom (Fin 6) d5tildeQuiver a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+theorem d5tildeOrientation_isOrientationOf :
+    @Etingof.IsOrientationOf 6 d5tildeQuiver d5tildeAdj := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    simp only [d5tildeAdj] at hij
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      (rw [if_pos (by omega)] at hij; exact hij rfl)
+  · -- Each edge has an arrow in one direction
+    simp only [d5tildeAdj] at hij
+    split_ifs at hij with h
+    · -- h gives which edge we're on; determine arrow direction
+      rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ |
+                    ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩
+      -- Edge 0-2: arrow 0→2 (left)
+      · left; exact ⟨⟨by omega⟩⟩
+      -- Edge 2-0: arrow 0→2 (right)
+      · right; exact ⟨⟨by omega⟩⟩
+      -- Edge 1-2: arrow 1→2 (left)
+      · left; exact ⟨⟨by omega⟩⟩
+      -- Edge 2-1: arrow 1→2 (right)
+      · right; exact ⟨⟨by omega⟩⟩
+      -- Edge 2-3: arrow 2→3 (left)
+      · left; exact ⟨⟨by omega⟩⟩
+      -- Edge 3-2: arrow 2→3 (right)
+      · right; exact ⟨⟨by omega⟩⟩
+      -- Edge 3-4: arrow 4→3 (right)
+      · right; exact ⟨⟨by omega⟩⟩
+      -- Edge 4-3: arrow 4→3 (left)
+      · left; exact ⟨⟨by omega⟩⟩
+      -- Edge 3-5: arrow 5→3 (right)
+      · right; exact ⟨⟨by omega⟩⟩
+      -- Edge 5-3: arrow 5→3 (left)
+      · left; exact ⟨⟨by omega⟩⟩
+    · simp at hij
+  · -- No two-way arrows
+    obtain ⟨hp⟩ := hi; obtain ⟨hq⟩ := hj
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      (rcases hq with ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ <;>
+         omega)
+
+/-! ## Section 17: D̃₅ representation construction
+
+For parameter m ∈ ℕ, the representation has dimension vector
+  (m+1, m+1, 2(m+1), 2(m+1), m+1, m+1)
+following the null root δ = (1,1,2,2,1,1).
+
+Vertex spaces:
+- V₀ = V₁ = V₄ = V₅ = ℂ^{m+1}
+- V₂ = V₃ = ℂ^{2(m+1)}
+
+Maps (under orientation 0→2, 1→2, 2→3, 4→3, 5→3):
+- α: V₀ → V₂ : first-component embedding x ↦ (x, 0)
+- β: V₁ → V₂ : second-component embedding x ↦ (0, x)
+- γ: V₂ → V₃ : block matrix [[I,I],[I,N]] so (x,y) ↦ (x+y, x+Ny)
+- δ: V₄ → V₃ : first-component embedding x ↦ (x, 0)
+- ε: V₅ → V₃ : second-component embedding x ↦ (0, x)
+
+Key property: γ is invertible (det = (-1)^{m+1} ≠ 0).
+
+Indecomposability proof sketch:
+1. Core argument at V₂: embed1/embed2 split W(2) into W(0) ⊕ W(1) components
+2. Core argument at V₃: embed4/embed5 split W(3) into W(4) ⊕ W(5) components
+3. γ forces: W(0) ⊆ W(4) ∩ W(5), W(1) ⊆ W(4), N(W(1)) ⊆ W(5)
+4. By complement equality: all leaf subspaces W(0) = W(1) = W(4) = W(5)
+5. N preserves this common subspace → nilpotent_invariant_compl_trivial
+-/
+
+/-- The D̃₅ connecting map γ : ℂ^{2(m+1)} → ℂ^{2(m+1)}.
+    Block form [[I,I],[I,N]] where N is the nilpotent shift.
+    γ(w)_i = if i < m+1 then w_i + w_{m+1+i}       (first block: x+y)
+             else w_{i-(m+1)} + N(y)_{i-(m+1)}       (second block: x+Ny) -/
+noncomputable def d5tildeGamma (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) where
+  toFun w i :=
+    if h : i.val < m + 1 then
+      -- First block: (x + y)_i = w_i + w_{m+1+i}
+      w ⟨i.val, by omega⟩ + w ⟨m + 1 + i.val, by omega⟩
+    else
+      -- Second block: (x + Ny)_{i-(m+1)}
+      let j := i.val - (m + 1)
+      w ⟨j, by omega⟩ +
+        if h2 : j + 1 < m + 1 then w ⟨m + 1 + j + 1, by omega⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Dimension of vertex v in the D̃₅ representation:
+    vertices 0,1,4,5 get m+1; vertices 2,3 get 2(m+1). -/
+def d5tildeDim (m : ℕ) (v : Fin 6) : ℕ :=
+  if v.val = 2 ∨ v.val = 3 then 2 * (m + 1) else m + 1
+
+/-- Match-based map for the D̃₅ representation. -/
+private noncomputable def d5tildeRepMap (m : ℕ) (a b : Fin 6) :
+    (Fin (d5tildeDim m a) → ℂ) →ₗ[ℂ] (Fin (d5tildeDim m b) → ℂ) :=
+  match a, b with
+  | ⟨0, _⟩, ⟨2, _⟩ => starEmbed1 m  -- α: first-component embed
+  | ⟨1, _⟩, ⟨2, _⟩ => starEmbed2 m  -- β: second-component embed
+  | ⟨2, _⟩, ⟨3, _⟩ => d5tildeGamma m  -- γ: [[I,I],[I,N]]
+  | ⟨4, _⟩, ⟨3, _⟩ => starEmbed1 m  -- δ: first-component embed
+  | ⟨5, _⟩, ⟨3, _⟩ => starEmbed2 m  -- ε: second-component embed
+  | _, _ => 0
+
+-- The D̃₅ representation with dimension vector (m+1, m+1, 2(m+1), 2(m+1), m+1, m+1).
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+noncomputable def d5tildeRep (m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (Fin 6) _ d5tildeQuiver := by
+  letI := d5tildeQuiver
+  exact {
+    obj := fun v => Fin (d5tildeDim m v) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} _ => d5tildeRepMap m a b
+  }
+
+/-! ## Section 18: Indecomposability of D̃₅ representations
+
+The proof follows the star (K_{1,4}) indecomposability argument:
+1. Core argument at each center: embed1/embed2 split center space into leaf components
+2. γ = [[I,I],[I,N]] maps: if (x,y) ∈ W(2), then (x+y, x+Ny) ∈ W(3)
+   - Taking y=0: x ∈ W(0) implies x ∈ W(4) and x ∈ W(5)
+   - Taking x=0: y ∈ W(1) implies y ∈ W(4) and Ny ∈ W(5)
+3. By complement equality (compl_eq_of_le): all leaf subspaces equal
+4. N preserves this common subspace → nilpotent_invariant_compl_trivial
+5. Propagate: if common leaf subspace = ⊥, both centers = ⊥ via decomposition
+-/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+set_option maxHeartbeats 1600000 in
+theorem d5tildeRep_isIndecomposable (m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 6)
+      d5tildeQuiver (d5tildeRep m) := by
+  letI := d5tildeQuiver
+  constructor
+  · -- Nontrivial at vertex 0 (dim m+1 ≥ 1)
+    refine ⟨⟨0, by omega⟩, ?_⟩
+    show Nontrivial (Fin (d5tildeDim m ⟨0, by omega⟩) → ℂ)
+    simp only [d5tildeDim]
+    infer_instance
+  · -- Indecomposability
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Key disjointness: embed1(x) + embed2(y) = 0 → x = 0 ∧ y = 0
+    have embed_sum_zero : ∀ x y : Fin (m + 1) → ℂ,
+        starEmbed1 m x + starEmbed2 m y = 0 → x = 0 ∧ y = 0 := by
+      intro x y h
+      have heval : ∀ j : Fin (2 * (m + 1)),
+          starEmbed1 m x j + starEmbed2 m y j = 0 :=
+        fun j => by have := congr_fun h j; simpa using this
+      constructor <;> ext ⟨i, hi⟩ <;> simp only [Pi.zero_apply]
+      · have := heval ⟨i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1
+        · omega
+        · simpa using this
+      · have := heval ⟨m + 1 + i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1 h2
+        · omega
+        · omega
+        · simp only [zero_add] at this
+          have key : (⟨m + 1 + i - (m + 1), by omega⟩ : Fin (m + 1)) = ⟨i, hi⟩ := by
+            simp only [Fin.mk.injEq]; omega
+          rwa [key] at this
+        · omega
+    -- Core decomposition: if embed1(x) + embed2(z) ∈ W(center), then
+    -- x ∈ W(left_leaf) and z ∈ W(right_leaf).
+    -- We prove this for both centers (vertex 2 with leaves 0,1 and vertex 3 with leaves 4,5).
+    have core (W W' : ∀ v, Submodule ℂ ((d5tildeRep m).obj v))
+        (hW : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W a, (d5tildeRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W' a, (d5tildeRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x z : Fin (m + 1) → ℂ)
+        -- At center vertex 2: if embed1(x) + embed2(z) ∈ W(2), then x ∈ W(0), z ∈ W(1)
+        (hmem : starEmbed1 m x + starEmbed2 m z ∈ W ⟨2, by omega⟩) :
+        x ∈ W ⟨0, by omega⟩ ∧ z ∈ W ⟨1, by omega⟩ := by
+      -- Decompose x at leaf 0: x = a + b, a ∈ W(0), b ∈ W'(0)
+      have htop0 := (hc ⟨0, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop0
+      -- Decompose z at leaf 1: z = c + d, c ∈ W(1), d ∈ W'(1)
+      have htop1 := (hc ⟨1, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := z)
+      obtain ⟨c, hc1, d, hd, hcd⟩ := Submodule.mem_sup.mp htop1
+      -- embed1(a) ∈ W(2) and embed2(c) ∈ W(2) via invariance
+      have ha2 : starEmbed1 m a ∈ W ⟨2, by omega⟩ :=
+        hW (show @Quiver.Hom _ d5tildeQuiver ⟨0, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inl ⟨rfl, rfl⟩⟩) a ha
+      have hc2 : starEmbed2 m c ∈ W ⟨2, by omega⟩ :=
+        hW (show @Quiver.Hom _ d5tildeQuiver ⟨1, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩) c hc1
+      -- embed1(b) ∈ W'(2) and embed2(d) ∈ W'(2)
+      have hb2 : starEmbed1 m b ∈ W' ⟨2, by omega⟩ :=
+        hW' (show @Quiver.Hom _ d5tildeQuiver ⟨0, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inl ⟨rfl, rfl⟩⟩) b hb
+      have hd2 : starEmbed2 m d ∈ W' ⟨2, by omega⟩ :=
+        hW' (show @Quiver.Hom _ d5tildeQuiver ⟨1, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩) d hd
+      -- Cross-terms sum to zero via complement at center
+      have hsum : starEmbed1 m x + starEmbed2 m z =
+          (starEmbed1 m a + starEmbed2 m c) + (starEmbed1 m b + starEmbed2 m d) := by
+        rw [← hab, ← hcd]; simp [map_add]; abel
+      rw [hsum] at hmem
+      have hadd : starEmbed1 m a + starEmbed2 m c ∈ W ⟨2, by omega⟩ :=
+        (W ⟨2, by omega⟩).add_mem ha2 hc2
+      have hw'_in_W : starEmbed1 m b + starEmbed2 m d ∈ W ⟨2, by omega⟩ := by
+        have hsmul := (W ⟨2, by omega⟩).smul_mem (-1 : ℂ) hadd
+        have hadd2 := (W ⟨2, by omega⟩).add_mem hmem hsmul
+        have key : starEmbed1 m a + starEmbed2 m c + (starEmbed1 m b + starEmbed2 m d) +
+            (-1 : ℂ) • (starEmbed1 m a + starEmbed2 m c) = starEmbed1 m b + starEmbed2 m d := by
+          ext i; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+        rwa [key] at hadd2
+      have hzero : starEmbed1 m b + starEmbed2 m d = 0 := by
+        have := Submodule.mem_inf.mpr ⟨hw'_in_W,
+          (W' ⟨2, by omega⟩).add_mem hb2 hd2⟩
+        rwa [(hc ⟨2, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+      obtain ⟨hb0, hd0⟩ := embed_sum_zero b d hzero
+      exact ⟨hab ▸ by rw [hb0, add_zero]; exact ha,
+             hcd ▸ by rw [hd0, add_zero]; exact hc1⟩
+    -- Same core at vertex 3 (center with leaves 4, 5)
+    have core3 (W W' : ∀ v, Submodule ℂ ((d5tildeRep m).obj v))
+        (hW : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W a, (d5tildeRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W' a, (d5tildeRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x z : Fin (m + 1) → ℂ)
+        (hmem : starEmbed1 m x + starEmbed2 m z ∈ W ⟨3, by omega⟩) :
+        x ∈ W ⟨4, by omega⟩ ∧ z ∈ W ⟨5, by omega⟩ := by
+      have htop4 := (hc ⟨4, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop4
+      have htop5 := (hc ⟨5, by omega⟩).sup_eq_top ▸ Submodule.mem_top (x := z)
+      obtain ⟨c, hc5, d, hd, hcd⟩ := Submodule.mem_sup.mp htop5
+      have ha3 : starEmbed1 m a ∈ W ⟨3, by omega⟩ :=
+        hW (show @Quiver.Hom _ d5tildeQuiver ⟨4, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩) a ha
+      have hc3 : starEmbed2 m c ∈ W ⟨3, by omega⟩ :=
+        hW (show @Quiver.Hom _ d5tildeQuiver ⟨5, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))⟩) c hc5
+      have hb3 : starEmbed1 m b ∈ W' ⟨3, by omega⟩ :=
+        hW' (show @Quiver.Hom _ d5tildeQuiver ⟨4, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩) b hb
+      have hd3 : starEmbed2 m d ∈ W' ⟨3, by omega⟩ :=
+        hW' (show @Quiver.Hom _ d5tildeQuiver ⟨5, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))⟩) d hd
+      have hsum : starEmbed1 m x + starEmbed2 m z =
+          (starEmbed1 m a + starEmbed2 m c) + (starEmbed1 m b + starEmbed2 m d) := by
+        rw [← hab, ← hcd]; simp [map_add]; abel
+      rw [hsum] at hmem
+      have hadd : starEmbed1 m a + starEmbed2 m c ∈ W ⟨3, by omega⟩ :=
+        (W ⟨3, by omega⟩).add_mem ha3 hc3
+      have hw'_in_W : starEmbed1 m b + starEmbed2 m d ∈ W ⟨3, by omega⟩ := by
+        have hsmul := (W ⟨3, by omega⟩).smul_mem (-1 : ℂ) hadd
+        have hadd2 := (W ⟨3, by omega⟩).add_mem hmem hsmul
+        have key : starEmbed1 m a + starEmbed2 m c + (starEmbed1 m b + starEmbed2 m d) +
+            (-1 : ℂ) • (starEmbed1 m a + starEmbed2 m c) = starEmbed1 m b + starEmbed2 m d := by
+          ext i; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+        rwa [key] at hadd2
+      have hzero : starEmbed1 m b + starEmbed2 m d = 0 := by
+        have := Submodule.mem_inf.mpr ⟨hw'_in_W,
+          (W' ⟨3, by omega⟩).add_mem hb3 hd3⟩
+        rwa [(hc ⟨3, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+      obtain ⟨hb0, hd0⟩ := embed_sum_zero b d hzero
+      exact ⟨hab ▸ by rw [hb0, add_zero]; exact ha,
+             hcd ▸ by rw [hd0, add_zero]; exact hc5⟩
+    -- γ-based containments: γ(x,y) = (x+y, x+Ny)
+    -- From (x,0) ∈ W(2) with x ∈ W(0): γ(x,0) = embed1(x) + embed2(x) ∈ W(3)
+    -- → x ∈ W(4) and x ∈ W(5)
+    -- From (0,y) ∈ W(2) with y ∈ W(1): γ(0,y) = embed1(y) + embed2(Ny) ∈ W(3)
+    -- → y ∈ W(4) and Ny ∈ W(5)
+    -- γ(embed1(x)) = embed1(x) + embed2(x): extensional entry-by-entry computation
+    -- γ maps (x,0) ↦ (x+0, x+N·0) = (x, x) = embed1(x) + embed2(x)
+    have gamma_from_embed1 : ∀ (x : Fin (m + 1) → ℂ),
+        d5tildeGamma m (starEmbed1 m x) = starEmbed1 m x + starEmbed2 m x := by
+      intro x; ext i
+      show (d5tildeGamma m (starEmbed1 m x)) i =
+        (starEmbed1 m x) i + (starEmbed2 m x) i
+      simp only [d5tildeGamma, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases h : i.val < m + 1
+      · simp only [dif_pos h, dif_neg (show ¬(m + 1 ≤ i.val) by omega),
+            dif_neg (show ¬(m + 1 + i.val < m + 1) by omega), add_zero]
+      · push_neg at h
+        simp only [dif_neg (show ¬(i.val < m + 1) by omega),
+            dif_pos (show m + 1 ≤ i.val by omega),
+            dif_pos (show i.val - (m + 1) < m + 1 by omega),
+            dif_neg (show ¬(m + 1 ≤ i.val - (m + 1)) by omega), zero_add]
+        by_cases h2 : i.val - (m + 1) + 1 < m + 1
+        · simp only [dif_pos h2,
+            dif_neg (show ¬(m + 1 + (i.val - (m + 1)) + 1 < m + 1) by omega),
+            add_zero]
+        · simp only [dif_neg h2, add_zero]
+    -- γ(embed2(y)) = embed1(y) + embed2(Ny): similar computation
+    -- γ maps (0,y) ↦ (0+y, 0+Ny) = (y, Ny) = embed1(y) + embed2(Ny)
+    have gamma_from_embed2 : ∀ (y : Fin (m + 1) → ℂ),
+        d5tildeGamma m (starEmbed2 m y) =
+          starEmbed1 m y + starEmbed2 m (nilpotentShiftLin m y) := by
+      intro y
+      have aux : ∀ j : Fin (m + 1), nilpotentShiftLin m y j =
+          if h : j.val + 1 < m + 1 then y ⟨j.val + 1, h⟩ else 0 :=
+        nilpotentShiftLin_apply m y
+      ext i
+      simp only [d5tildeGamma, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk,
+        Pi.add_apply, aux]
+      by_cases h : i.val < m + 1
+      · simp only [dif_pos h,
+            dif_neg (show ¬(m + 1 ≤ i.val) by omega),
+            dif_pos (show m + 1 ≤ m + 1 + i.val by omega),
+            zero_add, add_zero]
+        exact congr_arg y (Fin.ext (by simp))
+      · push_neg at h
+        simp only [dif_neg (show ¬(i.val < m + 1) by omega),
+            dif_pos (show m + 1 ≤ i.val by omega),
+            dif_neg (show ¬(m + 1 ≤ i.val - (m + 1)) by omega),
+            zero_add]
+        by_cases h2 : i.val - (m + 1) + 1 < m + 1
+        · simp only [dif_pos h2,
+              dif_pos (show m + 1 ≤ m + 1 + (i.val - (m + 1)) + 1 by omega)]
+          exact congr_arg y (Fin.ext (by simp; omega))
+        · simp only [dif_neg h2]
+    -- Gamma containments for W₁
+    have gamma_containment
+        (W W' : ∀ v, Submodule ℂ ((d5tildeRep m).obj v))
+        (hW : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W a, (d5tildeRep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W' a, (d5tildeRep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v)) :
+        (∀ x : Fin (m + 1) → ℂ, x ∈ W ⟨0, by omega⟩ → x ∈ W ⟨4, by omega⟩) ∧
+        (∀ x : Fin (m + 1) → ℂ, x ∈ W ⟨0, by omega⟩ → x ∈ W ⟨5, by omega⟩) ∧
+        (∀ x : Fin (m + 1) → ℂ, x ∈ W ⟨1, by omega⟩ → x ∈ W ⟨4, by omega⟩) ∧
+        (∀ x : Fin (m + 1) → ℂ, x ∈ W ⟨1, by omega⟩ →
+          nilpotentShiftLin m x ∈ W ⟨5, by omega⟩) := by
+      refine ⟨fun x hx => ?_, fun x hx => ?_, fun y hy => ?_, fun y hy => ?_⟩
+      · -- x ∈ W(0) → x ∈ W(4): use γ(embed1(x)) = embed1(x) + embed2(x)
+        have he1 : starEmbed1 m x ∈ W ⟨2, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨0, by omega⟩ ⟨2, by omega⟩
+            from ⟨Or.inl ⟨rfl, rfl⟩⟩) x hx
+        have hgamma : d5tildeGamma m (starEmbed1 m x) ∈ W ⟨3, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨2, by omega⟩ ⟨3, by omega⟩
+            from ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩) _ he1
+        rw [gamma_from_embed1] at hgamma
+        exact (core3 W W' hW hW' hc x x hgamma).1
+      · -- x ∈ W(0) → x ∈ W(5): same path, second component
+        have he1 : starEmbed1 m x ∈ W ⟨2, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨0, by omega⟩ ⟨2, by omega⟩
+            from ⟨Or.inl ⟨rfl, rfl⟩⟩) x hx
+        have hgamma : d5tildeGamma m (starEmbed1 m x) ∈ W ⟨3, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨2, by omega⟩ ⟨3, by omega⟩
+            from ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩) _ he1
+        rw [gamma_from_embed1] at hgamma
+        exact (core3 W W' hW hW' hc x x hgamma).2
+      · -- y ∈ W(1) → y ∈ W(4): use γ(embed2(y)) = embed1(y) + embed2(Ny)
+        have he2 : starEmbed2 m y ∈ W ⟨2, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨1, by omega⟩ ⟨2, by omega⟩
+            from ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩) y hy
+        have hgamma : d5tildeGamma m (starEmbed2 m y) ∈ W ⟨3, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨2, by omega⟩ ⟨3, by omega⟩
+            from ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩) _ he2
+        rw [gamma_from_embed2] at hgamma
+        exact (core3 W W' hW hW' hc y (nilpotentShiftLin m y) hgamma).1
+      · -- y ∈ W(1) → Ny ∈ W(5): same path, second component
+        have he2 : starEmbed2 m y ∈ W ⟨2, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨1, by omega⟩ ⟨2, by omega⟩
+            from ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩) y hy
+        have hgamma : d5tildeGamma m (starEmbed2 m y) ∈ W ⟨3, by omega⟩ :=
+          hW (show @Quiver.Hom _ d5tildeQuiver ⟨2, by omega⟩ ⟨3, by omega⟩
+            from ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩) _ he2
+        rw [gamma_from_embed2] at hgamma
+        exact (core3 W W' hW hW' hc y (nilpotentShiftLin m y) hgamma).2
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- All leaf subspaces of W₁ are equal
+    obtain ⟨h04, h05, h14, hN15⟩ := gamma_containment W₁ W₂ hW₁_inv hW₂_inv hcompl
+    obtain ⟨h04', h05', h14', hN15'⟩ := gamma_containment W₂ W₁ hW₂_inv hW₁_inv
+      (fun v => (hcompl v).symm)
+    have heq04 := compl_eq_of_le _ _ _ _ h04 h04' (hcompl ⟨0, by omega⟩) (hcompl ⟨4, by omega⟩)
+    have heq05 := compl_eq_of_le _ _ _ _ h05 h05' (hcompl ⟨0, by omega⟩) (hcompl ⟨5, by omega⟩)
+    have heq14 := compl_eq_of_le _ _ _ _ h14 h14' (hcompl ⟨1, by omega⟩) (hcompl ⟨4, by omega⟩)
+    have heq01 : W₁ ⟨0, by omega⟩ = W₁ ⟨1, by omega⟩ := heq04.trans heq14.symm
+    -- Same for W₂
+    have heq04' := compl_eq_of_le _ _ _ _ h04' h04
+      ((hcompl ⟨0, by omega⟩).symm) ((hcompl ⟨4, by omega⟩).symm)
+    have heq05' := compl_eq_of_le _ _ _ _ h05' h05
+      ((hcompl ⟨0, by omega⟩).symm) ((hcompl ⟨5, by omega⟩).symm)
+    have heq14' := compl_eq_of_le _ _ _ _ h14' h14
+      ((hcompl ⟨1, by omega⟩).symm) ((hcompl ⟨4, by omega⟩).symm)
+    have heq01' : W₂ ⟨0, by omega⟩ = W₂ ⟨1, by omega⟩ := heq04'.trans heq14'.symm
+    -- N preserves W₁(0) and W₂(0)
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ ⟨0, by omega⟩ → nilpotentShiftLin m x ∈ W₁ ⟨0, by omega⟩ := by
+      intro x hx
+      have hx1 : x ∈ W₁ ⟨1, by omega⟩ := heq01 ▸ hx
+      exact heq05 ▸ hN15 x hx1
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ ⟨0, by omega⟩ → nilpotentShiftLin m x ∈ W₂ ⟨0, by omega⟩ := by
+      intro x hx
+      have hx1 : x ∈ W₂ ⟨1, by omega⟩ := heq01' ▸ hx
+      exact heq05' ▸ hN15' x hx1
+    -- Apply nilpotent_invariant_compl_trivial at vertex 0
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ ⟨0, by omega⟩) (W₂ ⟨0, by omega⟩) hN₁ hN₂ (hcompl ⟨0, by omega⟩)
+    -- Propagate: W(0) = ⊥ → all W(v) = ⊥
+    have center_decomp : ∀ w : Fin (2 * (m + 1)) → ℂ,
+        w = starEmbed1 m (fun i => w ⟨i.val, by omega⟩) +
+            starEmbed2 m (fun i => w ⟨m + 1 + i.val, by omega⟩) := by
+      intro w; ext ⟨j, hj⟩
+      simp only [Pi.add_apply, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases hjlt : j < m + 1
+      · simp only [dif_pos hjlt, show ¬(m + 1 ≤ j) from by omega, dite_false, add_zero]
+      · simp only [dif_neg hjlt, show m + 1 ≤ j from by omega, dite_true, zero_add]
+        congr 1; ext; simp; omega
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((d5tildeRep m).obj v)),
+        (∀ {a b : Fin 6} (e : @Quiver.Hom _ d5tildeQuiver a b),
+          ∀ x ∈ W' a, (d5tildeRep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W ⟨0, by omega⟩ = W ⟨1, by omega⟩ →
+        W ⟨0, by omega⟩ = W ⟨4, by omega⟩ →
+        W ⟨0, by omega⟩ = W ⟨5, by omega⟩ →
+        W ⟨0, by omega⟩ = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₂_inv hcompl heq01 heq04 heq05 h
+      · right; exact propagate W₂ W₁ hW₁_inv (fun v => (hcompl v).symm)
+          heq01' heq04' heq05' h
+    intro W W' hW'_inv hc h01 h04 h05 hbot v
+    fin_cases v
+    · exact hbot
+    · show W ⟨1, by omega⟩ = ⊥; rw [← h01]; exact hbot
+    · -- v = 2 (center)
+      show W ⟨2, by omega⟩ = ⊥
+      have hW'0_top : W' ⟨0, by omega⟩ = ⊤ := by
+        have := (hc ⟨0, by omega⟩).sup_eq_top; rwa [hbot, bot_sup_eq] at this
+      have hW'1_top : W' ⟨1, by omega⟩ = ⊤ := by
+        have := (hc ⟨1, by omega⟩).sup_eq_top; rwa [← h01, hbot, bot_sup_eq] at this
+      have h_emb0 : ∀ (x : Fin (m + 1) → ℂ), starEmbed1 m x ∈ W' ⟨2, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ d5tildeQuiver ⟨0, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inl ⟨rfl, rfl⟩⟩) x (hW'0_top ▸ Submodule.mem_top)
+      have h_emb1 : ∀ (x : Fin (m + 1) → ℂ), starEmbed2 m x ∈ W' ⟨2, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ d5tildeQuiver ⟨1, by omega⟩ ⟨2, by omega⟩
+          from ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩) x (hW'1_top ▸ Submodule.mem_top)
+      rw [eq_bot_iff]; intro (w : Fin (2 * (m + 1)) → ℂ) hw
+      have hw' : w ∈ W' ⟨2, by omega⟩ :=
+        center_decomp w ▸ (W' ⟨2, by omega⟩).add_mem (h_emb0 _) (h_emb1 _)
+      have := Submodule.mem_inf.mpr ⟨hw, hw'⟩
+      rwa [(hc ⟨2, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+    · -- v = 3 (center)
+      show W ⟨3, by omega⟩ = ⊥
+      have hW'4_top : W' ⟨4, by omega⟩ = ⊤ := by
+        have := (hc ⟨4, by omega⟩).sup_eq_top; rwa [← h04, hbot, bot_sup_eq] at this
+      have hW'5_top : W' ⟨5, by omega⟩ = ⊤ := by
+        have := (hc ⟨5, by omega⟩).sup_eq_top; rwa [← h05, hbot, bot_sup_eq] at this
+      have h_emb4 : ∀ (x : Fin (m + 1) → ℂ), starEmbed1 m x ∈ W' ⟨3, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ d5tildeQuiver ⟨4, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩) x
+          (hW'4_top ▸ Submodule.mem_top)
+      have h_emb5 : ∀ (x : Fin (m + 1) → ℂ), starEmbed2 m x ∈ W' ⟨3, by omega⟩ :=
+        fun x => hW'_inv (show @Quiver.Hom _ d5tildeQuiver ⟨5, by omega⟩ ⟨3, by omega⟩
+          from ⟨Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))⟩) x
+          (hW'5_top ▸ Submodule.mem_top)
+      rw [eq_bot_iff]; intro (w : Fin (2 * (m + 1)) → ℂ) hw
+      have hw' : w ∈ W' ⟨3, by omega⟩ :=
+        center_decomp w ▸ (W' ⟨3, by omega⟩).add_mem (h_emb4 _) (h_emb5 _)
+      have := Submodule.mem_inf.mpr ⟨hw, hw'⟩
+      rwa [(hc ⟨3, by omega⟩).inf_eq_bot, Submodule.mem_bot] at this
+    · show W ⟨4, by omega⟩ = ⊥; rw [← h04]; exact hbot
+    · show W ⟨5, by omega⟩ = ⊥; rw [← h05]; exact hbot
+
+/-! ## Section 19: Dimension vectors and infinite type for D̃₅ -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem d5tildeRep_dimVec (m : ℕ) (v : Fin 6) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 6) _
+      d5tildeQuiver (d5tildeRep m) v ≃ₗ[ℂ]
+      (Fin (d5tildeDim m v) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- The extended Dynkin diagram D̃₅ has infinite representation type:
+    for each m, there is an indecomposable rep with distinct dim vector. -/
+theorem d5tilde_not_finite_type :
+    ¬ Etingof.IsFiniteTypeQuiver 6 d5tildeAdj := by
+  intro hft
+  letI := d5tildeQuiver
+  have hfin := @hft ℂ _ inferInstance d5tildeQuiver
+    (fun a b => d5tildeQuiver_subsingleton a b)
+    d5tildeOrientation_isOrientationOf
+  have hmem : ∀ m : ℕ, (d5tildeDim m) ∈
+      {d : Fin 6 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 6),
+        V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
+    intro m
+    exact ⟨d5tildeRep m, d5tildeRep_isIndecomposable m, d5tildeRep_dimVec m⟩
+  have hinj : Function.Injective d5tildeDim := by
+    intro m₁ m₂ h
+    have h0 := congr_fun h ⟨0, by omega⟩
+    show m₁ = m₂
+    -- d5tildeDim m ⟨0, _⟩ = if 0 = 2 ∨ 0 = 3 then 2*(m+1) else m+1 = m+1
+    change (if (⟨0, by omega⟩ : Fin 6).val = 2 ∨ (⟨0, by omega⟩ : Fin 6).val = 3
+            then 2 * (m₁ + 1) else m₁ + 1) =
+           (if (⟨0, by omega⟩ : Fin 6).val = 2 ∨ (⟨0, by omega⟩ : Fin 6).val = 3
+            then 2 * (m₂ + 1) else m₂ + 1) at h0
+    simp only [Fin.val_mk, show ¬(0 = 2 ∨ 0 = 3) from by omega, ite_false] at h0
+    omega
+  exact (Set.infinite_range_of_injective hinj |>.mono
+    (Set.range_subset_iff.mpr hmem)).not_finite hfin
+
 end Etingof
