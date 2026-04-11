@@ -8,27 +8,21 @@ For polynomial representations of `GL_N(k)` over algebraically closed fields,
 the formal character determines the isomorphism class. This is a consequence of
 the complete reducibility of polynomial representations (Schur-Weyl duality).
 
-This file provides the weight-space and formal-character isomorphism theorems
-and uses them together with the weight space shift computation for the
-determinant twist.
+This file provides the formal-character isomorphism theorem and the weight space
+shift computation for the determinant twist.
 
 ## Mathematical content
 
-The key theorem `iso_of_glWeightSpace_finrank_eq` states that two `GL_N(k)`-
-representations with equal weight space dimensions at all weights are isomorphic.
-The proof requires:
-1. Complete reducibility of polynomial `GL_N` representations: every fin-dim
-   polynomial representation decomposes as a direct sum of Schur modules `L_λ`
-2. Linear independence of Schur polynomials (which implies equal formal characters
-   determine equal multiplicities in the Schur decomposition)
-3. Equal multiplicities ⟹ isomorphism
+The key theorem `iso_of_formalCharacter_eq_schurPoly` states that a `GL_N(k)`-
+representation whose formal character equals a Schur polynomial `S_λ` is
+isomorphic to the Schur module `L_λ`. The proof requires:
+1. Complete reducibility of polynomial `GL_N` representations
+2. Uniqueness of irreducible components with a given highest weight
 
-**Note:** The statement as formalized applies to all `FDRep k (GL_N k)`, not just
-polynomial representations. For non-polynomial representations (e.g., `det⁻¹` and
-`det⁻²`), all natural-number weight spaces are trivial, so the hypothesis is
-vacuously satisfied without the conclusion holding. The theorem is correct when
-restricted to polynomial representations, which is the only case used downstream
-(via `iso_of_formalCharacter_eq` in `Proposition5_22_2`).
+The previous formulation (`iso_of_glWeightSpace_finrank_eq`) was stated for
+arbitrary `FDRep k (GL_N k)`, which is false: non-polynomial representations
+like `det⁻¹` and `det⁻²` have all `ℕ`-valued weight spaces trivial (so the
+equal-dimensions hypothesis holds vacuously) yet are non-isomorphic.
 -/
 
 open CategoryTheory MvPolynomial
@@ -37,41 +31,75 @@ noncomputable section
 
 namespace Etingof
 
+/-! ### Schur polynomial injectivity
+
+Distinct antitone partitions have distinct Schur polynomials. The proof uses:
+1. `schurPoly_mul_vandermonde`: `S_λ · Δ = det(alt(λ + δ))`
+2. `alternant_coeff_kronecker`: the Kronecker delta property of alternant det coefficients
+3. Shifted exponents are strictly antitone for antitone partitions
+-/
+
+/-- If two strictly antitone exponent sequences give the same alternant determinant,
+they are equal. Uses `alternant_coeff_kronecker` (the Kronecker delta property). -/
+private theorem alternant_det_injective (N : ℕ) (e₁ e₂ : Fin N → ℕ)
+    (he₁ : StrictAnti e₁) (he₂ : StrictAnti e₂)
+    (h : (alternantMatrix N e₁).det = (alternantMatrix N e₂).det) :
+    e₁ = e₂ := by
+  -- coeff_{e₁}(det(alt(e₁))) = 1 by Kronecker delta with e = e' = e₁
+  have hc₁ := alternant_coeff_kronecker he₁ he₁
+  simp only [ite_true] at hc₁
+  -- Since det(alt(e₁)) = det(alt(e₂)), coeff_{e₁}(det(alt(e₂))) = 1
+  rw [h, alternant_coeff_kronecker he₂ he₁] at hc₁
+  -- So e₂ = e₁ (the if-then-else equals 1 only when the condition holds)
+  revert hc₁; split_ifs with heq
+  · exact fun _ => heq.symm
+  · exact fun h => absurd h one_ne_zero.symm
+
+/-- The shifted exponents `λ + δ` are strictly antitone for antitone `λ`. -/
+private theorem shiftedExps_strictAnti' (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    StrictAnti (shiftedExps N lam) := by
+  intro i j hij; simp only [shiftedExps]
+  exact Nat.add_lt_add_of_le_of_lt (hlam hij.le) (Nat.sub_lt_sub_left (by omega) hij)
+
+/-- Shifted exponents determine the partition. -/
+private theorem shiftedExps_injective (N : ℕ) :
+    Function.Injective (shiftedExps N) := by
+  intro lam₁ lam₂ h
+  funext j; exact Nat.add_right_cancel (congr_fun h j)
+
+/-- Schur polynomials are injective on antitone partitions: equal Schur polynomials
+imply equal partitions. -/
+theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
+    (hlam₁ : Antitone lam₁) (hlam₂ : Antitone lam₂)
+    (h : schurPoly N lam₁ = schurPoly N lam₂) :
+    lam₁ = lam₂ := by
+  have h_alt : (alternantMatrix N (shiftedExps N lam₁)).det =
+      (alternantMatrix N (shiftedExps N lam₂)).det := by
+    have hΔ := alternantMatrix_vandermondeExps_det_ne_zero N
+    apply mul_right_cancel₀ hΔ
+    rw [← schurPoly_mul_vandermonde, ← schurPoly_mul_vandermonde, h]
+  exact shiftedExps_injective N
+    (alternant_det_injective N _ _ (shiftedExps_strictAnti' N lam₁ hlam₁)
+      (shiftedExps_strictAnti' N lam₂ hlam₂) h_alt)
+
 variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
-/-- Two `GL_N(k)`-representations with equal weight space dimensions at all weights
-are isomorphic.
+/-- A `GL_N(k)`-representation whose formal character equals a Schur polynomial
+`S_λ` is isomorphic to the Schur module `L_λ`.
 
-This follows from complete reducibility of polynomial `GL_N` representations (every
-finite-dimensional representation decomposes as a direct sum of Schur modules `L_λ`)
-and the fact that Schur modules with distinct `λ` have distinct formal characters
-(by the Weyl character formula, `Theorem5_22_1`).
+This follows from complete reducibility of polynomial `GL_N` representations
+(Schur-Weyl duality) together with the Weyl character formula (`Theorem5_22_1`),
+which shows that distinct Schur modules have distinct characters.
 
-**Caveat:** This statement is only correct for polynomial representations. For
-non-polynomial reps (e.g., `det⁻¹` vs `det⁻²`), all `ℕ`-valued weight spaces
-are trivial, so the hypothesis holds vacuously without the representations being
-isomorphic. All downstream uses apply this only to polynomial representations. -/
-theorem iso_of_glWeightSpace_finrank_eq (N : ℕ)
-    (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
-    (h : ∀ μ : Fin N → ℕ, Module.finrank k (glWeightSpace k N M₁ μ) =
-      Module.finrank k (glWeightSpace k N M₂ μ)) :
-    Nonempty (M₁ ≅ M₂) := by
+The downstream use is in `schurModule_shift_iso_detTwist` (Proposition 5.22.2),
+where both representations involved are polynomial and have character equal
+to `schurPoly N (λ + 1^N)`. -/
+theorem iso_of_formalCharacter_eq_schurPoly (N : ℕ)
+    (lam : Fin N → ℕ) (hlam : Antitone lam)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (h : formalCharacter k N M = schurPoly N lam) :
+    Nonempty (M ≅ SchurModule k N lam) := by
   sorry
-
-/-- Two `GL_N(k)`-representations with the same formal character are isomorphic.
-
-This holds for polynomial representations of `GL_N` over algebraically closed fields.
-The proof extracts weight space dimension equality from formal character equality
-and reduces to `iso_of_glWeightSpace_finrank_eq`. -/
-theorem iso_of_formalCharacter_eq (N : ℕ)
-    (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
-    (h : formalCharacter k N M₁ = formalCharacter k N M₂) :
-    Nonempty (M₁ ≅ M₂) := by
-  apply iso_of_glWeightSpace_finrank_eq k N M₁ M₂
-  intro μ
-  have h_coeff := congr_arg (MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm μ)) h
-  rw [formalCharacter_coeff, formalCharacter_coeff] at h_coeff
-  exact_mod_cast h_coeff
 
 /-- The finsupp with all values equal to 1 on `Fin N`. -/
 private def onesFinsupp (N : ℕ) : Fin N →₀ ℕ :=

@@ -24,7 +24,7 @@ noncomputable section
 
 namespace Etingof
 
-variable (k : Type*) [Field k] [IsAlgClosed k]
+variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- The determinant representation of `GL_N(k)`: the one-dimensional representation
 given by `g ↦ det(g)`. This is isomorphic to the top exterior power `∧^N(k^N)` as
@@ -280,9 +280,18 @@ This is the core mathematical content of Proposition 5.22.2. -/
 theorem schurModule_shift_iso_detTwist (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
     Nonempty (FDRep.of (schurModuleRep k N (fun i => lam i + 1)) ≅
       FDRep.of (detTwistedSchurModuleRep k N lam)) := by
-  exact iso_of_formalCharacter_eq k N _ _ (formalCharacter_detTwist_eq_shift k N lam hlam).symm
+  have hlam' : Antitone (fun i => lam i + 1) :=
+    fun i j hij => Nat.add_le_add_right (hlam hij) 1
+  -- The det-twisted Schur module has the same formal character as the shifted Schur module
+  have h_char : formalCharacter k N (FDRep.of (detTwistedSchurModuleRep k N lam)) =
+      schurPoly N (fun i => lam i + 1) := by
+    rw [formalCharacter_detTwist_eq_shift k N lam hlam,
+        Theorem5_22_1 k N _ hlam']
+  -- By iso_of_formalCharacter_eq_schurPoly, the det-twisted rep ≅ SchurModule k N (λ+1)
+  obtain ⟨iso⟩ := iso_of_formalCharacter_eq_schurPoly k N (fun i => lam i + 1) hlam' _ h_char
+  exact ⟨iso.symm⟩
 
-omit [IsAlgClosed k] in
+omit [IsAlgClosed k] [CharZero k] in
 /-- The `TensorProduct.rid` intertwines the tensor action `rep(g) ⊗ det(g)·id` with
 the determinant-twisted action `det(g) · rep(g)`. -/
 theorem tensorRid_comm_detTwist (N : ℕ) (lam : Fin N → ℕ)
