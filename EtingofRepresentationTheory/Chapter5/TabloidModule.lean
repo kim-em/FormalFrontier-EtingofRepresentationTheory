@@ -1156,6 +1156,79 @@ theorem tabloidProjection_ker_smul_closed
     tabloidProjection (n := n) (la := la) (MonoidAlgebra.of ℂ _ τ * v) = 0 := by
   rw [tabloidProjection_of_mul, hv, Finsupp.mapDomain_zero]
 
+/-- For any g ∈ P_λ, toTabloid(g⁻¹) = toTabloid(1). -/
+private theorem toTabloid_inv_of_rowSubgroup (g : ↥(RowSubgroup n la)) :
+    toTabloid n la g.val⁻¹ = toTabloid n la 1 := by
+  rw [toTabloid_eq_iff]
+  simp only [inv_one, mul_one]
+  exact (RowSubgroup n la).inv_mem g.prop
+
+/-- The tabloid projection sends the row symmetrizer to |P_λ| times the
+identity tabloid indicator. -/
+theorem tabloidProjection_RowSymmetrizer :
+    tabloidProjection (n := n) (la := la) (RowSymmetrizer n la) =
+      (Nat.card (↥(RowSubgroup n la)) : ℂ) •
+        (Finsupp.single (toTabloid n la 1) (1 : ℂ) :
+          TabloidRepresentation n la) := by
+  classical
+  simp only [RowSymmetrizer, map_sum, tabloidProjection_of,
+    toTabloid_inv_of_rowSubgroup]
+  rw [Finset.sum_const, Finset.card_univ, ← Nat.card_eq_fintype_card,
+    ← Nat.cast_smul_eq_nsmul ℂ]
+
+/-- The tabloid projection of the Young symmetrizer is nonzero.
+The coefficient at toTabloid(1) is |P_λ| ≠ 0 in ℂ. -/
+theorem tabloidProjection_youngSymmetrizer_ne_zero :
+    tabloidProjection (n := n) (la := la) (YoungSymmetrizer n la) ≠ 0 := by
+  classical
+  -- c_λ = b_λ * a_λ
+  rw [YoungSymmetrizer]
+  -- Expand b_λ * a_λ; by linearity ψ distributes
+  simp only [ColumnAntisymmetrizer, Finset.sum_mul, map_sum, smul_mul_assoc, map_smul,
+    tabloidProjection_of_mul, tabloidProjection_RowSymmetrizer,
+    Finsupp.mapDomain_smul, Finsupp.mapDomain_single, tabloidRightMul_toTabloid, one_mul]
+  -- Goal: Σ_q sign(q) • |P_λ| • single(toTabloid(q⁻¹), 1) ≠ 0
+  -- Evaluate at toTabloid(1): only q=1 contributes (P_λ ∩ Q_λ = {1}), giving |P_λ|
+  intro h
+  -- Evaluate the zero Finsupp at toTabloid(1)
+  have h_eval : ∀ (f : TabloidRepresentation n la), f = 0 → f (toTabloid n la 1) = 0 :=
+    fun f hf => by rw [hf]; rfl
+  have h0 := h_eval _ h
+  -- Expand the sum at the identity tabloid
+  simp only [Finsupp.finset_sum_apply, Finsupp.smul_apply, smul_eq_mul,
+    Finsupp.single_apply] at h0
+  -- Each term: sign(q) * |P_λ| * [toTabloid(q⁻¹) = toTabloid(1)]
+  -- Only q with toTabloid(q⁻¹) = toTabloid(1) contribute, i.e., q⁻¹ ∈ P_λ ∩ Q_λ = {1}
+  have h_filter : ∀ (q : ↥(ColumnSubgroup n la)),
+      toTabloid n la q.val⁻¹ = toTabloid n la 1 → q.val = 1 := by
+    intro ⟨q, hq⟩ h1
+    rw [toTabloid_eq_iff, inv_one, mul_one] at h1
+    have := RowSubgroup_inter_ColumnSubgroup n la q⁻¹ h1
+      ((ColumnSubgroup n la).inv_mem hq)
+    rwa [inv_eq_one] at this
+  -- Simplify: terms with toTabloid(q⁻¹) ≠ toTabloid(1) contribute 0
+  simp only [show ∀ (q : ↥(ColumnSubgroup n la)),
+      (if toTabloid n la q.val⁻¹ = toTabloid n la 1 then (1 : ℂ) else 0) =
+      (if q.val = 1 then 1 else 0) from fun q => by
+        split_ifs with h1 h2 h2
+        · rfl
+        · exact absurd (h_filter q h1) h2
+        · exact absurd (by simp [h2]) h1
+        · rfl] at h0
+  -- Pull the `if` out of the multiplication
+  simp only [mul_ite, mul_one, mul_zero] at h0
+  -- Now: ∑ x, if ↑x = 1 then sign(x) * |P_λ| else 0 = 0
+  -- Convert ↑x = 1 to x = ⟨1, one_mem⟩
+  have h_coe : ∀ x : ↥(ColumnSubgroup n la),
+      ((↑x : Equiv.Perm (Fin n)) = 1) =
+        (x = ⟨1, (ColumnSubgroup n la).one_mem⟩) :=
+    fun x => by simp only [Subtype.ext_iff, OneMemClass.coe_one]
+  simp only [h_coe] at h0
+  rw [Finset.sum_ite_eq'] at h0
+  simp only [Finset.mem_univ, ↓reduceIte, Equiv.Perm.sign_one, Int.cast_one,
+    Units.val_one, one_mul] at h0
+  exact Nat.cast_ne_zero.mpr (Nat.card_pos (α := ↥(RowSubgroup n la))).ne' h0
+
 end
 
 end Etingof
