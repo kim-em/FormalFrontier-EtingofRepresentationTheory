@@ -689,79 +689,71 @@ When a chapter is within 1-3 items of 100% completion, prioritize closing it. Ch
 
 **Evidence:** Ch3 closed via Jordan-Hölder (#831), Ch4 via block polynomial (#812). Both were chain-completion efforts that required focused multi-session work but had outsized impact on project morale and metrics.
 
-## Endgame Priorities (Wave 43, 2026-04-04)
+## Endgame Priorities (Wave 47, 2026-04-11)
 
-With **13 sorries** across 10 files, the project is at 99.3% items sorry-free (579/583). All definition-level sorries are resolved. The remaining sorries are the hardest in the project — each requires either deep combinatorial argument, new infrastructure, or architectural rethink.
+With **9 sorries** across 6 files, the project is at 99.5% items sorry-free (581/583). All definition-level sorries are resolved. The remaining sorries are the hardest in the project — each requires either deep combinatorial argument, new infrastructure, or architectural rethink.
 
-**Trajectory:** 66 sorries (wave 28, Mar 22) → 29 (wave 40, Mar 28) → 25 (wave 42, Apr 3) → **13 (wave 43, Apr 4)**. Wave 43 was the largest single-wave reduction (−12 sorries, −4 files). Two clusters eliminated (Mackey Machine fully, Weyl Character nearly).
+**Trajectory:** 66 sorries (wave 28, Mar 22) → 13 (wave 43, Apr 4) → 15 (wave 45, Apr 6, architectural decomposition) → **9 (wave 47, Apr 11)**. Wave 47 broke through a two-wave plateau at 15 sorries via coefficient lemma proofs, Problem6_9_1 closure, and TabloidModule cleanup.
 
-**Recently completed (Waves 41-43, PRs #2047–#2092):**
-- Mackey machine: Theorem5_27_1 fully sorry-free (#2047, #2049, #2069) — Clifford theory was NOT needed; direct constructions sufficed
-- Weyl character: charValue stability chain proved (#2068), finrank trace formula (#2075), iso_of_formalCharacter_eq (#2070)
-- Weight space: Proposition5_22_2 det-twist vanishing proved (#2077)
-- Gabriel chain: Corollary6_8_3 recovery lemma + iteration tracking (2→0, #2080), F⁻ functoriality (#2074), admissible sinks (#2076)
-- Morita: KLinearMoritaEquivalent bypass (#2073), equivEndAlgEquiv scalar preservation (#2082), Module.Finite transport (#2092)
-- Polytabloid: garnir single-column case proved (#2078), multi-column blocker identified
+**Recently completed (Waves 44-47, PRs #2209–#2221):**
+- Young symmetrizer coefficients: 4 lemmas proved (#2221) — PolytabloidBasis 8→4 sorries
+- Problem6_9_1: compatible_product_decomp fully proved (#2215) — 0 sorry
+- TabloidModule: unused polytabloid_syt_dominance removed (#2209) — 0 sorry
+- CI fixed (#2213, #2214) — main branch CI breakage resolved
 
-**Remaining sorry map (13 sorries, 10 files):**
+**Remaining sorry map (9 sorries, 6 files):**
 
 ```
-Cluster A: Polytabloid Basis (Ch5, 4 sorries) — DESIGN BLOCKER
-├── PolytabloidBasis (3): polytabloid_linearIndependent, column_standard_in_span', garnir_identity_expansion
-└── TabloidModule (1): polytabloid_syt_dominance
+Cluster A: Polytabloid Basis (Ch5, 5 sorries)
+├── PolytabloidBasis (4): polytabloid_mem_spechtModule, polytabloid_linearIndependent,
+│                         column_standard_in_span', perm_mul_youngSymmetrizer_mem_span_polytabloids
+└── FormalCharacterIso (1): iso_of_glWeightSpace_finrank_eq (GL_N complete reducibility)
 
-Cluster B: Weyl Character (Ch5, 1 sorry) — NEARLY ELIMINATED
-└── Theorem5_22_1 (1): iso_of_glWeightSpace_finrank_eq [PR #2081 pending CI re-run]
+Cluster B: Gabriel Theorem Chain (Ch6, 2 sorries)
+├── Corollary6_8_4 (1): mixed vertex case [PR #2208 in CI]
+└── Problem6_1_5_theorem (1): positive definiteness → finite type [blocked on #2143 chain]
 
-Cluster D: Gabriel Theorem Chain (Ch6, 5 sorries)
-├── CoxeterInfrastructure (1): one_round_or_simpleRoot [UNIVERSE BLOCKER]
-├── Corollary6_8_4 (1): indecomposable_of_positive_root [blocked by CoxeterInfrastructure]
-├── Problem6_1_5_theorem (1): Theorem_6_1_5 (finite type ↔ Dynkin)
-├── Problem6_9_1 (1): off_diagonal_nilpotent_product_decomp [active: #2083]
-└── Theorem6_5_2 (1): Theorem_6_5_2c_bijection (dim vector bijection)
-
-Cluster E: Morita Theory (Ch9, 2 sorries)
-└── MoritaStructural (2): exists_surjection_with_trivial_kernel_head + Module.Finite transport
-    [Both need progenerator theory or composition series]
+Cluster C: Morita Theory (Ch9, 1 sorry)
+└── MoritaStructural (1): head_isomorphism [blocked on PR #2175]
 
 Isolated:
-└── Theorem2_1_2 (1): Gabriel's theorem classification [blocked on Cluster D]
+└── Theorem2_1_2 (1): Gabriel's theorem classification [depends on Clusters A + B]
 ```
+
+**6 PRs in CI (all re-triggered, infrastructure failures not code):**
+- #2175 (Module.Finite) → unblocks #2174 (head_isomorphism)
+- #2191 (D̃_n infinite type) → unblocks #2187 (non-ADE case analysis)
+- #2198 (Ẽ_6 construction) → unblocks #2199 (indecomposability)
+- #2200, #2219 → contribute to #2143 chain → unblocks Problem6_1_5_theorem
+- #2208 → Corollary6_8_4 mixed vertex case (direct sorry reduction)
 
 **Priority tiers:**
 
-**Tier 1 — Highest ROI (low effort, high impact):**
-- **Re-run CI on PR #2081** — If it passes, Theorem5_22_1 goes to 0 sorries, eliminating Cluster B entirely. Zero proof effort needed.
-- **Problem6_9_1** (#2083, active) — Compatible chain basis. Concrete linear algebra, 1→0 sorry.
+**Tier 1 — Highest ROI (waiting on CI):**
+- **Wait for 6 PRs to pass CI.** When they merge, 3 blocked issues unblock (#2174, #2187, #2199). This is the highest-leverage action requiring zero code work.
+- **PR #2208** — If CI passes, Corollary6_8_4 sorry may be directly resolved.
 
-**Tier 2 — Tractable with current techniques:**
-- **Problem6_1_5_theorem** — Finite type ↔ Dynkin classification. Standalone proof, independent of other Cluster D items.
-- **Theorem6_5_2** — Dim vector bijection. Also standalone within Cluster D.
-- **MoritaStructural Module.Finite transport** — May yield to a direct argument about equivalences preserving finiteness.
+**Tier 2 — Tractable now:**
+- **polytabloid_linearIndependent** (#2212, unclaimed) — Transfer from tabloid-module proof. Well-scoped, difficulty 4. Would reduce PolytabloidBasis to 3 sorries.
+- **head_isomorphism** (#2174) — Becomes actionable when #2175 merges.
 
-**Tier 3 — Needs new infrastructure or architectural rethink:**
-- **MoritaStructural exists_surjection** — Needs progenerator theory (composition series, projectivity preservation). ~200-300 lines of new infrastructure.
-- **CoxeterInfrastructure** — Universe constraint blocker. May need Lean 4 changes or complete architectural rethink of the induction structure.
-- **Corollary6_8_4** — Blocked by CoxeterInfrastructure. No point working on this until the blocker is resolved.
+**Tier 3 — Hard but well-scoped:**
+- **polytabloid straightening** (#2217) — column_standard_in_span' + perm_mul_youngSymmetrizer_mem_span. Difficulty 7. Tabloid-level Garnir + dominance induction.
+- **polytabloid_mem_spechtModule** — T-dependent definition complicates membership proof. No open issue yet.
 
-**Tier 4 — Design-level blockers (plan exists, execute in order):**
-- **PolytabloidBasis (3 sorries) + TabloidModule (1)** — Meditate #2102 completed. Root cause: YoungSymmetrizer convention `b_λ*a_λ` blocks left P_λ absorption needed for straightening. Plan:
-  1. **#2103**: Switch YoungSymmetrizer from `b_λ*a_λ` to `a_λ*b_λ` (difficulty 6, ~150 lines)
-  2. **#2105**: Prove `column_standard_in_span'` — trivial after #2103 (difficulty 3, ~10 lines)
-  3. **#2104**: Restructure Garnir WF induction for multiset-decreasing expansion (difficulty 9, ~200 lines). `columnInvCount'` pointwise decrease is FALSE (counterexample: partition (2,2), coset rep (1,2)). Need last-letter ordering or multiset Dershowitz-Manna ordering.
-  4. **#2106**: Close `polytabloid_linearIndependent` — 1 line after #2088 (difficulty 1)
-  - Critical path: #2103 → #2105 + #2104 → done. #2088/#2106 is a parallel independent chain.
+**Tier 4 — Deep infrastructure:**
+- **FormalCharacterIso** — GL_N complete reducibility. Needs Schur-Weyl infrastructure. Lowest priority.
+- **Theorem2_1_2** — Gabriel's theorem. Depends on both Clusters A and B.
 
 **Key endgame insights:**
 1. **All definitions are constructed.** Every remaining sorry is a pure proof obligation.
 2. **Decomposition is the dominant value-creation pattern.** Converting a monolithic sorry into structured sub-goals (with 60-80% proved) is often the best outcome for a single session.
 3. **Approach cycling is expensive.** After 3 genuinely different approaches, document and move on.
-4. **Decidable.casesOn patterns are well-documented** (see sections below). Read before attempting Ch6 work.
-5. **Distinguish proof difficulty from design blockers.** A sorry that's "hard" needs more effort. A sorry with a provably broken approach needs a *different* approach. Don't spend sessions on the latter without an explicit replan. (Example: garnir multi-column case — the swap doesn't decrease the metric, period.)
-6. **Pessimism about infrastructure requirements can be wrong.** The Mackey machine was estimated to need ~500 lines of Clifford theory. It was proved without Clifford theory at all — direct constructions sufficed. Always try the simplest approach first.
-7. **Element-level proofs bridge SMul instance diamonds.** When two Module instances are propositionally but not definitionally equal, work at element level with `ext`, then use `conv_lhs => rw [...]` to bridge the instances. This resolved the hardest MoritaStructural sub-task (#2082).
-8. **Multi-PR iteration is normal for hard items.** Complex theorems routinely require 2-4 PRs: restructure → build infrastructure → prove.
-9. **Scaffold-then-parallelize works.** Decomposing a sorry into 3-5 sub-sorries lets multiple agents work in parallel. Mackey machine (5 sub-goals → 3 agents → 0 sorries) is the exemplar.
+4. **Pessimism about infrastructure requirements can be wrong.** The Mackey machine was estimated to need ~500 lines of Clifford theory. It was proved without Clifford theory at all — direct constructions sufficed. Always try the simplest approach first.
+5. **Element-level proofs bridge SMul instance diamonds.** When two Module instances are propositionally but not definitionally equal, work at element level with `ext`, then use `conv_lhs => rw [...]` to bridge the instances.
+6. **Multi-PR iteration is normal for hard items.** Complex theorems routinely require 2-4 PRs: restructure → build infrastructure → prove.
+7. **CI infrastructure failures are the #1 time sink.** Runner OOM/disconnects cause CANCELLED status. The fix is always re-triggering — never waste time diagnosing "code issues" when the build log shows runner communication lost.
+8. **The tabloid module approach works.** TabloidModule.lean's dominance order + unitriangularity has been the successful path for polytabloid independence. Garnir straightening at the group algebra level was a dead end (tautology). Use tabloid-level reasoning for all remaining polytabloid sorries.
 
 ## Non-Commutative Ring Workarounds
 
@@ -849,6 +841,23 @@ rw [Finset.sum_congr rfl (fun i _ => show _ = _ from by
 - `MonoidAlgebra.mul_single_apply`: `(x * single g r) h = x (h * g⁻¹) * r` (for groups)
 - `Finsupp.finset_sum_apply`: `(∑ i ∈ S, f i) a = ∑ i ∈ S, f i a`
 - `Finsupp.smul_apply`: `(b • v) a = b • v a` (definitional, but needs coercion via `change`)
+
+## Mathlib API Naming Gotchas
+
+These naming mismatches have bitten multiple agents across waves 44-47. Check this list before reaching for `exact?` or `apply?`.
+
+| What You Want | Wrong Name | Right Name | Notes |
+|--------------|-----------|------------|-------|
+| `a^(n+1) = a^n * a` | `pow_succ` | `pow_succ'` | `pow_succ` is `a^(n+1) = a * a^n` (reversed) |
+| `u⁻¹ * u = 1` (Units) | `Units.inv_mul` | `Units.val_inv_mul` | `inv_mul` is for `Group`, not `Units` |
+| Span induction | `Submodule.span_induction` (old sig) | `Submodule.span_induction` (new sig) | Signature changed: now uses a dependent predicate `{p : ∀ x, x ∈ span R s → Prop}` instead of `{p : M → Prop}`. Check the current type with `#check @Submodule.span_induction`. |
+| `Finsupp.sum_apply` | `Finsupp.sum_apply` | `Finsupp.finset_sum_apply` | For `(∑ i ∈ S, f i) a = ∑ i ∈ S, f i a`. Needs explicit `(N := C)` type annotation when used with `MonoidAlgebra`. |
+| DecidableEq for Finset.image | (missing) | Add `haveI : DecidableEq α := Classical.decEq _` | `Finset.image` requires `DecidableEq` on the codomain. Easy to forget. |
+| `DFinsupp.smul_apply` | `DFinsupp.smul_apply` | Use `Finsupp.smul_apply` via `change` | `DFinsupp` and `Finsupp` have different APIs. MonoidAlgebra is `Finsupp`-based. |
+
+**General principle:** When a `rw`/`simp` doesn't fire on a MonoidAlgebra goal, the issue is usually that MonoidAlgebra is a `def` (not `abbrev`), so `simp` can't see through to `Finsupp` lemmas. Use `change` to coerce to `Finsupp` form first.
+
+**When unsure about a lemma name:** Use `#check` or `exact?` on a small test goal. Don't guess and iterate — the 30 seconds spent checking saves 10 minutes of mysterious failures.
 
 ## Trace-Based Proof Pattern
 
