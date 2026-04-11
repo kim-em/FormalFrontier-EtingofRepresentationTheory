@@ -3,6 +3,7 @@ import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.OrientationDefs
 import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
+import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
 
 /-!
 # Infinite Type Constructions for Non-Dynkin Graphs
@@ -1183,10 +1184,6 @@ theorem star_subgraph_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) �
 
 /-! ## Section 13: Trees with degree ≥ 4 have infinite type -/
 
-/-- The degree of a vertex in a simple graph given by its adjacency matrix. -/
-def vertexDegree (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ) (v : Fin n) : ℕ :=
-  (Finset.univ.filter (fun w => adj v w = 1)).card
-
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 /-- A tree (connected simple graph with no triangles) having a vertex of degree ≥ 4
@@ -1197,7 +1194,7 @@ theorem tree_degree_ge_4_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n)
     (hadj_diag : ∀ v, adj v v = 0)
     -- Triangle-free: no two neighbors of the same vertex are adjacent
     (htri_free : ∀ v w₁ w₂, adj v w₁ = 1 → adj v w₂ = 1 → w₁ ≠ w₂ → adj w₁ w₂ = 0)
-    (v : Fin n) (hv : 4 ≤ vertexDegree n adj v) :
+    (v : Fin n) (hv : 4 ≤ vertexDegree adj v) :
     ¬ Etingof.IsFiniteTypeQuiver n adj := by
   -- Extract 4 distinct neighbors from the neighbor set of v
   set S := Finset.univ.filter (fun w => adj v w = 1) with hS_def
@@ -2147,5 +2144,46 @@ theorem etilde8_not_finite_type :
     (fun v h => by linarith [etilde8Adj_diag v])
     etilde6_etilde8_adj_compat
     etilde6_not_finite_type
+
+/-! ## Section 16: Non-Dynkin graphs have infinite representation type
+
+This is the contrapositive of the forward direction of Gabriel's theorem
+(Problem 6.1.5 / Theorem 6.5.2): if a connected simple graph is not a Dynkin
+diagram, it is not of finite representation type.
+-/
+
+/-- A connected simple graph that is not a Dynkin diagram has infinite representation type.
+This follows from Gabriel's theorem (Theorem 6.1.5): finite type ↔ Dynkin. -/
+theorem non_Dynkin_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_not_dynkin : ¬ IsDynkinDiagram n adj) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  intro hft
+  exact h_not_dynkin ((Theorem_6_1_5 n adj hsymm hdiag h01 hconn).mp hft)
+
+/-- A connected simple graph on n ≥ 1 vertices that is not graph-isomorphic to any
+standard Dynkin type (A_n, D_n, E₆, E₇, E₈) has infinite representation type.
+This combines the Dynkin classification with Gabriel's theorem. -/
+theorem non_ADE_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_not_ade : ¬ ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
+      ∀ i j, adj (σ i) (σ j) = t.adj i j) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  apply non_Dynkin_not_finite_type adj hsymm hdiag h01 hconn
+  intro hD
+  exact h_not_ade ((Theorem_Dynkin_classification n adj hn).mp hD)
 
 end Etingof
