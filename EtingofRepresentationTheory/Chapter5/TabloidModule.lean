@@ -1073,6 +1073,144 @@ theorem polytabloidTab_linearIndependent :
 -- (polytabloid_linearIndependent in PolytabloidBasis.lean) remains sorry'd pending
 -- a transfer argument from the tabloid module.
 
+/-! ### Generalized polytabloidTabs
+
+The generalized polytabloidTab ψ_σ for an arbitrary permutation σ is the column
+antisymmetrization of the tabloid [σ]:
+  ψ_σ = Σ_{q ∈ Q_λ} sign(q) · [q⁻¹ σ]
+This generalizes polytabloidTab (which uses σ = σ_T for an SYT T).
+
+Key properties:
+* Q_λ-equivariance: ψ_{q₀σ} = sign(q₀) · ψ_σ
+* polytabloidTab(T) = ψ_{σ_T}
+* ψ_σ ∈ span_ℂ{polytabloidTab(T) : T ∈ SYT(λ)} (the straightening lemma)
+-/
+
+/-- The generalized polytabloidTab ψ_σ in the tabloid module:
+  ψ_σ = Σ_{q ∈ Q_λ} sign(q) · {q⁻¹ · σ}
+where {·} denotes a basis element (single tabloid) in M^λ. -/
+noncomputable def generalizedPolytabloidTab (σ : Equiv.Perm (Fin n)) :
+    TabloidRepresentation n la :=
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  ∑ q : ↥(ColumnSubgroup n la),
+    ((↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (q.val⁻¹ * σ)) 1
+
+/-- polytabloidTab(T) equals the generalized polytabloidTab for σ_T. -/
+theorem generalizedPolytabloidTab_eq_polytabloidTab (T : StandardYoungTableau n la) :
+    generalizedPolytabloidTab (sytPerm n la T) = polytabloidTab T := rfl
+
+/-- Q_λ-equivariance: ψ_{q₀σ} = sign(q₀) · ψ_σ for q₀ ∈ Q_λ. -/
+theorem generalizedPolytabloidTab_col_mul (q₀ : Equiv.Perm (Fin n))
+    (hq₀ : q₀ ∈ ColumnSubgroup n la) (σ : Equiv.Perm (Fin n)) :
+    generalizedPolytabloidTab (n := n) (la := la) (q₀ * σ) =
+      ((↑(Equiv.Perm.sign q₀) : ℤ) : ℂ) •
+        generalizedPolytabloidTab (n := n) (la := la) σ := by
+  classical
+  simp only [generalizedPolytabloidTab, Finset.smul_sum, smul_smul]
+  -- Reindex: substitute q' = q₀⁻¹ * q, so q = q₀ * q'
+  set φ : ↥(ColumnSubgroup n la) ≃ ↥(ColumnSubgroup n la) :=
+    ⟨fun q => ⟨q₀⁻¹ * q, (ColumnSubgroup n la).mul_mem
+        ((ColumnSubgroup n la).inv_mem hq₀) q.prop⟩,
+     fun q => ⟨q₀ * q, (ColumnSubgroup n la).mul_mem hq₀ q.prop⟩,
+     fun ⟨q, _⟩ => Subtype.ext (by group),
+     fun ⟨q, _⟩ => Subtype.ext (by group)⟩
+  refine Fintype.sum_equiv φ _ _ (fun ⟨q, hq⟩ => ?_)
+  -- Simplify: φ ⟨q, hq⟩ = ⟨q₀⁻¹ * q, _⟩
+  have hφ_val : (φ ⟨q, hq⟩ : ↥(ColumnSubgroup n la)).val = q₀⁻¹ * q := rfl
+  simp only [hφ_val]
+  congr 1
+  -- sign(q₀) * sign(q₀⁻¹ * q) = sign(q)
+  simp only [← Units.val_mul, ← Int.cast_mul]
+  congr 1; congr 1
+  rw [← map_mul, mul_inv_cancel_left]
+
+/-! Note: ψ_σ depends on the full permutation σ, not just the tabloid [σ].
+If σ₁ σ₂⁻¹ ∈ P_λ (same tabloid), then ψ_{σ₁} and ψ_{σ₂} generally differ
+because P_λ does not commute with Q_λ. -/
+
+/-! ### Tabloid-level Garnir annihilation
+
+The Garnir identity at the tabloid level: for any set G of positions containing two
+positions in the same row, the alternating sum over S_G annihilates any tabloid:
+  Σ_{w ∈ S_G} sign(w) · [wσ] = 0 in M^λ
+This follows because S_G ∩ P_λ contains a transposition t, and [tα] = [α]
+while sign(tw) = -sign(w), so the sum cancels in pairs.
+-/
+
+/-- The alternating sum over a permutation group supported on G annihilates
+tabloid indicators when there exists a row transposition in the group.
+This is the tabloid-level analogue of `garnir_row_annihilates`. -/
+theorem garnirAnnihilate_tabloid (σ : Equiv.Perm (Fin n))
+    (G : Finset (Fin n))
+    (t : Equiv.Perm (Fin n))
+    (ht_row : t ∈ RowSubgroup n la)
+    (ht_supp : ∀ x, x ∉ G → t x = x)
+    (ht_sign : Equiv.Perm.sign t = -1) :
+    ∑ w : { w : Equiv.Perm (Fin n) // ∀ x, x ∉ G → w x = x },
+      ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)) = 0 := by
+  -- The key: [tα] = [α] since t ∈ P_λ, and sign(tw) = -sign(w) since sign(t) = -1.
+  -- Reindex w → tw and show the sum equals its own negation.
+  set S := { w : Equiv.Perm (Fin n) // ∀ x, x ∉ G → w x = x }
+  have ht_inv_supp : ∀ x, x ∉ G → t⁻¹ x = x := fun x hx => by
+    calc t⁻¹ x = t⁻¹ (t x) := by rw [ht_supp x hx]
+      _ = x := Equiv.symm_apply_apply t x
+  have hmul_mem : ∀ (w : Equiv.Perm (Fin n)),
+      (∀ x, x ∉ G → w x = x) → (∀ x, x ∉ G → (t * w) x = x) :=
+    fun w hw x hx => by change t (w x) = x; rw [hw x hx, ht_supp x hx]
+  have hinv_mem : ∀ (w : Equiv.Perm (Fin n)),
+      (∀ x, x ∉ G → w x = x) → (∀ x, x ∉ G → (t⁻¹ * w) x = x) :=
+    fun w hw x hx => by change t⁻¹ (w x) = x; rw [hw x hx, ht_inv_supp x hx]
+  -- Define the bijection w ↦ t * w on S
+  set φ : S ≃ S :=
+    ⟨fun ⟨w, hw⟩ => ⟨t * w, hmul_mem w hw⟩,
+     fun ⟨w, hw⟩ => ⟨t⁻¹ * w, hinv_mem w hw⟩,
+     fun ⟨w, _⟩ => Subtype.ext (show t⁻¹ * (t * w) = w by group),
+     fun ⟨w, _⟩ => Subtype.ext (show t * (t⁻¹ * w) = w by group)⟩
+  -- The sum equals its reindexed version via φ
+  have key : ∀ (w : S),
+      ((↑(↑(Equiv.Perm.sign (φ w).val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la ((φ w).val * σ)) (1 : ℂ)) =
+      -((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)) := by
+    intro ⟨w, hw⟩
+    -- (φ w).val = t * w
+    change ((↑(↑(Equiv.Perm.sign (t * w)) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (t * w * σ)) (1 : ℂ)) =
+      -((↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w * σ)) (1 : ℂ))
+    -- sign(t * w) = -sign(w)
+    have hsign : (↑(↑(Equiv.Perm.sign (t * w)) : ℤ) : ℂ) =
+        -(↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) := by
+      rw [map_mul, ht_sign, Units.val_mul, Int.cast_mul]
+      simp [Int.cast_neg, Int.cast_one]
+    -- [t * w * σ] = [w * σ] since t ∈ P_λ
+    have htabloid : toTabloid n la (t * w * σ) = toTabloid n la (w * σ) := by
+      rw [toTabloid_eq_iff]
+      convert ht_row using 1; group
+    rw [hsign, htabloid, neg_smul]
+  -- Sum = Σ_w f(φ w) = Σ_w -f(w) = -Sum
+  have h_neg : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)) =
+    -(∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ))) := by
+    conv_lhs => rw [← Equiv.sum_comp φ]
+    simp_rw [key]
+    rw [Finset.sum_neg_distrib (f := fun (w : S) =>
+      ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)))]
+  -- x = -x implies x = 0 (add_right_cancel with x + x = (-x) + x = 0)
+  have h_add : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)) +
+    ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (w.val * σ)) (1 : ℂ)) =
+    (0 : TabloidRepresentation n la) := by
+    nth_rw 1 [h_neg]; exact neg_add_cancel _
+  rwa [show ∀ (x : TabloidRepresentation n la), x + x = (2 : ℂ) • x from
+    fun x => (two_smul ℂ x).symm, smul_eq_zero,
+    or_iff_right (by norm_num : (2 : ℂ) ≠ 0)] at h_add
+
 /-! ### Tabloid projection map (equivariant injection V_λ → M^λ)
 
 The tabloid projection ψ: ℂ[S_n] → M^λ sends of(σ) ↦ single(toTabloid(σ⁻¹), 1).
