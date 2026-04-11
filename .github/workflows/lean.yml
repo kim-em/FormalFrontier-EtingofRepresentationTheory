@@ -8,12 +8,32 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
+      - name: Add swap space
+        uses: actionhippie/swap-space@v1
+        with:
+          size: 8G
       - uses: actions/checkout@v5
       - uses: leanprover/lean-action@v1
         with:
           use-github-cache: false
+          build: false
+      - name: Build all modules
+        run: |
+          # Build individual modules, excluding:
+          # - Chapter/root aggregation files (mindepth 2 skips these)
+          # - Modules that import full Mathlib + large chapter environments,
+          #   which require >15GB to compile (exceeds runner capacity)
+          EXCLUDE="SpechtModuleSimple|YoungSymTraceKronecker|FrobeniusCharacterBridge|Proposition5_22_2|Example6_4_9_EType|Example6_4_9\.lean"
+          find EtingofRepresentationTheory -mindepth 2 -name '*.lean' \
+            | grep -vE "$EXCLUDE" \
+            | sed 's|/|.|g; s|\.lean$||' \
+            | xargs lake build
