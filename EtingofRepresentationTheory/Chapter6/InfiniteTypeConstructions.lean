@@ -2,7 +2,7 @@ import Mathlib
 import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.OrientationDefs
-import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
+import EtingofRepresentationTheory.Chapter6.FiniteTypeDefs
 import EtingofRepresentationTheory.Chapter6.Theorem_Dynkin_classification
 
 /-!
@@ -2144,46 +2144,5 @@ theorem etilde8_not_finite_type :
     (fun v h => by linarith [etilde8Adj_diag v])
     etilde6_etilde8_adj_compat
     etilde6_not_finite_type
-
-/-! ## Section 16: Non-Dynkin graphs have infinite representation type
-
-This is the contrapositive of the forward direction of Gabriel's theorem
-(Problem 6.1.5 / Theorem 6.5.2): if a connected simple graph is not a Dynkin
-diagram, it is not of finite representation type.
--/
-
-/-- A connected simple graph that is not a Dynkin diagram has infinite representation type.
-This follows from Gabriel's theorem (Theorem 6.1.5): finite type ↔ Dynkin. -/
-theorem non_Dynkin_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
-    (hsymm : adj.IsSymm)
-    (hdiag : ∀ i, adj i i = 0)
-    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
-    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
-      path.head? = some i ∧ path.getLast? = some j ∧
-      ∀ k, (h : k + 1 < path.length) →
-        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
-    (h_not_dynkin : ¬ IsDynkinDiagram n adj) :
-    ¬ IsFiniteTypeQuiver n adj := by
-  intro hft
-  exact h_not_dynkin ((Theorem_6_1_5 n adj hsymm hdiag h01 hconn).mp hft)
-
-/-- A connected simple graph on n ≥ 1 vertices that is not graph-isomorphic to any
-standard Dynkin type (A_n, D_n, E₆, E₇, E₈) has infinite representation type.
-This combines the Dynkin classification with Gabriel's theorem. -/
-theorem non_ADE_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
-    (hn : 1 ≤ n)
-    (hsymm : adj.IsSymm)
-    (hdiag : ∀ i, adj i i = 0)
-    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
-    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
-      path.head? = some i ∧ path.getLast? = some j ∧
-      ∀ k, (h : k + 1 < path.length) →
-        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
-    (h_not_ade : ¬ ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
-      ∀ i j, adj (σ i) (σ j) = t.adj i j) :
-    ¬ IsFiniteTypeQuiver n adj := by
-  apply non_Dynkin_not_finite_type adj hsymm hdiag h01 hconn
-  intro hD
-  exact h_not_ade ((Theorem_Dynkin_classification n adj hn).mp hD)
 
 end Etingof
