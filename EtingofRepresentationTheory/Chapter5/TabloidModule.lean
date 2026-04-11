@@ -1426,6 +1426,95 @@ theorem tabloidProjection_injective_on_spechtModule
   rw [hK_bot] at hv_in_K
   exact congr_arg Subtype.val ((Submodule.mem_bot _).mp hv_in_K)
 
+/-! ### Image of V_λ under tabloidProjection
+
+The key relationship: tabloidProjection maps of(σ) * c_λ to
+|P_λ| · generalizedPolytabloidTab(σ⁻¹). This connects the group-algebra
+Specht module to the tabloid-level polytabloid infrastructure. -/
+
+/-- Helper: ψ(c_λ) expressed in terms of column group sum and |P_λ|.
+This computes tabloidProjection(YoungSymmetrizer) as a scaled sum over Q_λ. -/
+private theorem tabloidProjection_youngSymmetrizer_eq :
+    tabloidProjection (n := n) (la := la) (YoungSymmetrizer n la) =
+      (Nat.card (↥(RowSubgroup n la)) : ℂ) •
+        generalizedPolytabloidTab (n := n) (la := la) 1 := by
+  classical
+  simp only [YoungSymmetrizer, ColumnAntisymmetrizer, Finset.sum_mul, map_sum,
+    smul_mul_assoc, map_smul, tabloidProjection_of_mul, tabloidProjection_RowSymmetrizer,
+    Finsupp.mapDomain_smul, Finsupp.mapDomain_single, tabloidRightMul_toTabloid, one_mul]
+  -- Goal: ∑ x, sign(x) • |P_λ| • single([x⁻¹], 1) = |P_λ| • generalizedPolytabloidTab 1
+  -- Swap the two scalars, then factor out |P_λ|
+  simp_rw [smul_comm (Equiv.Perm.sign _ : ℂ)]
+  rw [← Finset.smul_sum]
+  simp [generalizedPolytabloidTab, mul_one]
+
+theorem tabloidProjection_of_mul_youngSymmetrizer (σ : Equiv.Perm (Fin n)) :
+    tabloidProjection (n := n) (la := la)
+      (MonoidAlgebra.of ℂ _ σ * YoungSymmetrizer n la) =
+      (Nat.card (↥(RowSubgroup n la)) : ℂ) •
+        generalizedPolytabloidTab (n := n) (la := la) σ⁻¹ := by
+  classical
+  -- Step 1: ψ(of(σ) * c_λ) = mapDomain(rightMul σ⁻¹)(ψ(c_λ))
+  rw [tabloidProjection_of_mul, tabloidProjection_youngSymmetrizer_eq,
+    Finsupp.mapDomain_smul]
+  congr 1
+  -- Step 2: mapDomain(rightMul σ⁻¹)(ψ_1) = ψ_{σ⁻¹}
+  simp only [generalizedPolytabloidTab]
+  rw [Finsupp.mapDomain_finset_sum]
+  congr 1; ext ⟨q, hq⟩
+  rw [Finsupp.mapDomain_smul, Finsupp.mapDomain_single, tabloidRightMul_toTabloid, mul_one]
+
+/-- Every polytabloidTab lies in the image of V_λ under tabloidProjection.
+Specifically, polytabloidTab(T) = generalizedPolytabloidTab(σ_T) is in
+ψ(V_λ) because ψ(of(σ_T⁻¹) * c_λ) = |P_λ| · generalizedPolytabloidTab(σ_T). -/
+theorem polytabloidTab_mem_tabloidProjection_spechtModule
+    (T : StandardYoungTableau n la) :
+    polytabloidTab (n := n) (la := la) T ∈
+      Submodule.map (tabloidProjection (n := n) (la := la))
+        ((SpechtModule n la).restrictScalars ℂ) := by
+  rw [Submodule.mem_map]
+  refine ⟨(Nat.card (↥(RowSubgroup n la)) : ℂ)⁻¹ •
+    MonoidAlgebra.of ℂ _ (sytPerm n la T)⁻¹ * YoungSymmetrizer n la, ?_, ?_⟩
+  · -- This element is in V_λ (it's a scalar multiple of of(σ_T⁻¹) * c_λ)
+    change _ ∈ (SpechtModule n la).restrictScalars ℂ
+    rw [Submodule.restrictScalars_mem, SpechtModule, Submodule.mem_span_singleton]
+    exact ⟨_, rfl⟩
+  · -- Compute tabloidProjection of this element
+    simp only [map_smul, smul_mul_assoc, tabloidProjection_of_mul_youngSymmetrizer]
+    rw [smul_smul, inv_mul_cancel₀, one_smul]
+    · -- polytabloidTab(T) = generalizedPolytabloidTab(σ_T)
+      rw [inv_inv]
+      exact (generalizedPolytabloidTab_eq_polytabloidTab T).symm
+    · -- |P_λ| ≠ 0
+      exact Nat.cast_ne_zero.mpr (Nat.card_pos (α := ↥(RowSubgroup n la))).ne'
+
+/-- The image of V_λ under tabloidProjection contains all polytabloidTabs,
+hence has dimension ≥ |SYT(λ)|. Combined with injectivity on V_λ,
+this gives dim V_λ ≥ |SYT(λ)|. -/
+theorem finrank_spechtModule_ge_card_syt :
+    Fintype.card (StandardYoungTableau n la) ≤
+      Module.finrank ℂ (SpechtModule n la) := by
+  -- The polytabloidTabs are linearly independent in M^λ
+  have hli := polytabloidTab_linearIndependent (n := n) (la := la)
+  -- They all lie in ψ(V_λ)
+  have hmem : ∀ T, polytabloidTab (n := n) (la := la) T ∈
+      Submodule.map (tabloidProjection (n := n) (la := la))
+        ((SpechtModule n la).restrictScalars ℂ) :=
+    polytabloidTab_mem_tabloidProjection_spechtModule
+  -- Lift the linearly independent family into the image submodule
+  set S := Submodule.map (tabloidProjection (n := n) (la := la))
+    ((SpechtModule n la).restrictScalars ℂ)
+  have hli_sub : LinearIndependent ℂ (fun T => (⟨polytabloidTab T, hmem T⟩ : S)) := by
+    apply LinearIndependent.of_comp S.subtype
+    simpa using hli
+  -- |SYT| ≤ finrank(image)
+  have h1 := hli_sub.fintype_card_le_finrank
+  -- finrank(image) ≤ finrank(V_λ.restrictScalars ℂ)
+  have h2 := Submodule.finrank_map_le (tabloidProjection (n := n) (la := la))
+    ((SpechtModule n la).restrictScalars ℂ)
+  -- finrank(V_λ.restrictScalars ℂ) = finrank(V_λ)
+  exact h1.trans h2
+
 end
 
 end Etingof
