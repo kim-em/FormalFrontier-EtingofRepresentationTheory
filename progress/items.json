@@ -4857,10 +4857,8 @@
     "end_page": "178",
     "start_line": 31,
     "end_line": 14,
-    "status": "sent_to_aristotle",
-    "aristotle_project_id": "26603e6c-cfee-4580-a784-613428bc9e84",
-    "needs_statement": true,
-    "sorry_count": 1
+    "status": "sorry_free",
+    "sorry_count": 0
   },
   {
     "id": "Chapter6/Problem6.9.2",
