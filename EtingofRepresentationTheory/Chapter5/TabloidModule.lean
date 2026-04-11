@@ -1,6 +1,7 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2_Irreducible
 
 /-!
 # Tabloid Module Infrastructure
@@ -1071,6 +1072,221 @@ theorem polytabloidTab_linearIndependent :
 -- polytabloidTab_linearIndependent above. The group algebra version
 -- (polytabloid_linearIndependent in PolytabloidBasis.lean) remains sorry'd pending
 -- a transfer argument from the tabloid module.
+
+/-! ### Tabloid projection map (equivariant injection V_λ → M^λ)
+
+The tabloid projection ψ: ℂ[S_n] → M^λ sends of(σ) ↦ single(toTabloid(σ⁻¹), 1).
+This map is ℂ-linear, its kernel is a left ℂ[S_n]-ideal, and it restricts to an
+injection on V_λ (by simplicity of V_λ from Theorem 5.12.2).
+
+The image ψ(of(σ) * c_λ) equals |P_λ| times the "generalized polytabloidTab" for σ⁻¹,
+which is Σ_{q ∈ Q_λ} sign(q) · single(toTabloid(q⁻¹ · σ⁻¹), 1).
+-/
+
+/-- The tabloid projection: a ℂ-linear map from the symmetric group algebra to the
+tabloid representation, defined by of(σ) ↦ single(toTabloid(σ⁻¹), 1).
+
+Concretely, this maps a = Σ a(σ) · of(σ) to Σ a(σ) · single(toTabloid(σ⁻¹), 1). -/
+noncomputable def tabloidProjection :
+    SymGroupAlgebra n →ₗ[ℂ] TabloidRepresentation n la :=
+  Finsupp.lmapDomain ℂ ℂ (fun σ => toTabloid n la σ⁻¹)
+
+/-- Evaluation of tabloidProjection on a basis element of(σ). -/
+theorem tabloidProjection_of (σ : Equiv.Perm (Fin n)) :
+    tabloidProjection (MonoidAlgebra.of ℂ _ σ) =
+      (Finsupp.single (toTabloid n la σ⁻¹) (1 : ℂ) :
+        TabloidRepresentation n la) := by
+  simp only [tabloidProjection, MonoidAlgebra.of_apply]
+  exact Finsupp.mapDomain_single
+
+/-- Right multiplication by τ⁻¹ preserves the tabloid equivalence:
+if toTabloid(σ₁⁻¹) = toTabloid(σ₂⁻¹) then toTabloid(σ₁⁻¹τ⁻¹) = toTabloid(σ₂⁻¹τ⁻¹). -/
+private theorem toTabloid_inv_right_congr (σ₁ σ₂ τ : Equiv.Perm (Fin n))
+    (h : toTabloid n la σ₁⁻¹ = toTabloid n la σ₂⁻¹) :
+    toTabloid n la (σ₁⁻¹ * τ⁻¹) = toTabloid n la (σ₂⁻¹ * τ⁻¹) := by
+  rw [toTabloid_eq_iff] at h ⊢
+  convert h using 1; group
+
+/-- The composition (toTabloid ∘ Inv.inv ∘ (τ * ·)) factors through
+(toTabloid ∘ Inv.inv) via a function on tabloids. That is, the map
+σ ↦ toTabloid((τσ)⁻¹) = toTabloid(σ⁻¹τ⁻¹) depends only on toTabloid(σ⁻¹). -/
+private theorem tabloidProjection_factor (τ σ₁ σ₂ : Equiv.Perm (Fin n))
+    (h : toTabloid n la σ₁⁻¹ = toTabloid n la σ₂⁻¹) :
+    toTabloid n la (τ * σ₁)⁻¹ = toTabloid n la (τ * σ₂)⁻¹ := by
+  simp only [mul_inv_rev]
+  exact toTabloid_inv_right_congr σ₁ σ₂ τ h
+
+/-- Right multiplication by a permutation is well-defined on tabloids:
+toTabloid(σ * τ) depends only on toTabloid(σ), since the row subgroup
+relation σ₁ * σ₂⁻¹ ∈ P_λ is preserved by right multiplication. -/
+noncomputable def tabloidRightMul (τ : Equiv.Perm (Fin n)) :
+    Tabloid n la → Tabloid n la :=
+  Quotient.map (· * τ) (fun σ₁ σ₂ (h : σ₁ * σ₂⁻¹ ∈ RowSubgroup n la) => by
+    change (σ₁ * τ) * (σ₂ * τ)⁻¹ ∈ RowSubgroup n la
+    convert h using 1; group)
+
+@[simp]
+theorem tabloidRightMul_toTabloid (τ σ : Equiv.Perm (Fin n)) :
+    tabloidRightMul (la := la) τ (toTabloid n la σ) = toTabloid n la (σ * τ) :=
+  rfl
+
+/-- The tabloid projection intertwines left multiplication by of(τ) with
+right multiplication by τ⁻¹ on tabloids:
+  ψ(of(τ) * v) = mapDomain (tabloidRightMul τ⁻¹) (ψ(v)) -/
+theorem tabloidProjection_of_mul (τ : Equiv.Perm (Fin n))
+    (v : SymGroupAlgebra n) :
+    tabloidProjection (n := n) (la := la) (MonoidAlgebra.of ℂ _ τ * v) =
+      Finsupp.mapDomain (tabloidRightMul (la := la) τ⁻¹)
+        (tabloidProjection (n := n) (la := la) v) := by
+  -- Both sides are linear in v; check on basis elements single σ c
+  refine v.induction_linear (by simp [map_zero, Finsupp.mapDomain_zero])
+    (fun f g hf hg => by simp only [mul_add, map_add, Finsupp.mapDomain_add, hf, hg]) ?_
+  intro σ c
+  -- LHS: ψ(of(τ) * single(σ,c)) = ψ(single(τσ, c))
+  simp only [tabloidProjection, MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_single, one_mul]
+  -- Both sides are mapDomain f (single _ c); use mapDomain_single
+  change Finsupp.mapDomain _ (Finsupp.single (τ * σ) c) =
+    Finsupp.mapDomain _ (Finsupp.mapDomain _ (Finsupp.single σ c))
+  simp only [Finsupp.mapDomain_single, tabloidRightMul_toTabloid, mul_inv_rev]
+
+/-- The kernel of tabloidProjection is a left ℂ[S_n]-ideal:
+if ψ(v) = 0 then ψ(of(τ) * v) = 0 for all τ ∈ S_n. -/
+theorem tabloidProjection_ker_smul_closed
+    (v : SymGroupAlgebra n) (hv : tabloidProjection (n := n) (la := la) v = 0)
+    (τ : Equiv.Perm (Fin n)) :
+    tabloidProjection (n := n) (la := la) (MonoidAlgebra.of ℂ _ τ * v) = 0 := by
+  rw [tabloidProjection_of_mul, hv, Finsupp.mapDomain_zero]
+
+/-- For any g ∈ P_λ, toTabloid(g⁻¹) = toTabloid(1). -/
+private theorem toTabloid_inv_of_rowSubgroup (g : ↥(RowSubgroup n la)) :
+    toTabloid n la g.val⁻¹ = toTabloid n la 1 := by
+  rw [toTabloid_eq_iff]
+  simp only [inv_one, mul_one]
+  exact (RowSubgroup n la).inv_mem g.prop
+
+/-- The tabloid projection sends the row symmetrizer to |P_λ| times the
+identity tabloid indicator. -/
+theorem tabloidProjection_RowSymmetrizer :
+    tabloidProjection (n := n) (la := la) (RowSymmetrizer n la) =
+      (Nat.card (↥(RowSubgroup n la)) : ℂ) •
+        (Finsupp.single (toTabloid n la 1) (1 : ℂ) :
+          TabloidRepresentation n la) := by
+  classical
+  simp only [RowSymmetrizer, map_sum, tabloidProjection_of,
+    toTabloid_inv_of_rowSubgroup]
+  rw [Finset.sum_const, Finset.card_univ, ← Nat.card_eq_fintype_card,
+    ← Nat.cast_smul_eq_nsmul ℂ]
+
+/-- The tabloid projection of the Young symmetrizer is nonzero.
+The coefficient at toTabloid(1) is |P_λ| ≠ 0 in ℂ. -/
+theorem tabloidProjection_youngSymmetrizer_ne_zero :
+    tabloidProjection (n := n) (la := la) (YoungSymmetrizer n la) ≠ 0 := by
+  classical
+  -- c_λ = b_λ * a_λ
+  rw [YoungSymmetrizer]
+  -- Expand b_λ * a_λ; by linearity ψ distributes
+  simp only [ColumnAntisymmetrizer, Finset.sum_mul, map_sum, smul_mul_assoc, map_smul,
+    tabloidProjection_of_mul, tabloidProjection_RowSymmetrizer,
+    Finsupp.mapDomain_smul, Finsupp.mapDomain_single, tabloidRightMul_toTabloid, one_mul]
+  -- Goal: Σ_q sign(q) • |P_λ| • single(toTabloid(q⁻¹), 1) ≠ 0
+  -- Evaluate at toTabloid(1): only q=1 contributes (P_λ ∩ Q_λ = {1}), giving |P_λ|
+  intro h
+  -- Evaluate the zero Finsupp at toTabloid(1)
+  have h_eval : ∀ (f : TabloidRepresentation n la), f = 0 → f (toTabloid n la 1) = 0 :=
+    fun f hf => by rw [hf]; rfl
+  have h0 := h_eval _ h
+  -- Expand the sum at the identity tabloid
+  simp only [Finsupp.finset_sum_apply, Finsupp.smul_apply, smul_eq_mul,
+    Finsupp.single_apply] at h0
+  -- Each term: sign(q) * |P_λ| * [toTabloid(q⁻¹) = toTabloid(1)]
+  -- Only q with toTabloid(q⁻¹) = toTabloid(1) contribute, i.e., q⁻¹ ∈ P_λ ∩ Q_λ = {1}
+  have h_filter : ∀ (q : ↥(ColumnSubgroup n la)),
+      toTabloid n la q.val⁻¹ = toTabloid n la 1 → q.val = 1 := by
+    intro ⟨q, hq⟩ h1
+    rw [toTabloid_eq_iff, inv_one, mul_one] at h1
+    have := RowSubgroup_inter_ColumnSubgroup n la q⁻¹ h1
+      ((ColumnSubgroup n la).inv_mem hq)
+    rwa [inv_eq_one] at this
+  -- Simplify: terms with toTabloid(q⁻¹) ≠ toTabloid(1) contribute 0
+  simp only [show ∀ (q : ↥(ColumnSubgroup n la)),
+      (if toTabloid n la q.val⁻¹ = toTabloid n la 1 then (1 : ℂ) else 0) =
+      (if q.val = 1 then 1 else 0) from fun q => by
+        split_ifs with h1 h2 h2
+        · rfl
+        · exact absurd (h_filter q h1) h2
+        · exact absurd (by simp [h2]) h1
+        · rfl] at h0
+  -- Pull the `if` out of the multiplication
+  simp only [mul_ite, mul_one, mul_zero] at h0
+  -- Now: ∑ x, if ↑x = 1 then sign(x) * |P_λ| else 0 = 0
+  -- Convert ↑x = 1 to x = ⟨1, one_mem⟩
+  have h_coe : ∀ x : ↥(ColumnSubgroup n la),
+      ((↑x : Equiv.Perm (Fin n)) = 1) =
+        (x = ⟨1, (ColumnSubgroup n la).one_mem⟩) :=
+    fun x => by simp only [Subtype.ext_iff, OneMemClass.coe_one]
+  simp only [h_coe] at h0
+  rw [Finset.sum_ite_eq'] at h0
+  simp only [Finset.mem_univ, ↓reduceIte, Equiv.Perm.sign_one, Int.cast_one,
+    Units.val_one, one_mul] at h0
+  exact Nat.cast_ne_zero.mpr (Nat.card_pos (α := ↥(RowSubgroup n la))).ne' h0
+
+/-- The kernel of tabloidProjection is closed under left multiplication by
+any element of the group algebra (not just basis elements of(τ)).
+This follows from tabloidProjection_ker_smul_closed by decomposing a
+into basis elements and using linearity. -/
+theorem tabloidProjection_ker_mul_closed
+    (v : SymGroupAlgebra n) (hv : tabloidProjection (n := n) (la := la) v = 0)
+    (a : SymGroupAlgebra n) :
+    tabloidProjection (n := n) (la := la) (a * v) = 0 := by
+  conv_lhs => rw [← Finsupp.sum_single a]
+  rw [Finsupp.sum, Finset.sum_mul, map_sum]
+  apply Finset.sum_eq_zero
+  intro τ _
+  rw [show Finsupp.single τ (a τ) = (a τ) • MonoidAlgebra.of ℂ _ τ from by
+    simp [MonoidAlgebra.of_apply, Finsupp.smul_single', mul_one]]
+  rw [smul_mul_assoc, map_smul, tabloidProjection_ker_smul_closed v hv, smul_zero]
+
+/-- The tabloid projection is injective on the Specht module V_λ:
+if v ∈ V_λ and ψ(v) = 0, then v = 0.
+
+The proof uses the irreducibility of V_λ (Theorem 5.12.2). The kernel
+of ψ restricted to V_λ is a SymGroupAlgebra-submodule (since ker(ψ) is
+a left ideal), and it's proper (since ψ(c_λ) ≠ 0). By simplicity, it
+must be trivial. -/
+theorem tabloidProjection_injective_on_spechtModule
+    (v : SymGroupAlgebra n) (hv : v ∈ SpechtModule n la)
+    (h : tabloidProjection (n := n) (la := la) v = 0) :
+    v = 0 := by
+  classical
+  haveI := Theorem5_12_2_irreducible n la
+  -- Define K = {v ∈ V_λ | ψ(v) = 0} as a submodule of V_λ
+  let K : Submodule (SymGroupAlgebra n) (SpechtModule n la) :=
+    { carrier := {w | tabloidProjection (n := n) (la := la) w.val = 0}
+      zero_mem' := by simp
+      add_mem' := fun ha hb => by
+        simp only [Set.mem_setOf_eq, Submodule.coe_add] at *
+        rw [map_add, ha, hb, add_zero]
+      smul_mem' := fun r w hw => by
+        simp only [Set.mem_setOf_eq, SetLike.val_smul] at *
+        exact tabloidProjection_ker_mul_closed w.val hw r }
+  -- K ≠ ⊤ because c_λ ∈ V_λ and ψ(c_λ) ≠ 0
+  have hK_ne_top : K ≠ ⊤ := by
+    intro hK_top
+    apply tabloidProjection_youngSymmetrizer_ne_zero (n := n) (la := la)
+    have hc_mem : YoungSymmetrizer n la ∈ SpechtModule n la :=
+      Submodule.subset_span rfl
+    have : (⟨YoungSymmetrizer n la, hc_mem⟩ : SpechtModule n la) ∈ K := by
+      rw [hK_top]; exact Submodule.mem_top
+    exact this
+  -- By IsSimpleModule, K = ⊥
+  have hK_bot : K = ⊥ := by
+    rcases (IsSimpleOrder.eq_bot_or_eq_top K) with h | h
+    · exact h
+    · exact absurd h hK_ne_top
+  -- v ∈ K, so v = 0
+  have hv_in_K : (⟨v, hv⟩ : SpechtModule n la) ∈ K := h
+  rw [hK_bot] at hv_in_K
+  exact congr_arg Subtype.val ((Submodule.mem_bot _).mp hv_in_K)
 
 end
 

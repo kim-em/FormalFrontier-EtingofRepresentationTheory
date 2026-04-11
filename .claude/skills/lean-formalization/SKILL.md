@@ -1890,3 +1890,28 @@ def/theorem ... := by letI := myQuiver k hk; ...
 Dot notation on `QuiverRepresentation` fields (e.g., `.obj`) triggers Quiver
 instance synthesis. Use explicit `@QuiverRepresentation.obj ... inst ...` when
 instances are suppressed.
+
+## `Finsupp.lmapDomain` Coercion Gotcha
+
+`Finsupp.lmapDomain` is a `LinearMap` wrapper around `Finsupp.mapDomain`. They are
+**definitionally equal**, but `simp [Finsupp.lmapDomain_apply]` often fails because
+the coercion `⇑(lmapDomain ...)` doesn't match the simp lemma's LHS pattern.
+
+**Workaround:** Don't try to simp through the coercion. Instead, unfold the
+definition manually with `simp only [myDef]` (where `myDef` uses `lmapDomain`),
+then use `Finsupp.mapDomain_single`, `Finsupp.mapDomain_zero`, etc. directly.
+Since `lmapDomain` is definitionally `mapDomain`, the `mapDomain` lemmas apply
+without any conversion step.
+
+## `Nat.card` vs `Fintype.card` in Theorem Statements
+
+Prefer `Nat.card` over `Fintype.card` in theorem **statements** (not just proofs).
+`Fintype.card` requires a `Fintype` instance, which for subgroups needs
+`DecidablePred (· ∈ S)` — unavailable outside `classical` blocks. This means
+theorems using `Fintype.card` can't be applied without `classical`.
+
+`Nat.card` works without decidability instances. Inside proofs, convert via:
+```lean
+classical
+rw [Finset.card_univ, ← Nat.card_eq_fintype_card, ← Nat.cast_smul_eq_nsmul ℂ]
+```
