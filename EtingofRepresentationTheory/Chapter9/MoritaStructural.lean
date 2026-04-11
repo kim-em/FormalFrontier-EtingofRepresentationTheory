@@ -23,6 +23,9 @@ import Mathlib.RingTheory.Artinian.Module
 import Mathlib.RingTheory.HopkinsLevitzki
 import Mathlib.Algebra.Category.ModuleCat.Projective
 import Mathlib.Algebra.Category.ModuleCat.Subobject
+import Mathlib.Algebra.Category.ModuleCat.Simple
+import Mathlib.RingTheory.SimpleModule.Isotypic
+import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 
 universe u v
 
@@ -496,10 +499,38 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
   haveI : IsSemisimpleModule B₂ (Pt ⧸ JP) := h_tors_P.isSemisimpleModule_iff.mp inferInstance
   have h_tors_B := Module.isTorsionBySet_quotient_ideal_smul B₂ (Ring.jacobson B₂)
   haveI : IsSemisimpleModule B₂ (B₂ ⧸ JB) := h_tors_B.isSemisimpleModule_iff.mp inferInstance
-  -- Both are finite-dimensional over k (quotients of finite-dim modules)
-  -- The head isomorphism follows from both having the same simple multiplicities.
-  -- See the detailed proof outline above.
-  sorry
+  -- Module.Finite B₂ Pt (equivalence preserves finiteness)
+  haveI : Module.Finite B₂ Pt := module_finite_of_equiv_artinian F
+  -- Both quotients are finite over B₂
+  haveI : Module.Finite B₂ (Pt ⧸ JP) := inferInstance
+  haveI : Module.Finite B₂ (B₂ ⧸ JB) := inferInstance
+  -- Construct the isomorphism via finrank equality + surjection
+  -- Both quotients are finite-dimensional over k
+  haveI : Module.Finite k Pt := Module.Finite.trans B₂ Pt
+  haveI : Module.Finite k (Pt ⧸ JP) := Module.Finite.quotient k JP
+  haveI : Module.Finite k (B₂ ⧸ JB) := Module.Finite.quotient k JB
+  -- Key claim: finrank equality over k
+  -- Both heads have finrank_k = n (number of distinct simple B₂-modules),
+  -- because each simple appears with multiplicity 1 (basic algebras + adjunction).
+  have h_finrank : Module.finrank k (Pt ⧸ JP) = Module.finrank k (B₂ ⧸ JB) := by
+    sorry
+  -- Construct a B₂-linear surjection Pt/JP → B₂/JB
+  -- For each simple S of B₂, equiv_hom_to_simple_nonzero gives Pt → S nonzero.
+  -- This factors through Pt/JP since J₂ kills S. Assembling gives a surjection.
+  have h_surj_exists : ∃ (φ : (Pt ⧸ JP) →ₗ[B₂] (B₂ ⧸ JB)),
+      Function.Surjective φ := by
+    sorry
+  let φ := h_surj_exists.choose
+  have hφ_surj := h_surj_exists.choose_spec
+  -- Surjection + finrank equality → isomorphism
+  -- The B₂-linear map φ is also k-linear (via restriction of scalars).
+  -- By LinearMap.injective_iff_surjective_of_finrank_eq_finrank for k,
+  -- surjectivity implies injectivity (same finrank), hence bijectivity.
+  have h_inj : Function.Injective φ := by
+    have h_surj_k : Function.Surjective (φ.restrictScalars k) := hφ_surj
+    exact (LinearMap.injective_iff_surjective_of_finrank_eq_finrank
+      h_finrank).mpr h_surj_k
+  exact LinearEquiv.ofBijective φ ⟨h_inj, hφ_surj⟩
 
 private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
