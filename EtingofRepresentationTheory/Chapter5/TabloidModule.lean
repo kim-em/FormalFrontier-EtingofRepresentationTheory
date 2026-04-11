@@ -1072,6 +1072,90 @@ theorem polytabloidTab_linearIndependent :
 -- (polytabloid_linearIndependent in PolytabloidBasis.lean) remains sorry'd pending
 -- a transfer argument from the tabloid module.
 
+/-! ### Tabloid projection map (equivariant injection V_λ → M^λ)
+
+The tabloid projection ψ: ℂ[S_n] → M^λ sends of(σ) ↦ single(toTabloid(σ⁻¹), 1).
+This map is ℂ-linear, its kernel is a left ℂ[S_n]-ideal, and it restricts to an
+injection on V_λ (by simplicity of V_λ from Theorem 5.12.2).
+
+The image ψ(of(σ) * c_λ) equals |P_λ| times the "generalized polytabloidTab" for σ⁻¹,
+which is Σ_{q ∈ Q_λ} sign(q) · single(toTabloid(q⁻¹ · σ⁻¹), 1).
+-/
+
+/-- The tabloid projection: a ℂ-linear map from the symmetric group algebra to the
+tabloid representation, defined by of(σ) ↦ single(toTabloid(σ⁻¹), 1).
+
+Concretely, this maps a = Σ a(σ) · of(σ) to Σ a(σ) · single(toTabloid(σ⁻¹), 1). -/
+noncomputable def tabloidProjection :
+    SymGroupAlgebra n →ₗ[ℂ] TabloidRepresentation n la :=
+  Finsupp.lmapDomain ℂ ℂ (fun σ => toTabloid n la σ⁻¹)
+
+/-- Evaluation of tabloidProjection on a basis element of(σ). -/
+theorem tabloidProjection_of (σ : Equiv.Perm (Fin n)) :
+    tabloidProjection (MonoidAlgebra.of ℂ _ σ) =
+      (Finsupp.single (toTabloid n la σ⁻¹) (1 : ℂ) :
+        TabloidRepresentation n la) := by
+  simp only [tabloidProjection, MonoidAlgebra.of_apply]
+  exact Finsupp.mapDomain_single
+
+/-- Right multiplication by τ⁻¹ preserves the tabloid equivalence:
+if toTabloid(σ₁⁻¹) = toTabloid(σ₂⁻¹) then toTabloid(σ₁⁻¹τ⁻¹) = toTabloid(σ₂⁻¹τ⁻¹). -/
+private theorem toTabloid_inv_right_congr (σ₁ σ₂ τ : Equiv.Perm (Fin n))
+    (h : toTabloid n la σ₁⁻¹ = toTabloid n la σ₂⁻¹) :
+    toTabloid n la (σ₁⁻¹ * τ⁻¹) = toTabloid n la (σ₂⁻¹ * τ⁻¹) := by
+  rw [toTabloid_eq_iff] at h ⊢
+  convert h using 1; group
+
+/-- The composition (toTabloid ∘ Inv.inv ∘ (τ * ·)) factors through
+(toTabloid ∘ Inv.inv) via a function on tabloids. That is, the map
+σ ↦ toTabloid((τσ)⁻¹) = toTabloid(σ⁻¹τ⁻¹) depends only on toTabloid(σ⁻¹). -/
+private theorem tabloidProjection_factor (τ σ₁ σ₂ : Equiv.Perm (Fin n))
+    (h : toTabloid n la σ₁⁻¹ = toTabloid n la σ₂⁻¹) :
+    toTabloid n la (τ * σ₁)⁻¹ = toTabloid n la (τ * σ₂)⁻¹ := by
+  simp only [mul_inv_rev]
+  exact toTabloid_inv_right_congr σ₁ σ₂ τ h
+
+/-- Right multiplication by a permutation is well-defined on tabloids:
+toTabloid(σ * τ) depends only on toTabloid(σ), since the row subgroup
+relation σ₁ * σ₂⁻¹ ∈ P_λ is preserved by right multiplication. -/
+noncomputable def tabloidRightMul (τ : Equiv.Perm (Fin n)) :
+    Tabloid n la → Tabloid n la :=
+  Quotient.map (· * τ) (fun σ₁ σ₂ (h : σ₁ * σ₂⁻¹ ∈ RowSubgroup n la) => by
+    change (σ₁ * τ) * (σ₂ * τ)⁻¹ ∈ RowSubgroup n la
+    convert h using 1; group)
+
+@[simp]
+theorem tabloidRightMul_toTabloid (τ σ : Equiv.Perm (Fin n)) :
+    tabloidRightMul (la := la) τ (toTabloid n la σ) = toTabloid n la (σ * τ) :=
+  rfl
+
+/-- The tabloid projection intertwines left multiplication by of(τ) with
+right multiplication by τ⁻¹ on tabloids:
+  ψ(of(τ) * v) = mapDomain (tabloidRightMul τ⁻¹) (ψ(v)) -/
+theorem tabloidProjection_of_mul (τ : Equiv.Perm (Fin n))
+    (v : SymGroupAlgebra n) :
+    tabloidProjection (n := n) (la := la) (MonoidAlgebra.of ℂ _ τ * v) =
+      Finsupp.mapDomain (tabloidRightMul (la := la) τ⁻¹)
+        (tabloidProjection (n := n) (la := la) v) := by
+  -- Both sides are linear in v; check on basis elements single σ c
+  refine v.induction_linear (by simp [map_zero, Finsupp.mapDomain_zero])
+    (fun f g hf hg => by simp only [mul_add, map_add, Finsupp.mapDomain_add, hf, hg]) ?_
+  intro σ c
+  -- LHS: ψ(of(τ) * single(σ,c)) = ψ(single(τσ, c))
+  simp only [tabloidProjection, MonoidAlgebra.of_apply, MonoidAlgebra.single_mul_single, one_mul]
+  -- Both sides are mapDomain f (single _ c); use mapDomain_single
+  change Finsupp.mapDomain _ (Finsupp.single (τ * σ) c) =
+    Finsupp.mapDomain _ (Finsupp.mapDomain _ (Finsupp.single σ c))
+  simp only [Finsupp.mapDomain_single, tabloidRightMul_toTabloid, mul_inv_rev]
+
+/-- The kernel of tabloidProjection is a left ℂ[S_n]-ideal:
+if ψ(v) = 0 then ψ(of(τ) * v) = 0 for all τ ∈ S_n. -/
+theorem tabloidProjection_ker_smul_closed
+    (v : SymGroupAlgebra n) (hv : tabloidProjection (n := n) (la := la) v = 0)
+    (τ : Equiv.Perm (Fin n)) :
+    tabloidProjection (n := n) (la := la) (MonoidAlgebra.of ℂ _ τ * v) = 0 := by
+  rw [tabloidProjection_of_mul, hv, Finsupp.mapDomain_zero]
+
 end
 
 end Etingof
