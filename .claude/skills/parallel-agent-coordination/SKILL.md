@@ -113,6 +113,49 @@ git diff --name-only main..HEAD | grep -E '^(\.claude/CLAUDE\.md|PLAN\.md)$'
 ```
 If this outputs anything, remove those changes before pushing.
 
+## CI Triage Checklist
+
+CI failures on PRs fall into two categories: **infrastructure** (runner-side) and **code** (your changes). Misdiagnosing infrastructure failures as code issues wastes entire sessions. Multiple sessions in waves 45-47 were spent re-diagnosing the same infrastructure failures.
+
+### Quick Diagnosis (< 2 minutes)
+
+1. **Check the CI conclusion.** `CANCELLED` almost always means infrastructure (runner OOM, disconnected, timeout). `FAILURE` could be either.
+2. **Read the build log tail.** Infrastructure failures show messages like:
+   - "The runner has received a shutdown signal"
+   - "Communication with the server was lost"
+   - "The operation was canceled"
+   - "Runner.Worker"
+   - No error output at all (job killed before producing output)
+3. **Check if other PRs have the same failure.** If 3+ PRs all fail with CANCELLED at the same time, it's infrastructure.
+
+### Infrastructure Failure → Re-trigger
+
+```bash
+# Re-trigger CI by pushing an empty commit (if no other changes to push)
+gh pr view N --json headRefName --jq .headRefName | xargs -I{} git push origin {}
+# Or via the API:
+gh api repos/OWNER/REPO/actions/runs/RUN_ID/rerun -X POST
+```
+
+**Don't create "fix CI" issues for infrastructure failures.** Just re-trigger and move on.
+
+### Code Failure → Diagnose
+
+If the build log shows actual Lean errors (type mismatches, unknown identifiers, unsolved goals):
+1. Check if the error is on a file you changed
+2. Check if main has been updated since your branch diverged (rebase may be needed)
+3. Read the specific error message — don't just re-trigger and hope
+
+### Batch Re-trigger Pattern
+
+When multiple PRs have infrastructure failures (common after runner pool issues):
+```bash
+for pr in 2175 2191 2198 2200 2208; do
+  echo "Re-triggering #$pr"
+  gh pr view $pr --json headRefName --jq .headRefName | xargs -I{} git push origin {}
+done
+```
+
 ## Coordination Anti-Patterns
 
 1. **Claiming an issue without checking `main`** — wastes a turn discovering it's already done
