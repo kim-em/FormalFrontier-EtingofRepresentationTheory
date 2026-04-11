@@ -24,9 +24,9 @@ jobs:
           build: false
       - name: Build all individual modules
         run: |
-          # Build all individual .lean files but skip chapter/root aggregation
-          # files which OOM the 7GB runner by loading all oleans at once.
-          # Individual files verify all code compiles correctly.
+          # Build all individual .lean files (skip chapter/root aggregation).
+          # Use -j1 to prevent OOM from parallel Lean processes each loading
+          # full Mathlib on the 7GB ubuntu-latest runner.
           find EtingofRepresentationTheory -mindepth 2 -name '*.lean' \
             | sed 's|/|.|g; s|\.lean$||' \
-            | xargs lake build
+            | xargs lake build -j1
