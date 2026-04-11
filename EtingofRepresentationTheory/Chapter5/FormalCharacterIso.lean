@@ -31,6 +31,57 @@ noncomputable section
 
 namespace Etingof
 
+/-! ### Schur polynomial injectivity
+
+Distinct antitone partitions have distinct Schur polynomials. The proof uses:
+1. `schurPoly_mul_vandermonde`: `S_λ · Δ = det(alt(λ + δ))`
+2. `alternant_coeff_kronecker`: the Kronecker delta property of alternant det coefficients
+3. Shifted exponents are strictly antitone for antitone partitions
+-/
+
+/-- If two strictly antitone exponent sequences give the same alternant determinant,
+they are equal. Uses `alternant_coeff_kronecker` (the Kronecker delta property). -/
+private theorem alternant_det_injective (N : ℕ) (e₁ e₂ : Fin N → ℕ)
+    (he₁ : StrictAnti e₁) (he₂ : StrictAnti e₂)
+    (h : (alternantMatrix N e₁).det = (alternantMatrix N e₂).det) :
+    e₁ = e₂ := by
+  -- coeff_{e₁}(det(alt(e₁))) = 1 by Kronecker delta with e = e' = e₁
+  have hc₁ := alternant_coeff_kronecker he₁ he₁
+  simp only [ite_true] at hc₁
+  -- Since det(alt(e₁)) = det(alt(e₂)), coeff_{e₁}(det(alt(e₂))) = 1
+  rw [h, alternant_coeff_kronecker he₂ he₁] at hc₁
+  -- So e₂ = e₁ (the if-then-else equals 1 only when the condition holds)
+  revert hc₁; split_ifs with heq
+  · exact fun _ => heq.symm
+  · exact fun h => absurd h one_ne_zero.symm
+
+/-- The shifted exponents `λ + δ` are strictly antitone for antitone `λ`. -/
+private theorem shiftedExps_strictAnti' (N : ℕ) (lam : Fin N → ℕ) (hlam : Antitone lam) :
+    StrictAnti (shiftedExps N lam) := by
+  intro i j hij; simp only [shiftedExps]
+  exact Nat.add_lt_add_of_le_of_lt (hlam hij.le) (Nat.sub_lt_sub_left (by omega) hij)
+
+/-- Shifted exponents determine the partition. -/
+private theorem shiftedExps_injective (N : ℕ) :
+    Function.Injective (shiftedExps N) := by
+  intro lam₁ lam₂ h
+  funext j; exact Nat.add_right_cancel (congr_fun h j)
+
+/-- Schur polynomials are injective on antitone partitions: equal Schur polynomials
+imply equal partitions. -/
+theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
+    (hlam₁ : Antitone lam₁) (hlam₂ : Antitone lam₂)
+    (h : schurPoly N lam₁ = schurPoly N lam₂) :
+    lam₁ = lam₂ := by
+  have h_alt : (alternantMatrix N (shiftedExps N lam₁)).det =
+      (alternantMatrix N (shiftedExps N lam₂)).det := by
+    have hΔ := alternantMatrix_vandermondeExps_det_ne_zero N
+    apply mul_right_cancel₀ hΔ
+    rw [← schurPoly_mul_vandermonde, ← schurPoly_mul_vandermonde, h]
+  exact shiftedExps_injective N
+    (alternant_det_injective N _ _ (shiftedExps_strictAnti' N lam₁ hlam₁)
+      (shiftedExps_strictAnti' N lam₂ hlam₂) h_alt)
+
 variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- A `GL_N(k)`-representation whose formal character equals a Schur polynomial
