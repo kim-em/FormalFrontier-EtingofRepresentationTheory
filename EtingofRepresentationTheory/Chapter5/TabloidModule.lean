@@ -1,6 +1,7 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_12_1
 import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
+import EtingofRepresentationTheory.Chapter5.Theorem5_12_2_Irreducible
 
 /-!
 # Tabloid Module Infrastructure
@@ -1228,6 +1229,64 @@ theorem tabloidProjection_youngSymmetrizer_ne_zero :
   simp only [Finset.mem_univ, ↓reduceIte, Equiv.Perm.sign_one, Int.cast_one,
     Units.val_one, one_mul] at h0
   exact Nat.cast_ne_zero.mpr (Nat.card_pos (α := ↥(RowSubgroup n la))).ne' h0
+
+/-- The kernel of tabloidProjection is closed under left multiplication by
+any element of the group algebra (not just basis elements of(τ)).
+This follows from tabloidProjection_ker_smul_closed by decomposing a
+into basis elements and using linearity. -/
+theorem tabloidProjection_ker_mul_closed
+    (v : SymGroupAlgebra n) (hv : tabloidProjection (n := n) (la := la) v = 0)
+    (a : SymGroupAlgebra n) :
+    tabloidProjection (n := n) (la := la) (a * v) = 0 := by
+  conv_lhs => rw [← Finsupp.sum_single a]
+  rw [Finsupp.sum, Finset.sum_mul, map_sum]
+  apply Finset.sum_eq_zero
+  intro τ _
+  rw [show Finsupp.single τ (a τ) = (a τ) • MonoidAlgebra.of ℂ _ τ from by
+    simp [MonoidAlgebra.of_apply, Finsupp.smul_single', mul_one]]
+  rw [smul_mul_assoc, map_smul, tabloidProjection_ker_smul_closed v hv, smul_zero]
+
+/-- The tabloid projection is injective on the Specht module V_λ:
+if v ∈ V_λ and ψ(v) = 0, then v = 0.
+
+The proof uses the irreducibility of V_λ (Theorem 5.12.2). The kernel
+of ψ restricted to V_λ is a SymGroupAlgebra-submodule (since ker(ψ) is
+a left ideal), and it's proper (since ψ(c_λ) ≠ 0). By simplicity, it
+must be trivial. -/
+theorem tabloidProjection_injective_on_spechtModule
+    (v : SymGroupAlgebra n) (hv : v ∈ SpechtModule n la)
+    (h : tabloidProjection (n := n) (la := la) v = 0) :
+    v = 0 := by
+  classical
+  haveI := Theorem5_12_2_irreducible n la
+  -- Define K = {v ∈ V_λ | ψ(v) = 0} as a submodule of V_λ
+  let K : Submodule (SymGroupAlgebra n) (SpechtModule n la) :=
+    { carrier := {w | tabloidProjection (n := n) (la := la) w.val = 0}
+      zero_mem' := by simp
+      add_mem' := fun ha hb => by
+        simp only [Set.mem_setOf_eq, Submodule.coe_add] at *
+        rw [map_add, ha, hb, add_zero]
+      smul_mem' := fun r w hw => by
+        simp only [Set.mem_setOf_eq, SetLike.val_smul] at *
+        exact tabloidProjection_ker_mul_closed w.val hw r }
+  -- K ≠ ⊤ because c_λ ∈ V_λ and ψ(c_λ) ≠ 0
+  have hK_ne_top : K ≠ ⊤ := by
+    intro hK_top
+    apply tabloidProjection_youngSymmetrizer_ne_zero (n := n) (la := la)
+    have hc_mem : YoungSymmetrizer n la ∈ SpechtModule n la :=
+      Submodule.subset_span rfl
+    have : (⟨YoungSymmetrizer n la, hc_mem⟩ : SpechtModule n la) ∈ K := by
+      rw [hK_top]; exact Submodule.mem_top
+    exact this
+  -- By IsSimpleModule, K = ⊥
+  have hK_bot : K = ⊥ := by
+    rcases (IsSimpleOrder.eq_bot_or_eq_top K) with h | h
+    · exact h
+    · exact absurd h hK_ne_top
+  -- v ∈ K, so v = 0
+  have hv_in_K : (⟨v, hv⟩ : SpechtModule n la) ∈ K := h
+  rw [hK_bot] at hv_in_K
+  exact congr_arg Subtype.val ((Submodule.mem_bot _).mp hv_in_K)
 
 end
 
