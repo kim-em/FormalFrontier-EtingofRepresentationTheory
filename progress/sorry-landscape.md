@@ -6,7 +6,7 @@ Generated 2026-04-11 by meditate session (issue #2220).
 
 **9 sorries** across 6 files (down from 15/8 in wave 46). The sorry count dropped by 6 — the largest single-wave reduction since wave 43.
 
-275 of 281 Lean files (97.9%) are sorry-free. 580/583 items (99.5%) sorry-free. Chapters 3, 4, 7, 8 remain 100% sorry-free.
+275 of 281 Lean files (97.9%) are sorry-free. 581/583 items (99.7%) sorry-free. Chapters 3, 4, 7, 8 remain 100% sorry-free.
 
 Key merges since wave 46 (5 PRs merged):
 
@@ -44,21 +44,18 @@ Key merges since wave 46 (5 PRs merged):
 | MoritaStructural (Ch9) | 1 | head_isomorphism (progenerator lift surjectivity) | 0 |
 | Theorem2_1_2 (Ch2) | 1 | Gabriel's theorem (finite rep type ↔ Dynkin) | 0 |
 
-## Open PRs (7)
+## Open PRs (6)
 
 | PR | Title | CI Status | Mergeable |
 |----|-------|-----------|-----------|
 | #2219 | non_ADE_not_finite_type (non-Dynkin → infinite type) | IN_PROGRESS | Yes |
-| #2208 | Corollary6_8_4 mixed vertex case | RE-TRIGGERED | Yes |
-| #2200 | etilde8_not_finite_type via Ẽ_6 subgraph | RE-TRIGGERED | Yes |
-| #2198 | Ẽ_6 representation construction | RE-TRIGGERED | Yes |
-| #2191 | D̃_n infinite type proof | RE-TRIGGERED | Yes |
-| #2183 | YoungSymmetrizer coefficient lemmas (6 sorries) | CANCELLED | **CONFLICTS** |
-| #2175 | Module.Finite infrastructure | RE-TRIGGERED | Yes |
+| #2208 | Corollary6_8_4 mixed vertex case | IN_PROGRESS | Yes |
+| #2200 | etilde8_not_finite_type via Ẽ_6 subgraph | IN_PROGRESS | Yes |
+| #2198 | Ẽ_6 representation construction | IN_PROGRESS | Yes |
+| #2191 | D̃_n infinite type proof | IN_PROGRESS | Yes |
+| #2175 | Module.Finite infrastructure | IN_PROGRESS | Yes |
 
-**CI status notes:** 5 PRs (#2175, #2191, #2198, #2200, #2208) have CI re-triggered and currently running. #2219 is a new PR with CI in progress. #2183 has merge conflicts (superseded by #2221 which merged the coefficient lemmas directly) and CANCELLED CI — should be closed.
-
-**PR #2183 should be closed:** Its content (YoungSymmetrizer coefficient lemmas) was independently proved and merged in #2221. The PR has merge conflicts and stale CI. The remaining sorry reduction it offered (polytabloid_mem_spechtModule) can be pursued separately.
+**CI status notes:** All 6 PRs have CI re-triggered (latest runs IN_PROGRESS as of 2026-04-11). Previous runs were CANCELLED due to runner OOM/disconnects — infrastructure issues, not code problems. PR #2183 was closed (superseded by #2221).
 
 ## Blocked Issues (5)
 
@@ -83,14 +80,16 @@ If all 5 re-triggered PRs pass CI and merge, #2187 and #2174 become unblocked. #
 
 | Issue | Title | Agent |
 |-------|-------|-------|
-| #2217 | Prove polytabloid straightening lemma | Claimed 1 day ago |
-| #2218 | Review 6 re-triggered PRs | Claimed 1 day ago |
+| #2217 | Prove polytabloid straightening lemma | Claimed |
+| #2220 | Meditate wave 47: sorry landscape + pipeline health | Claimed (this session) |
 
 ## Unclaimed Work Items
 
 | Issue | Title | Impact |
 |-------|-------|--------|
 | #2212 | Prove polytabloid_linearIndependent via transfer map | 1→0 sorry (PolytabloidBasis) |
+
+Note: #2218 (review 6 re-triggered PRs) completed — all 6 confirmed as infrastructure failures, CI re-triggered.
 
 ## Dependency Clusters
 
@@ -129,7 +128,7 @@ If all 5 re-triggered PRs pass CI and merge, #2187 and #2174 become unblocked. #
 | 44 | 10 | 8 | 580/583 (99.5%) | 2026-04-05 |
 | 45 | 15 | 8 | 580/583 (99.5%) | 2026-04-06 |
 | 46 | 15 | 8 | 580/583 (99.5%) | 2026-04-08 |
-| **47** | **9** | **6** | **580/583 (99.5%)** | **2026-04-11** |
+| **47** | **9** | **6** | **581/583 (99.7%)** | **2026-04-11** |
 
 After a two-wave plateau at 15 sorries, significant progress resumed. The −6 drop came from three focused efforts: coefficient lemma proofs (#2221), Problem6_9_1 closure (#2215), and TabloidModule cleanup (#2209).
 
