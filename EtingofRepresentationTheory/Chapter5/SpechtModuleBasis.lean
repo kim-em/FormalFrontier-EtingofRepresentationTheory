@@ -502,11 +502,62 @@ private theorem garnir_polytabloid_identity
       -(∑ w : {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1},
         ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
           twistedPolytabloid (la := la) w.val σ)) := by
-  -- The total sum Σ_w sign(w) · f_w(σ) = 0 (from garnirAnnihilate_tabloid
-  -- applied to each q⁻¹σ, multiplied by sign(q), summed over q, sums exchanged).
-  -- This decomposes as: f_1(σ) + Σ_{w≠1} sign(w) · f_w(σ) = 0
-  -- And f_1(σ) = ψ_σ, giving ψ_σ = -Σ_{w≠1} sign(w) · f_w(σ).
-  sorry
+  -- Type abbreviation for the subtype of G-supported permutations
+  set S := { w : Equiv.Perm (Fin n) // ∀ x, x ∉ G → w x = x }
+  -- Step 1: Each garnirAnnihilate_tabloid application gives a zero inner sum
+  have h_garnir_q : ∀ q : ↥(ColumnSubgroup n la),
+      ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w.val * (q.val⁻¹ * σ))) (1 : ℂ)) = 0 := by
+    intro q
+    exact garnirAnnihilate_tabloid (la := la) (q.val⁻¹ * σ) G t ht_row ht_supp ht_sign
+  -- Step 2: The total alternating sum of twisted polytabloids is zero.
+  have h_total : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      twistedPolytabloid (la := la) w.val σ) = 0 := by
+    simp only [twistedPolytabloid, Finset.smul_sum]
+    rw [Finset.sum_comm]
+    apply Finset.sum_eq_zero
+    intro q _
+    simp_rw [smul_comm (↑(↑(Equiv.Perm.sign _) : ℤ) : ℂ)
+      (↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ)]
+    rw [← Finset.smul_sum]
+    simp_rw [mul_assoc]
+    rw [h_garnir_q q, smul_zero]
+  -- Step 3: Split the sum via S ≃ Option T where T = {w // supp ∧ w ≠ 1}
+  -- Equivalence between S and Option T
+  set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1} with hT_def
+  let e : S ≃ Option T :=
+    { toFun := fun s => if h : s.val = 1 then none else some ⟨s.val, s.property, h⟩
+      invFun := fun o => o.casesOn ⟨1, fun _ _ => rfl⟩ (fun w => ⟨w.val, w.property.1⟩)
+      left_inv := fun ⟨w, hw⟩ => by
+        simp only
+        split_ifs with h
+        · exact Subtype.ext h.symm
+        · rfl
+      right_inv := fun o => by
+        cases o with
+        | none => simp
+        | some w => simp [w.property.2] }
+  -- Decompose the S-sum as Option-sum
+  have h_sum_decomp : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) =
+      generalizedPolytabloidTab (n := n) (la := la) σ +
+      ∑ w : T, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) := by
+    -- Reindex via e : S ≃ Option T
+    rw [show ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) =
+        ∑ o : Option T, ((↑(↑(Equiv.Perm.sign ((e.symm o).val)) : ℤ) : ℂ) •
+          twistedPolytabloid (la := la) (e.symm o).val σ) from
+      (Equiv.sum_comp e.symm _).symm]
+    rw [Fintype.sum_option]
+    congr 1
+    · -- The none term: e.symm none = ⟨1, _⟩
+      show ((↑(↑(Equiv.Perm.sign (e.symm none).val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) (e.symm none).val σ) = _
+      have : (e.symm none).val = 1 := rfl
+      rw [this]; simp [twistedPolytabloid_one]
+  rw [h_sum_decomp] at h_total
+  exact eq_neg_of_add_eq_zero_left h_total
 
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each non-identity Garnir permutation w
