@@ -144,17 +144,21 @@ theorem Theorem_2_1_2 (k : Type) [Field k] [IsAlgClosed k]
       IsDynkinDiagram n (quiverUndirectedAdj n) := by
   constructor
   · -- Forward: finite representation type → Dynkin diagram
-    -- The 4 structural conditions hold by construction of quiverUndirectedAdj.
-    -- Positive definiteness: by contrapositive, if the Tits form is not positive definite,
-    -- the graph contains a non-ADE subgraph, giving infinitely many indecomposables.
-    -- This bridge from HasFiniteRepresentationType to IsFiniteTypeQuiver requires that
-    -- the infinite type constructions work for any algebraically closed field and orientation.
+    intro hfrt
+    refine ⟨quiverUndirectedAdj_symm, quiverUndirectedAdj_diag, quiverUndirectedAdj_01,
+      hconn, fun x hx => ?_⟩
+    -- Positive definiteness: if the Tits form is not positive definite on the graph,
+    -- one can construct infinitely many non-isomorphic indecomposable representations
+    -- for any algebraically closed field and any orientation (via extended Dynkin subgraph
+    -- embeddings). This contradicts HasFiniteRepresentationType.
+    -- The bridge requires extracting per-field infinite families from the IsFiniteTypeQuiver
+    -- constructions; this is the essential gap between the two finite type definitions.
     sorry
   · -- Backward: Dynkin diagram → finite representation type
     -- IsDynkinDiagram → IsFiniteTypeQuiver (by Theorem 6.1.5 backward)
     -- → finitely many dim vectors of indecomposables for this k, Q
-    -- Each positive root supports exactly one indecomposable iso class (Gabriel's uniqueness)
-    -- → finitely many iso classes → HasFiniteRepresentationType
+    -- Each positive root supports exactly one indecomposable iso class (Gabriel's uniqueness,
+    -- requires Krull-Schmidt + reflection functor bijectivity on indecomposables).
     sorry
 
 end Etingof
