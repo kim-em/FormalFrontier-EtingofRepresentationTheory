@@ -559,6 +559,30 @@ private theorem garnir_polytabloid_identity
   rw [h_sum_decomp] at h_total
   exact eq_neg_of_add_eq_zero_left h_total
 
+/-- When w ∈ Q_λ, the twisted polytabloid equals ψ_{wσ} = sign(w) · ψ_σ.
+This is because the substitution q ↦ w⁻¹qw (conjugation) gives a bijection
+on Q_λ that transforms the twisted sum into the standard polytabloid sum. -/
+private theorem twistedPolytabloid_col_eq (w : Equiv.Perm (Fin n))
+    (hw : w ∈ ColumnSubgroup n la) (σ : Equiv.Perm (Fin n)) :
+    twistedPolytabloid (la := la) w σ =
+      ((↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) •
+        generalizedPolytabloidTab (n := n) (la := la) σ) := by
+  -- f_w(σ) = Σ_q sign(q) · [w·q⁻¹·σ]
+  -- Change variable: r = wqw⁻¹, so q = w⁻¹rw, q⁻¹ = w⁻¹r⁻¹w
+  -- Then w·q⁻¹·σ = w·w⁻¹·r⁻¹·w·σ = r⁻¹·(wσ)
+  -- sign(q) = sign(w⁻¹rw) = sign(r)
+  -- So f_w(σ) = Σ_{r ∈ wQw⁻¹} sign(r) · [r⁻¹·(wσ)]
+  -- Since w ∈ Q, wQw⁻¹ = Q, so f_w(σ) = ψ_{wσ}
+  -- By generalizedPolytabloidTab_col_mul: ψ_{wσ} = sign(w) · ψ_σ
+  -- Step 1: f_w(σ) = ψ_{wσ} by reindexing via conjugation q ↦ wqw⁻¹
+  suffices h : twistedPolytabloid (la := la) w σ =
+      generalizedPolytabloidTab (n := n) (la := la) (w * σ) by
+    rw [h, generalizedPolytabloidTab_col_mul w hw σ]
+  -- Step 2: Show the sums are equal by reindexing
+  -- f_w(σ) = Σ_q sign(q) · [wq⁻¹σ] and ψ_{wσ} = Σ_q sign(q) · [q⁻¹wσ]
+  -- Reindex ψ_{wσ} via conjugation φ : q ↦ wqw⁻¹ to get f_w(σ)
+  sorry
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each non-identity Garnir permutation w
 produces a "twisted polytabloid" f_w(σ) that lies in the span of
