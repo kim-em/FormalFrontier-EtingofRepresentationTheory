@@ -505,77 +505,29 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
   -- Both quotients are finite over B₂
   haveI : Module.Finite B₂ (Pt ⧸ JP) := inferInstance
   haveI : Module.Finite B₂ (B₂ ⧸ JB) := inferInstance
-  -- Construct the isomorphism via finrank equality + surjection
   -- Both quotients are finite-dimensional over k
   haveI : Module.Finite k Pt := Module.Finite.trans B₂ Pt
   haveI : Module.Finite k (Pt ⧸ JP) := Module.Finite.quotient k JP
   haveI : Module.Finite k (B₂ ⧸ JB) := Module.Finite.quotient k JB
-  -- Key claim: finrank equality over k
-  -- Both heads have finrank_k = n (number of distinct simple B₂-modules),
-  -- because each simple appears with multiplicity 1 (basic algebras + adjunction).
+  -- Both heads are semisimple B₂-modules killed by J₂, hence modules over B₂/J₂.
+  -- By Wedderburn-Artin + basic + alg closed: B₂/J₂ ≅ kⁿ (product of n copies of k).
+  -- Modules over kⁿ are classified by their component dimensions (dim_k eᵢ·M).
   --
-  -- Proof: decompose each semisimple module into simple summands (each dim_k = 1
-  -- by basic). Then finrank = number of summands. The numbers match because:
-  -- - For B₂/JB: number of summands = n (regular module of semisimple B₂/J₂)
-  -- - For Pt/JP: number of summands = n (adjunction: Hom(F(B₁), Sᵢ) ≅ G(Sᵢ),
-  --   dim_k = 1 by basic B₁, so each simple appears exactly once)
-  -- The full formalization requires: (1) k-linear adjunction homEquiv,
-  -- (2) Hom(B₁, M) ≅ M via evaluation at 1, (3) counting summands via finrank.
-  have h_finrank : Module.finrank k (Pt ⧸ JP) = Module.finrank k (B₂ ⧸ JB) := by
-    -- Decompose both semisimple modules into Fin-indexed simple submodules
-    obtain ⟨n₁, S₁, e₁, hS₁⟩ :=
-      IsSemisimpleModule.exists_linearEquiv_fin_dfinsupp (R := B₂) (M := Pt ⧸ JP)
-    obtain ⟨n₂, S₂, e₂, hS₂⟩ :=
-      IsSemisimpleModule.exists_linearEquiv_fin_dfinsupp (R := B₂) (M := B₂ ⧸ JB)
-    -- Transport finrank_k through B₂-linear (hence k-linear) equivs
-    rw [(e₁.restrictScalars k).finrank_eq, (e₂.restrictScalars k).finrank_eq]
-    -- Goal: finrank k (Π₀ i : Fin n₁, ↥(S₁ i)) = finrank k (Π₀ i : Fin n₂, ↥(S₂ i))
-    -- Use finrank_directSum: for Fintype ι, finrank(⨁ i, M i) = Σ finrank(M i)
-    -- DirectSum ι M = DFinsupp (fun i => M i) definitionally
-    -- Over a field k: each summand is free and finite (simple → finrank 1 by basic)
-    haveI : ∀ i, Module.Finite k ↥(S₁ i) := fun i =>
-      Module.Finite.of_injective ((S₁ i).subtype.restrictScalars k) Subtype.val_injective
-    haveI : ∀ i, Module.Finite k ↥(S₂ i) := fun i =>
-      Module.Finite.of_injective ((S₂ i).subtype.restrictScalars k) Subtype.val_injective
-    -- Both DFinsupps decompose into simples, each with finrank_k = 1 (basic algebra),
-    -- so both finranks equal the number of simple summands.
-    -- These numbers are equal because each simple of B₂ appears exactly once in both:
-    --   For Pt/JP: Hom_{B₂}(F(B₁), Sᵢ) ≅_k Hom_{B₁}(B₁, G(Sᵢ)) ≅_k G(Sᵢ),
-    --     dim = 1 by basic B₁ + simple G(Sᵢ) (equivalence preserves simples).
-    --   For B₂/JB: each simple appears once in B₂/J₂ (regular module of semisimple ring).
-    -- Full formalization requires:
-    --   (a) k-linear adjunction (from F.functor.Linear k + comp_smul)
-    --   (b) Hom_{B₁}(B₁, M) ≅ₖ M via evaluation at 1
-    --   (c) finrank of DFinsupp = sum of finranks of components
-    sorry
-  -- Construct a B₂-linear surjection Pt/JP → B₂/JB.
-  -- Strategy: decompose B₂/JB into simples, and for each simple summand
-  -- construct a surjection from Pt/JP using equiv_hom_to_simple_nonzero.
-  -- Since J₂ kills simple modules, maps F(B₁) → S factor through Pt/JP.
-  -- The product of these surjections gives a surjection onto ⊕Sᵢ ≅ B₂/JB.
+  -- For B₂/JB (= B₂/J₂ as regular module): each component eᵢ·(B₂/J₂) ≅ k, dim = 1.
+  -- For Pt/JP: the multiplicity of simple Sᵢ is dim_k Hom_{B₂}(F(B₁), Sᵢ).
+  --   By the adjunction F ⊣ G = F⁻¹ (k-linear since F.functor.Linear k):
+  --     Hom_{B₂}(F(B₁), Sᵢ) ≅_k Hom_{B₁}(B₁, G(Sᵢ)) ≅_k G(Sᵢ)
+  --   Since G preserves simples (simple_of_equivalence for F.symm) and B₁ is basic:
+  --     dim_k G(Sᵢ) = 1.
+  --   So each component has dim 1 → Pt/JP ≅ kⁿ ≅ B₂/JB as B₂-modules.
   --
-  -- Challenge: the product map x ↦ (f₁(x), ..., fₙ(x)) requires simultaneous
-  -- surjectivity. This holds because the fᵢ factor through independent
-  -- simple summands of the semisimple module Pt/JP (multiplicity 1 each).
-  have h_surj_exists : ∃ (φ : (Pt ⧸ JP) →ₗ[B₂] (B₂ ⧸ JB)),
-      Function.Surjective φ := by
-    -- Key: both modules are finite semisimple over B₂ with each simple of
-    -- dim_k = 1 (basic) and equal finrank over k. By the semisimple
-    -- classification (Krull-Schmidt), they are isomorphic, giving a surjection.
-    -- The isomorphism construction uses the decomposition into simples
-    -- and matching corresponding summands.
-    sorry
-  let φ := h_surj_exists.choose
-  have hφ_surj := h_surj_exists.choose_spec
-  -- Surjection + finrank equality → isomorphism
-  -- The B₂-linear map φ is also k-linear (via restriction of scalars).
-  -- By LinearMap.injective_iff_surjective_of_finrank_eq_finrank for k,
-  -- surjectivity implies injectivity (same finrank), hence bijectivity.
-  have h_inj : Function.Injective φ := by
-    have h_surj_k : Function.Surjective (φ.restrictScalars k) := hφ_surj
-    exact (LinearMap.injective_iff_surjective_of_finrank_eq_finrank
-      h_finrank).mpr h_surj_k
-  exact LinearEquiv.ofBijective φ ⟨h_inj, hφ_surj⟩
+  -- Infrastructure needed to close this sorry:
+  -- (1) k-linear Hom adjunction: Hom_{B₂}(F(-), N) ≅_k Hom_{B₁}(-, G(N))
+  --     (from F.toAdjunction.homEquiv + k-linearity via F.functor.Linear k)
+  -- (2) Evaluation isomorphism: Hom_{B₁}(B₁, M) ≅_k M (eval at 1)
+  -- (3) Classification of f.g. modules over kⁿ by component dimensions
+  --     (or equivalently: semisimple module classification for commutative semisimple rings)
+  sorry
 
 private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
