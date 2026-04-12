@@ -329,16 +329,24 @@ print(f'Proof backlog: {backlog} items')
 "
 ```
 
-**As of Wave 43 (2026-04-04):** 579/583 items sorry-free (99.3%), **13 sorries** across 10 files. Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 1 sorry (Theorem2_1_2). Ch5 has 5 sorries (PolytabloidBasis 3, TabloidModule 1, Theorem5_22_1 1). Ch6 has 5 sorries (CoxeterInfrastructure 1, Corollary6_8_4 1, Problem6_1_5_theorem 1, Problem6_9_1 1, Theorem6_5_2 1). Ch9 has 2 sorries (MoritaStructural 2). Statement formalization is complete.
+**As of Wave 49 (2026-04-12):** 581/583 items sorry-free (99.7%), **10 sorries** across 6 files. Ch1, Ch3, Ch4, Ch7, Ch8 are 100% sorry-free. Ch2 has 2 sorries (Theorem2_1_2, decomposed forward+backward). Ch5 has 3 sorries (SpechtModuleBasis 1, Proposition5_22_2 1, FormalCharacterIso 1). Ch6 has 4 sorries (InfiniteTypeConstructions: 3 indecomposability + 1 graph classification). Ch9 has 1 sorry (MoritaStructural). Statement formalization is complete. All definition-level sorries are resolved.
 
-**Wave 40-43 trajectory (14 PRs, #2047–#2092):** Largest single-wave reduction in project history (−12 sorries, −4 files in Wave 43). Mackey Machine cluster fully eliminated without Clifford theory. Weyl Character cluster nearly eliminated (1 sorry, PR #2081 pending). Corollary6_8_3 fully proved. MoritaStructural reduced 4→2.
+**Wave 43-49 trajectory (29 PRs merged in Wave 48-49 alone):**
+- Problem6_1_5_theorem: 1→0 (major theorem closed)
+- Corollary6_8_4: 1→0 (entire file sorry-free)
+- PolytabloidBasis: 3→0 (restructured into SpechtModuleBasis)
+- MoritaStructural: 2→1 (consolidated redundant sorries)
+- Theorem2_1_2: 1→2 (deliberately decomposed)
+- InfiniteTypeConstructions: 0→4 (deliberately decomposed)
+- CI infrastructure fixed (PR #2240: swap space + timeout)
+- 6 previously blocked PRs unblocked and merged
 
-**Endgame characteristics (Wave 43+):** Remaining sorries in 4 clusters:
-- **Cluster A: Polytabloid Basis (4 sorries):** Design blocker — `columnInvCount'` metric provably insufficient for multi-column Garnir. Needs architectural rethink (dominance ordering or new metric).
-- **Cluster B: Weyl Character (1 sorry):** PR #2081 pending CI. If merged, cluster eliminated.
-- **Cluster D: Gabriel Chain (5 sorries):** CoxeterInfrastructure universe blocker prevents Corollary6_8_4. Three other sorries are independent and tractable.
-- **Cluster E: Morita (2 sorries):** Needs progenerator theory or composition series infrastructure.
-- **Primary value-creation patterns:** Decomposition into sub-sorries, bypass approaches (simpler than estimated), and element-level instance bridging. Single-sorry items remain highest-ROI targets.
+**Endgame characteristics (Wave 49):** Remaining sorries in 4 clusters:
+- **Cluster A: Polytabloid/Straightening (3 sorries):** SpechtModuleBasis (Garnir straightening), Proposition5_22_2 (dimension equality), FormalCharacterIso (GL_N complete reducibility, difficulty 8). PR #2272 ready to merge, unblocks #2270/#2271.
+- **Cluster B: Infinite Type Classification (4 sorries):** 3× indecomposability proofs (etilde6v2, etilde7, t125) + graph classification case analysis. All are independent. PR #2278 in flight.
+- **Cluster C: Morita (1 sorry):** head_isomorphism — k-linear Hom adjunction. Clear 3-step plan, difficulty 6, ~100 lines (#2276).
+- **Cluster D: Gabriel's Theorem (2 sorries):** Forward + backward directions. Depends on Clusters B and A. Issues #2255, #2256 blocked on chain.
+- **Primary value-creation patterns:** Decomposition into sub-sorries has been the dominant strategy. Definition refactoring (polytabloid) eliminated 3 sorries at once. CI infrastructure fixes unblocked 6 PRs. Single-sorry items (especially #2276 at difficulty 6) remain highest-ROI targets.
 
 ### Disk Space and Worktree Management (Wave 41)
 
