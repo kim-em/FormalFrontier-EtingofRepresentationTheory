@@ -27,7 +27,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - `reflFunctorPlus_mapLinear_ne_ne` / `reflFunctorMinus_mapLinear_ne_ne` API (missing; needed for reflection functor naturality in the ne/ne case)
    - ~~Definition-level `sorry : Type` for `AlgIrrepGL`~~ — **RESOLVED** (Wave 35): SchurModule constructed in PR #1740, AlgIrrepGL instances via `show ... from inferInstance` in PR #1752. Some downstream definition sorrys remain (`formalCharacter`, `kostkaNumber`).
    - ~~Nilpotent operator structure theorem (cyclic decomposition / Jordan chains) — not in Mathlib, blocks Problem6_9_1.~~ — **RESOLVED** (Wave 47): Problem6_9_1 proved without cyclic decomposition via direct IsCompl argument (#2215).
-   - ~~Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1)~~ — **PARTIALLY RESOLVED** (Wave 42): 3 of 5 Mackey machine sorries proved without full Clifford theory (#2034). Remaining 2 sorries (exists_character_in_rep, exists_nonzero_map_from_induced) have open PRs (#2047, #2049) pending CI fixes. The original 500-line estimate was too pessimistic.
+   - ~~Clifford theory (semidirect product orbit method) — blocks Mackey machine (Theorem5_27_1)~~ — **RESOLVED** (Wave 47): All Mackey machine sorries proved. PRs #2034, #2047, #2049 all merged after CI fix (#2240). The original 500-line estimate was too pessimistic — bypass approaches proved sufficient.
    - ~~`Submodule.map` of complementary submodules through non-injective maps — does NOT preserve complementarity. Problem6_9_1 IsCompl conditions hit this fundamental gap.~~ — **RESOLVED** (Wave 47): Bypassed via 7-step IsCompl proof that avoids map_of_complementary entirely (#2215).
    - `Lemma5_13_3` (Young symmetrizer idempotency) over general fields — currently only works over ℂ. Blocks the trace-based approach to Weyl character formula.
    - Corner ring Morita equivalence (`eAe` Morita equivalent to `A` for full idempotent `e`) — not in Mathlib, ~200-300 lines. Blocks BasicAlgebraExistence.
@@ -36,6 +36,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - `columnInvCount'` as straightening WF order — **PROVEN FALSE** (counterexample in #2104): for partition (2,2), σ = swap(1,2) has columnInvCount' = 1, but Garnir terms can also have columnInvCount' = 1. The correct WF order is tabloid dominance (multiset-based), not pointwise column inversion count. PR #2119 was closed as stale; straightening needs a fresh implementation using `tabloidDominance` from TabloidModule.lean.
    - Non-commutative `TensorProduct` — Mathlib requires `CommSemiring`. Balanced tensor product `A ⊗_{eAe} N` must be built as a manual quotient (~100 lines boilerplate). Blocks corner ring Morita equivalence and BasicAlgebraExistence.
    - `garnir_reduction'` algebraic approach — The standard approach using `a_λ · G = 0` (Garnir element annihilated by row symmetrizer) and Lemma 5.13.1 collapses to a tautology when trying to extract the linear combination. The algebraic identity only shows the existing tabloid is in the span — it doesn't produce the *smaller* tabloids needed for the inductive step. Needs tabloid-level reasoning (James' approach: work with equivalence classes of fillings under row permutations) instead.
+   - Polytabloid transfer map `tabloidProjection(polytabloid T) = polytabloidTab T` — **PROVEN FALSE** (Wave 46-49): For partition (3,2), two distinct SYTs can map to the same inverse-tabloid. The dominance property (`swap_column_dominance`) fails for σ_T⁻¹. 4+ agent sessions were wasted on this approach across issues #2189, #2212. The correct approach uses tabloid-level unitriangularity (Track 2 in TabloidModule.lean), not direct transfer.
 
 2. **Search for existing definitions and infrastructure.** Before defining any concept or building any equivalence/isomorphism, search the codebase:
    ```bash
@@ -50,6 +51,64 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
 5. **Check dependency readiness.** Verify that imports compile and key helper lemmas are sorry-free (or that sorry'd helpers won't block your proof). Use `lake build <module>` for the specific file.
 
 6. **Code the framework before deep analysis.** When a proof has an obvious high-level structure (e.g., "use Schur's lemma + nonvanishing"), code that framework with sorry placeholders within the first 15 minutes. Don't spend the majority of your session analyzing whether the hard step is provable before writing any Lean. The framework commit has value even if the hard sorry remains — it reduces the problem for future agents. Deep mathematical analysis should happen AFTER the framework compiles, focused on the specific sorry goals.
+
+## Endgame Protocol (≥99% Sorry-Free)
+
+When the project is near completion (581/583 items sorry-free as of Wave 49), the remaining sorries are qualitatively different — they're the hardest problems, not low-hanging fruit. Agents must adjust their approach.
+
+### Definition Audit Before Proof Attempts
+
+**When a proof is stuck after 2 attempts, audit the definition against the textbook BEFORE trying more proof approaches.**
+
+The polytabloid definition was non-standard (T-dependent form `κ_T · of(τ) · a_λ` instead of standard `of(τ) · c_λ`). This caused **4+ agent sessions** of wasted work across multiple waves. Once the definition was refactored to match the textbook, 3 sorries were eliminated trivially.
+
+**Checklist when stuck:**
+1. Read the blob file for the relevant definition
+2. Compare the Lean definition's structure against the book's mathematical definition
+3. Check: does the Lean definition use the same decomposition/factoring as the book?
+4. If not, consider whether a definition refactoring would simplify the proof
+5. A definition refactoring that makes proofs trivial is MORE valuable than a clever proof of a bad definition
+
+### Counterexample-First Verification
+
+Before investing a full session in a hard proof, spend 5-10 minutes checking the statement is correct:
+
+1. **Instantiate with concrete examples.** If the theorem is about all graphs with property P, check P for the simplest non-trivial case.
+2. **Check boundary cases.** The hypothesis `h_dim : Module.finrank k M = Module.finrank k (SchurModule k N lam)` was added to `iso_of_formalCharacter_eq_schurPoly` after discovering a counterexample: `M = SchurModule ⊕ det⁻¹`.
+3. **If two "different" accounts/objects produce suspiciously similar data, investigate.**
+
+This saved 2+ sessions in Waves 47-49 by catching false statements early.
+
+### Sorry Decomposition as Primary Strategy
+
+In endgame, **decomposing a hard sorry into 2-4 smaller sorries is often more valuable than attempting the hard sorry directly.**
+
+**When to decompose (not attempt directly):**
+- Difficulty ≥ 7 and no clear single-session proof strategy
+- The proof has independent sub-cases or sub-lemmas
+- Multiple agents could work on different sub-sorries in parallel
+
+**How to decompose well:**
+1. Code the proof framework with `sorry` placeholders for each independent step
+2. Each sorry should have a clear mathematical description in a comment
+3. Each sorry should be independently attackable (no circular dependencies between sub-sorries)
+4. Create issues for each sub-sorry with proper `depends-on` relationships
+
+**Evidence:** Problem6_1_5_theorem (1→0), Theorem2_1_2 (1→2 smaller), InfiniteTypeConstructions (0→4 targeted), PolytabloidBasis (3→0 via restructure) — all used decomposition as the winning strategy.
+
+### When to Accept a Long-Term Sorry
+
+Some sorries may represent genuinely hard formalization work beyond current Mathlib infrastructure. Accept them when:
+- The sorry requires 200+ lines of new mathematical infrastructure not in Mathlib
+- 3+ agents have attempted different approaches and all failed
+- The sorry is not blocking other items (leaf node in dependency graph)
+
+**Current long-term candidates (Wave 49):**
+- `iso_of_glWeightSpace_finrank_eq` — GL_N complete reducibility (difficulty 8)
+- `basic_morita_algEquiv` — requires Krull-Schmidt theorem (not in Mathlib)
+- 3× `*_isIndecomposable` proofs — may require explicit matrix computation
+
+**Never accept a sorry silently.** Document it in an issue with: what's needed, why it's hard, and what would unblock it.
 
 ## Translation Pipeline
 
