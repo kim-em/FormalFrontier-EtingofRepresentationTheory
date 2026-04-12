@@ -2082,7 +2082,7 @@ noncomputable def etilde6v2Rep (m : ℕ) :
 4. These force W₁(tip 2) = W₁(tip 4) and N-invariance
 5. nilpotent_invariant_compl_trivial concludes -/
 
--- For now, sorry the indecomposability and dim vector; we only need the infinite type theorem.
+-- For now, sorry the indecomposability; we only need the infinite type theorem.
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 theorem etilde6v2Rep_isIndecomposable (m : ℕ) :
@@ -2252,6 +2252,73 @@ def etilde7Dim (m : ℕ) (v : Fin 8) : ℕ :=
   | 2 | 5 => 3 * (m + 1)
   | _ => m + 1  -- vertices 4, 7
 
+/-- Embedding ℂ^{3(m+1)} into first 3 blocks of ℂ^{4(m+1)}: (x,y,z) ↦ (x,y,z,0). -/
+noncomputable def embed3to4_ABC (m : ℕ) :
+    (Fin (3 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (4 * (m + 1)) → ℂ) where
+  toFun x i := if h : i.val < 3 * (m + 1) then x ⟨i.val, h⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Embedding ℂ^{3(m+1)} into blocks A,C,D of ℂ^{4(m+1)}: (x,y,z) ↦ (x,0,y,z). -/
+noncomputable def embed3to4_ACD (m : ℕ) :
+    (Fin (3 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (4 * (m + 1)) → ℂ) where
+  toFun x i :=
+    if h : i.val < m + 1 then
+      -- Block A: first component of input
+      x ⟨i.val, by omega⟩
+    else if h2 : m + 1 ≤ i.val ∧ i.val < 2 * (m + 1) then
+      -- Block B: zero
+      0
+    else if h3 : i.val < 4 * (m + 1) then
+      -- Blocks C,D: shift input by -(m+1) to get components 2,3 of input
+      x ⟨i.val - (m + 1), by omega⟩
+    else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Ẽ₇ arm 1 embedding ℂ^{2(m+1)} into ℂ^{4(m+1)}: (p,q) ↦ (p+q, p, 0, Nq).
+    Couples blocks A,B and introduces nilpotent twist in block D. -/
+noncomputable def etilde7Arm1Embed (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (4 * (m + 1)) → ℂ) where
+  toFun w i :=
+    if h : i.val < m + 1 then
+      -- Block A: p + q = w_i + w_{m+1+i}
+      w ⟨i.val, by omega⟩ + w ⟨m + 1 + i.val, by omega⟩
+    else if h2 : i.val < 2 * (m + 1) then
+      -- Block B: p = w_{i-(m+1)} (first component)
+      w ⟨i.val - (m + 1), by omega⟩
+    else if h3 : i.val < 3 * (m + 1) then
+      -- Block C: 0
+      0
+    else
+      -- Block D: Nq = nilpotentShift applied to second component
+      let j := i.val - 3 * (m + 1)
+      if h4 : j + 1 < m + 1 then w ⟨m + 1 + j + 1, by omega⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Match-based map for the Ẽ₇ representation.
+    Arm 1: 1→0 via nilpotent-coupled embedding
+    Arm 2: 4→3→2→0 via identity chain + first-3-blocks embedding
+    Arm 3: 7→6→5→0 via identity chain + blocks-ACD embedding -/
+private noncomputable def etilde7RepMap (m : ℕ) (a b : Fin 8) :
+    (Fin (etilde7Dim m a) → ℂ) →ₗ[ℂ] (Fin (etilde7Dim m b) → ℂ) :=
+  match a, b with
+  -- Arm 1: 1→0
+  | ⟨1, _⟩, ⟨0, _⟩ => etilde7Arm1Embed m
+  -- Arm 2: 4→3→2→0 (chain toward center via first blocks)
+  | ⟨4, _⟩, ⟨3, _⟩ => starEmbed1 m          -- x ↦ (x, 0)
+  | ⟨3, _⟩, ⟨2, _⟩ => embed2to3_AB m        -- (x,y) ↦ (x, y, 0)
+  | ⟨2, _⟩, ⟨0, _⟩ => embed3to4_ABC m       -- (x,y,z) ↦ (x, y, z, 0)
+  -- Arm 3: 7→6→5→0 (chain via blocks A,C,D)
+  | ⟨7, _⟩, ⟨6, _⟩ => starEmbed1 m          -- x ↦ (x, 0)
+  | ⟨6, _⟩, ⟨5, _⟩ => embed2to3_AB m        -- (x,y) ↦ (x, y, 0)
+  | ⟨5, _⟩, ⟨0, _⟩ => embed3to4_ACD m       -- (x,y,z) ↦ (x, 0, y, z)
+  | _, _ => 0
+
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 noncomputable def etilde7Rep (m : ℕ) :
@@ -2261,7 +2328,7 @@ noncomputable def etilde7Rep (m : ℕ) :
     obj := fun v => Fin (etilde7Dim m v) → ℂ
     instAddCommMonoid := fun _ => inferInstance
     instModule := fun _ => inferInstance
-    mapLinear := fun {_ _} _ => 0
+    mapLinear := fun {a b} _ => etilde7RepMap m a b
   }
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
@@ -2387,6 +2454,83 @@ def t125Dim (m : ℕ) (v : Fin 9) : ℕ :=
   | 4 => 5 * (m + 1)
   | _ => m + 1  -- vertex 8
 
+/-- Generic first-blocks embedding: ℂ^{k·(m+1)} ↪ ℂ^{n·(m+1)} for k ≤ n,
+    sending x to (x, 0, ..., 0). -/
+noncomputable def embedFirstBlocks (m : ℕ) (k n : ℕ) (hkn : k ≤ n) :
+    (Fin (k * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (n * (m + 1)) → ℂ) where
+  toFun x i := if h : i.val < k * (m + 1) then x ⟨i.val, h⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Embedding ℂ^{k·(m+1)} into ℂ^{n·(m+1)} skipping block B (positions m+1..2(m+1)-1):
+    (x₁,...,xₖ) ↦ (x₁, 0, x₂, ..., xₖ). Block A gets first component, skip B, then C..onwards. -/
+noncomputable def embedSkipBlockB (m : ℕ) (k n : ℕ) (hkn : k + 1 ≤ n) (hk : 1 ≤ k) :
+    (Fin (k * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (n * (m + 1)) → ℂ) where
+  toFun x i :=
+    if h : i.val < m + 1 then
+      x ⟨i.val, by nlinarith⟩
+    else if h2 : i.val < 2 * (m + 1) then
+      0  -- Block B: skip
+    else if h3 : i.val < (k + 1) * (m + 1) then
+      x ⟨i.val - (m + 1), by
+        have : (k + 1) * (m + 1) = k * (m + 1) + (m + 1) := by ring
+        omega⟩
+    else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- T_{1,2,5} arm 1 embedding: ℂ^{3(m+1)} → ℂ^{6(m+1)}.
+    (p,q,r) ↦ (p+q+r, p+q, p, 0, 0, Nr) where p,q,r are blocks of size (m+1).
+    Couples blocks A,B,C and introduces nilpotent twist in block F. -/
+noncomputable def t125Arm1Embed (m : ℕ) :
+    (Fin (3 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (6 * (m + 1)) → ℂ) where
+  toFun w i :=
+    if h : i.val < m + 1 then
+      -- Block A: p + q + r
+      w ⟨i.val, by omega⟩ + w ⟨m + 1 + i.val, by omega⟩ +
+        w ⟨2 * (m + 1) + i.val, by omega⟩
+    else if h2 : i.val < 2 * (m + 1) then
+      -- Block B: p + q
+      let j := i.val - (m + 1)
+      w ⟨j, by omega⟩ + w ⟨m + 1 + j, by omega⟩
+    else if h3 : i.val < 3 * (m + 1) then
+      -- Block C: p
+      let j := i.val - 2 * (m + 1)
+      w ⟨j, by omega⟩
+    else if h4 : i.val < 5 * (m + 1) then
+      -- Blocks D, E: zero
+      0
+    else
+      -- Block F: Nr (nilpotent shift of third component r)
+      let j := i.val - 5 * (m + 1)
+      if h5 : j + 1 < m + 1 then w ⟨2 * (m + 1) + j + 1, by omega⟩ else 0
+  map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
+  map_smul' c x := by
+    ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
+
+/-- Match-based map for the T_{1,2,5} representation.
+    Arm 1: 1→0 via nilpotent-coupled embedding
+    Arm 2: 3→2→0 via identity chain + first-4-blocks embedding
+    Arm 3: 8→7→6→5→4→0 via identity chain + skip-block-B embedding -/
+private noncomputable def t125RepMap (m : ℕ) (a b : Fin 9) :
+    (Fin (t125Dim m a) → ℂ) →ₗ[ℂ] (Fin (t125Dim m b) → ℂ) :=
+  match a, b with
+  -- Arm 1: 1→0
+  | ⟨1, _⟩, ⟨0, _⟩ => t125Arm1Embed m
+  -- Arm 2: 3→2→0
+  | ⟨3, _⟩, ⟨2, _⟩ => embedFirstBlocks m 2 4 (by omega) -- ℂ^{2(m+1)} → ℂ^{4(m+1)}: x ↦ (x,0,0)
+  -- Need: ℂ^{4(m+1)} → ℂ^{6(m+1)}: first 4 blocks
+  | ⟨2, _⟩, ⟨0, _⟩ => embedFirstBlocks m 4 6 (by omega)
+  -- Arm 3: 8→7→6→5→4→0
+  | ⟨8, _⟩, ⟨7, _⟩ => starEmbed1 m          -- ℂ^{m+1} → ℂ^{2(m+1)}
+  | ⟨7, _⟩, ⟨6, _⟩ => embed2to3_AB m        -- ℂ^{2(m+1)} → ℂ^{3(m+1)}
+  | ⟨6, _⟩, ⟨5, _⟩ => embedFirstBlocks m 3 4 (by omega) -- ℂ^{3(m+1)} → ℂ^{4(m+1)}
+  | ⟨5, _⟩, ⟨4, _⟩ => embedFirstBlocks m 4 5 (by omega) -- ℂ^{4(m+1)} → ℂ^{5(m+1)}
+  | ⟨4, _⟩, ⟨0, _⟩ => embedSkipBlockB m 5 6 (by omega) (by omega) -- ℂ^{5(m+1)} → ℂ^{6(m+1)}: skip B
+  | _, _ => 0
+
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 noncomputable def t125Rep (m : ℕ) :
@@ -2396,7 +2540,7 @@ noncomputable def t125Rep (m : ℕ) :
     obj := fun v => Fin (t125Dim m v) → ℂ
     instAddCommMonoid := fun _ => inferInstance
     instModule := fun _ => inferInstance
-    mapLinear := fun {_ _} _ => 0
+    mapLinear := fun {a b} _ => t125RepMap m a b
   }
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
