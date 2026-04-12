@@ -26,6 +26,7 @@ import Mathlib.Algebra.Category.ModuleCat.Subobject
 import Mathlib.Algebra.Category.ModuleCat.Simple
 import Mathlib.RingTheory.SimpleModule.Isotypic
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
+import Mathlib.CategoryTheory.Preadditive.Schur
 
 universe u v
 
@@ -481,7 +482,7 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
-    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [F.functor.Linear k] :
     let Pt := (F.functor.obj (ModuleCat.of B₁ B₁) : Type u)
     let J₂ := Ring.jacobson B₂
     (Pt ⧸ (J₂ • ⊤ : Submodule B₂ Pt)) ≃ₗ[B₂]
@@ -512,13 +513,57 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
   -- Key claim: finrank equality over k
   -- Both heads have finrank_k = n (number of distinct simple B₂-modules),
   -- because each simple appears with multiplicity 1 (basic algebras + adjunction).
+  --
+  -- Proof: decompose each semisimple module into simple summands (each dim_k = 1
+  -- by basic). Then finrank = number of summands. The numbers match because:
+  -- - For B₂/JB: number of summands = n (regular module of semisimple B₂/J₂)
+  -- - For Pt/JP: number of summands = n (adjunction: Hom(F(B₁), Sᵢ) ≅ G(Sᵢ),
+  --   dim_k = 1 by basic B₁, so each simple appears exactly once)
+  -- The full formalization requires: (1) k-linear adjunction homEquiv,
+  -- (2) Hom(B₁, M) ≅ M via evaluation at 1, (3) counting summands via finrank.
   have h_finrank : Module.finrank k (Pt ⧸ JP) = Module.finrank k (B₂ ⧸ JB) := by
+    -- Decompose both semisimple modules into Fin-indexed simple submodules
+    obtain ⟨n₁, S₁, e₁, hS₁⟩ :=
+      IsSemisimpleModule.exists_linearEquiv_fin_dfinsupp (R := B₂) (M := Pt ⧸ JP)
+    obtain ⟨n₂, S₂, e₂, hS₂⟩ :=
+      IsSemisimpleModule.exists_linearEquiv_fin_dfinsupp (R := B₂) (M := B₂ ⧸ JB)
+    -- Transport finrank_k through B₂-linear (hence k-linear) equivs
+    rw [(e₁.restrictScalars k).finrank_eq, (e₂.restrictScalars k).finrank_eq]
+    -- Goal: finrank k (Π₀ i : Fin n₁, ↥(S₁ i)) = finrank k (Π₀ i : Fin n₂, ↥(S₂ i))
+    -- Use finrank_directSum: for Fintype ι, finrank(⨁ i, M i) = Σ finrank(M i)
+    -- DirectSum ι M = DFinsupp (fun i => M i) definitionally
+    -- Over a field k: each summand is free and finite (simple → finrank 1 by basic)
+    haveI : ∀ i, Module.Finite k ↥(S₁ i) := fun i =>
+      Module.Finite.of_injective ((S₁ i).subtype.restrictScalars k) Subtype.val_injective
+    haveI : ∀ i, Module.Finite k ↥(S₂ i) := fun i =>
+      Module.Finite.of_injective ((S₂ i).subtype.restrictScalars k) Subtype.val_injective
+    -- Both DFinsupps decompose into simples, each with finrank_k = 1 (basic algebra),
+    -- so both finranks equal the number of simple summands.
+    -- These numbers are equal because each simple of B₂ appears exactly once in both:
+    --   For Pt/JP: Hom_{B₂}(F(B₁), Sᵢ) ≅_k Hom_{B₁}(B₁, G(Sᵢ)) ≅_k G(Sᵢ),
+    --     dim = 1 by basic B₁ + simple G(Sᵢ) (equivalence preserves simples).
+    --   For B₂/JB: each simple appears once in B₂/J₂ (regular module of semisimple ring).
+    -- Full formalization requires:
+    --   (a) k-linear adjunction (from F.functor.Linear k + comp_smul)
+    --   (b) Hom_{B₁}(B₁, M) ≅ₖ M via evaluation at 1
+    --   (c) finrank of DFinsupp = sum of finranks of components
     sorry
-  -- Construct a B₂-linear surjection Pt/JP → B₂/JB
-  -- For each simple S of B₂, equiv_hom_to_simple_nonzero gives Pt → S nonzero.
-  -- This factors through Pt/JP since J₂ kills S. Assembling gives a surjection.
+  -- Construct a B₂-linear surjection Pt/JP → B₂/JB.
+  -- Strategy: decompose B₂/JB into simples, and for each simple summand
+  -- construct a surjection from Pt/JP using equiv_hom_to_simple_nonzero.
+  -- Since J₂ kills simple modules, maps F(B₁) → S factor through Pt/JP.
+  -- The product of these surjections gives a surjection onto ⊕Sᵢ ≅ B₂/JB.
+  --
+  -- Challenge: the product map x ↦ (f₁(x), ..., fₙ(x)) requires simultaneous
+  -- surjectivity. This holds because the fᵢ factor through independent
+  -- simple summands of the semisimple module Pt/JP (multiplicity 1 each).
   have h_surj_exists : ∃ (φ : (Pt ⧸ JP) →ₗ[B₂] (B₂ ⧸ JB)),
       Function.Surjective φ := by
+    -- Key: both modules are finite semisimple over B₂ with each simple of
+    -- dim_k = 1 (basic) and equal finrank over k. By the semisimple
+    -- classification (Krull-Schmidt), they are isomorphic, giving a surjection.
+    -- The isomorphism construction uses the decomposition into simples
+    -- and matching corresponding summands.
     sorry
   let φ := h_surj_exists.choose
   have hφ_surj := h_surj_exists.choose_spec
@@ -536,7 +581,7 @@ private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClose
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
-    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [F.functor.Linear k] :
     Σ' (f : (F.functor.obj (ModuleCat.of B₁ B₁)) →ₗ[B₂] B₂),
       Function.Surjective f ∧
       LinearMap.ker f ≤ Ring.jacobson B₂ • (LinearMap.ker f) := by
@@ -633,7 +678,7 @@ private noncomputable def basic_morita_regular_module_iso [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
     (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
-    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) :
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [F.functor.Linear k] :
     F.functor.obj (ModuleCat.of B₁ B₁) ≅ ModuleCat.of B₂ B₂ := by
   -- B₂ is Artinian (finite-dim over field)
   haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
