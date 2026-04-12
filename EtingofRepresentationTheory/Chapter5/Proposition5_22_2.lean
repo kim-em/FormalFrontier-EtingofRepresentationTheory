@@ -271,6 +271,93 @@ private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ
         rw [sub_mul, one_mul, hcoord, sub_self]
       exact (mul_eq_zero.mp h_zero).elim (sub_ne_zero.mpr ht₀) hcf)
 
+/-! ### Weight decomposition for Schur modules
+
+The weight spaces of a Schur module form a direct internal decomposition.
+This is used to show `finrank(L_λ) = ∑_μ finrank(L_λ)_μ = eval₁(schurPoly)`,
+which gives the dimension equality `finrank(L_λ) = finrank(L_{λ+(1,...,1)})`. -/
+
+/-- The Young symmetrizer maps tensor basis elements to weight vectors:
+`c_λ(e_f)` has weight `tensorWeight(f)` because `c_λ` commutes with the torus. -/
+private lemma youngSym_tBasis_weightVector (N : ℕ) (lam : Fin N → ℕ)
+    (f : Fin (∑ i, lam i) → Fin N) (i : Fin N) (t : kˣ) :
+    glTensorRep k N (∑ j, lam j) (diagUnit k N i t)
+      (youngSymEndomorphism k N lam (tBasis (k := k) N (∑ j, lam j) f)) =
+    ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
+      youngSymEndomorphism k N lam (tBasis (k := k) N (∑ j, lam j) f) := by
+  conv_lhs =>
+    rw [show glTensorRep k N (∑ j, lam j) (diagUnit k N i t) ∘ₗ youngSymEndomorphism k N lam =
+      youngSymEndomorphism k N lam ∘ₗ glTensorRep k N (∑ j, lam j) (diagUnit k N i t) from
+      (glTensor_comm_youngSym k N lam (diagUnit k N i t)).symm]
+  simp only [LinearMap.comp_apply, glTensorRep_diagUnit_tBasis, map_smul]
+
+/-- Every element of the Schur module is in the `iSup` of weight spaces.
+Since `L_λ = range(c_λ)` and each `c_λ(e_f)` is a weight vector, every
+element is a finite sum of weight vectors. -/
+private lemma mem_iSup_glWeightSpace_schurModule (N : ℕ) (lam : Fin N → ℕ)
+    (v : SchurModule k N lam) :
+    v ∈ ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) := by
+  -- v ∈ SchurModuleSubmodule = range(youngSymEndomorphism)
+  obtain ⟨w, rfl⟩ : (v : TensorPower k (Fin N → k) (∑ i, lam i)) ∈
+      LinearMap.range (youngSymEndomorphism k N lam) := v.property
+  -- Expand w in the tensor basis
+  set n := ∑ i, lam i
+  set b := tBasis (k := k) N n
+  rw [show w = ∑ f : Fin n → Fin N, b.repr w f • b f from (b.sum_repr w).symm]
+  simp_rw [map_sum, map_smul]
+  -- Each c_λ(e_f) is a weight vector — show the subtype is in the weight space
+  apply Submodule.sum_mem
+  intro f _
+  apply Submodule.smul_mem
+  -- Need: ⟨c_λ(e_f), _⟩ ∈ ⨆_μ glWeightSpace(L_λ, μ)
+  apply Submodule.mem_iSup_of_mem (Finsupp.equivFunOnFinite.symm
+    (fun i => (Finset.univ.filter (fun j => f j = i)).card))
+  -- Need: ⟨c_λ(e_f), _⟩ ∈ glWeightSpace(L_λ, tensorWeight(f))
+  simp only [glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker]
+  intro i t
+  -- Need: ρ(diagUnit(i,t))(c_λ(e_f)) - t^wt · c_λ(e_f) = 0
+  show (SchurModule k N lam).ρ (diagUnit k N i t)
+      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ -
+    ((t : k) ^ (Finsupp.equivFunOnFinite.symm
+      (fun j => (Finset.univ.filter (fun l => f l = j)).card) i)) •
+      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ = 0
+  simp only [Finsupp.equivFunOnFinite_symm_apply_toFun]
+  -- ρ on SchurModule = restriction of glTensorRep
+  have hρ : ((SchurModule k N lam).ρ (diagUnit k N i t)
+      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ : TensorPower k (Fin N → k) n) =
+    glTensorRep k N n (diagUnit k N i t) (youngSymEndomorphism k N lam (b f)) := by
+    simp only [SchurModule, FDRep.of_ρ', schurModuleRep, LinearMap.restrict_coe_apply]
+  ext
+  simp only [Submodule.coe_sub, Submodule.coe_smul_of_tower, ZeroMemClass.coe_zero]
+  rw [hρ, youngSym_tBasis_weightVector k N lam f i t, sub_self]
+
+/-- Weight spaces of the Schur module span the entire module. -/
+private theorem glWeightSpace_schurModule_iSup_eq_top (N : ℕ) (lam : Fin N → ℕ) :
+    ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) = ⊤ := by
+  rw [eq_top_iff]
+  intro v _
+  exact mem_iSup_glWeightSpace_schurModule k N lam v
+
+/-- Weight spaces for distinct weights are disjoint: if `μ ≠ ν`, then
+`glWeightSpace(L, μ) ⊓ glWeightSpace(L, ν) = ⊥`. -/
+private theorem glWeightSpace_disjoint (N : ℕ)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    {μ ν : Fin N → ℕ} (hne : μ ≠ ν) :
+    Disjoint (glWeightSpace k N M μ) (glWeightSpace k N M ν) := by
+  rw [Function.ne_iff] at hne; obtain ⟨i₀, hi₀⟩ := hne
+  rw [Submodule.disjoint_def]
+  intro v hv_μ hv_ν
+  simp only [glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker] at hv_μ hv_ν
+  obtain ⟨t₀, ht₀⟩ := exists_unit_pow_ne k hi₀
+  have h1 : M.ρ (diagUnit k N i₀ t₀) v = ((t₀ : k) ^ μ i₀) • v :=
+    sub_eq_zero.mp (hv_μ i₀ t₀)
+  have h2 : M.ρ (diagUnit k N i₀ t₀) v = ((t₀ : k) ^ ν i₀) • v :=
+    sub_eq_zero.mp (hv_ν i₀ t₀)
+  have h3 : (((t₀ : k) ^ μ i₀) - ((t₀ : k) ^ ν i₀)) • v = 0 := by
+    rw [sub_smul]; exact sub_eq_zero.mpr (h1.symm.trans h2)
+  rw [smul_eq_zero, sub_eq_zero] at h3
+  exact h3.resolve_left ht₀
+
 /-- Key isomorphism: the Schur module `L_{λ+(1,…,1)}` is isomorphic (as a GL_N-representation)
 to the determinant-twisted Schur module `det ⊗ L_λ`.
 
