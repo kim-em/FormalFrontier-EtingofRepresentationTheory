@@ -2480,6 +2480,161 @@ theorem triangle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
+/-- A graph containing a cycle (given as a list of distinct vertices with edges between
+    consecutive elements and a closing edge) has infinite representation type.
+    Proved by strong induction on cycle length: chordless cycles embed into the abstract
+    cycle graph; cycles with chords yield strictly shorter sub-cycles. -/
+theorem graph_with_list_cycle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (cycle : List (Fin n))
+    (hlen : 3 ≤ cycle.length)
+    (hnodup : cycle.Nodup)
+    (hedge : ∀ k, (hk : k + 1 < cycle.length) →
+      adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, hk⟩) = 1)
+    (hclose : adj (cycle.get ⟨cycle.length - 1, by omega⟩)
+                   (cycle.get ⟨0, by omega⟩) = 1) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- Strong induction on cycle length, quantified over all cycles of that length
+  revert cycle hlen hnodup hedge hclose
+  have key : ∀ m, (hm : 3 ≤ m) → ∀ (cyc : List (Fin n)), (hlen : cyc.length = m) → cyc.Nodup →
+      (∀ k, (hk : k + 1 < cyc.length) →
+        adj (cyc.get ⟨k, by omega⟩) (cyc.get ⟨k + 1, hk⟩) = 1) →
+      (adj (cyc.get ⟨cyc.length - 1, by omega⟩) (cyc.get ⟨0, by omega⟩) = 1) →
+      ¬ IsFiniteTypeQuiver n adj := by
+    intro m
+    induction m using Nat.strongRecOn with
+    | _ m ih =>
+      intro hm cyc hcyc_len hcyc_nodup hcyc_edge hcyc_close
+      -- Check if cycle has a chord: ∃ i j with i < j, j - i ≥ 2, not closing edge, adjacent
+      by_cases h_chord :
+        ∃ (i j : Fin cyc.length), i.val < j.val ∧ j.val - i.val ≥ 2 ∧
+          ¬(i.val = 0 ∧ j.val = cyc.length - 1) ∧
+          adj (cyc.get i) (cyc.get j) = 1
+      · -- Chord case: extract shorter sub-cycle and apply IH
+        obtain ⟨p, q, hpq, hdist, hnot_close, hadj_chord⟩ := h_chord
+        -- Extract natural number indices
+        have hi : p.val < cyc.length := p.isLt
+        have hj : q.val < cyc.length := q.isLt
+        have hij : p.val < q.val := hpq
+        have hdist2 : q.val - p.val ≥ 2 := hdist
+        -- The sub-cycle is cyc[p], cyc[p+1], ..., cyc[q] with closing edge from chord
+        set subcyc := (cyc.drop p.val).take (q.val - p.val + 1) with hsubcyc_def
+        have hsublen : subcyc.length = q.val - p.val + 1 := by
+          simp [hsubcyc_def, List.length_take, List.length_drop]; omega
+        have hsublen3 : 3 ≤ q.val - p.val + 1 := by omega
+        have hsublt : q.val - p.val + 1 < m := by
+          subst hcyc_len; push_neg at hnot_close
+          by_cases hp0 : p.val = 0
+          · have := hnot_close hp0; omega
+          · omega
+        -- Sub-cycle elements match original cycle shifted by p
+        have hsubget : ∀ (k : ℕ) (hk : k < subcyc.length),
+            subcyc.get ⟨k, hk⟩ = cyc.get ⟨p.val + k, by rw [hsublen] at hk; omega⟩ := by
+          intro k hk
+          simp only [List.get_eq_getElem, hsubcyc_def, List.getElem_take, List.getElem_drop]
+        -- Nodup
+        have hsub_nodup : subcyc.Nodup :=
+          hcyc_nodup.sublist ((List.take_sublist _ _).trans (List.drop_sublist _ _))
+        -- Consecutive edges
+        have hsub_edge : ∀ k, (hk : k + 1 < subcyc.length) →
+            adj (subcyc.get ⟨k, by omega⟩) (subcyc.get ⟨k + 1, hk⟩) = 1 := by
+          intro k hk
+          rw [hsubget k (by omega), hsubget (k + 1) (by omega)]
+          have hik : p.val + k + 1 < cyc.length := by rw [hsublen] at hk; omega
+          have : cyc.get ⟨p.val + (k + 1), by omega⟩ = cyc.get ⟨p.val + k + 1, hik⟩ := by
+            congr 1
+          rw [this]
+          exact hcyc_edge (p.val + k) hik
+        -- Closing edge: adj(cyc[q], cyc[p]) = 1 (the chord, via symmetry)
+        have hsub_close : adj (subcyc.get ⟨subcyc.length - 1, by omega⟩)
+            (subcyc.get ⟨0, by omega⟩) = 1 := by
+          rw [hsubget _ (by omega), hsubget 0 (by omega)]
+          have h1 : cyc.get ⟨p.val + (subcyc.length - 1), by omega⟩ = cyc.get q := by
+            congr 1; ext; simp [hsublen]; omega
+          have h2 : cyc.get ⟨p.val + 0, by omega⟩ = cyc.get p := by
+            congr 1
+          rw [h1, h2, hsymm.apply]; exact hadj_chord
+        exact ih (q.val - p.val + 1) hsublt hsublen3 subcyc hsublen hsub_nodup hsub_edge
+          hsub_close
+      · -- Chordless case: embed into cycle graph
+        push_neg at h_chord
+        -- The embedding φ : Fin m → Fin n sends i to cyc[i]
+        let φ_fun : Fin m → Fin n := fun i => cyc.get ⟨i.val, by omega⟩
+        have hφ_inj : Function.Injective φ_fun := by
+          intro a b hab
+          simp only [φ_fun] at hab
+          exact Fin.ext (Fin.mk.inj (hcyc_nodup.injective_get hab))
+        let φ : Fin m ↪ Fin n := ⟨φ_fun, hφ_inj⟩
+        have hembed : ∀ i j, cycleAdj m hm i j = adj (φ i) (φ j) := by
+          intro ⟨i, hi⟩ ⟨j, hj⟩
+          simp only [cycleAdj, φ, φ_fun]
+          split_ifs with h
+          · -- Adjacent in cycle → adj = 1
+            rcases h with h_fwd | h_bwd
+            · -- j = (i + 1) % m
+              by_cases him : i + 1 < m
+              · rw [Nat.mod_eq_of_lt him] at h_fwd; subst h_fwd
+                exact (hcyc_edge i (by omega)).symm
+              · have hi_eq : i = m - 1 := by omega
+                rw [hi_eq, show m - 1 + 1 = m from by omega, Nat.mod_self] at h_fwd
+                subst hi_eq; subst h_fwd
+                have := hcyc_close.symm; convert this using 2; all_goals (ext; simp_all)
+            · -- i = (j + 1) % m (symmetric case)
+              by_cases hjm : j + 1 < m
+              · rw [Nat.mod_eq_of_lt hjm] at h_bwd; subst h_bwd
+                rw [hsymm.apply]; exact (hcyc_edge j (by omega)).symm
+              · have hj_eq : j = m - 1 := by omega
+                rw [hj_eq, show m - 1 + 1 = m from by omega, Nat.mod_self] at h_bwd
+                subst hj_eq; subst h_bwd
+                rw [hsymm.apply]
+                have := hcyc_close.symm; convert this using 2; all_goals (ext; simp_all)
+          · -- Not adjacent in cycle → adj = 0
+            push_neg at h
+            by_cases hij : i = j
+            · subst hij; exact (hdiag _).symm
+            · -- Distinct non-adjacent: no chord → adj = 0
+              -- Convert h from modular to direct form
+              have h_not_fwd : j ≠ (i + 1) % m := h.1
+              have h_not_bwd : i ≠ (j + 1) % m := h.2
+              rcases Nat.lt_or_ge i j with h_lt | h_ge
+              · -- i < j
+                have hdist : j - i ≥ 2 := by
+                  by_contra hd; push_neg at hd
+                  have hji : j = i + 1 := by omega
+                  subst hji; exact h_not_fwd (Nat.mod_eq_of_lt (by omega)).symm
+                have hnotclose : i = 0 → j ≠ cyc.length - 1 := by
+                  intro hi0; subst hi0
+                  intro hjm; rw [hcyc_len] at hjm; subst hjm
+                  -- h_not_bwd : 0 ≠ (m-1+1) % m = 0 ≠ 0, contradiction
+                  exact h_not_bwd (by rw [show m - 1 + 1 = m from by omega, Nat.mod_self])
+                have h_not1 := h_chord ⟨i, by omega⟩ ⟨j, by omega⟩ h_lt hdist hnotclose
+                rcases h01 (cyc.get ⟨i, by omega⟩) (cyc.get ⟨j, by omega⟩) with h0 | h1
+                · exact h0.symm
+                · exact absurd h1 h_not1
+              · -- j < i
+                have h_lt : j < i := by omega
+                have hdist : i - j ≥ 2 := by
+                  by_contra hd; push_neg at hd
+                  have hij2 : i = j + 1 := by omega
+                  subst hij2; exact h_not_bwd (Nat.mod_eq_of_lt (by omega)).symm
+                have hnotclose : j = 0 → i ≠ cyc.length - 1 := by
+                  intro hj0; subst hj0
+                  intro him; rw [hcyc_len] at him; subst him
+                  -- h_not_fwd : 0 ≠ (m-1+1) % m = 0 ≠ 0, contradiction
+                  exact h_not_fwd (by rw [show m - 1 + 1 = m from by omega, Nat.mod_self])
+                have h_not1 := h_chord ⟨j, by omega⟩ ⟨i, by omega⟩ h_lt hdist hnotclose
+                rcases h01 (cyc.get ⟨i, by omega⟩) (cyc.get ⟨j, by omega⟩) with h0 | h1
+                · exact h0.symm
+                · rw [hsymm.apply] at h1; exact absurd h1 h_not1
+        exact subgraph_infinite_type_transfer φ adj (cycleAdj m hm) hsymm
+          (fun v hv => by linarith [hdiag v]) hembed (cycle_not_finite_type m hm)
+  intro cycle hlen hnodup hedge hclose
+  exact key cycle.length hlen cycle rfl hnodup hedge hclose
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
 /-- A graph with a vertex of degree ≥ 4 has infinite representation type.
     Either 4 neighbors are pairwise non-adjacent (star subgraph), or two neighbors
     are adjacent (triangle/cycle). No triangle-free hypothesis needed. -/
