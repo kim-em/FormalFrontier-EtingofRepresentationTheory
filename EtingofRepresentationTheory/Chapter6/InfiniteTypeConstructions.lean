@@ -2840,24 +2840,6 @@ theorem chordless_cycle_infinite_type {n k : ℕ} (adj : Matrix (Fin n) (Fin n) 
   subgraph_infinite_type_transfer φ adj (cycleAdj k hk) hsymm
     (fun v h => by linarith [hdiag v]) hembed (cycle_not_finite_type k hk)
 
-/-- In a connected simple graph with all degrees ≤ 3 and a cycle (given as a list),
-    the graph has infinite representation type.
-
-    Strategy: extract a shortest cycle from the graph (which is necessarily chordless),
-    then apply `chordless_cycle_infinite_type`. If the shortest cycle has a potential chord,
-    it would create a shorter cycle, contradicting minimality. -/
-theorem graph_with_list_cycle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
-    (hsymm : adj.IsSymm)
-    (hdiag : ∀ i, adj i i = 0)
-    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
-    (cycle : List (Fin n)) (hlen : 3 ≤ cycle.length) (hnodup : cycle.Nodup)
-    (hedges : ∀ k, (h : k + 1 < cycle.length) →
-      adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1)
-    (hclose : adj (cycle.getLast (by intro h; simp [h] at hlen))
-      (cycle.get ⟨0, by omega⟩) = 1) :
-    ¬ IsFiniteTypeQuiver n adj := by
-  sorry
-
 /-- Strong induction helper: for a connected acyclic graph with all degrees < 3
     and a designated leaf e, the Cartan form satisfies Q(x) ≥ x(e)² (hence ≥ 0)
     and Q(x) > 0 for all x ≠ 0.
@@ -3564,8 +3546,11 @@ theorem not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     -- Case 2: graph contains a cycle
     by_cases h_cycle : HasCycle
     · obtain ⟨cycle, hlen, hnodup, hedges, hclose⟩ := h_cycle
+      have hclose' : adj (cycle.get ⟨cycle.length - 1, by omega⟩)
+          (cycle.get ⟨0, by omega⟩) = 1 := by
+        rwa [List.getLast_eq_getElem] at hclose
       exact graph_with_list_cycle_infinite_type adj hsymm hdiag h01
-        cycle hlen hnodup hedges hclose
+        cycle hlen hnodup hedges hclose'
     · -- No cycle: graph is acyclic (a tree since it's connected)
       have h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
           (∀ k, (h : k + 1 < cycle.length) →
