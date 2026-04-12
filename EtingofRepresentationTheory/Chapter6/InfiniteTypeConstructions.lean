@@ -3987,15 +3987,153 @@ private theorem single_branch_leaf_case {n : ℕ}
           exact subgraph_infinite_type_transfer φ adj etilde7Adj hsymm
             (fun v h => by linarith [hdiag v]) hembed
             etilde7_not_finite_type
-        · -- b₃ is leaf: T(1,≥3,2), further analysis needed
-          -- (embed T(1,2,5) if arm 2 ≥ 5, else ADE contradiction)
-          sorry
-      · -- b₂ is leaf: T(1,2,≥2), further analysis needed
-        -- (embed T(1,2,5) if arm 3 ≥ 5, else ADE contradiction)
-        sorry
-    · -- a₃ has degree 1 (leaf): T(1,1,≥2) = D-type → ADE → posdef → contradiction
+        · -- b₃ is leaf (T(1,≥3,2)): arm2 has length ≥ 3, arm3 has length 2.
+          -- The tree is T(1,q,2) with q ≥ 3.
+          -- ADE types: T(1,3,2)=E₆, T(1,4,2)=E₇, T(1,5,2)=E₈ → positive definite.
+          -- If arm2 ≥ 6 (i.e. q ≥ 6): embed T(1,2,5) → infinite type.
+          -- Extract c₂ (neighbor of b₂ past a₂), then case split on further extensions.
+          have hb₃_deg1 : vertexDegree adj b₃ = 1 := by
+            have := h_deg_le2 b₃ hb₃_ne_v₀; omega
+          obtain ⟨c₂, hc₂_eq⟩ := extract_other b₂ a₂
+            ((adj_comm b₂ a₂).trans hb₂_adj) h_b2_ext
+          have hc₂_mem : c₂ ∈ (Finset.univ.filter (adj b₂ · = 1)).erase a₂ :=
+            hc₂_eq ▸ Finset.mem_singleton_self c₂
+          have hc₂_adj : adj b₂ c₂ = 1 :=
+            (Finset.mem_filter.mp (Finset.mem_of_mem_erase hc₂_mem)).2
+          have hc₂_ne_a₂ : c₂ ≠ a₂ := Finset.ne_of_mem_erase hc₂_mem
+          have hc₂_deg_ge1 : 1 ≤ vertexDegree adj c₂ :=
+            Finset.card_pos.mpr ⟨b₂, Finset.mem_filter.mpr
+              ⟨Finset.mem_univ _, (adj_comm c₂ b₂).trans hc₂_adj⟩⟩
+          by_cases h_c2_ext : vertexDegree adj c₂ = 2
+          · -- arm2 ≥ 4 (c₂ extends): extract d₂, then further split
+            obtain ⟨d₂, hd₂_eq⟩ := extract_other c₂ b₂
+              ((adj_comm c₂ b₂).trans hc₂_adj) h_c2_ext
+            have hd₂_mem : d₂ ∈ (Finset.univ.filter (adj c₂ · = 1)).erase b₂ :=
+              hd₂_eq ▸ Finset.mem_singleton_self d₂
+            have hd₂_adj : adj c₂ d₂ = 1 :=
+              (Finset.mem_filter.mp (Finset.mem_of_mem_erase hd₂_mem)).2
+            have hd₂_ne_b₂ : d₂ ≠ b₂ := Finset.ne_of_mem_erase hd₂_mem
+            have hd₂_deg_ge1 : 1 ≤ vertexDegree adj d₂ :=
+              Finset.card_pos.mpr ⟨c₂, Finset.mem_filter.mpr
+                ⟨Finset.mem_univ _, (adj_comm d₂ c₂).trans hd₂_adj⟩⟩
+            by_cases h_d2_ext : vertexDegree adj d₂ = 2
+            · -- arm2 ≥ 5 (d₂ extends): extract e₂, then further split
+              obtain ⟨e₂, he₂_eq⟩ := extract_other d₂ c₂
+                ((adj_comm d₂ c₂).trans hd₂_adj) h_d2_ext
+              have he₂_mem : e₂ ∈ (Finset.univ.filter (adj d₂ · = 1)).erase c₂ :=
+                he₂_eq ▸ Finset.mem_singleton_self e₂
+              have he₂_adj : adj d₂ e₂ = 1 :=
+                (Finset.mem_filter.mp (Finset.mem_of_mem_erase he₂_mem)).2
+              have he₂_ne_c₂ : e₂ ≠ c₂ := Finset.ne_of_mem_erase he₂_mem
+              by_cases h_e2_ext : vertexDegree adj e₂ = 2
+              · -- arm2 ≥ 6: T(1,≥6,2) contains T(1,5,2) = T(1,2,5) = E₈ extended.
+                -- Embed T(1,2,5) using vertices leaf, v₀, a₂, b₂, c₂, d₂, e₂, a₃, b₃.
+                -- t125Adj: 0-center, 1-leaf1, 0-2-3, 0-4-5-6-7-8
+                -- Map: 0→v₀, 1→leaf, 2→a₂, 3→b₂, 4→a₃, 5→b₃(?), but b₃ is a leaf...
+                -- Actually T(1,2,5): arms of length 1,2,5 from center.
+                -- We have: leaf(arm1), a₂-b₂(arm2 not quite...), longer arm...
+                -- Embed: 0→v₀, 1→leaf, 2→a₃, 3→b₃, 4→a₂, 5→b₂, 6→c₂, 7→d₂, 8→e₂
+                -- arm1: leaf (length 1), arm2: a₃-b₃ (length 2), arm3: a₂-b₂-c₂-d₂-e₂ (≥5)
+                -- But b₃ has degree 1 (= leaf in this arm), so T(1,2,≥5): embed T(1,2,5).
+                sorry -- embed T(1,2,5): leaf-v₀-a₃-b₃ (arm2) and v₀-a₂-b₂-c₂-d₂-e₂ (arm5+)
+              · -- e₂ is leaf: arm2 has length exactly 5. T(1,5,2)=T(1,2,5)=E₈ → posdef → contradiction
+                exfalso
+                apply h_not_posdef
+                sorry -- T(1,5,2) = E₈ is positive definite
+            · -- d₂ is leaf: arm2 has length exactly 4. T(1,4,2)=T(1,2,4)=E₇ → posdef → contradiction
+              exfalso
+              apply h_not_posdef
+              sorry -- T(1,4,2) = E₇ is positive definite
+          · -- c₂ is leaf: arm2 has length exactly 3. T(1,3,2)=T(1,2,3)=E₆ → posdef → contradiction
+            exfalso
+            apply h_not_posdef
+            sorry -- T(1,3,2) = E₆ is positive definite
+      · -- b₂ is leaf (arm2 length = 2): T(1,2,≥q) with q ≥ 2 (arm3 = a₃-b₃-...).
+        -- T(1,2,3)=E₆, T(1,2,4)=E₇, T(1,2,5)=E₈ → posdef contradiction; T(1,2,≥6) → embed T(1,2,5).
+        have hb₂_deg1 : vertexDegree adj b₂ = 1 := by
+          have := h_deg_le2 b₂ hb₂_ne_v₀; omega
+        -- Case split on whether b₃ has degree 2 (arm3 extends beyond b₃)
+        by_cases h_b3_ext' : vertexDegree adj b₃ = 2
+        · obtain ⟨c₃, hc₃_eq⟩ := extract_other b₃ a₃
+            ((adj_comm b₃ a₃).trans hb₃_adj) h_b3_ext'
+          have hc₃_mem : c₃ ∈ (Finset.univ.filter (adj b₃ · = 1)).erase a₃ :=
+            hc₃_eq ▸ Finset.mem_singleton_self c₃
+          have hc₃_adj : adj b₃ c₃ = 1 :=
+            (Finset.mem_filter.mp (Finset.mem_of_mem_erase hc₃_mem)).2
+          have hc₃_ne_a₃ : c₃ ≠ a₃ := Finset.ne_of_mem_erase hc₃_mem
+          have hc₃_deg_ge1 : 1 ≤ vertexDegree adj c₃ :=
+            Finset.card_pos.mpr ⟨b₃, Finset.mem_filter.mpr
+              ⟨Finset.mem_univ _, (adj_comm c₃ b₃).trans hc₃_adj⟩⟩
+          by_cases h_c3_ext : vertexDegree adj c₃ = 2
+          · obtain ⟨d₃, hd₃_eq⟩ := extract_other c₃ b₃
+              ((adj_comm c₃ b₃).trans hc₃_adj) h_c3_ext
+            have hd₃_mem : d₃ ∈ (Finset.univ.filter (adj c₃ · = 1)).erase b₃ :=
+              hd₃_eq ▸ Finset.mem_singleton_self d₃
+            have hd₃_adj : adj c₃ d₃ = 1 :=
+              (Finset.mem_filter.mp (Finset.mem_of_mem_erase hd₃_mem)).2
+            have hd₃_ne_b₃ : d₃ ≠ b₃ := Finset.ne_of_mem_erase hd₃_mem
+            by_cases h_d3_ext : vertexDegree adj d₃ = 2
+            · obtain ⟨e₃, he₃_eq⟩ := extract_other d₃ c₃
+                ((adj_comm d₃ c₃).trans hd₃_adj) h_d3_ext
+              have he₃_mem : e₃ ∈ (Finset.univ.filter (adj d₃ · = 1)).erase c₃ :=
+                he₃_eq ▸ Finset.mem_singleton_self e₃
+              have he₃_adj : adj d₃ e₃ = 1 :=
+                (Finset.mem_filter.mp (Finset.mem_of_mem_erase he₃_mem)).2
+              have he₃_ne_c₃ : e₃ ≠ c₃ := Finset.ne_of_mem_erase he₃_mem
+              by_cases h_e3_ext : vertexDegree adj e₃ = 2
+              · -- arm3 ≥ 6: T(1,2,≥6) contains T(1,2,5). Embed:
+                -- 0→v₀, 1→leaf, 2→a₂, 3→b₂, 4→a₃, 5→b₃, 6→c₃, 7→d₃, 8→e₃
+                -- T(1,2,5): center(0), arm1=1(1), arm2=2-3(2), arm3=4-5-6-7-8(5)
+                sorry -- embed T(1,2,5): arm3 has length ≥ 5
+              · -- e₃ is leaf: arm3 length = 5. T(1,2,5) = E₈ → posdef → contradiction
+                exfalso; apply h_not_posdef
+                sorry -- T(1,2,5) = E₈ is positive definite
+            · -- d₃ is leaf: arm3 length = 4. T(1,2,4) = E₇ → posdef → contradiction
+              exfalso; apply h_not_posdef
+              sorry -- T(1,2,4) = E₇ is positive definite
+          · -- c₃ is leaf: arm3 length = 3. T(1,2,3) = E₆ → posdef → contradiction
+            exfalso; apply h_not_posdef
+            sorry -- T(1,2,3) = E₆ is positive definite
+        · -- b₃ is also leaf: arm3 length = 2. T(1,2,2) = D₅ → posdef → contradiction
+          exfalso; apply h_not_posdef
+          sorry -- T(1,2,2) = D₅ is positive definite
+    · -- a₃ has degree 1 (leaf): T(1,≥2,1) = D-type → positive definite → contradiction
+      -- a₂ has degree 2, a₃ has degree 1.
+      -- v₀ has three neighbors: leaf (deg 1), a₂ (deg 2), a₃ (deg 1).
+      -- The Cartan form of a D-type tree is positive definite.
+      -- QF(x) = QF_path(x|path) + (x(v₀) - x(leaf) - x(a₃))² + (x(leaf) - x(a₃))²
+      -- where QF_path is the QF of the path leaf-v₀-a₂-...(end) (all degrees ≤ 2 in path).
+      -- QF_path ≥ 0, and all three summands = 0 implies x(leaf) = x(a₃) = x(v₀) = 0,
+      -- then QF_path = 0 implies all path vertices = 0, hence x = 0.
+      have ha₃_deg1 : vertexDegree adj a₃ = 1 := by
+        have hle := h_deg_le2 a₃ ha₃_ne_v₀
+        have hge : 1 ≤ vertexDegree adj a₃ :=
+          Finset.card_pos.mpr ⟨v₀, Finset.mem_filter.mpr
+            ⟨Finset.mem_univ _, (adj_comm a₃ v₀).trans ha₃_adj⟩⟩
+        omega
+      exfalso
+      apply h_not_posdef
+      -- Prove: D-type tree (leaf-v₀-a₂-..., a₃ hanging off v₀) has positive definite Cartan form
+      intro x hx
+      -- Key decomposition: QF adj x = QF_path(x) + (x v₀ - x leaf - x a₃)² + (x leaf - x a₃)²
+      -- where QF_path counts only edges incident to the path leaf-v₀-a₂-... (not the a₃ edge)
+      -- and QF_path ≥ (x v₀)²  by acyclic_path_posdef_aux applied to path v₀-a₂-...
       sorry
-  · -- a₂ has degree 1: T(1,≥1,1) → similar to above by symmetry
+  · -- a₂ has degree 1 (leaf): T(1,≥1,1) — symmetric to the a₃ leaf case.
+    -- v₀ has three neighbors: leaf (deg 1), a₂ (deg 1), a₃ (deg ≤ 2).
+    -- The tree is D-type (or has leaf+a₂ both as leaves) → positive definite → contradiction.
+    have ha₂_deg1 : vertexDegree adj a₂ = 1 := by
+      have hle := h_deg_le2 a₂ ha₂_ne_v₀
+      have hge : 1 ≤ vertexDegree adj a₂ :=
+        Finset.card_pos.mpr ⟨v₀, Finset.mem_filter.mpr
+          ⟨Finset.mem_univ _, (adj_comm a₂ v₀).trans ha₂_adj⟩⟩
+      omega
+    -- The tree has two leaf neighbors of v₀: leaf and a₂.
+    -- QF(x) ≥ (x v₀ - x leaf - x a₂)² + (x leaf - x a₂)² + QF_path(x|arm_a₃)
+    -- where QF_path ≥ 0, and equality forces x = 0.
+    exfalso
+    apply h_not_posdef
+    intro x hx
     sorry
 
 set_option maxHeartbeats 3200000 in
