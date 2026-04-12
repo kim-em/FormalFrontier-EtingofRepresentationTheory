@@ -428,23 +428,119 @@ polytabloidTabs with strictly fewer row inversions. This uses:
 1. `garnirAnnihilate_tabloid` — the tabloid-level Garnir identity
 2. Dominance analysis — Garnir permutations produce more dominant tabloids
 3. Column re-standardization — reducing back to column-standard form
+
+## Proof strategy
+
+Given column-standard σ with rowInvCount' > 0:
+1. Find a row inversion pair (p₁, p₂): same row, col(p₁) < col(p₂), σ⁻¹(p₁) > σ⁻¹(p₂).
+2. Construct the Garnir set G for an appropriate column pair (connecting the
+   row containing the inversion to an adjacent row). G contains a row pair,
+   enabling `garnirAnnihilate_tabloid`.
+3. Apply the Garnir identity to each tabloid [q⁻¹σ] in ψ_σ's expansion:
+     0 = Σ_w sign(w) · [w·q⁻¹·σ]   (for each q ∈ Q_λ)
+4. Sum over q with sign(q) and exchange sum order to get:
+     ψ_σ = -Σ_{w≠1} sign(w) · f_w(σ)
+   where f_w(σ) = Σ_{q ∈ Q_λ} sign(q) · [w·q⁻¹·σ] is a "twisted polytabloid"
+   (column antisymmetrization of w·σ over the conjugated column subgroup wQ_λw⁻¹).
+5. Show each twisted polytabloid f_w(σ) is in the span of {ψ_τ : τ column-standard,
+   rowInvCount'(τ) < rowInvCount'(σ)}, using dominance theory.
+
+## Sorry decomposition
+
+The proof is decomposed into two sub-problems:
+- `garnir_polytabloid_identity`: the algebraic identity from step 4
+- `garnir_twisted_in_lower_span`: the combinatorial bound from step 5
 -/
 
-/-- **Garnir straightening step** (key sorry):
+/-- When rowInvCount' > 0, there exists a row inversion pair: two positions
+in the same row with increasing column but decreasing entry. -/
+private lemma exists_row_inversion_pair (σ : Equiv.Perm (Fin n))
+    (h : 0 < rowInvCount' (la := la) σ) :
+    ∃ p₁ p₂ : Fin n,
+      rowOfPos la.sortedParts p₁.val = rowOfPos la.sortedParts p₂.val ∧
+      colOfPos la.sortedParts p₁.val < colOfPos la.sortedParts p₂.val ∧
+      σ.symm p₂ < σ.symm p₁ := by
+  rw [rowInvCount', Finset.card_pos] at h
+  obtain ⟨⟨p₁, p₂⟩, hp⟩ := h
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hp
+  exact ⟨p₁, p₂, hp⟩
+
+/-- The "twisted polytabloid" f_w(σ): the column antisymmetrization of σ
+with respect to a Garnir permutation w. When w = 1, this equals ψ_σ.
+When w ≠ 1, this is a sum over the conjugated column subgroup wQ_λw⁻¹. -/
+private noncomputable def twistedPolytabloid
+    (w σ : Equiv.Perm (Fin n)) : TabloidRepresentation n la :=
+  haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+  ∑ q : ↥(ColumnSubgroup n la),
+    ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+      Finsupp.single (toTabloid n la (w * q.val⁻¹ * σ)) 1)
+
+/-- When w = 1, the twisted polytabloid equals the generalized polytabloid. -/
+private theorem twistedPolytabloid_one (σ : Equiv.Perm (Fin n)) :
+    twistedPolytabloid (la := la) 1 σ =
+      generalizedPolytabloidTab (n := n) (la := la) σ := by
+  simp [twistedPolytabloid, generalizedPolytabloidTab, one_mul]
+
+/-- **Garnir polytabloid identity** (sub-sorry 1 of 2):
+The Garnir identity, applied to each tabloid in ψ_σ's expansion and regrouped,
+expresses ψ_σ as a negated sum of "twisted polytabloids":
+  ψ_σ = -Σ_{w ≠ 1, w supported on G} sign(w) · f_w(σ)
+
+This follows from `garnirAnnihilate_tabloid` by:
+1. For each q ∈ Q_λ: Σ_w sign(w) · [w·q⁻¹·σ] = 0
+2. Multiply by sign(q) and sum over q: Σ_q sign(q) Σ_w sign(w) · [wq⁻¹σ] = 0
+3. Exchange sum order: Σ_w sign(w) · f_w(σ) = 0
+4. Extract w=1 term: ψ_σ + Σ_{w≠1} sign(w) · f_w(σ) = 0
+
+Difficulty: 5. Purely algebraic sum manipulation using `garnirAnnihilate_tabloid`. -/
+private theorem garnir_polytabloid_identity
+    (σ : Equiv.Perm (Fin n))
+    (G : Finset (Fin n)) (t : Equiv.Perm (Fin n))
+    (ht_row : t ∈ RowSubgroup n la) (ht_supp : ∀ x, x ∉ G → t x = x)
+    (ht_sign : Equiv.Perm.sign t = -1) :
+    generalizedPolytabloidTab (n := n) (la := la) σ =
+      -(∑ w : {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1},
+        ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+          twistedPolytabloid (la := la) w.val σ)) := by
+  -- The total sum Σ_w sign(w) · f_w(σ) = 0 (from garnirAnnihilate_tabloid
+  -- applied to each q⁻¹σ, multiplied by sign(q), summed over q, sums exchanged).
+  -- This decomposes as: f_1(σ) + Σ_{w≠1} sign(w) · f_w(σ) = 0
+  -- And f_1(σ) = ψ_σ, giving ψ_σ = -Σ_{w≠1} sign(w) · f_w(σ).
+  sorry
+
+/-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
+For column-standard σ with row inversion, each non-identity Garnir permutation w
+produces a "twisted polytabloid" f_w(σ) that lies in the span of
+{ψ_τ : τ column-standard, rowInvCount'(τ) < rowInvCount'(σ)}.
+
+The proof requires:
+1. Column-restandardize wσ: find q₀ ∈ Q_λ with q₀·w·σ column-standard.
+2. Express f_w(σ) as a ℂ-combination of standard generalized polytabloids.
+3. Use dominance theory to show the resulting tabloids are strictly more
+   dominant, giving strictly fewer row inversions after restandardization.
+
+Difficulty: 8. Combinatorial heart of the straightening theorem
+(James Ch. 7-8 / Fulton Ch. 7). -/
+private theorem garnir_twisted_in_lower_span
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (hrp : 0 < rowInvCount' (la := la) σ)
+    (G : Finset (Fin n))
+    (w : Equiv.Perm (Fin n)) (hw_supp : ∀ x, x ∉ G → w x = x)
+    (hw_ne : w ≠ 1) :
+    twistedPolytabloid (la := la) w σ ∈
+    Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+        isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+      generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
+  sorry
+
+/-- **Garnir straightening step**:
 For column-standard σ with positive row inversion count, the generalized
 polytabloidTab ψ_σ lies in the ℂ-span of {ψ_{σ'} : σ' column-standard,
 rowInvCount'(σ') < rowInvCount'(σ)}.
 
-This is the core combinatorial content of the straightening theorem.
-The proof requires:
-1. Finding a row descent in σ (exists since rowInvCount' > 0)
-2. Applying the tabloid-level Garnir identity to each term of ψ_σ
-3. Showing the regrouped terms are column-antisymmetrized sums over
-   strictly more dominant tabloids (twisted polytabloids)
-4. Showing each twisted polytabloid can be column-re-standardized to give
-   standard generalized polytabloidTabs with fewer row inversions
-
-See issue for detailed decomposition of the remaining proof obligations. -/
+Proof: combine `garnir_polytabloid_identity` with `garnir_twisted_in_lower_span`.
+The identity expresses ψ_σ as a negated sum of twisted polytabloids, and
+each twisted polytabloid is in the lower span. -/
 private theorem garnir_straightening_step
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ) :
@@ -452,6 +548,14 @@ private theorem garnir_straightening_step
       Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
           isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
         generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
+  -- Step 1: Find the row inversion pair
+  obtain ⟨p₁, p₂, hrow_eq, hcol_lt, hinv⟩ := exists_row_inversion_pair σ hrp
+  -- Step 2: Construct the Garnir set and find the row transposition
+  -- We need a Garnir set G that contains a row pair and is appropriate for
+  -- the row inversion. The garnirSet construction from PolytabloidBasis.lean
+  -- provides this for two positions in the same column spanning adjacent rows.
+  -- For now, we use sorry for the Garnir set construction and proceed with
+  -- the proof structure.
   sorry
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
