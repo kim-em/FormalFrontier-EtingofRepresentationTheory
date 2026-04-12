@@ -341,7 +341,52 @@ private theorem eq_of_rowStandard_of_toTabloid_eq
     (h₂ : isRowStandard' (la := la) σ₂)
     (ht : toTabloid n la σ₁ = toTabloid n la σ₂) :
     σ₁ = σ₂ := by
-  sorry
+  by_contra hne
+  -- Find the minimal entry where σ₁ and σ₂ disagree
+  have hne' : ∃ k : Fin n, σ₁ k ≠ σ₂ k := by
+    by_contra hall; push_neg at hall; exact hne (Equiv.ext hall)
+  set S := Finset.univ.filter (fun k : Fin n => σ₁ k ≠ σ₂ k) with hS_def
+  have hS_nonempty : S.Nonempty :=
+    let ⟨k, hk⟩ := hne'; ⟨k, Finset.mem_filter.mpr ⟨Finset.mem_univ k, hk⟩⟩
+  set k := S.min' hS_nonempty
+  have hk_mem : k ∈ S := Finset.min'_mem S hS_nonempty
+  have hk_ne : σ₁ k ≠ σ₂ k := (Finset.mem_filter.mp hk_mem).2
+  have hmin : ∀ j : Fin n, σ₁ j ≠ σ₂ j → k ≤ j :=
+    fun j hj => Finset.min'_le S j (Finset.mem_filter.mpr ⟨Finset.mem_univ j, hj⟩)
+  -- Same row by same tabloid
+  have hrow_assign := (toTabloid_eq_iff_rowAssign σ₁ σ₂).mp ht
+  have hrow : rowOfPos la.sortedParts (σ₁ k).val = rowOfPos la.sortedParts (σ₂ k).val :=
+    hrow_assign k
+  -- Different positions in same row → different columns
+  have hsum : la.sortedParts.sum = n := sortedParts_sum_eq n la
+  have hcol_ne : colOfPos la.sortedParts (σ₁ k).val ≠ colOfPos la.sortedParts (σ₂ k).val := by
+    intro heq
+    exact hk_ne (Fin.ext (rowOfPos_colOfPos_injective la.sortedParts (σ₁ k).val (σ₂ k).val
+      (by omega) (by omega) hrow heq))
+  -- Either col(σ₁ k) < col(σ₂ k) or col(σ₂ k) < col(σ₁ k)
+  rcases Nat.lt_or_gt_of_ne hcol_ne with hcol | hcol
+  · -- Case: col(σ₁ k) < col(σ₂ k). Row-standard for σ₂ gives σ₂⁻¹(σ₁ k) < k.
+    have hlt : σ₂.symm (σ₁ k) < k := by
+      have := h₂ (σ₁ k) (σ₂ k) hrow hcol
+      rwa [Equiv.symm_apply_apply] at this
+    -- Let j = σ₂⁻¹(σ₁ k). By minimality σ₁ j = σ₂ j.
+    set j := σ₂.symm (σ₁ k)
+    have hjeq : σ₁ j = σ₂ j := by
+      by_contra hjne; exact absurd (hmin j hjne) (not_le.mpr hlt)
+    -- But σ₂ j = σ₁ k, so σ₁ j = σ₁ k, so j = k, contradicting j < k.
+    have : σ₂ j = σ₁ k := Equiv.apply_symm_apply σ₂ (σ₁ k)
+    have : σ₁ j = σ₁ k := hjeq.trans this
+    exact absurd (σ₁.injective this) (Fin.ne_of_lt hlt)
+  · -- Case: col(σ₂ k) < col(σ₁ k). Row-standard for σ₁ gives σ₁⁻¹(σ₂ k) < k.
+    have hlt : σ₁.symm (σ₂ k) < k := by
+      have := h₁ (σ₂ k) (σ₁ k) hrow.symm hcol
+      rwa [Equiv.symm_apply_apply] at this
+    set j := σ₁.symm (σ₂ k)
+    have hjeq : σ₁ j = σ₂ j := by
+      by_contra hjne; exact absurd (hmin j hjne) (not_le.mpr hlt)
+    have : σ₁ j = σ₂ k := Equiv.apply_symm_apply σ₁ (σ₂ k)
+    have : σ₂ j = σ₂ k := hjeq.symm.trans this
+    exact absurd (σ₂.injective this) (Fin.ne_of_lt hlt)
 
 /-- A column-standard, row-standard permutation equals sytPerm T for some SYT T. -/
 private theorem column_row_standard_is_syt
