@@ -287,8 +287,16 @@ theorem schurModule_shift_iso_detTwist (N : ℕ) (lam : Fin N → ℕ) (hlam : A
       schurPoly N (fun i => lam i + 1) := by
     rw [formalCharacter_detTwist_eq_shift k N lam hlam,
         Theorem5_22_1 k N _ hlam']
+  -- The det-twisted rep has the same dimension as the shifted Schur module.
+  -- Both are polynomial GL_N reps (ℕ-valued weight spaces span everything),
+  -- so their dimensions equal the total mass of the Schur polynomial.
+  -- Since S_{λ+(1,...,1)} = (∏ Xᵢ) · S_λ and ∏ Xᵢ preserves total mass,
+  -- dim L_λ = dim L_{λ+(1,...,1)}.
+  have h_dim : Module.finrank k (FDRep.of (detTwistedSchurModuleRep k N lam)) =
+      Module.finrank k (SchurModule k N (fun i => lam i + 1)) := by
+    sorry
   -- By iso_of_formalCharacter_eq_schurPoly, the det-twisted rep ≅ SchurModule k N (λ+1)
-  obtain ⟨iso⟩ := iso_of_formalCharacter_eq_schurPoly k N (fun i => lam i + 1) hlam' _ h_char
+  obtain ⟨iso⟩ := iso_of_formalCharacter_eq_schurPoly k N (fun i => lam i + 1) hlam' _ h_char h_dim
   exact ⟨iso.symm⟩
 
 omit [IsAlgClosed k] [CharZero k] in
