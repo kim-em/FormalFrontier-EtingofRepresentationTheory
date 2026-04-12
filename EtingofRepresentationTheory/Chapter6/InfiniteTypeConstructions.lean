@@ -3285,13 +3285,16 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     -- G.degree = vertexDegree = 2
     have hG_deg : ∀ v, G.degree v = 2 := by
       intro v
-      have : G.neighborFinset v = Finset.univ.filter (adj v · = 1) := by
+      have : G.degree v = vertexDegree adj v := by
+        unfold SimpleGraph.degree vertexDegree
+        congr 1
         ext j; simp only [SimpleGraph.mem_neighborFinset, Finset.mem_filter,
           Finset.mem_univ, true_and]; exact ⟨fun h => h, fun h => h⟩
-      unfold SimpleGraph.degree; rw [this]; exact hdeg2 v
+      rw [this]; exact hdeg2 v
     -- G is connected
     have hG_conn : G.Connected := by
-      constructor; intro u v
+      haveI : Nonempty (Fin n) := ⟨⟨0, by omega⟩⟩
+      exact SimpleGraph.Connected.mk (fun u v => by
       obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
       suffices h : ∀ (l : List (Fin n)) (a b : Fin n),
           l.head? = some a → l.getLast? = some b →
@@ -3309,7 +3312,7 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
           have hxy : G.Adj x y := hedges' 0 (by simp)
           exact hxy.reachable.trans
             (ih y b (by simp) hb (fun m hm => hedges' (m + 1)
-              (by simp only [List.length_cons] at hm ⊢; omega)))
+              (by simp only [List.length_cons] at hm ⊢; omega))))
     -- G is acyclic (from h_acyclic): any Walk cycle → list cycle → contradiction
     have hG_acyclic : G.IsAcyclic := by
       intro v c hc
@@ -3323,33 +3326,44 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
         exact hc.getVert_injOn' (by simp [Set.mem_setOf_eq]; omega)
           (by simp [Set.mem_setOf_eq]; omega) hveq
       -- Consecutive edges
+      have hcycle_len : cycle.length = c.length := by rw [hcycle_def, List.length_ofFn]
+      -- Helper: cycle[m] = c.getVert m
+      have hcycle_get : ∀ m (hm : m < cycle.length),
+          cycle[m] = c.getVert m := by
+        intro m hm
+        change cycle.get ⟨m, hm⟩ = c.getVert m
+        simp [hcycle_def]
       have hcycle_edges : ∀ m, (h : m + 1 < cycle.length) →
           adj (cycle.get ⟨m, by omega⟩) (cycle.get ⟨m + 1, h⟩) = 1 := by
         intro m hm
-        simp only [hcycle_def, List.length_ofFn] at hm
-        simp only [hcycle_def, List.get_ofFn]
-        exact c.adj_getVert_succ (by omega)
+        show adj cycle[m] cycle[m + 1] = 1
+        rw [hcycle_get m (by omega), hcycle_get (m + 1) (by omega)]
+        exact c.adj_getVert_succ (by rw [← hcycle_len]; omega)
       -- Closing edge: adj (getVert (length-1)) (getVert 0) = 1
-      have hcycle_close : adj (cycle.getLast (by simp; omega))
-          (cycle.get ⟨0, by simp; omega⟩) = 1 := by
-        simp only [hcycle_def]
-        obtain ⟨k, rfl⟩ : ∃ k, c.length = k + 1 := ⟨c.length - 1, by omega⟩
-        rw [List.getLast_ofFn_succ, List.get_ofFn]
-        simp only [Fin.val_last, Fin.val_zero, Fin.cast]
-        have hadj := c.adj_getVert_succ (show k < k + 1 by omega)
-        rw [show k + 1 = c.length from rfl, c.getVert_length] at hadj
-        -- hadj : G.Adj (c.getVert k) v
-        -- need: adj (c.getVert k) (c.getVert 0) = 1
-        rw [c.getVert_zero]; exact (hsymm.apply v (c.getVert k)).trans hadj
+      have hcycle_ne_nil : cycle ≠ [] := by
+        intro h; simp [h] at hcycle_len; omega
+      have hcycle_close : adj (cycle.getLast hcycle_ne_nil)
+          (cycle.get ⟨0, by rw [hcycle_len]; omega⟩) = 1 := by
+        have hlast : cycle.getLast hcycle_ne_nil = c.getVert (c.length - 1) := by
+          rw [List.getLast_eq_getElem]
+          rw [hcycle_get _ (by rw [hcycle_len]; omega)]
+          congr 1; omega
+        have hfirst : cycle.get ⟨0, by rw [hcycle_len]; omega⟩ = c.getVert 0 := by
+          show cycle[0] = _; rw [hcycle_get 0 (by rw [hcycle_len]; omega)]
+        rw [hlast, hfirst]
+        have hadj := c.adj_getVert_succ (show c.length - 1 < c.length by omega)
+        rw [show c.length - 1 + 1 = c.length from by omega, c.getVert_length] at hadj
+        rw [c.getVert_zero]; exact hadj
       -- Apply h_acyclic: closing edge ≠ 1
-      exact h_acyclic cycle (by simp; omega) hcycle_nodup hcycle_edges hcycle_close
+      exact h_acyclic cycle (by rw [hcycle_len]; omega) hcycle_nodup hcycle_edges hcycle_close
     -- G.IsTree: connected + acyclic
     have htree : G.IsTree := ⟨hG_conn, hG_acyclic⟩
     -- Edge count contradiction: tree has n-1 edges, but degree sum = 2n → n edges
     have h_edges := htree.card_edgeFinset
     have h_handshake := G.sum_degrees_eq_twice_card_edges
-    simp only [hG_deg, Finset.sum_const, Fintype.card_fin, smul_eq_mul] at h_handshake
-    rw [Fintype.card_fin] at h_edges
+    simp only [hG_deg, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+      smul_eq_mul] at h_handshake
+    simp only [Fintype.card_fin] at h_edges
     omega
   obtain ⟨e, he⟩ := h_has_leaf
   exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2

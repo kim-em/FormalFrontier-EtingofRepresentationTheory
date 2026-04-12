@@ -155,7 +155,7 @@ theorem Etingof.Corollary_9_7_3_i_unique [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
-    (_hB₁ : Etingof.IsBasicAlgebra k B₁) (_hB₂ : Etingof.IsBasicAlgebra k B₂)
+    (_hB₁ : Etingof.IsBasicAlgebra.{u, u, u} k B₁) (_hB₂ : Etingof.IsBasicAlgebra.{u, u, u} k B₂)
     (h₁ : Etingof.KLinearMoritaEquivalent k A B₁)
     (h₂ : Etingof.KLinearMoritaEquivalent k A B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
@@ -201,7 +201,7 @@ algebra B_A satisfies dim_k B_A ≤ dim_k A.
 theorem Etingof.Corollary_9_7_3_ii [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
-    (_hB : Etingof.IsBasicAlgebra k B)
+    (_hB : Etingof.IsBasicAlgebra.{u, u, u} k B)
     (hMor : Etingof.KLinearMoritaEquivalent k A B) :
     Module.finrank k B ≤ Module.finrank k A := by
   -- By the Morita structural theorem, B ≅ eAe for some idempotent e : A.
