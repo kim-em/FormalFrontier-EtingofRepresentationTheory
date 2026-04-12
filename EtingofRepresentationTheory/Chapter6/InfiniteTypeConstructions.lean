@@ -3015,12 +3015,116 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
         path.head? = some i ∧ path.getLast? = some j ∧
         ∀ m, (h : m + 1 < path.length) →
           adj' (path.get ⟨m, by omega⟩) (path.get ⟨m + 1, h⟩) = 1 := by
-      -- Removing a degree-1 vertex preserves connectivity.
-      -- Key insight: in a tree, the unique simple path between two non-leaf
-      -- vertices doesn't pass through a leaf. Our graph is acyclic + connected = tree.
-      -- Therefore, the path from hconn (which we can assume avoids e) maps to adj'.
-      -- TODO(#2284): Formalize path-avoids-leaf argument for connectivity preservation
-      sorry
+      -- Build SimpleGraph from adj
+      let G : SimpleGraph (Fin (k + 2)) :=
+        { Adj := fun i j => adj i j = 1
+          symm := fun {i j} (h : adj i j = 1) => (hsymm.apply i j).trans h
+          loopless := ⟨fun i (h : adj i i = 1) => by linarith [hdiag i]⟩ }
+      haveI : DecidableRel G.Adj :=
+        fun i j => show Decidable (adj i j = 1) from inferInstance
+      -- G is connected
+      have hG_conn : G.Connected := by
+        constructor
+        intro u v
+        obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
+        suffices h : ∀ (l : List (Fin (k + 2))) (a b : Fin (k + 2)),
+            l.head? = some a → l.getLast? = some b →
+            (∀ m, (hm : m + 1 < l.length) →
+              adj (l.get ⟨m, by omega⟩) (l.get ⟨m + 1, hm⟩) = 1) →
+            G.Reachable a b from h path u v hhead hlast hedges
+        intro l; induction l with
+        | nil => intro a _ ha; simp at ha
+        | cons x t ih =>
+          intro a b ha hb hedges'
+          simp at ha; subst ha
+          cases t with
+          | nil => simp at hb; subst hb; exact SimpleGraph.Reachable.refl _
+          | cons y s =>
+            have hxy : G.Adj x y := hedges' 0 (by simp)
+            exact hxy.reachable.trans
+              (ih y b (by simp) hb (fun m hm => hedges' (m + 1)
+                (by simp only [List.length_cons] at hm ⊢; omega)))
+      -- G has degree 1 at e
+      have hG_deg : G.degree e = 1 := by
+        unfold SimpleGraph.degree
+        have heq : G.neighborFinset e = Finset.univ.filter (adj e · = 1) := by
+          ext j
+          simp only [SimpleGraph.mem_neighborFinset, Finset.mem_filter,
+            Finset.mem_univ, true_and]
+          exact ⟨fun h => h, fun h => h⟩
+        rw [heq]; unfold vertexDegree at he_deg1; convert he_deg1
+      -- Apply Mathlib: removing e preserves connectivity
+      have hG' := hG_conn.induce_compl_singleton_of_degree_eq_one hG_deg
+      -- Convert: G.induce {e}ᶜ connectivity → adj' connectivity
+      intro i j
+      have hu_ne : e.succAbove i ≠ e := Fin.succAbove_ne e i
+      have hw_ne : e.succAbove j ≠ e := Fin.succAbove_ne e j
+      have hu_mem : e.succAbove i ∈ ({e}ᶜ : Set (Fin (k + 2))) :=
+        Set.mem_compl_singleton_iff.mpr hu_ne
+      have hw_mem : e.succAbove j ∈ ({e}ᶜ : Set (Fin (k + 2))) :=
+        Set.mem_compl_singleton_iff.mpr hw_ne
+      obtain ⟨walk⟩ := hG'.preconnected ⟨e.succAbove i, hu_mem⟩ ⟨e.succAbove j, hw_mem⟩
+      -- Map vertices in {e}ᶜ to Fin (k+1) via succAbove inverse
+      let toFink : ↥({e}ᶜ : Set (Fin (k + 2))) → Fin (k + 1) :=
+        fun ⟨v, hv⟩ => (Fin.exists_succAbove_eq
+          (Set.mem_compl_singleton_iff.mp hv)).choose
+      have htoFink_spec : ∀ (x : ↥({e}ᶜ : Set (Fin (k + 2)))),
+          e.succAbove (toFink x) = x.val :=
+        fun ⟨v, hv⟩ => (Fin.exists_succAbove_eq
+          (Set.mem_compl_singleton_iff.mp hv)).choose_spec
+      have htoFink_adj : ∀ (x y : ↥({e}ᶜ : Set (Fin (k + 2)))),
+          (G.induce ({e}ᶜ : Set _)).Adj x y →
+          adj' (toFink x) (toFink y) = 1 := by
+        intro x y hadj_xy
+        simp only [hadj'_def, SimpleGraph.induce_adj] at hadj_xy ⊢
+        rw [htoFink_spec x, htoFink_spec y]; exact hadj_xy
+      -- Build path by induction on the walk
+      suffices h_walk : ∀ (a b : ↥({e}ᶜ : Set (Fin (k + 2))))
+          (w' : (G.induce ({e}ᶜ : Set _)).Walk a b),
+        ∃ path : List (Fin (k + 1)),
+          path.head? = some (toFink a) ∧
+          path.getLast? = some (toFink b) ∧
+          ∀ m, (hm : m + 1 < path.length) →
+            adj' (path.get ⟨m, by omega⟩) (path.get ⟨m + 1, hm⟩) = 1 by
+        obtain ⟨path, hhead, hlast, hedges⟩ := h_walk _ _ walk
+        refine ⟨path, ?_, ?_, hedges⟩
+        · convert hhead using 2
+          exact (Fin.succAbove_right_injective
+            (htoFink_spec ⟨e.succAbove i, hu_mem⟩)).symm
+        · convert hlast using 2
+          exact (Fin.succAbove_right_injective
+            (htoFink_spec ⟨e.succAbove j, hw_mem⟩)).symm
+      intro a b w'
+      induction w' with
+      | nil =>
+        exact ⟨[toFink _], rfl, rfl, fun m hm => absurd hm (by simp)⟩
+      | @cons c d _ hadj_edge rest ih =>
+        obtain ⟨path_rest, hhead_rest, hlast_rest, hedges_rest⟩ := ih
+        refine ⟨toFink c :: path_rest, by simp, ?_, ?_⟩
+        · -- getLast?
+          cases path_rest with
+          | nil => simp at hhead_rest hlast_rest ⊢
+          | cons y ys => simp only [List.getLast?_cons_cons]; exact hlast_rest
+        · -- Consecutive adjacency
+          intro m hm
+          match m with
+          | 0 =>
+            simp only [List.get_eq_getElem, List.getElem_cons_zero,
+              List.getElem_cons_succ]
+            have h0 : 0 < path_rest.length := by
+              simp only [List.length_cons] at hm; omega
+            have hd_eq : path_rest[0] = toFink d := by
+              cases path_rest with
+              | nil => simp at h0
+              | cons y ys =>
+                simp only [List.head?, Option.some.injEq] at hhead_rest
+                simp only [List.getElem_cons_zero]
+                exact hhead_rest
+            rw [hd_eq]
+            exact htoFink_adj c d hadj_edge
+          | m' + 1 =>
+            simp only [List.get_eq_getElem, List.getElem_cons_succ]
+            exact hedges_rest m' (by simp only [List.length_cons] at hm; omega)
     -- Apply induction hypothesis to adj'
     have ih_result := ih (k + 1) (by omega) adj' v₁' hsymm' hdiag' h01' hconn' h_acyclic' h_deg' hv₁'_deg
     obtain ⟨ih_lb, ih_pos⟩ := ih_result
@@ -3171,12 +3275,82 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     -- All degrees ≥ 2, and all < 3, so all = 2. A 2-regular connected graph has a cycle.
     have hdeg2 : ∀ i, vertexDegree adj i = 2 := by
       intro i; have := h_deg i; have := h_no_leaf i; omega
-    -- Every vertex has exactly 2 neighbors: given a neighbor, there is exactly one other
-    -- A 2-regular connected finite graph must contain a cycle
-    -- (It's a union of disjoint cycles; since connected, it's a single cycle)
-    -- Proof: walk construction by pigeonhole
-    -- TODO(#2284): Formalize walk construction for 2-regular graph → cycle
-    sorry
+    -- Build SimpleGraph from adj
+    let G : SimpleGraph (Fin n) :=
+      { Adj := fun i j => adj i j = 1
+        symm := fun {i j} (h : adj i j = 1) => (hsymm.apply i j).trans h
+        loopless := ⟨fun i (h : adj i i = 1) => by linarith [hdiag i]⟩ }
+    haveI : DecidableRel G.Adj :=
+      fun i j => show Decidable (adj i j = 1) from inferInstance
+    -- G.degree = vertexDegree = 2
+    have hG_deg : ∀ v, G.degree v = 2 := by
+      intro v
+      have : G.neighborFinset v = Finset.univ.filter (adj v · = 1) := by
+        ext j; simp only [SimpleGraph.mem_neighborFinset, Finset.mem_filter,
+          Finset.mem_univ, true_and]; exact ⟨fun h => h, fun h => h⟩
+      unfold SimpleGraph.degree; rw [this]; exact hdeg2 v
+    -- G is connected
+    have hG_conn : G.Connected := by
+      constructor; intro u v
+      obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
+      suffices h : ∀ (l : List (Fin n)) (a b : Fin n),
+          l.head? = some a → l.getLast? = some b →
+          (∀ m, (hm : m + 1 < l.length) →
+            adj (l.get ⟨m, by omega⟩) (l.get ⟨m + 1, hm⟩) = 1) →
+          G.Reachable a b from h path u v hhead hlast hedges
+      intro l; induction l with
+      | nil => intro a _ ha; simp at ha
+      | cons x t ih =>
+        intro a b ha hb hedges'
+        simp at ha; subst ha
+        cases t with
+        | nil => simp at hb; subst hb; exact SimpleGraph.Reachable.refl _
+        | cons y s =>
+          have hxy : G.Adj x y := hedges' 0 (by simp)
+          exact hxy.reachable.trans
+            (ih y b (by simp) hb (fun m hm => hedges' (m + 1)
+              (by simp only [List.length_cons] at hm ⊢; omega)))
+    -- G is acyclic (from h_acyclic): any Walk cycle → list cycle → contradiction
+    have hG_acyclic : G.IsAcyclic := by
+      intro v c hc
+      have hc_len := hc.three_le_length
+      -- Build list cycle from getVert
+      set cycle := List.ofFn (fun i : Fin c.length => c.getVert i.val) with hcycle_def
+      -- Nodup: from IsCycle.getVert_injOn'
+      have hcycle_nodup : cycle.Nodup := by
+        rw [List.nodup_ofFn]
+        intro ⟨i, hi⟩ ⟨j, hj⟩ hveq; ext
+        exact hc.getVert_injOn' (by simp [Set.mem_setOf_eq]; omega)
+          (by simp [Set.mem_setOf_eq]; omega) hveq
+      -- Consecutive edges
+      have hcycle_edges : ∀ m, (h : m + 1 < cycle.length) →
+          adj (cycle.get ⟨m, by omega⟩) (cycle.get ⟨m + 1, h⟩) = 1 := by
+        intro m hm
+        simp only [hcycle_def, List.length_ofFn] at hm
+        simp only [hcycle_def, List.get_ofFn]
+        exact c.adj_getVert_succ (by omega)
+      -- Closing edge: adj (getVert (length-1)) (getVert 0) = 1
+      have hcycle_close : adj (cycle.getLast (by simp; omega))
+          (cycle.get ⟨0, by simp; omega⟩) = 1 := by
+        simp only [hcycle_def]
+        obtain ⟨k, rfl⟩ : ∃ k, c.length = k + 1 := ⟨c.length - 1, by omega⟩
+        rw [List.getLast_ofFn_succ, List.get_ofFn]
+        simp only [Fin.val_last, Fin.val_zero, Fin.cast]
+        have hadj := c.adj_getVert_succ (show k < k + 1 by omega)
+        rw [show k + 1 = c.length from rfl, c.getVert_length] at hadj
+        -- hadj : G.Adj (c.getVert k) v
+        -- need: adj (c.getVert k) (c.getVert 0) = 1
+        rw [c.getVert_zero]; exact (hsymm.apply v (c.getVert k)).trans hadj
+      -- Apply h_acyclic: closing edge ≠ 1
+      exact h_acyclic cycle (by simp; omega) hcycle_nodup hcycle_edges hcycle_close
+    -- G.IsTree: connected + acyclic
+    have htree : G.IsTree := ⟨hG_conn, hG_acyclic⟩
+    -- Edge count contradiction: tree has n-1 edges, but degree sum = 2n → n edges
+    have h_edges := htree.card_edgeFinset
+    have h_handshake := G.sum_degrees_eq_twice_card_edges
+    simp only [hG_deg, Finset.sum_const, Fintype.card_fin, smul_eq_mul] at h_handshake
+    rw [Fintype.card_fin] at h_edges
+    omega
   obtain ⟨e, he⟩ := h_has_leaf
   exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2
 
