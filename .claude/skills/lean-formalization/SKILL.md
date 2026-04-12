@@ -605,8 +605,8 @@ If the same gap blocks 3+ items (e.g., column orthogonality blocking all charact
 | Pigeonhole transposition | `Finset` API | Row/column counting for Young tableaux | Lemmas 5.13.1, 5.13.2 | Issues #776, #777 |
 | Non-commutative TensorProduct | `TensorProduct` (CommSemiring only) | Balanced tensor product `A ⊗_{eAe} N` for non-commutative rings | BasicAlgebraExistence, MoritaStructural | Manual quotient construction needed |
 | Krull-Schmidt theorem | None | Unique decomposition of modules into indecomposables | basic_morita_algEquiv (#1877) | Not in Mathlib, blocks Morita isomorphism |
-| Clifford theory | None | Semidirect product orbit method, coset representations | Theorem5_27_1 (Mackey machine) | ~500 lines new theory needed |
-| Right-multiplication dominance | Left-mult dominance proved | Right `σ · e_T` ≠ left `σ · e_T` for polytabloids | PolytabloidBasis (#1884) | Fundamentally different from left case |
+| ~~Clifford theory~~ | ~~None~~ | ~~Semidirect product orbit method~~ | ~~Theorem5_27_1~~ | **RESOLVED** (Wave 47): All Mackey machine sorries proved via bypass |
+| ~~Right-multiplication dominance~~ | ~~Left-mult dominance proved~~ | ~~Right `σ · e_T` ≠ left `σ · e_T`~~ | ~~PolytabloidBasis~~ | **RESOLVED** (Wave 46): Tabloid module approach bypasses entirely |
 
 ## Proof Chain Completion Strategy
 
