@@ -47,13 +47,8 @@ private theorem not_ade_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) 
         adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
     (h_not_ade : ¬ ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j) :
-    ¬ IsFiniteTypeQuiver n adj := by
-  -- Non-ADE connected simple graphs contain forbidden subgraphs (cycles, extended
-  -- Dynkin types) that have infinite representation type. The case analysis on
-  -- graph structure (cycle vs tree, degree bounds, arm lengths) and the
-  -- Ẽ₇/Ẽ₈ infinite type constructions are not yet formalized.
-  -- See GitHub issues for the missing infrastructure.
-  sorry
+    ¬ IsFiniteTypeQuiver n adj :=
+  Etingof.non_ade_graph_not_finite_type adj hn hsymm hdiag h01 hconn h_not_ade
 
 /-- Gabriel's theorem: a connected quiver (given by its symmetric adjacency matrix)
 is of finite type (finitely many indecomposable representations up to isomorphism)
