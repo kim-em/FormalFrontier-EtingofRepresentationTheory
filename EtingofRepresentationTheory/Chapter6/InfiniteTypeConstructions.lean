@@ -2436,25 +2436,129 @@ theorem t125_not_finite_type :
 /-! ## Section 21: Non-ADE graph classification
 
 Every non-ADE connected simple graph on n ≥ 1 vertices has infinite representation type.
-The proof proceeds by case analysis on graph structure:
-- Graphs containing cycles → `cycle_not_finite_type` + subgraph transfer
-- Trees with degree ≥ 4 → `tree_degree_ge_4_not_finite_type`
-- Trees with ≥ 2 branch points (degree-3 vertices) → D̃₅ subgraph → `d5tilde_not_finite_type`
-- T_{p,q,r} with p ≥ 2 → Ẽ₆ = T_{2,2,2} subgraph → `etilde6_not_finite_type`
-- T_{1,q,r} with q ≥ 3 → Ẽ₇ = T_{1,3,3} subgraph → `etilde7_not_finite_type`
-- T_{1,2,r} with r ≥ 5 → T_{1,2,5} subgraph → `t125_not_finite_type`
-- Remaining cases (paths = A_n, T_{1,1,r} = D_{r+3}, T_{1,2,r} for r ≤ 4 = E₆/E₇/E₈)
-  are all ADE, contradicting the hypothesis.
 
-The sorry here is the formal graph classification: proving that every non-ADE
-connected simple graph falls into one of the above cases. This is a standard
-combinatorial argument about tree structure and arm lengths.
+The proof proceeds in two steps:
+1. **Algebraic reduction**: Use the Dynkin classification theorem to show that a non-ADE
+   connected simple graph cannot be a Dynkin diagram, hence its Cartan form is not
+   positive definite.
+2. **Graph-theoretic classification**: Show that a connected simple graph with
+   non-positive-definite Cartan form contains one of the forbidden subgraphs
+   (cycle, K_{1,4}, D̃₅, Ẽ₆, Ẽ₇, T_{1,2,5}), each proved to have infinite type.
+
+The representation theory is complete: all forbidden subgraph infinite type proofs
+are done (Sections 1-20 above). The remaining sorry is in `not_posdef_infinite_type`,
+which encapsulates the graph-theoretic classification.
 -/
 
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- A graph containing a triangle (3-cycle) has infinite representation type.
+    Uses the fact that cycleAdj 3 is the complete graph on 3 vertices. -/
+theorem triangle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (_h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (a b c : Fin n) (hab : a ≠ b) (hbc : b ≠ c) (hac : a ≠ c)
+    (h_ab : adj a b = 1) (h_bc : adj b c = 1) (h_ac : adj a c = 1) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- Construct embedding φ : Fin 3 ↪ Fin n mapping 0 ↦ a, 1 ↦ b, 2 ↦ c
+  let φ_fun : Fin 3 → Fin n := ![a, b, c]
+  have hφ_inj : Function.Injective φ_fun := by
+    intro x y h
+    fin_cases x <;> fin_cases y <;> simp_all [φ_fun, Matrix.cons_val_zero,
+      Matrix.cons_val_one]
+  let φ : Fin 3 ↪ Fin n := ⟨φ_fun, hφ_inj⟩
+  have hembed : ∀ i j, cycleAdj 3 (by omega) i j = adj (φ i) (φ j) := by
+    intro i j
+    have h_ba := (hsymm.apply a b).trans h_ab
+    have h_cb := (hsymm.apply b c).trans h_bc
+    have h_ca := (hsymm.apply a c).trans h_ac
+    fin_cases i <;> fin_cases j <;> simp [cycleAdj, φ, φ_fun, Matrix.cons_val_zero,
+      Matrix.cons_val_one, hdiag, h_ab, h_bc, h_ac, h_ba, h_cb, h_ca]
+  exact subgraph_infinite_type_transfer φ adj (cycleAdj 3 (by omega)) hsymm
+    (fun v h => by linarith [hdiag v]) hembed (cycle_not_finite_type 3 (by omega))
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- A graph with a vertex of degree ≥ 4 has infinite representation type.
+    Either 4 neighbors are pairwise non-adjacent (star subgraph), or two neighbors
+    are adjacent (triangle/cycle). No triangle-free hypothesis needed. -/
+theorem degree_ge_4_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (v : Fin n) (hv : 4 ≤ vertexDegree adj v) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- Get 4 distinct neighbors of v
+  set S := Finset.univ.filter (fun w => adj v w = 1) with hS_def
+  have hS_card : 4 ≤ S.card := hv
+  obtain ⟨T, hTS, hTcard⟩ := Finset.exists_subset_card_eq hS_card
+  have hT_fin : Fintype T := inferInstance
+  have hT_card : Fintype.card T = 4 := by rwa [Fintype.card_coe]
+  let e := (Fintype.equivFinOfCardEq hT_card).symm
+  let neighbors : Fin 4 → Fin n := fun i => (e i).val
+  have h_adj : ∀ i, adj v (neighbors i) = 1 := by
+    intro i; exact (Finset.mem_filter.mp (hTS (e i).prop)).2
+  have h_ne : ∀ i, neighbors i ≠ v := by
+    intro i hc; have := h_adj i; rw [← hc, hdiag] at this; exact one_ne_zero this.symm
+  have h_inj : Function.Injective neighbors := by
+    intro a b hab; exact (e.injective (Subtype.val_injective hab))
+  -- Case split: are any two neighbors adjacent?
+  by_cases h_indep : ∀ i j, adj (neighbors i) (neighbors j) = 0
+  · -- All pairwise non-adjacent: use star_subgraph_not_finite_type
+    exact star_subgraph_not_finite_type adj hsymm hdiag v ⟨neighbors, h_inj⟩ h_ne h_adj h_indep
+  · -- Two neighbors are adjacent: triangle v - w₁ - w₂
+    push_neg at h_indep
+    obtain ⟨i, j, h_adj_ij⟩ := h_indep
+    have h_nonzero : adj (neighbors i) (neighbors j) ≠ 0 := by intro hc; exact h_adj_ij hc
+    have h_one : adj (neighbors i) (neighbors j) = 1 := by
+      rcases h01 (neighbors i) (neighbors j) with h | h
+      · exact absurd h h_nonzero
+      · exact h
+    -- We have a triangle: v, neighbors i, neighbors j
+    have hij : neighbors i ≠ neighbors j := by
+      intro hc; rw [hc, hdiag] at h_one; exact one_ne_zero h_one.symm
+    exact triangle_infinite_type adj hsymm hdiag h01 v (neighbors i) (neighbors j)
+      (h_ne i).symm hij (h_ne j).symm
+      (h_adj i) h_one (h_adj j)
+
+/-- A connected simple graph whose Cartan form (2I - adj) is not positive definite
+    has infinite representation type.
+
+    This is proved by showing the graph contains one of the forbidden subgraphs:
+    - Graphs containing cycles → `cycle_not_finite_type` + subgraph transfer
+    - Trees with degree ≥ 4 → `degree_ge_4_infinite_type`
+    - Trees with ≥ 2 branch points → D̃₅ subgraph → `d5tilde_not_finite_type`
+    - T_{p,q,r} with p ≥ 2 → Ẽ₆ subgraph → `etilde6_not_finite_type`
+    - T_{1,q,r} with q ≥ 3 → Ẽ₇ subgraph → `etilde7_not_finite_type`
+    - T_{1,2,r} with r ≥ 5 → T_{1,2,5} subgraph → `t125_not_finite_type` -/
+theorem not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_not_posdef : ¬ ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x)) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- Case 1: ∃ vertex with degree ≥ 4
+  by_cases h_deg4 : ∃ v, 4 ≤ vertexDegree adj v
+  · obtain ⟨v, hv⟩ := h_deg4
+    exact degree_ge_4_infinite_type adj hsymm hdiag h01 v hv
+  · push_neg at h_deg4
+    -- All degrees ≤ 3. Remaining cases need graph-theoretic classification:
+    -- all-degree-≤-2 cycle detection, branch point analysis, arm length classification.
+    sorry
+
 /-- Every non-ADE connected simple graph on n ≥ 1 vertices has infinite representation type.
-    The representation theory is complete (see Sections 19-20 above). The remaining sorry
-    is the graph-theoretic classification: proving every non-ADE connected simple graph
-    contains one of the forbidden subgraphs (cycle, K_{1,4}, D̃₅, Ẽ₆, Ẽ₇, T_{1,2,5}). -/
+
+    **Proof strategy**: By the Dynkin classification theorem, a connected simple graph is
+    a Dynkin diagram iff it is graph-isomorphic to one of A_n, D_n, E₆, E₇, E₈.
+    Since our graph is not ADE, it is not a Dynkin diagram, so its Cartan form is not
+    positive definite. Then `not_posdef_infinite_type` gives infinite representation type. -/
 theorem non_ade_graph_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     (hn : 1 ≤ n)
     (hsymm : adj.IsSymm)
@@ -2467,13 +2571,17 @@ theorem non_ade_graph_not_finite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) �
     (h_not_ade : ¬ ∃ t : DynkinType, ∃ σ : Fin t.rank ≃ Fin n,
       ∀ i j, adj (σ i) (σ j) = t.adj i j) :
     ¬ IsFiniteTypeQuiver n adj := by
-  -- The proof combines:
-  -- 1. Graph structure classification (cycle vs tree, degree analysis, arm lengths)
-  -- 2. Subgraph embedding into forbidden subgraphs
-  -- 3. Infinite type transfer via subgraph_infinite_type_transfer
-  -- Each forbidden subgraph has been proved to have infinite type:
-  --   cycle_not_finite_type, star_not_finite_type, d5tilde_not_finite_type,
-  --   etilde6_not_finite_type, etilde7_not_finite_type, t125_not_finite_type
-  sorry
+  -- Step 1: ¬ADE → ¬IsDynkinDiagram (by Dynkin classification theorem)
+  have h_not_dynkin : ¬ IsDynkinDiagram n adj := by
+    intro hD
+    exact h_not_ade ((Theorem_Dynkin_classification n adj hn).mp hD)
+  -- Step 2: Since we have symmetry, 0-diagonal, 0-1 entries, and connectivity,
+  -- the only failing condition of IsDynkinDiagram is positive definiteness.
+  have h_not_posdef : ¬ ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) := by
+    intro hpos
+    exact h_not_dynkin ⟨hsymm, hdiag, h01, hconn, hpos⟩
+  -- Step 3: Apply the non-positive-definite → infinite type theorem
+  exact not_posdef_infinite_type adj hn hsymm hdiag h01 hconn h_not_posdef
 
 end Etingof
