@@ -3033,12 +3033,116 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
         path.head? = some i ∧ path.getLast? = some j ∧
         ∀ m, (h : m + 1 < path.length) →
           adj' (path.get ⟨m, by omega⟩) (path.get ⟨m + 1, h⟩) = 1 := by
-      -- Removing a degree-1 vertex preserves connectivity.
-      -- Key insight: in a tree, the unique simple path between two non-leaf
-      -- vertices doesn't pass through a leaf. Our graph is acyclic + connected = tree.
-      -- Therefore, the path from hconn (which we can assume avoids e) maps to adj'.
-      -- TODO(#2284): Formalize path-avoids-leaf argument for connectivity preservation
-      sorry
+      -- Build SimpleGraph from adj
+      let G : SimpleGraph (Fin (k + 2)) :=
+        { Adj := fun i j => adj i j = 1
+          symm := fun {i j} (h : adj i j = 1) => (hsymm.apply i j).trans h
+          loopless := ⟨fun i (h : adj i i = 1) => by linarith [hdiag i]⟩ }
+      haveI : DecidableRel G.Adj :=
+        fun i j => show Decidable (adj i j = 1) from inferInstance
+      -- G is connected
+      have hG_conn : G.Connected := by
+        constructor
+        intro u v
+        obtain ⟨path, hhead, hlast, hedges⟩ := hconn u v
+        suffices h : ∀ (l : List (Fin (k + 2))) (a b : Fin (k + 2)),
+            l.head? = some a → l.getLast? = some b →
+            (∀ m, (hm : m + 1 < l.length) →
+              adj (l.get ⟨m, by omega⟩) (l.get ⟨m + 1, hm⟩) = 1) →
+            G.Reachable a b from h path u v hhead hlast hedges
+        intro l; induction l with
+        | nil => intro a _ ha; simp at ha
+        | cons x t ih =>
+          intro a b ha hb hedges'
+          simp at ha; subst ha
+          cases t with
+          | nil => simp at hb; subst hb; exact SimpleGraph.Reachable.refl _
+          | cons y s =>
+            have hxy : G.Adj x y := hedges' 0 (by simp)
+            exact hxy.reachable.trans
+              (ih y b (by simp) hb (fun m hm => hedges' (m + 1)
+                (by simp only [List.length_cons] at hm ⊢; omega)))
+      -- G has degree 1 at e
+      have hG_deg : G.degree e = 1 := by
+        unfold SimpleGraph.degree
+        have heq : G.neighborFinset e = Finset.univ.filter (adj e · = 1) := by
+          ext j
+          simp only [SimpleGraph.mem_neighborFinset, Finset.mem_filter,
+            Finset.mem_univ, true_and]
+          exact ⟨fun h => h, fun h => h⟩
+        rw [heq]; unfold vertexDegree at he_deg1; convert he_deg1
+      -- Apply Mathlib: removing e preserves connectivity
+      have hG' := hG_conn.induce_compl_singleton_of_degree_eq_one hG_deg
+      -- Convert: G.induce {e}ᶜ connectivity → adj' connectivity
+      intro i j
+      have hu_ne : e.succAbove i ≠ e := Fin.succAbove_ne e i
+      have hw_ne : e.succAbove j ≠ e := Fin.succAbove_ne e j
+      have hu_mem : e.succAbove i ∈ ({e}ᶜ : Set (Fin (k + 2))) :=
+        Set.mem_compl_singleton_iff.mpr hu_ne
+      have hw_mem : e.succAbove j ∈ ({e}ᶜ : Set (Fin (k + 2))) :=
+        Set.mem_compl_singleton_iff.mpr hw_ne
+      obtain ⟨walk⟩ := hG'.preconnected ⟨e.succAbove i, hu_mem⟩ ⟨e.succAbove j, hw_mem⟩
+      -- Map vertices in {e}ᶜ to Fin (k+1) via succAbove inverse
+      let toFink : ↥({e}ᶜ : Set (Fin (k + 2))) → Fin (k + 1) :=
+        fun ⟨v, hv⟩ => (Fin.exists_succAbove_eq
+          (Set.mem_compl_singleton_iff.mp hv)).choose
+      have htoFink_spec : ∀ (x : ↥({e}ᶜ : Set (Fin (k + 2)))),
+          e.succAbove (toFink x) = x.val :=
+        fun ⟨v, hv⟩ => (Fin.exists_succAbove_eq
+          (Set.mem_compl_singleton_iff.mp hv)).choose_spec
+      have htoFink_adj : ∀ (x y : ↥({e}ᶜ : Set (Fin (k + 2)))),
+          (G.induce ({e}ᶜ : Set _)).Adj x y →
+          adj' (toFink x) (toFink y) = 1 := by
+        intro x y hadj_xy
+        simp only [hadj'_def, SimpleGraph.induce_adj] at hadj_xy ⊢
+        rw [htoFink_spec x, htoFink_spec y]; exact hadj_xy
+      -- Build path by induction on the walk
+      suffices h_walk : ∀ (a b : ↥({e}ᶜ : Set (Fin (k + 2))))
+          (w' : (G.induce ({e}ᶜ : Set _)).Walk a b),
+        ∃ path : List (Fin (k + 1)),
+          path.head? = some (toFink a) ∧
+          path.getLast? = some (toFink b) ∧
+          ∀ m, (hm : m + 1 < path.length) →
+            adj' (path.get ⟨m, by omega⟩) (path.get ⟨m + 1, hm⟩) = 1 by
+        obtain ⟨path, hhead, hlast, hedges⟩ := h_walk _ _ walk
+        refine ⟨path, ?_, ?_, hedges⟩
+        · convert hhead using 2
+          exact (Fin.succAbove_right_injective
+            (htoFink_spec ⟨e.succAbove i, hu_mem⟩)).symm
+        · convert hlast using 2
+          exact (Fin.succAbove_right_injective
+            (htoFink_spec ⟨e.succAbove j, hw_mem⟩)).symm
+      intro a b w'
+      induction w' with
+      | nil =>
+        exact ⟨[toFink _], rfl, rfl, fun m hm => absurd hm (by simp)⟩
+      | @cons c d _ hadj_edge rest ih =>
+        obtain ⟨path_rest, hhead_rest, hlast_rest, hedges_rest⟩ := ih
+        refine ⟨toFink c :: path_rest, by simp, ?_, ?_⟩
+        · -- getLast?
+          cases path_rest with
+          | nil => simp at hhead_rest hlast_rest ⊢
+          | cons y ys => simp only [List.getLast?_cons_cons]; exact hlast_rest
+        · -- Consecutive adjacency
+          intro m hm
+          match m with
+          | 0 =>
+            simp only [List.get_eq_getElem, List.getElem_cons_zero,
+              List.getElem_cons_succ]
+            have h0 : 0 < path_rest.length := by
+              simp only [List.length_cons] at hm; omega
+            have hd_eq : path_rest[0] = toFink d := by
+              cases path_rest with
+              | nil => simp at h0
+              | cons y ys =>
+                simp only [List.head?, Option.some.injEq] at hhead_rest
+                simp only [List.getElem_cons_zero]
+                exact hhead_rest
+            rw [hd_eq]
+            exact htoFink_adj c d hadj_edge
+          | m' + 1 =>
+            simp only [List.get_eq_getElem, List.getElem_cons_succ]
+            exact hedges_rest m' (by simp only [List.length_cons] at hm; omega)
     -- Apply induction hypothesis to adj'
     have ih_result := ih (k + 1) (by omega) adj' v₁' hsymm' hdiag' h01' hconn' h_acyclic' h_deg' hv₁'_deg
     obtain ⟨ih_lb, ih_pos⟩ := ih_result
