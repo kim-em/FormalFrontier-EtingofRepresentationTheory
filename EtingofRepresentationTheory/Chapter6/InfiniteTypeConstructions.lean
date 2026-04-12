@@ -3249,6 +3249,7 @@ private theorem acyclic_path_nonadj {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
   · exact h
   · exact absurd h (h_acyclic path hlen hnodup hedges)
 
+set_option maxHeartbeats 3200000 in
 /-- A connected acyclic simple graph with two adjacent degree-3 vertices (and all
     degrees ≤ 3) has infinite representation type, by embedding D̃₅.
     The two branch points plus their 4 other neighbors give 6 vertices forming D̃₅. -/
@@ -3368,11 +3369,13 @@ private theorem adjacent_branches_infinite_type {n : ℕ} (adj : Matrix (Fin n) 
       (path_edges w₂ w v₀ u₁ hw₂_w hw_v₀ hu₁_adj)
   have hu₂_w₁ : adj u₂ w₁ = 0 :=
     acyclic_path_nonadj adj hsymm h01 h_acyclic [w₁, w, v₀, u₂] (by simp)
-      (path_nodup w₁ w v₀ u₂ hw₁_ne_w hw₁_ne_v₀ hu₂_ne_w₁.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
+      (path_nodup w₁ w v₀ u₂ hw₁_ne_w hw₁_ne_v₀
+        hu₂_ne_w₁.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
       (path_edges w₁ w v₀ u₂ hw₁_w hw_v₀ hu₂_adj)
   have hu₂_w₂ : adj u₂ w₂ = 0 :=
     acyclic_path_nonadj adj hsymm h01 h_acyclic [w₂, w, v₀, u₂] (by simp)
-      (path_nodup w₂ w v₀ u₂ hw₂_ne_w hw₂_ne_v₀ hu₂_ne_w₂.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
+      (path_nodup w₂ w v₀ u₂ hw₂_ne_w hw₂_ne_v₀
+        hu₂_ne_w₂.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
       (path_edges w₂ w v₀ u₂ hw₂_w hw_v₀ hu₂_adj)
   -- Construct the embedding φ : Fin 6 ↪ Fin n
   -- Map: 0 → u₁, 1 → u₂, 2 → v₀, 3 → w, 4 → w₁, 5 → w₂
@@ -3380,10 +3383,25 @@ private theorem adjacent_branches_infinite_type {n : ℕ} (adj : Matrix (Fin n) 
     match i with
     | ⟨0, _⟩ => u₁ | ⟨1, _⟩ => u₂ | ⟨2, _⟩ => v₀
     | ⟨3, _⟩ => w  | ⟨4, _⟩ => w₁ | ⟨5, _⟩ => w₂
-  -- The embedding φ : Fin 6 ↪ Fin n and adjacency verification are computationally
-  -- intensive (36 cases). The key mathematical content is the extraction of the 6 vertices
-  -- and the non-adjacency proofs above. The embedding verification is deferred.
-  sorry
+  -- Injectivity from 15 distinctness facts
+  have φ_inj : Function.Injective φ_fun := by
+    intro i j hij; simp only [φ_fun] at hij
+    fin_cases i <;> fin_cases j <;>
+      first | rfl | (exact absurd hij ‹_›) | (exact absurd hij.symm ‹_›)
+  let φ : Fin 6 ↪ Fin n := ⟨φ_fun, φ_inj⟩
+  -- Adjacency verification: d5tildeAdj i j = adj (φ i) (φ j)
+  have hembed : ∀ i j, d5tildeAdj i j = adj (φ i) (φ j) := by
+    intro i j
+    fin_cases i <;> fin_cases j <;>
+      simp only [d5tildeAdj, φ, φ_fun] <;> norm_num <;>
+      linarith [hdiag u₁, hdiag u₂, hdiag v₀, hdiag w, hdiag w₁, hdiag w₂,
+                adj_comm u₁ v₀, adj_comm u₂ v₀, adj_comm w v₀,
+                adj_comm w₁ w, adj_comm w₂ w,
+                adj_comm u₁ u₂, adj_comm u₁ w, adj_comm u₂ w,
+                adj_comm w₁ w₂, adj_comm v₀ w₁, adj_comm v₀ w₂,
+                adj_comm u₁ w₁, adj_comm u₁ w₂, adj_comm u₂ w₁, adj_comm u₂ w₂]
+  exact subgraph_infinite_type_transfer φ adj d5tildeAdj hsymm
+    (fun v h => by linarith [hdiag v]) hembed d5tilde_not_finite_type
 
 /-- A connected acyclic simple graph with exactly one degree-3 vertex and non-positive-
     definite Cartan form has infinite representation type.
