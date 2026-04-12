@@ -2,6 +2,7 @@ import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter2.Definition2_8_10
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
+import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
 
 /-!
 # Theorem 2.1.2: Gabriel's Theorem
@@ -81,6 +82,49 @@ def QuiverUndirectedConnected (n : ℕ) [Quiver.{0} (Fin n)]
       (quiverUndirectedAdj n)
         (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1
 
+/-! ## Properties of quiverUndirectedAdj -/
+
+variable {n : ℕ} [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+
+lemma quiverUndirectedAdj_symm : (quiverUndirectedAdj n).IsSymm := by
+  ext i j
+  simp only [quiverUndirectedAdj, Matrix.transpose_apply]
+  by_cases hij : i = j
+  · subst hij; simp
+  · simp only [hij, Ne.symm hij, ne_eq, not_false_eq_true, true_and, Or.comm]
+
+lemma quiverUndirectedAdj_diag (i : Fin n) : quiverUndirectedAdj n i i = 0 := by
+  simp [quiverUndirectedAdj]
+
+lemma quiverUndirectedAdj_01 (i j : Fin n) :
+    quiverUndirectedAdj n i j = 0 ∨ quiverUndirectedAdj n i j = 1 := by
+  simp only [quiverUndirectedAdj]
+  split <;> simp
+
+omit [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))] in
+/-- `HasFiniteRepresentationType` implies the set of dimension vectors of indecomposable
+representations (for this specific field k and quiver Q) is finite. -/
+lemma HasFiniteRepresentationType.finite_dimVectors (k : Type) [Field k]
+    (hfrt : HasFiniteRepresentationType k n) :
+    Set.Finite
+      {d : Fin n → ℕ |
+        ∃ (V : FinQuiverRep k n),
+          (∀ v, Module.Finite k (V.obj v)) ∧
+          V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[k] (Fin (d v) → k))} := by
+  obtain ⟨m, reps, hfin, hindec, hcover⟩ := hfrt
+  apply Set.Finite.subset (Set.finite_range (fun i v => Module.finrank k ((reps i).obj v)))
+  intro d ⟨V, hV_fin, hV_indec, hV_equiv⟩
+  simp only [Set.mem_range]
+  obtain ⟨i, ⟨e⟩⟩ := hcover V hV_fin hV_indec
+  use i
+  ext v
+  have h1 : Module.finrank k (V.obj v) = d v := by
+    haveI : Module.Free k (V.obj v) := Module.Free.of_equiv (hV_equiv v).some.symm
+    rw [(hV_equiv v).some.finrank_eq, Module.finrank_fin_fun]
+  have h2 : Module.finrank k (V.obj v) = Module.finrank k ((reps i).obj v) :=
+    (e.equivAt v).finrank_eq
+  linarith
+
 /-! ## Gabriel's Theorem -/
 
 /-- **Gabriel's theorem**: A connected quiver on `Fin n` vertices has finite representation
@@ -98,6 +142,19 @@ theorem Theorem_2_1_2 (k : Type) [Field k] [IsAlgClosed k]
     (hconn : QuiverUndirectedConnected n) :
     HasFiniteRepresentationType k n ↔
       IsDynkinDiagram n (quiverUndirectedAdj n) := by
-  sorry
+  constructor
+  · -- Forward: finite representation type → Dynkin diagram
+    -- The 4 structural conditions hold by construction of quiverUndirectedAdj.
+    -- Positive definiteness: by contrapositive, if the Tits form is not positive definite,
+    -- the graph contains a non-ADE subgraph, giving infinitely many indecomposables.
+    -- This bridge from HasFiniteRepresentationType to IsFiniteTypeQuiver requires that
+    -- the infinite type constructions work for any algebraically closed field and orientation.
+    sorry
+  · -- Backward: Dynkin diagram → finite representation type
+    -- IsDynkinDiagram → IsFiniteTypeQuiver (by Theorem 6.1.5 backward)
+    -- → finitely many dim vectors of indecomposables for this k, Q
+    -- Each positive root supports exactly one indecomposable iso class (Gabriel's uniqueness)
+    -- → finitely many iso classes → HasFiniteRepresentationType
+    sorry
 
 end Etingof
