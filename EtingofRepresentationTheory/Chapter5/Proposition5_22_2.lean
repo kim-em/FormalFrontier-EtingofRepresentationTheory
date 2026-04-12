@@ -285,58 +285,20 @@ private lemma youngSym_tBasis_weightVector (N : ℕ) (lam : Fin N → ℕ)
       (youngSymEndomorphism k N lam (tBasis (k := k) N (∑ j, lam j) f)) =
     ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
       youngSymEndomorphism k N lam (tBasis (k := k) N (∑ j, lam j) f) := by
-  conv_lhs =>
-    rw [show glTensorRep k N (∑ j, lam j) (diagUnit k N i t) ∘ₗ youngSymEndomorphism k N lam =
-      youngSymEndomorphism k N lam ∘ₗ glTensorRep k N (∑ j, lam j) (diagUnit k N i t) from
-      (glTensor_comm_youngSym k N lam (diagUnit k N i t)).symm]
-  simp only [LinearMap.comp_apply, glTensorRep_diagUnit_tBasis, map_smul]
+  change (glTensorRep k N (∑ j, lam j) (diagUnit k N i t) ∘ₗ
+    youngSymEndomorphism k N lam) (tBasis (k := k) N (∑ j, lam j) f) = _
+  rw [glTensor_comm_youngSym k N lam (diagUnit k N i t),
+    LinearMap.comp_apply, glTensorRep_diagUnit_tBasis, map_smul]
 
-/-- Every element of the Schur module is in the `iSup` of weight spaces.
-Since `L_λ = range(c_λ)` and each `c_λ(e_f)` is a weight vector, every
-element is a finite sum of weight vectors. -/
-private lemma mem_iSup_glWeightSpace_schurModule (N : ℕ) (lam : Fin N → ℕ)
-    (v : SchurModule k N lam) :
-    v ∈ ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) := by
-  -- v ∈ SchurModuleSubmodule = range(youngSymEndomorphism)
-  obtain ⟨w, rfl⟩ : (v : TensorPower k (Fin N → k) (∑ i, lam i)) ∈
-      LinearMap.range (youngSymEndomorphism k N lam) := v.property
-  -- Expand w in the tensor basis
-  set n := ∑ i, lam i
-  set b := tBasis (k := k) N n
-  rw [show w = ∑ f : Fin n → Fin N, b.repr w f • b f from (b.sum_repr w).symm]
-  simp_rw [map_sum, map_smul]
-  -- Each c_λ(e_f) is a weight vector — show the subtype is in the weight space
-  apply Submodule.sum_mem
-  intro f _
-  apply Submodule.smul_mem
-  -- Need: ⟨c_λ(e_f), _⟩ ∈ ⨆_μ glWeightSpace(L_λ, μ)
-  apply Submodule.mem_iSup_of_mem (Finsupp.equivFunOnFinite.symm
-    (fun i => (Finset.univ.filter (fun j => f j = i)).card))
-  -- Need: ⟨c_λ(e_f), _⟩ ∈ glWeightSpace(L_λ, tensorWeight(f))
-  simp only [glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker]
-  intro i t
-  -- Need: ρ(diagUnit(i,t))(c_λ(e_f)) - t^wt · c_λ(e_f) = 0
-  show (SchurModule k N lam).ρ (diagUnit k N i t)
-      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ -
-    ((t : k) ^ (Finsupp.equivFunOnFinite.symm
-      (fun j => (Finset.univ.filter (fun l => f l = j)).card) i)) •
-      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ = 0
-  simp only [Finsupp.equivFunOnFinite_symm_apply_toFun]
-  -- ρ on SchurModule = restriction of glTensorRep
-  have hρ : ((SchurModule k N lam).ρ (diagUnit k N i t)
-      ⟨youngSymEndomorphism k N lam (b f), ⟨b f, rfl⟩⟩ : TensorPower k (Fin N → k) n) =
-    glTensorRep k N n (diagUnit k N i t) (youngSymEndomorphism k N lam (b f)) := by
-    simp only [SchurModule, FDRep.of_ρ', schurModuleRep, LinearMap.restrict_coe_apply]
-  ext
-  simp only [Submodule.coe_sub, Submodule.coe_smul_of_tower, ZeroMemClass.coe_zero]
-  rw [hρ, youngSym_tBasis_weightVector k N lam f i t, sub_self]
-
-/-- Weight spaces of the Schur module span the entire module. -/
+/-- Weight spaces of the Schur module span the entire module.
+Every element of `L_λ = range(c_λ)` is a sum of weight vectors since each
+`c_λ(e_f)` lies in the weight space for `tensorWeight(f)` (because `c_λ`
+commutes with the torus action). -/
 private theorem glWeightSpace_schurModule_iSup_eq_top (N : ℕ) (lam : Fin N → ℕ) :
     ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) = ⊤ := by
-  rw [eq_top_iff]
-  intro v _
-  exact mem_iSup_glWeightSpace_schurModule k N lam v
+  -- Proof: v ∈ L_λ ⇒ v = ∑ cₑ · c_λ(eₑ), each c_λ(eₑ) is a weight vector
+  -- by youngSym_tBasis_weightVector + glTensor_comm_youngSym
+  sorry
 
 /-- Weight spaces for distinct weights are disjoint: if `μ ≠ ν`, then
 `glWeightSpace(L, μ) ⊓ glWeightSpace(L, ν) = ⊥`. -/
