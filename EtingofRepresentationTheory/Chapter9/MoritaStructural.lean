@@ -27,6 +27,7 @@ import Mathlib.Algebra.Category.ModuleCat.Simple
 import Mathlib.RingTheory.SimpleModule.Isotypic
 import Mathlib.LinearAlgebra.FiniteDimensional.Lemmas
 import Mathlib.CategoryTheory.Preadditive.Schur
+import Mathlib.CategoryTheory.Adjunction.Additive
 
 universe u v
 
@@ -457,27 +458,117 @@ private theorem equiv_hom_to_simple_nonzero
     rw [Equiv.apply_symm_apply]
   rw [h2, hf, Adjunction.homEquiv_apply, F.inverse.map_zero, comp_zero]
 
--- Helper 5b: Head isomorphism for basic Morita-equivalent algebras.
+-- Helper 5b: The inverse functor of a k-linear equivalence is k-linear.
+-- Proof: F faithful + counit naturality + F.functor k-linear.
+private noncomputable instance equiv_inverse_linear
+    {k : Type*} [CommSemiring k]
+    {C : Type u} [Category.{v} C] [Preadditive C] [CategoryTheory.Linear k C]
+    {D : Type u} [Category.{v} D] [Preadditive D] [CategoryTheory.Linear k D]
+    (F : C ≌ D) [F.functor.Linear k] : F.inverse.Linear k where
+  map_smul {X Y} f c := by
+    -- Suffices to show F.functor.map sends both sides to the same thing
+    apply F.functor.map_injective
+    rw [F.functor.map_smul]
+    -- Goal: F(G(c • f)) = c • F(G(f))
+    -- Use counit naturality: F(G(f)) ≫ ε_Y = ε_X ≫ f
+    set ε := F.counitIso.hom
+    have nat_f := ε.naturality f
+    have nat_cf := ε.naturality (c • f)
+    -- nat_cf gives: (G ⋙ F).map (c • f) ≫ ε.app Y = ε.app X ≫ (c • f)
+    -- Since ε.app Y is an iso, cancel from the right
+    have hε : IsIso (ε.app Y) := (F.counitIso.app Y).isIso_hom
+    simp only [Functor.comp_map, Functor.id_map] at nat_cf nat_f
+    -- nat_cf: F(G(c•f)) ≫ ε_Y = ε_X ≫ (c•f)
+    -- nat_f:  F(G(f)) ≫ ε_Y = ε_X ≫ f
+    -- RHS of nat_cf: ε_X ≫ (c•f) = c • (ε_X ≫ f) = c • (F(G(f)) ≫ ε_Y)
+    rw [CategoryTheory.Linear.comp_smul, ← nat_f, ← CategoryTheory.Linear.smul_comp] at nat_cf
+    -- Now: F(G(c•f)) ≫ ε_Y = (c • F(G(f))) ≫ ε_Y
+    exact (cancel_mono (ε.app Y)).mp nat_cf
+
+-- Helper 5c: The adjunction homEquiv of a k-linear equivalence is k-linear.
+private theorem adj_homEquiv_smul
+    {k : Type*} [Field k]
+    {B₁ : Type u} [Ring B₁] [Algebra k B₁]
+    {B₂ : Type u} [Ring B₂] [Algebra k B₂]
+    (F : ModuleCat.{u} B₁ ≌ ModuleCat.{u} B₂) [F.functor.Linear k]
+    (X : ModuleCat.{u} B₁) (Y : ModuleCat.{u} B₂)
+    (c : k) (f : F.functor.obj X ⟶ Y) :
+    F.toAdjunction.homEquiv X Y (c • f) =
+    c • F.toAdjunction.homEquiv X Y f := by
+  haveI := equiv_inverse_linear F (k := k)
+  simp only [Adjunction.homEquiv_unit]
+  rw [F.inverse.map_smul, CategoryTheory.Linear.comp_smul]
+
+-- Helper 5c: Equivalence functors between module categories are additive.
+-- (Equivalence preserves limits → preserves binary products → additive)
+private noncomputable instance equiv_functor_additive
+    {R : Type u} [Ring R] {S : Type u} [Ring S]
+    (F : ModuleCat.{u} R ≌ ModuleCat.{u} S) : F.functor.Additive :=
+  Functor.additive_of_preserves_binary_products F.functor
+
+-- Helper 5c': Equivalence inverse preserves simple objects.
+-- If Y is simple in D and F : C ≌ D, then F.inverse.obj Y is simple in C.
+private theorem simple_of_equiv_inverse
+    {C : Type u} [Category.{v} C] [Preadditive C]
+    {D : Type u} [Category.{v} D] [Preadditive D]
+    (F : C ≌ D) (Y : D) [Simple Y] : Simple (F.inverse.obj Y) := by
+  -- F.functor.obj (F.inverse.obj Y) ≅ Y via counit, so it's simple
+  haveI : Simple ((𝟭 D).obj Y) := ‹Simple Y›
+  haveI : Simple (F.functor.obj (F.inverse.obj Y)) :=
+    Simple.of_iso (F.counitIso.app Y)
+  -- Use: Simple iff nonzero mono is iso, for F.inverse.obj Y
+  constructor; intro Z f _; constructor
+  · -- IsIso f → f ≠ 0
+    intro hi hf
+    apply Simple.not_isZero (F.functor.obj (F.inverse.obj Y))
+    rw [IsZero.iff_id_eq_zero, ← F.functor.map_id,
+      show 𝟙 (F.inverse.obj Y) = inv f ≫ f from (IsIso.inv_hom_id f).symm]
+    simp only [hf, comp_zero, F.functor.map_zero]
+  · -- f ≠ 0 → IsIso f (via F.functor preserves mono, reflects iso)
+    intro hne
+    have hFf_ne : F.functor.map f ≠ 0 := by
+      intro h; apply hne; rw [← F.functor.map_zero] at h
+      exact F.functor.map_injective h
+    haveI : Mono (F.functor.map f) := inferInstance
+    haveI : IsIso (F.functor.map f) := isIso_of_mono_of_nonzero hFf_ne
+    exact isIso_of_reflects_iso f F.functor
+
+-- Helper 5d: Classification of semisimple modules by Hom finranks.
+-- Two finite semisimple modules over a semisimple ring, both of which have each simple
+-- appearing with the same multiplicity, are isomorphic.
+-- This is a consequence of the Krull-Schmidt theorem for semisimple modules,
+-- which is not yet available as a single Mathlib lemma.
+-- For the special case needed here (both modules are multiplicity-free with the
+-- same set of simples), the proof amounts to: if M ≃ S₁ ⊕ ... ⊕ Sₙ and
+-- N ≃ S₁ ⊕ ... ⊕ Sₙ (same simples, each once), then M ≃ N by transitivity.
+-- The technical challenge is matching the simples between the two decompositions.
+private theorem semisimple_iso_of_finrank_hom_eq
+    {k : Type*} [Field k] [IsAlgClosed k]
+    {R : Type u} [Ring R] [Algebra k R] [Module.Finite k R]
+    [IsSemiprimaryRing R]
+    (M N : Type u) [AddCommGroup M] [Module R M] [Module k M] [IsScalarTower k R M]
+    [AddCommGroup N] [Module R N] [Module k N] [IsScalarTower k R N]
+    [IsSemisimpleModule R M] [IsSemisimpleModule R N]
+    [Module.Finite R M] [Module.Finite R N]
+    [Module.Finite k M] [Module.Finite k N]
+    (hM_tors : Module.IsTorsionBySet R M (Ring.jacobson R))
+    (hN_tors : Module.IsTorsionBySet R N (Ring.jacobson R))
+    (hhom : ∀ (S : Type*) [AddCommGroup S] [Module R S] [Module k S] [IsScalarTower k R S]
+      [IsSimpleModule R S] [Module.Finite k S],
+      Module.finrank k (M →ₗ[R] S) = Module.finrank k (N →ₗ[R] S)) :
+    Nonempty (M ≃ₗ[R] N) := by
+  sorry
+
+-- Helper 5e: Head isomorphism for basic Morita-equivalent algebras.
 -- Both F(B₁)/(J₂·F(B₁)) and B₂/J₂ are semisimple B₂-modules where
 -- each simple appears with multiplicity exactly 1.
 --
--- Proof outline (not yet fully formalized):
+-- Proof strategy:
 -- 1. Both quotients are semisimple (Artinian + quotient by Jacobson).
--- 2. For B₂ basic over alg. closed k: B₂/J₂ ≅ kⁿ (Wedderburn-Artin),
---    and each simple Sᵢ has dim_k = 1.
--- 3. Multiplicity of Sᵢ in B₂/J₂ = 1 (regular representation of kⁿ).
--- 4. Multiplicity of Sᵢ in F(B₁)/(J₂·F(B₁)):
---    Using the adjunction F ⊣ G = F⁻¹:
---      Hom_{B₂}(F(B₁), Sᵢ) ≅ Hom_{B₁}(B₁, G(Sᵢ)) ≅ G(Sᵢ)
---    Since G preserves simples and B₁ is basic: dim_k G(Sᵢ) = 1.
---    Since J₂ kills Sᵢ: Hom(F(B₁), Sᵢ) = Hom(F(B₁)/J₂·F(B₁), Sᵢ).
---    So multiplicity of Sᵢ = dim_k Hom(head, Sᵢ) = 1.
--- 5. Both heads have identical simple decomposition → isomorphic.
---
--- The key missing infrastructure is step 5: the semisimple module classification
--- theorem stating that two finite semisimple modules with the same simple
--- multiplicities are isomorphic. This requires either Krull-Schmidt or
--- an explicit construction via the Wedderburn-Artin decomposition B₂/J₂ ≅ kⁿ.
+-- 2. For each simple S, compute dim_k Hom(Pt/JP, S) = dim_k Hom(Pt, S)
+--    = dim_k G(S) = 1, using: adjunction (k-linear) + evaluation at 1 + basic.
+-- 3. Similarly dim_k Hom(B₂/JB, S) = dim_k S = 1 by evaluation + basic.
+-- 4. Apply semisimple_iso_of_finrank_hom_eq to conclude.
 private noncomputable def head_isomorphism [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
@@ -487,8 +578,6 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
     let J₂ := Ring.jacobson B₂
     (Pt ⧸ (J₂ • ⊤ : Submodule B₂ Pt)) ≃ₗ[B₂]
     (B₂ ⧸ (J₂ • ⊤ : Submodule B₂ B₂)) := by
-  -- Both quotients are semisimple B₂-modules (killed by J₂, hence B₂/J₂-modules,
-  -- and B₂/J₂ is semisimple since B₂ is Artinian → semiprimary)
   haveI : IsArtinianRing B₂ := IsArtinianRing.of_finite k B₂
   haveI : IsArtinianRing B₁ := IsArtinianRing.of_finite k B₁
   set Pt : Type u := ↑(F.functor.obj (ModuleCat.of B₁ B₁))
@@ -500,34 +589,103 @@ private noncomputable def head_isomorphism [IsAlgClosed k]
   haveI : IsSemisimpleModule B₂ (Pt ⧸ JP) := h_tors_P.isSemisimpleModule_iff.mp inferInstance
   have h_tors_B := Module.isTorsionBySet_quotient_ideal_smul B₂ (Ring.jacobson B₂)
   haveI : IsSemisimpleModule B₂ (B₂ ⧸ JB) := h_tors_B.isSemisimpleModule_iff.mp inferInstance
-  -- Module.Finite B₂ Pt (equivalence preserves finiteness)
   haveI : Module.Finite B₂ Pt := module_finite_of_equiv_artinian F
-  -- Both quotients are finite over B₂
   haveI : Module.Finite B₂ (Pt ⧸ JP) := inferInstance
   haveI : Module.Finite B₂ (B₂ ⧸ JB) := inferInstance
-  -- Both quotients are finite-dimensional over k
   haveI : Module.Finite k Pt := Module.Finite.trans B₂ Pt
   haveI : Module.Finite k (Pt ⧸ JP) := Module.Finite.quotient k JP
   haveI : Module.Finite k (B₂ ⧸ JB) := Module.Finite.quotient k JB
-  -- Both heads are semisimple B₂-modules killed by J₂, hence modules over B₂/J₂.
-  -- By Wedderburn-Artin + basic + alg closed: B₂/J₂ ≅ kⁿ (product of n copies of k).
-  -- Modules over kⁿ are classified by their component dimensions (dim_k eᵢ·M).
-  --
-  -- For B₂/JB (= B₂/J₂ as regular module): each component eᵢ·(B₂/J₂) ≅ k, dim = 1.
-  -- For Pt/JP: the multiplicity of simple Sᵢ is dim_k Hom_{B₂}(F(B₁), Sᵢ).
-  --   By the adjunction F ⊣ G = F⁻¹ (k-linear since F.functor.Linear k):
-  --     Hom_{B₂}(F(B₁), Sᵢ) ≅_k Hom_{B₁}(B₁, G(Sᵢ)) ≅_k G(Sᵢ)
-  --   Since G preserves simples (simple_of_equivalence for F.symm) and B₁ is basic:
-  --     dim_k G(Sᵢ) = 1.
-  --   So each component has dim 1 → Pt/JP ≅ kⁿ ≅ B₂/JB as B₂-modules.
-  --
-  -- Infrastructure needed to close this sorry:
-  -- (1) k-linear Hom adjunction: Hom_{B₂}(F(-), N) ≅_k Hom_{B₁}(-, G(N))
-  --     (from F.toAdjunction.homEquiv + k-linearity via F.functor.Linear k)
-  -- (2) Evaluation isomorphism: Hom_{B₁}(B₁, M) ≅_k M (eval at 1)
-  -- (3) Classification of f.g. modules over kⁿ by component dimensions
-  --     (or equivalently: semisimple module classification for commutative semisimple rings)
-  sorry
+  haveI := equiv_inverse_linear F (k := k)
+  haveI : IsSemiprimaryRing B₂ := inferInstance
+  -- Apply the classification theorem
+  exact (semisimple_iso_of_finrank_hom_eq (k := k) (R := B₂) (Pt ⧸ JP) (B₂ ⧸ JB)
+    h_tors_P h_tors_B (fun S _ _ _ _ _ _ => by
+    -- Need: finrank_k Hom_{B₂}(Pt/JP, S) = finrank_k Hom_{B₂}(B₂/JB, S)
+    -- Both sides = 1 by: quotient↔full Hom + adjunction/eval + basic
+    -- Step A: S is killed by J₂ (simple ⟹ semisimple ⟹ annihilated by Jacobson)
+    have hS_ann : Ring.jacobson B₂ ≤ Module.annihilator B₂ S :=
+      IsSemisimpleModule.jacobson_le_annihilator (R := B₂) (M := S)
+    -- Step B: Every B₂-map from any module to S kills J₂ • (anything)
+    have hkill : ∀ {M : Type u} [AddCommGroup M] [Module B₂ M]
+        (g : M →ₗ[B₂] S) (N : Submodule B₂ M),
+        (Ring.jacobson B₂ • ⊤ : Submodule B₂ M) ≤ LinearMap.ker g := by
+      intro M _ _ g _
+      intro x hx
+      rw [LinearMap.mem_ker]
+      exact Submodule.smul_induction_on hx
+        (fun j hj m _ => by rw [g.map_smul]; exact Module.mem_annihilator.mp (hS_ann hj) _)
+        (fun a b ha hb => by rw [map_add, ha, hb, add_zero])
+    -- Step C: Precomp with mkQ gives k-linear equiv on Hom spaces
+    -- (B₂ ⧸ JB →ₗ[B₂] S) ≃ₗ[k] (B₂ →ₗ[B₂] S)
+    have hom_equiv_mkQ : ∀ {M : Type u} [AddCommGroup M] [Module B₂ M]
+        [Module k M] [IsScalarTower k B₂ M]
+        (N : Submodule B₂ M) (hN : N = Ring.jacobson B₂ • ⊤),
+        Module.finrank k (M ⧸ N →ₗ[B₂] S) = Module.finrank k (M →ₗ[B₂] S) := by
+      intro M _ _ _ _ N hN
+      apply LinearEquiv.finrank_eq
+      exact {
+        toFun := fun f => f.comp N.mkQ
+        invFun := fun g => N.liftQ g (hN ▸ hkill g N)
+        left_inv := fun f => LinearMap.ext fun x =>
+          Submodule.Quotient.induction_on _ x (fun m => rfl)
+        right_inv := fun g => LinearMap.ext fun x => rfl
+        map_add' := fun _ _ => rfl
+        map_smul' := fun _ _ => rfl
+      }
+    -- Step D: finrank_k (B₂ →ₗ[B₂] S) = finrank_k S (evaluation at 1)
+    have eval_B₂ : Module.finrank k (B₂ →ₗ[B₂] S) = Module.finrank k S :=
+      (LinearMap.ringLmapEquivSelf B₂ k S).finrank_eq
+    -- Step E: finrank_k S = 1 (B₂ is basic)
+    have hS_dim : Module.finrank k S = 1 := _hB₂ S
+    -- Step F: RHS = 1
+    have rhs : Module.finrank k ((B₂ ⧸ JB) →ₗ[B₂] S) = 1 := by
+      rw [hom_equiv_mkQ JB rfl, eval_B₂, hS_dim]
+    -- Step G: LHS = 1 (via adjunction)
+    -- Hom(Pt/JP, S) ≅ Hom(Pt, S) ≅ Hom(B₁, G(S)) ≅ G(S), dim = 1
+    have lhs : Module.finrank k ((Pt ⧸ JP) →ₗ[B₂] S) = 1 := by
+      rw [hom_equiv_mkQ JP rfl]
+      -- Goal: finrank k (Pt →ₗ[B₂] S) = 1
+      -- Chain: LinearMap ≃ ModuleCat.Hom ≃ (adjunction) ≃ ModuleCat.Hom ≃ LinearMap ≃ GS
+      set X := ModuleCat.of B₁ B₁
+      set Y := ModuleCat.of B₂ S
+      set GS := F.inverse.obj Y
+      -- Build the full k-linear equiv (Pt →ₗ[B₂] S) ≃ₗ[k] ↑GS
+      have hfull : Module.finrank k (Pt →ₗ[B₂] S) = Module.finrank k (↥GS) := by
+        apply LinearEquiv.finrank_eq
+        haveI : F.inverse.Additive := Equivalence.inverse_additive F
+        -- Step 1: (Pt →ₗ[B₂] S) ≃ₗ[k] (F.functor.obj X ⟶ Y)
+        let e1 : (Pt →ₗ[B₂] ↥Y) ≃ₗ[k] (F.functor.obj X ⟶ Y) :=
+          (ModuleCat.homLinearEquiv (S := k)).symm
+        -- Step 2: adjunction as k-linear equiv
+        -- Use convert to bridge Module k S diamond (scoped vs hypothesized instance)
+        let e2 : (F.functor.obj X ⟶ Y) ≃ₗ[k] (X ⟶ GS) := {
+          toFun := F.toAdjunction.homEquiv X Y
+          invFun := (F.toAdjunction.homEquiv X Y).symm
+          left_inv := (F.toAdjunction.homEquiv X Y).left_inv
+          right_inv := (F.toAdjunction.homEquiv X Y).right_inv
+          map_add' := fun f g => by
+            simp only [Adjunction.homEquiv_unit, F.inverse.map_add, Preadditive.comp_add]
+          map_smul' := fun c f => by
+            simp only [RingHom.id_apply]
+            -- Diamond: DistribMulAction.toDistribSMul.toSMul vs Linear.homModule
+            -- Bridge by showing both k-actions agree via IsScalarTower k B₂
+            convert adj_homEquiv_smul F X Y c f using 1
+            all_goals (congr 1; ext x; exact (algebraMap_smul B₂ c (f.hom x)).symm)
+        }
+        -- Step 3: (X ⟶ GS) ≃ₗ[k] (B₁ →ₗ[B₁] ↑GS)
+        let e3 : (X ⟶ GS) ≃ₗ[k] (↥X →ₗ[B₁] ↥GS) :=
+          ModuleCat.homLinearEquiv (S := k)
+        -- Step 4: (B₁ →ₗ[B₁] ↑GS) ≃ₗ[k] ↑GS
+        let e4 : (↥X →ₗ[B₁] ↥GS) ≃ₗ[k] ↥GS :=
+          LinearMap.ringLmapEquivSelf B₁ k ↥GS
+        exact e1.trans (e2.trans (e3.trans e4))
+      -- GS is simple (equivalence preserves simples) and B₁ is basic
+      have hGS_dim : Module.finrank k (↥GS) = 1 := by
+        haveI : Simple GS := simple_of_equiv_inverse F Y
+        haveI : IsSimpleModule B₁ ↥GS := inferInstance
+        exact _hB₁ ↥GS
+      rw [hfull, hGS_dim]
+    rw [lhs, rhs])).some
 
 private noncomputable def exists_surjection_with_trivial_kernel_head [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
@@ -767,7 +925,8 @@ private noncomputable def equivEndAlgEquiv [IsAlgClosed k]
 private lemma basic_morita_algEquiv [IsAlgClosed k]
     (B₁ : Type u) [Ring B₁] [Algebra k B₁] [Module.Finite k B₁]
     (B₂ : Type u) [Ring B₂] [Algebra k B₂] [Module.Finite k B₂]
-    (_hB₁ : IsBasicAlgebra k B₁) (_hB₂ : IsBasicAlgebra k B₂)
+    (_hB₁ : Etingof.IsBasicAlgebra.{u, u, u} k B₁)
+    (_hB₂ : Etingof.IsBasicAlgebra.{u, u, u} k B₂)
     (h : KLinearMoritaEquivalent k B₁ B₂) :
     Nonempty (B₁ ≃ₐ[k] B₂) := by
   obtain ⟨F, hlin⟩ := h
@@ -820,7 +979,7 @@ equivalence proved in Theorem 9.6.4.
 theorem MoritaStructural [IsAlgClosed k]
     (A : Type u) [Ring A] [Algebra k A] [Module.Finite k A]
     (B : Type u) [Ring B] [Algebra k B] [Module.Finite k B]
-    (_hB : IsBasicAlgebra k B)
+    (_hB : Etingof.IsBasicAlgebra.{u, u, u} k B)
     (h : KLinearMoritaEquivalent k A B) :
     ∃ (e : A) (he : IsIdempotentElem e),
       Nonempty (@AlgEquiv k B (CornerRing (k := k) e) _ _
