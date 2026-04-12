@@ -294,11 +294,45 @@ private lemma youngSym_tBasis_weightVector (N : ℕ) (lam : Fin N → ℕ)
 Every element of `L_λ = range(c_λ)` is a sum of weight vectors since each
 `c_λ(e_f)` lies in the weight space for `tensorWeight(f)` (because `c_λ`
 commutes with the torus action). -/
+/-- The weight of a tensor coloring f: counts occurrences of each color. -/
+private def colorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) : Fin N →₀ ℕ where
+  toFun i := (Finset.univ.filter (fun j => f j = i)).card
+  support := Finset.univ.filter (fun i => 0 < (Finset.univ.filter (fun j => f j = i)).card)
+  mem_support_toFun i := by simp [Finset.card_pos, Finset.filter_nonempty_iff]
+
 private theorem glWeightSpace_schurModule_iSup_eq_top (N : ℕ) (lam : Fin N → ℕ) :
     ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) = ⊤ := by
-  -- Proof: v ∈ L_λ ⇒ v = ∑ cₑ · c_λ(eₑ), each c_λ(eₑ) is a weight vector
-  -- by youngSym_tBasis_weightVector + glTensor_comm_youngSym
-  sorry
+  set n := ∑ j, lam j
+  set B := tBasis (k := k) N n
+  set c := youngSymEndomorphism k N lam
+  set S := ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i)
+  -- Step 1: Each c(B f) is a weight vector, hence in S
+  have h_gen_in_S : ∀ f : Fin n → Fin N,
+      (⟨c (B f), ⟨B f, rfl⟩⟩ : ↥(SchurModuleSubmodule k N lam)) ∈ S := by
+    intro f
+    apply Submodule.mem_iSup_of_mem (colorWeight N f)
+    rw [glWeightSpace]; simp only [Submodule.mem_iInf]; intro i t
+    rw [LinearMap.mem_ker]
+    simp only [LinearMap.sub_apply, sub_eq_zero, LinearMap.smul_apply, LinearMap.id_apply]
+    apply Subtype.ext
+    simp only [SchurModule, FDRep.of_ρ', LinearMap.restrict_coe_apply,
+      Submodule.coe_smul_of_tower, colorWeight]
+    exact youngSym_tBasis_weightVector k N lam f i t
+  -- Step 2: S contains all elements (since c(B f) span the Schur module)
+  rw [eq_top_iff]
+  intro v _
+  obtain ⟨w, hw⟩ := v.property
+  -- v.val = c(w) = c(∑ coeff ��� B f) = ∑ coeff • c(B f)
+  have hv_sum : v =
+      ∑ f ∈ (B.repr w).support,
+        (B.repr w f) • (⟨c (B f), ⟨B f, rfl⟩⟩ : ↥(SchurModuleSubmodule k N lam)) := by
+    apply Subtype.ext
+    simp only [Submodule.coe_sum, Submodule.coe_smul_of_tower]
+    rw [show v.val = c w from hw.symm,
+      show w = ∑ f ∈ (B.repr w).support, B.repr w f • B f from (B.sum_repr w).symm]
+    simp only [map_sum, map_smul]
+  rw [hv_sum]
+  exact Submodule.sum_mem S (fun f _ => Submodule.smul_mem S _ (h_gen_in_S f))
 
 /-- Weight spaces for distinct weights are disjoint: if `μ ≠ ν`, then
 `glWeightSpace(L, μ) ⊓ glWeightSpace(L, ν) = ⊥`. -/
