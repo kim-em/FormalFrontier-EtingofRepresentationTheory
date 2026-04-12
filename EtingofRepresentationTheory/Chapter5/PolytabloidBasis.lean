@@ -517,7 +517,7 @@ private theorem youngSymmetrizer_mul_of_row' (n : ℕ) (la : Nat.Partition n)
   rw [mul_assoc, RowSymmetrizer_mul_of_row p hp]
 
 /-- The number of "column inversions" in the filling defined by σ. -/
-private def columnInvCount' (n : ℕ) (la : Nat.Partition n)
+def columnInvCount' (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) : ℕ :=
   (Finset.univ.filter fun pp : Fin n × Fin n =>
     colOfPos la.sortedParts pp.1.val = colOfPos la.sortedParts pp.2.val ∧
@@ -525,7 +525,7 @@ private def columnInvCount' (n : ℕ) (la : Nat.Partition n)
     σ.symm pp.2 < σ.symm pp.1).card
 
 /-- A filling is column-standard if all columns are increasing. -/
-private def isColumnStandard' (n : ℕ) (la : Nat.Partition n)
+def isColumnStandard' (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) : Prop :=
   ∀ p₁ p₂ : Fin n,
     colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val →
@@ -546,7 +546,7 @@ The left coset holds because: for each entry e in row r of the filling,
 σ(e) and sytPerm T(e) are both positions in row r. The permutation
 p = σ * sytPerm T⁻¹ maps canonical position k to σ(T(canonicalFilling(k))),
 which is a position in the same canonical row as k. -/
-private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
+theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ) :
     ∃ T : StandardYoungTableau n la,
       ∃ p ∈ RowSubgroup n la, σ = p * sytPerm n la T := by
@@ -820,7 +820,7 @@ private theorem column_standard_coset_has_syt' (n : ℕ) (la : Nat.Partition n)
 -- in SpechtModuleBasis.lean (via generalizedPolytabloidTab_mem_span_polytabloidTab)
 
 /-- Non-column-standard implies existence of a column inversion. -/
-private theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
+theorem exists_column_inversion (n : ℕ) (la : Nat.Partition n)
     (σ : Equiv.Perm (Fin n)) (h : ¬ isColumnStandard' n la σ) :
     ∃ p₁ p₂ : Fin n,
       colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val ∧
