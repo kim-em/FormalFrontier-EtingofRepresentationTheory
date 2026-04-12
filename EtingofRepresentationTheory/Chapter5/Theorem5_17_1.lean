@@ -1,6 +1,6 @@
 import Mathlib
 import EtingofRepresentationTheory.Chapter5.Definition5_14_2
-import EtingofRepresentationTheory.Chapter5.PolytabloidBasis
+import EtingofRepresentationTheory.Chapter5.SpechtModuleBasis
 import EtingofRepresentationTheory.Chapter5.FRTHelpers
 
 /-!
@@ -45,7 +45,7 @@ theorem finrank_spechtModule_eq_card_standardYoungTableau (n : ℕ) (la : Nat.Pa
     Module.finrank ℂ (SpechtModule n la) =
       Nat.card (StandardYoungTableau n la) := by
   rw [Nat.card_eq_fintype_card]
-  exact finrank_spechtModule_eq_card_syt n la
+  exact finrank_spechtModule_eq_card_syt' n la
 
 /-- Frame–Robinson–Thrall theorem (1954): the number of standard Young tableaux
 of shape λ equals n! / ∏ h(i,j). Derived from the multiplicative form. -/
