@@ -601,13 +601,30 @@ private theorem garnir_straightening_step
         generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   -- Step 1: Find the row inversion pair
   obtain ⟨p₁, p₂, hrow_eq, hcol_lt, hinv⟩ := exists_row_inversion_pair σ hrp
-  -- Step 2: Construct the Garnir set and find the row transposition
-  -- We need a Garnir set G that contains a row pair and is appropriate for
-  -- the row inversion. The garnirSet construction from PolytabloidBasis.lean
-  -- provides this for two positions in the same column spanning adjacent rows.
-  -- For now, we use sorry for the Garnir set construction and proceed with
-  -- the proof structure.
-  sorry
+  -- Step 2: Use G = {p₁, p₂} as Garnir set, t = swap(p₁, p₂) as row transposition
+  have hne : p₁ ≠ p₂ := by intro h; rw [h] at hcol_lt; exact Nat.lt_irrefl _ hcol_lt
+  set G := ({p₁, p₂} : Finset (Fin n))
+  set t := Equiv.swap p₁ p₂
+  have ht_row : t ∈ RowSubgroup n la := by
+    intro k; simp only [t, Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · subst h1; exact hrow_eq.symm
+    · subst h2; exact hrow_eq
+    · rfl
+  have ht_supp : ∀ x, x ∉ G → t x = x := by
+    intro x hx; simp only [G, Finset.mem_insert, Finset.mem_singleton, not_or] at hx
+    simp [t, Equiv.swap_apply_of_ne_of_ne hx.1 hx.2]
+  have ht_sign : Equiv.Perm.sign t = -1 := by
+    simp [t, Equiv.Perm.sign_swap hne]
+  -- Step 3: Apply the Garnir polytabloid identity
+  have h_id := garnir_polytabloid_identity σ G t ht_row ht_supp ht_sign
+  rw [h_id]
+  -- Step 4: Show the negated sum is in the span
+  apply Submodule.neg_mem
+  apply Submodule.sum_mem
+  intro ⟨w, hw_supp, hw_ne⟩ _
+  apply Submodule.smul_mem
+  exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
