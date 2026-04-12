@@ -48,12 +48,247 @@ The proof proceeds in two stages:
    content (James Ch. 7-8, Fulton Ch. 7).
 -/
 
+/-- swap(p₁, p₂) preserves columns when p₁ and p₂ are in the same column. -/
+private theorem swap_mem_columnSubgroup (p₁ p₂ : Fin n)
+    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val) :
+    Equiv.swap p₁ p₂ ∈ ColumnSubgroup n la := by
+  intro k
+  simp only [Equiv.swap_apply_def]
+  split_ifs with h1 h2
+  · subst h1; exact hcol.symm
+  · subst h2; exact hcol
+  · rfl
+
+/-- Swapping a column inversion strictly decreases the column inversion count.
+
+The proof constructs an injection g from "after-inversion pairs" into
+"before-inversion pairs minus (p₁,p₂)". The key insight: for most pairs the
+identity works; the only remapping needed is (a,p₁) ↦ (a,p₂) when
+σ⁻¹(a) is between σ⁻¹(p₂) and σ⁻¹(p₁), and (p₂,b) ↦ (p₁,b) when
+σ⁻¹(b) is between σ⁻¹(p₂) and σ⁻¹(p₁). -/
+private theorem columnInvCount'_swap_lt (σ : Equiv.Perm (Fin n))
+    (p₁ p₂ : Fin n)
+    (hcol : colOfPos la.sortedParts p₁.val = colOfPos la.sortedParts p₂.val)
+    (hrow : rowOfPos la.sortedParts p₁.val < rowOfPos la.sortedParts p₂.val)
+    (hinv : σ.symm p₂ < σ.symm p₁)
+    (hne : p₁ ≠ p₂) :
+    columnInvCount' n la (Equiv.swap p₁ p₂ * σ) < columnInvCount' n la σ := by
+  unfold columnInvCount'
+  set parts := la.sortedParts
+  have hsymm : ∀ x, (Equiv.swap p₁ p₂ * σ).symm x = σ.symm (Equiv.swap p₁ p₂ x) := by
+    intro x; change (Equiv.swap p₁ p₂ * σ)⁻¹ x = σ⁻¹ (Equiv.swap p₁ p₂ x)
+    rw [mul_inv_rev]; simp [Equiv.Perm.mul_apply]
+  let g : Fin n × Fin n → Fin n × Fin n := fun ⟨a, b⟩ =>
+    if b = p₁ ∧ σ.symm a < σ.symm p₁ then (a, p₂)
+    else if a = p₂ ∧ σ.symm p₂ < σ.symm b then (p₁, b)
+    else (a, b)
+  let isInv : Equiv.Perm (Fin n) → Fin n × Fin n → Prop := fun τ ⟨a, b⟩ =>
+    colOfPos parts a.val = colOfPos parts b.val ∧
+    rowOfPos parts a.val < rowOfPos parts b.val ∧ τ.symm b < τ.symm a
+  have hp : (p₁, p₂) ∈ Finset.univ.filter (fun pp => isInv σ pp) :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hcol, hrow, hinv⟩
+  suffices h_le : (Finset.univ.filter (fun pp => isInv (Equiv.swap p₁ p₂ * σ) pp)).card ≤
+      ((Finset.univ.filter (fun pp => isInv σ pp)).erase (p₁, p₂)).card by
+    exact Nat.lt_of_le_of_lt h_le (Finset.card_erase_lt_of_mem hp)
+  apply Finset.card_le_card_of_injOn g
+  · -- MapsTo: g maps after-inversions into before-inversions \ {(p₁,p₂)}
+    intro ⟨a, b⟩ hmem
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+    obtain ⟨hcol_ab, hrow_ab, hinv_ab⟩ := hmem
+    rw [hsymm, hsymm] at hinv_ab
+    show g (a, b) ∈ _
+    simp only [g]
+    split_ifs with h1 h2
+    · -- Branch 1: b = p₁, σ.symm a < σ.symm p₁ → g(a,b) = (a, p₂)
+      obtain ⟨hbeq1, ha_lt⟩ := h1
+      rw [eq_comm] at hbeq1; subst hbeq1
+      have ha_ne_p1 : a ≠ p₁ := by intro h; rw [h] at ha_lt; exact absurd ha_lt (lt_irrefl _)
+      have ha_ne_p2 : a ≠ p₂ := by
+        intro h; rw [h] at hrow_ab; exact absurd (lt_trans hrow_ab hrow) (lt_irrefl _)
+      rw [Equiv.swap_apply_left,
+          Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv_ab
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · exact fun heq => ha_ne_p1 (Prod.ext_iff.mp heq).1
+      · exact ⟨hcol_ab.trans hcol, lt_trans hrow_ab hrow, hinv_ab⟩
+    · -- Branch 2: a = p₂, σ.symm p₂ < σ.symm b → g(a,b) = (p₁, b)
+      obtain ⟨haeq2, hb_gt⟩ := h2
+      rw [eq_comm] at haeq2; subst haeq2
+      have hb_ne_p2 : b ≠ p₂ := by intro h; rw [h] at hrow_ab; exact absurd hrow_ab (lt_irrefl _)
+      have hb_ne_p1 : b ≠ p₁ := by
+        intro h; rw [h] at hrow_ab; exact absurd (lt_trans hrow hrow_ab) (lt_irrefl _)
+      rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+          Equiv.swap_apply_right] at hinv_ab
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · exact fun heq => hb_ne_p2 (Prod.ext_iff.mp heq).2
+      · exact ⟨hcol.trans hcol_ab, lt_trans hrow hrow_ab, hinv_ab⟩
+    · -- Branch 3: identity → g(a,b) = (a, b)
+      push_neg at h1 h2
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · intro heq; obtain ⟨rfl, rfl⟩ := Prod.ext_iff.mp heq
+        rw [Equiv.swap_apply_right, Equiv.swap_apply_left] at hinv_ab
+        exact absurd hinv_ab (Nat.not_lt.mpr hinv.le)
+      · refine ⟨hcol_ab, hrow_ab, ?_⟩
+        by_cases ha1 : a = p₁
+        · rw [eq_comm] at ha1; subst ha1
+          have hb_ne_p1 : b ≠ p₁ := by
+            intro h; rw [h] at hrow_ab; exact absurd hrow_ab (lt_irrefl _)
+          by_cases hb2 : b = p₂
+          · rw [eq_comm] at hb2; subst hb2
+            rw [Equiv.swap_apply_right, Equiv.swap_apply_left] at hinv_ab
+            exact absurd hinv_ab (Nat.not_lt.mpr hinv.le)
+          · rw [Equiv.swap_apply_left,
+                Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb2] at hinv_ab
+            exact lt_trans hinv_ab hinv
+        · by_cases ha2 : a = p₂
+          · rw [eq_comm] at ha2; subst ha2
+            have hb_ne_p2 : b ≠ p₂ := by
+              intro h; rw [h] at hrow_ab; exact absurd hrow_ab (lt_irrefl _)
+            have hb_ne_p1 : b ≠ p₁ := by
+              intro h; rw [h] at hrow_ab; exact absurd (lt_trans hrow hrow_ab) (lt_irrefl _)
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_right] at hinv_ab
+            exact lt_of_le_of_ne (h2 rfl) (fun h => hb_ne_p2 (σ.symm.injective h))
+          · rw [Equiv.swap_apply_of_ne_of_ne ha1 ha2] at hinv_ab
+            by_cases hb1 : b = p₁
+            · rw [eq_comm] at hb1; subst hb1
+              rw [Equiv.swap_apply_left] at hinv_ab
+              exact lt_of_le_of_ne (h1 rfl) (fun h => ha1 (σ.symm.injective h.symm))
+            · by_cases hb2 : b = p₂
+              · rw [eq_comm] at hb2; subst hb2
+                rw [Equiv.swap_apply_right] at hinv_ab
+                exact lt_trans hinv hinv_ab
+              · rwa [Equiv.swap_apply_of_ne_of_ne hb1 hb2] at hinv_ab
+  · -- InjOn: g is injective on after-inversions
+    intro ⟨a₁, b₁⟩ hmem₁ ⟨a₂, b₂⟩ hmem₂ heq
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hmem₁ hmem₂
+    show (a₁, b₁) = (a₂, b₂)
+    simp only [g] at heq
+    by_cases h1a : b₁ = p₁ ∧ σ.symm a₁ < σ.symm p₁
+    · -- Pair 1 in branch 1: g(a₁,b₁) = (a₁, p₂)
+      simp only [h1a, and_self, ↓reduceIte] at heq
+      by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+      · -- (1,1)
+        simp only [h1b, and_self, ↓reduceIte] at heq
+        have ha : a₁ = a₂ := congr_arg Prod.fst heq
+        subst ha; exact Prod.ext rfl (h1a.1.trans h1b.1.symm)
+      · simp only [h1b, ↓reduceIte] at heq
+        by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+        · -- (1,2)
+          simp only [h2b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = p₁ := congr_arg Prod.fst heq
+          subst ha; exact absurd h1a.2 (lt_irrefl _)
+        · -- (1,3)
+          simp only [h2b, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = a₂ := congr_arg Prod.fst heq
+          have hb : p₂ = b₂ := congr_arg Prod.snd heq
+          subst ha; subst hb
+          have ha_ne_p1 : a₁ ≠ p₁ := by
+            intro h; subst h; exact absurd h1a.2 (lt_irrefl _)
+          have ha_ne_p2 : a₁ ≠ p₂ := by
+            intro h; subst h; exact absurd hmem₂.2.1 (lt_irrefl _)
+          have hinv₂ := hmem₂.2.2
+          rw [hsymm, hsymm] at hinv₂
+          rw [Equiv.swap_apply_right,
+              Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv₂
+          exact absurd (lt_trans h1a.2 hinv₂) (lt_irrefl _)
+    · simp only [h1a, ↓reduceIte] at heq
+      by_cases h2a : a₁ = p₂ ∧ σ.symm p₂ < σ.symm b₁
+      · -- Pair 1 in branch 2: g(a₁,b₁) = (p₁, b₁)
+        simp only [h2a, and_self, ↓reduceIte] at heq
+        by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+        · -- (2,1)
+          simp only [h1b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : p₁ = a₂ := congr_arg Prod.fst heq
+          subst ha; exact absurd h1b.2 (lt_irrefl _)
+        · simp only [h1b, ↓reduceIte] at heq
+          by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+          · -- (2,2)
+            simp only [h2b, and_self, ↓reduceIte] at heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            subst hb; exact Prod.ext (h2a.1.trans h2b.1.symm) rfl
+          · -- (2,3)
+            simp only [h2b, ↓reduceIte] at heq
+            exfalso
+            have ha : p₁ = a₂ := congr_arg Prod.fst heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            subst ha; subst hb
+            have hb_ne_p1 : b₁ ≠ p₁ := by
+              intro h; subst h; exact absurd hmem₂.2.1 (lt_irrefl _)
+            have hb_ne_p2 : b₁ ≠ p₂ := by
+              intro h; subst h; exact absurd h2a.2 (lt_irrefl _)
+            have hinv₂ := hmem₂.2.2
+            rw [hsymm, hsymm] at hinv₂
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_left] at hinv₂
+            exact absurd (lt_trans hinv₂ h2a.2) (lt_irrefl _)
+      · -- Pair 1 in branch 3: g(a₁,b₁) = (a₁, b₁)
+        simp only [h2a, ↓reduceIte] at heq
+        by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+        · -- (3,1)
+          simp only [h1b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = a₂ := congr_arg Prod.fst heq
+          have hb : b₁ = p₂ := congr_arg Prod.snd heq
+          subst ha; rw [eq_comm] at hb; subst hb
+          have ha_ne_p1 : a₁ ≠ p₁ := by
+            intro h; subst h; exact absurd h1b.2 (lt_irrefl _)
+          have ha_ne_p2 : a₁ ≠ p₂ := by
+            intro h; subst h; exact absurd hmem₁.2.1 (lt_irrefl _)
+          have hinv₁' := hmem₁.2.2
+          rw [hsymm, hsymm] at hinv₁'
+          rw [Equiv.swap_apply_right,
+              Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv₁'
+          exact absurd (lt_trans h1b.2 hinv₁') (lt_irrefl _)
+        · simp only [h1b, ↓reduceIte] at heq
+          by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+          · -- (3,2)
+            simp only [h2b, and_self, ↓reduceIte] at heq
+            exfalso
+            have ha : a₁ = p₁ := congr_arg Prod.fst heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            rw [eq_comm] at ha; subst ha; subst hb
+            have hb_ne_p1 : b₁ ≠ p₁ := by
+              intro h; subst h; exact absurd hmem₁.2.1 (lt_irrefl _)
+            have hb_ne_p2 : b₁ ≠ p₂ := by
+              intro h; subst h; exact absurd h2b.2 (lt_irrefl _)
+            have hinv₁' := hmem₁.2.2
+            rw [hsymm, hsymm] at hinv₁'
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_left] at hinv₁'
+            exact absurd (lt_trans hinv₁' h2b.2) (lt_irrefl _)
+          · -- (3,3)
+            simp only [h2b, ↓reduceIte] at heq
+            exact heq
+
 /-- For any permutation σ, there exists q₀ ∈ Q_λ such that q₀ * σ is
 column-standard (entries increase down each column). The column-sorting
 permutation permutes entries within each column, hence lies in Q_λ. -/
 private theorem exists_column_standard_mul (σ : Equiv.Perm (Fin n)) :
     ∃ q₀ ∈ ColumnSubgroup n la, isColumnStandard' n la (q₀ * σ) := by
-  sorry
+  -- Strong induction on the column inversion count
+  suffices ∀ (τ : Equiv.Perm (Fin n)) (m : ℕ), m = columnInvCount' n la τ →
+      ∃ q₀ ∈ ColumnSubgroup n la, isColumnStandard' n la (q₀ * τ) from
+    this σ _ rfl
+  intro τ m
+  induction m using Nat.strongRecOn generalizing τ with
+  | _ m ih =>
+  intro hm
+  by_cases hcs : isColumnStandard' n la τ
+  · exact ⟨1, (ColumnSubgroup n la).one_mem, by rwa [one_mul]⟩
+  · -- Find a column inversion and swap it
+    obtain ⟨p₁, p₂, hcol_inv, hrow_inv, hinv_inv⟩ := exists_column_inversion n la τ hcs
+    have hne : p₁ ≠ p₂ := by intro h; rw [h] at hrow_inv; exact Nat.lt_irrefl _ hrow_inv
+    have hswap_mem : Equiv.swap p₁ p₂ ∈ ColumnSubgroup n la :=
+      swap_mem_columnSubgroup p₁ p₂ hcol_inv
+    have hcount : columnInvCount' n la (Equiv.swap p₁ p₂ * τ) < m := by
+      rw [hm]; exact columnInvCount'_swap_lt τ p₁ p₂ hcol_inv hrow_inv hinv_inv hne
+    obtain ⟨q₀, hq₀, hcs'⟩ := ih _ hcount (Equiv.swap p₁ p₂ * τ) rfl
+    exact ⟨q₀ * Equiv.swap p₁ p₂,
+      (ColumnSubgroup n la).mul_mem hq₀ hswap_mem,
+      by rwa [mul_assoc]⟩
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
