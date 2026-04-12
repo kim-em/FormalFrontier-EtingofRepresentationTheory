@@ -534,14 +534,276 @@ private theorem simple_of_equiv_inverse
     exact isIso_of_reflects_iso f F.functor
 
 -- Helper 5d: Classification of semisimple modules by Hom finranks.
--- Two finite semisimple modules over a semisimple ring, both of which have each simple
--- appearing with the same multiplicity, are isomorphic.
--- This is a consequence of the Krull-Schmidt theorem for semisimple modules,
--- which is not yet available as a single Mathlib lemma.
--- For the special case needed here (both modules are multiplicity-free with the
--- same set of simples), the proof amounts to: if M ≃ S₁ ⊕ ... ⊕ Sₙ and
--- N ≃ S₁ ⊕ ... ⊕ Sₙ (same simples, each once), then M ≃ N by transitivity.
--- The technical challenge is matching the simples between the two decompositions.
+-- Two finite semisimple modules over a semiprimary ring, both annihilated by the Jacobson
+-- radical and with matching Hom finranks to all simples, are isomorphic.
+-- Proof strategy: induction on finrank k M. Extract a simple submodule S₀ from M,
+-- find a matching copy in N (via Hom condition), take complements, apply IH.
+
+-- Auxiliary: induction on d ≥ finrank k M.
+private theorem semisimple_iso_aux
+    {k : Type*} [Field k] [IsAlgClosed k]
+    {R : Type u} [Ring R] [Algebra k R] [Module.Finite k R]
+    [IsSemiprimaryRing R]
+    (d : ℕ)
+    (M N : Type u) [AddCommGroup M] [Module R M] [Module k M] [IsScalarTower k R M]
+    [AddCommGroup N] [Module R N] [Module k N] [IsScalarTower k R N]
+    [IsSemisimpleModule R M] [IsSemisimpleModule R N]
+    [Module.Finite R M] [Module.Finite R N]
+    [Module.Finite k M] [Module.Finite k N]
+    (hd : Module.finrank k M ≤ d)
+    (hM_tors : Module.IsTorsionBySet R M (Ring.jacobson R))
+    (hN_tors : Module.IsTorsionBySet R N (Ring.jacobson R))
+    (hhom : ∀ (S : Type u) [AddCommGroup S] [Module R S] [Module k S] [IsScalarTower k R S]
+      [IsSimpleModule R S] [Module.Finite k S],
+      Module.finrank k (M →ₗ[R] S) = Module.finrank k (N →ₗ[R] S)) :
+    Nonempty (M ≃ₗ[R] N) := by
+  induction d generalizing M N with
+  | zero =>
+    -- finrank k M ≤ 0 → M subsingleton
+    haveI : Subsingleton M := by
+      haveI : Module.Free k M := inferInstance
+      exact (Module.finrank_zero_iff (R := k)).mp (Nat.le_zero.mp hd)
+    -- M subsingleton → Hom(M, S) subsingleton → finrank = 0
+    -- → finrank Hom(N, S) = 0 → N subsingleton (via projection contradiction)
+    haveI : Subsingleton N := by
+      by_contra hN; rw [not_subsingleton_iff_nontrivial] at hN
+      obtain ⟨S₀, hS₀⟩ := IsSemisimpleModule.exists_simple_submodule (R := R) (M := N)
+      haveI := hS₀; haveI : Nontrivial ↥S₀ := IsSimpleModule.nontrivial R ↥S₀
+      obtain ⟨Q₀, hc⟩ := exists_isCompl S₀
+      haveI : Module.Finite k ↥S₀ :=
+        Module.Finite.of_injective (S₀.restrictScalars k).subtype Subtype.val_injective
+      -- The projection is nonzero
+      have hne : S₀.linearProjOfIsCompl Q₀ hc ≠ 0 := by
+        intro h; obtain ⟨s₀, hs₀⟩ := exists_ne (0 : ↥S₀)
+        have := Submodule.linearProjOfIsCompl_apply_left hc s₀
+        rw [h, LinearMap.zero_apply] at this; exact hs₀ this.symm
+      -- But finrank Hom(N, S₀) = finrank Hom(M, S₀) = 0 (M subsingleton)
+      have h0 : Module.finrank k (N →ₗ[R] ↥S₀) = 0 := by
+        rw [← hhom]; exact Module.finrank_zero_of_subsingleton
+      -- Module.Finite for Hom(N, S₀) over k via restrict-scalars injection
+      haveI : Module.Finite k (N →ₗ[R] ↥S₀) :=
+        Module.Finite.of_injective
+          { toFun := LinearMap.restrictScalars k
+            map_add' := fun f g => LinearMap.restrictScalars_add f g
+            map_smul' := fun c f => by ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+          (LinearMap.restrictScalars_injective k)
+      -- finrank = 0 + Module.Finite + field → subsingleton Hom → contradiction
+      have : Subsingleton (N →ₗ[R] ↥S₀) :=
+        (Module.finrank_zero_iff (R := k)).mp h0
+      exact hne (Subsingleton.elim _ 0)
+    exact ⟨LinearEquiv.ofSubsingleton M N⟩
+  | succ d ih =>
+    by_cases htriv : Subsingleton M
+    · -- M trivial → same argument as base case
+      haveI : Subsingleton N := by
+        by_contra hN; rw [not_subsingleton_iff_nontrivial] at hN
+        obtain ⟨S₀, hS₀⟩ := IsSemisimpleModule.exists_simple_submodule (R := R) (M := N)
+        haveI := hS₀; haveI : Nontrivial ↥S₀ := IsSimpleModule.nontrivial R ↥S₀
+        obtain ⟨Q₀, hc⟩ := exists_isCompl S₀
+        haveI : Module.Finite k ↥S₀ :=
+          Module.Finite.of_injective (S₀.restrictScalars k).subtype Subtype.val_injective
+        have hne : S₀.linearProjOfIsCompl Q₀ hc ≠ 0 := by
+          intro h; obtain ⟨s₀, hs₀⟩ := exists_ne (0 : ↥S₀)
+          have := Submodule.linearProjOfIsCompl_apply_left hc s₀
+          rw [h, LinearMap.zero_apply] at this; exact hs₀ this.symm
+        have h0 : Module.finrank k (N →ₗ[R] ↥S₀) = 0 := by
+          rw [← hhom]; exact Module.finrank_zero_of_subsingleton
+        haveI : Module.Finite k (N →ₗ[R] ↥S₀) :=
+          Module.Finite.of_injective
+            { toFun := LinearMap.restrictScalars k
+              map_add' := fun f g => LinearMap.restrictScalars_add f g
+              map_smul' := fun c f => by
+                ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+            (LinearMap.restrictScalars_injective k)
+        have : Subsingleton (N →ₗ[R] ↥S₀) :=
+          (Module.finrank_zero_iff (R := k)).mp h0
+        exact hne (Subsingleton.elim _ 0)
+      exact ⟨LinearEquiv.ofSubsingleton M N⟩
+    · -- M nontrivial: extract simple S₀ ≤ M with complement Q
+      haveI : Nontrivial M := not_subsingleton_iff_nontrivial.mp htriv
+      obtain ⟨S₀, hS₀⟩ := IsSemisimpleModule.exists_simple_submodule (R := R) (M := M)
+      haveI := hS₀
+      obtain ⟨Q, hMc⟩ := exists_isCompl S₀
+      -- Get nonzero surjection f : N →ₗ[R] S₀
+      -- The projection M → S₀ is nonzero, so finrank Hom(M,S₀) > 0.
+      -- By hhom, finrank Hom(N,S₀) > 0, so ∃ nonzero f. Nonzero → surjective by Schur.
+      haveI : Nontrivial ↥S₀ := IsSimpleModule.nontrivial R ↥S₀
+      haveI : Module.Finite k ↥S₀ :=
+        Module.Finite.of_injective (S₀.restrictScalars k).subtype Subtype.val_injective
+      obtain ⟨f, hf_ne, hf_surj⟩ :
+          ∃ f : N →ₗ[R] ↥S₀, f ≠ 0 ∧ Function.Surjective f := by
+        -- Hom(M, S₀) is nontrivial via projection
+        obtain ⟨Q', hMc'⟩ := exists_isCompl S₀
+        have hproj_ne : S₀.linearProjOfIsCompl Q' hMc' ≠ 0 := by
+          intro h; obtain ⟨s₀, hs₀⟩ := exists_ne (0 : ↥S₀)
+          have := Submodule.linearProjOfIsCompl_apply_left hMc' s₀
+          rw [h, LinearMap.zero_apply] at this; exact hs₀ this.symm
+        -- finrank Hom(M, S₀) > 0
+        haveI : Module.Finite k (M →ₗ[R] ↥S₀) :=
+          Module.Finite.of_injective
+            { toFun := LinearMap.restrictScalars k
+              map_add' := fun f g => LinearMap.restrictScalars_add f g
+              map_smul' := fun c f => by
+                ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+            (LinearMap.restrictScalars_injective k)
+        have hM_pos : 0 < Module.finrank k (M →ₗ[R] ↥S₀) := by
+          rw [Module.finrank_pos_iff (R := k)]
+          exact ⟨_, _, hproj_ne⟩
+        -- Transfer to N
+        have hN_pos : 0 < Module.finrank k (N →ₗ[R] ↥S₀) := by
+          rw [hhom] at hM_pos; exact hM_pos
+        haveI : Module.Finite k (N →ₗ[R] ↥S₀) :=
+          Module.Finite.of_injective
+            { toFun := LinearMap.restrictScalars k
+              map_add' := fun f g => LinearMap.restrictScalars_add f g
+              map_smul' := fun c f => by
+                ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+            (LinearMap.restrictScalars_injective k)
+        rw [Module.finrank_pos_iff (R := k)] at hN_pos
+        obtain ⟨f, g, hfg⟩ := hN_pos
+        by_cases hf : f = 0
+        · exact ⟨g, (fun h => hfg (hf.trans h.symm)),
+            LinearMap.surjective_of_ne_zero (fun h => hfg (hf.trans h.symm))⟩
+        · exact ⟨f, hf, LinearMap.surjective_of_ne_zero hf⟩
+      -- Complement of ker f in N gives T₀ with f|_{T₀} : T₀ ≃ S₀
+      obtain ⟨T₀, hNc⟩ := exists_isCompl (LinearMap.ker f)
+      have eT₀S₀ : ↥T₀ ≃ₗ[R] ↥S₀ := by
+        apply LinearEquiv.ofBijective (f.domRestrict T₀)
+        refine ⟨?_, ?_⟩
+        · -- Injective: T₀ ∩ ker f = ⊥
+          intro ⟨x₁, hx₁⟩ ⟨x₂, hx₂⟩ hfxy
+          ext
+          have hfeq : f x₁ = f x₂ := by
+            have := congrArg Subtype.val hfxy
+            simp only [LinearMap.domRestrict_apply] at this
+            exact Subtype.ext this
+          have hdiff : x₁ - x₂ ∈ T₀ ⊓ LinearMap.ker f :=
+            ⟨T₀.sub_mem hx₁ hx₂,
+             LinearMap.mem_ker.mpr (by rw [map_sub, sub_eq_zero]; exact hfeq)⟩
+          rw [hNc.symm.inf_eq_bot] at hdiff
+          exact eq_of_sub_eq_zero (Submodule.mem_bot R |>.mp hdiff)
+        · -- Surjective: f surjective + N = ker f ⊕ T₀
+          intro ⟨s, hs⟩
+          obtain ⟨n, hn⟩ := hf_surj ⟨s, hs⟩
+          have hmem : (n : N) ∈ (LinearMap.ker f ⊔ T₀ : Submodule R N) :=
+            hNc.sup_eq_top ▸ Submodule.mem_top
+          obtain ⟨k_val, hk, t_val, ht, hsum⟩ := Submodule.mem_sup.mp hmem
+          exact ⟨⟨t_val, ht⟩, Subtype.ext (by
+            simp only [LinearMap.domRestrict_apply]
+            have : f t_val = f n := by
+              rw [show n = k_val + t_val from hsum.symm]
+              simp [map_add, LinearMap.mem_ker.mp hk]
+            rw [this, hn])⟩
+      -- Module.Finite k for submodules (via restrict_scalars injection)
+      haveI : Module.Finite k ↥S₀ :=
+        Module.Finite.of_injective (S₀.restrictScalars k).subtype Subtype.val_injective
+      haveI : Module.Finite k ↥Q :=
+        Module.Finite.of_injective (Q.restrictScalars k).subtype Subtype.val_injective
+      haveI : Module.Finite k ↥(LinearMap.ker f) :=
+        Module.Finite.of_injective ((LinearMap.ker f).restrictScalars k).subtype
+          Subtype.val_injective
+      -- finrank k Q ≤ d
+      have hQ_finrank : Module.finrank k ↥Q ≤ d := by
+        have hdecomp : Module.finrank k M =
+            Module.finrank k ↥S₀ + Module.finrank k ↥Q := by
+          rw [← Module.finrank_prod,
+            ((Submodule.prodEquivOfIsCompl S₀ Q hMc).restrictScalars k).finrank_eq]
+        haveI : Nontrivial ↥S₀ := IsSimpleModule.nontrivial R ↥S₀
+        have hS₀_pos : 0 < Module.finrank k ↥S₀ := Module.finrank_pos (R := k)
+        omega
+      -- Torsion for submodules (inherited from parent modules)
+      have hQ_tors : Module.IsTorsionBySet R ↥Q ↑(Ring.jacobson R) :=
+        fun {x} {a} => Subtype.ext (@hM_tors x.val a)
+      have hKer_tors : Module.IsTorsionBySet R ↥(LinearMap.ker f) ↑(Ring.jacobson R) :=
+        fun {x} {a} => Subtype.ext (@hN_tors x.val a)
+      -- Hom condition for Q and ker f
+      -- From M ≃ S₀ × Q and N ≃ T₀ × ker f with T₀ ≃ S₀:
+      -- finrank Hom(M,S) = finrank Hom(S₀,S) + finrank Hom(Q,S)
+      -- finrank Hom(N,S) = finrank Hom(T₀,S) + finrank Hom(ker f,S)
+      -- finrank Hom(T₀,S) = finrank Hom(S₀,S)
+      -- Combined with hhom: finrank Hom(Q,S) = finrank Hom(ker f,S)
+      have hhom_QK : ∀ (S : Type u) [AddCommGroup S] [Module R S] [Module k S]
+          [IsScalarTower k R S] [IsSimpleModule R S] [Module.Finite k S],
+          Module.finrank k (↥Q →ₗ[R] S) =
+          Module.finrank k (↥(LinearMap.ker f) →ₗ[R] S) := by
+        intro S _ _ _ _ _ _
+        -- Use ofIsComplProdEquiv to decompose Hom spaces
+        -- Helper: precomposition with an R-linear equiv is k-linear
+        have precomp_equiv {A B : Type u} [AddCommGroup A] [Module R A]
+            [Module k A] [IsScalarTower k R A]
+            [AddCommGroup B] [Module R B] [Module k B] [IsScalarTower k R B]
+            (e : A ≃ₗ[R] B) :
+            (B →ₗ[R] S) ≃ₗ[k] (A →ₗ[R] S) :=
+          { toFun := fun g => g.comp e.toLinearMap
+            invFun := fun g => g.comp e.symm.toLinearMap
+            left_inv := fun g => by ext; simp
+            right_inv := fun g => by ext; simp
+            map_add' := fun g₁ g₂ => by ext; simp
+            map_smul' := fun c g => by ext; simp }
+        -- Compose precomp with coprodEquiv to get full decomposition
+        -- M →ₗ[R] S ≃ₖ (↥S₀ × ↥Q →ₗ[R] S) ≃ₖ (↥S₀ →ₗ[R] S) × (↥Q →ₗ[R] S)
+        have eM : (M →ₗ[R] S) ≃ₗ[k]
+            ((↥S₀ →ₗ[R] S) × (↥Q →ₗ[R] S)) :=
+          (precomp_equiv (Submodule.prodEquivOfIsCompl S₀ Q hMc)).trans
+            (LinearMap.coprodEquiv k).symm
+        have eN : (N →ₗ[R] S) ≃ₗ[k]
+            ((↥T₀ →ₗ[R] S) × (↥(LinearMap.ker f) →ₗ[R] S)) :=
+          (precomp_equiv (Submodule.prodEquivOfIsCompl T₀ (LinearMap.ker f) hNc.symm)).trans
+            (LinearMap.coprodEquiv k).symm
+        have eTS : (↥T₀ →ₗ[R] S) ≃ₗ[k] (↥S₀ →ₗ[R] S) :=
+          precomp_equiv eT₀S₀.symm
+        -- Derive Module.Finite for all Hom spaces
+        haveI : Module.Finite k (M →ₗ[R] S) :=
+          Module.Finite.of_injective
+            { toFun := LinearMap.restrictScalars k
+              map_add' := fun f g => LinearMap.restrictScalars_add f g
+              map_smul' := fun c f => by
+                ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+            (LinearMap.restrictScalars_injective k)
+        haveI : Module.Finite k ((↥S₀ →ₗ[R] S) × (↥Q →ₗ[R] S)) :=
+          Module.Finite.equiv eM
+        haveI : Module.Finite k (↥S₀ →ₗ[R] S) :=
+          Module.Finite.of_injective
+            (LinearMap.inl k (↥S₀ →ₗ[R] S) (↥Q →ₗ[R] S)) LinearMap.inl_injective
+        haveI : Module.Finite k (↥Q →ₗ[R] S) :=
+          Module.Finite.of_injective
+            (LinearMap.inr k (↥S₀ →ₗ[R] S) (↥Q →ₗ[R] S)) LinearMap.inr_injective
+        haveI : Module.Finite k (N →ₗ[R] S) :=
+          Module.Finite.of_injective
+            { toFun := LinearMap.restrictScalars k
+              map_add' := fun f g => LinearMap.restrictScalars_add f g
+              map_smul' := fun c f => by
+                ext; simp [LinearMap.restrictScalars, LinearMap.smul_apply] }
+            (LinearMap.restrictScalars_injective k)
+        haveI : Module.Finite k ((↥T₀ →ₗ[R] S) × (↥(LinearMap.ker f) →ₗ[R] S)) :=
+          Module.Finite.equiv eN
+        haveI : Module.Finite k (↥T₀ →ₗ[R] S) :=
+          Module.Finite.of_injective
+            (LinearMap.inl k (↥T₀ →ₗ[R] S) (↥(LinearMap.ker f) →ₗ[R] S))
+            LinearMap.inl_injective
+        haveI : Module.Finite k (↥(LinearMap.ker f) →ₗ[R] S) :=
+          Module.Finite.of_injective
+            (LinearMap.inr k (↥T₀ →ₗ[R] S) (↥(LinearMap.ker f) →ₗ[R] S))
+            LinearMap.inr_injective
+        -- Now compute finranks
+        have hM_decomp : Module.finrank k (M →ₗ[R] S) =
+            Module.finrank k (↥S₀ →ₗ[R] S) + Module.finrank k (↥Q →ₗ[R] S) := by
+          rw [eM.finrank_eq, Module.finrank_prod]
+        have hN_decomp : Module.finrank k (N →ₗ[R] S) =
+            Module.finrank k (↥T₀ →ₗ[R] S) +
+            Module.finrank k (↥(LinearMap.ker f) →ₗ[R] S) := by
+          rw [eN.finrank_eq, Module.finrank_prod]
+        have hT₀S₀ : Module.finrank k (↥T₀ →ₗ[R] S) =
+            Module.finrank k (↥S₀ →ₗ[R] S) :=
+          eTS.finrank_eq
+        linarith [hhom S]
+      -- Apply IH
+      obtain ⟨eQK⟩ := ih ↥Q ↥(LinearMap.ker f) hQ_finrank hQ_tors hKer_tors hhom_QK
+      -- Compose: M ≃ S₀ × Q → T₀ × ker f ≃ N
+      exact ⟨(Submodule.prodEquivOfIsCompl S₀ Q hMc).symm.trans
+        ((LinearEquiv.prodCongr eT₀S₀.symm eQK).trans
+          (Submodule.prodEquivOfIsCompl T₀ (LinearMap.ker f) hNc.symm))⟩
+
 private theorem semisimple_iso_of_finrank_hom_eq
     {k : Type*} [Field k] [IsAlgClosed k]
     {R : Type u} [Ring R] [Algebra k R] [Module.Finite k R]
@@ -553,11 +815,11 @@ private theorem semisimple_iso_of_finrank_hom_eq
     [Module.Finite k M] [Module.Finite k N]
     (hM_tors : Module.IsTorsionBySet R M (Ring.jacobson R))
     (hN_tors : Module.IsTorsionBySet R N (Ring.jacobson R))
-    (hhom : ∀ (S : Type*) [AddCommGroup S] [Module R S] [Module k S] [IsScalarTower k R S]
+    (hhom : ∀ (S : Type u) [AddCommGroup S] [Module R S] [Module k S] [IsScalarTower k R S]
       [IsSimpleModule R S] [Module.Finite k S],
       Module.finrank k (M →ₗ[R] S) = Module.finrank k (N →ₗ[R] S)) :
-    Nonempty (M ≃ₗ[R] N) := by
-  sorry
+    Nonempty (M ≃ₗ[R] N) :=
+  semisimple_iso_aux (Module.finrank k M) M N le_rfl hM_tors hN_tors hhom
 
 -- Helper 5e: Head isomorphism for basic Morita-equivalent algebras.
 -- Both F(B₁)/(J₂·F(B₁)) and B₂/J₂ are semisimple B₂-modules where
