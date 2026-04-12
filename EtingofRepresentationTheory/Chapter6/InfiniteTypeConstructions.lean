@@ -2522,6 +2522,91 @@ theorem degree_ge_4_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
       (h_ne i).symm hij (h_ne j).symm
       (h_adj i) h_one (h_adj j)
 
+/-! ## Section 21a: Helper lemmas for the degree ≤ 3 classification
+
+These lemmas decompose the proof that a connected simple graph with non-positive-definite
+Cartan form has infinite representation type, in the case where all vertices have degree ≤ 3.
+-/
+
+/-- A connected simple graph containing a chordless cycle of length k ≥ 3 has infinite type.
+    The cycle is given as an injective embedding φ : Fin k ↪ Fin n that exactly preserves
+    the cycle adjacency structure. -/
+theorem chordless_cycle_infinite_type {n k : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (hk : 3 ≤ k)
+    (φ : Fin k ↪ Fin n)
+    (hembed : ∀ i j, cycleAdj k hk i j = adj (φ i) (φ j)) :
+    ¬ IsFiniteTypeQuiver n adj :=
+  subgraph_infinite_type_transfer φ adj (cycleAdj k hk) hsymm
+    (fun v h => by linarith [hdiag v]) hembed (cycle_not_finite_type k hk)
+
+/-- In a connected simple graph with all degrees ≤ 3 and a cycle (given as a list),
+    the graph has infinite representation type.
+
+    Strategy: extract a shortest cycle from the graph (which is necessarily chordless),
+    then apply `chordless_cycle_infinite_type`. If the shortest cycle has a potential chord,
+    it would create a shorter cycle, contradicting minimality. -/
+theorem graph_with_list_cycle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (cycle : List (Fin n)) (hlen : 3 ≤ cycle.length) (hnodup : cycle.Nodup)
+    (hedges : ∀ k, (h : k + 1 < cycle.length) →
+      adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1)
+    (hclose : adj (cycle.getLast (by intro h; simp [h] at hlen))
+      (cycle.get ⟨0, by omega⟩) = 1) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  sorry
+
+/-- A connected acyclic simple graph with all degrees ≤ 2 is a path, hence a Dynkin
+    diagram of type A_n, and therefore has positive definite Cartan form. -/
+theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_deg : ∀ v, vertexDegree adj v < 3) :
+    ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) := by
+  sorry
+
+/-- A connected acyclic simple graph with all degrees ≤ 3, at least one degree-3 vertex,
+    and non-positive-definite Cartan form has infinite representation type.
+
+    Such a graph is a tree with 1 or 2 branch points. If 2 branch points, it contains D̃₅.
+    If 1 branch point, it's T(p,q,r). The non-positive-definite condition eliminates the
+    ADE cases, leaving extended Dynkin subgraphs Ẽ₆, Ẽ₇, or T(1,2,5). -/
+theorem acyclic_branch_not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_deg : ∀ v, vertexDegree adj v < 4)
+    (h_has_branch : ∃ v, vertexDegree adj v = 3)
+    (h_not_posdef : ¬ ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x)) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  sorry
+
 /-- A connected simple graph whose Cartan form (2I - adj) is not positive definite
     has infinite representation type.
 
@@ -2549,9 +2634,40 @@ theorem not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
   · obtain ⟨v, hv⟩ := h_deg4
     exact degree_ge_4_infinite_type adj hsymm hdiag h01 v hv
   · push_neg at h_deg4
-    -- All degrees ≤ 3. Remaining cases need graph-theoretic classification:
-    -- all-degree-≤-2 cycle detection, branch point analysis, arm length classification.
-    sorry
+    -- All degrees ≤ 3.
+    -- Define acyclicity predicate
+    set HasCycle := ∃ (cycle : List (Fin n)) (_ : 3 ≤ cycle.length),
+        cycle.Nodup ∧
+        (∀ k, (h : k + 1 < cycle.length) →
+          adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) ∧
+        adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+          (cycle.get ⟨0, by omega⟩) = 1 with HasCycle_def
+    -- Case 2: graph contains a cycle
+    by_cases h_cycle : HasCycle
+    · obtain ⟨cycle, hlen, hnodup, hedges, hclose⟩ := h_cycle
+      exact graph_with_list_cycle_infinite_type adj hsymm hdiag h01
+        cycle hlen hnodup hedges hclose
+    · -- No cycle: graph is acyclic (a tree since it's connected)
+      have h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+          (∀ k, (h : k + 1 < cycle.length) →
+            adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+          adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+            (cycle.get ⟨0, by omega⟩) ≠ 1 := by
+        intro cycle hclen hnodup hedges hclose
+        exact h_cycle ⟨cycle, hclen, hnodup, hedges, hclose⟩
+      -- Case 3: all degrees ≤ 2 → path → positive definite → contradiction
+      by_cases h_has_branch : ∃ v, vertexDegree adj v = 3
+      · exact acyclic_branch_not_posdef_infinite_type adj hn hsymm hdiag h01 hconn
+          h_acyclic h_deg4 h_has_branch h_not_posdef
+      · -- All degrees ≤ 2
+        push_neg at h_has_branch
+        have h_deg_lt_3 : ∀ v, vertexDegree adj v < 3 := by
+          intro v
+          have h3 := h_deg4 v
+          have hne3 := h_has_branch v
+          omega
+        exact absurd (acyclic_deg_le_2_posdef adj hn hsymm hdiag h01 hconn
+          h_acyclic h_deg_lt_3) h_not_posdef
 
 /-- Every non-ADE connected simple graph on n ≥ 1 vertices has infinite representation type.
 
