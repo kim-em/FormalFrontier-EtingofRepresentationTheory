@@ -2559,6 +2559,312 @@ theorem graph_with_list_cycle_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin
     ¬ IsFiniteTypeQuiver n adj := by
   sorry
 
+/-- Strong induction helper: for a connected acyclic graph with all degrees < 3
+    and a designated leaf e, the Cartan form satisfies Q(x) ≥ x(e)² (hence ≥ 0)
+    and Q(x) > 0 for all x ≠ 0.
+
+    The proof removes the leaf, applies the IH to the reduced graph, and uses the
+    decomposition Q(x) = Q'(x') + 2·x(e)² - 2·x(e)·x(v₁) where v₁ is the unique
+    neighbor and Q' is the Cartan form of the reduced graph.
+    By the IH, Q'(x') ≥ x'(v₁)², giving Q(x) ≥ x(e)² + (x(e) - x(v₁))² ≥ x(e)². -/
+-- Cartan form quadratic form notation for brevity
+private abbrev QF {m : ℕ} (adj : Matrix (Fin m) (Fin m) ℤ) (x : Fin m → ℤ) : ℤ :=
+  dotProduct x ((2 • (1 : Matrix (Fin m) (Fin m) ℤ) - adj).mulVec x)
+
+set_option maxHeartbeats 800000 in
+-- Connected acyclic path graph Cartan form is positive definite (strong induction)
+private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin n) ℤ)
+    (e : Fin n),
+    adj.IsSymm → (∀ i, adj i i = 0) → (∀ i j, adj i j = 0 ∨ adj i j = 1) →
+    (∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1) →
+    (∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1) →
+    (∀ v, vertexDegree adj v < 3) →
+    vertexDegree adj e ≤ 1 →
+    -- Conclusion: Q(x) ≥ x(e)² AND Q(x) > 0 for x ≠ 0
+    (∀ x : Fin n → ℤ, (x e) ^ 2 ≤ QF adj x) ∧
+    (∀ x : Fin n → ℤ, x ≠ 0 → 0 < QF adj x) := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+  intro adj e hsymm hdiag h01 hconn h_acyclic h_deg he
+  -- Base case: n = 1
+  match n, adj, e, hsymm, hdiag, h01, hconn, h_acyclic, h_deg, he with
+  | 1, adj, e, hsymm, hdiag, h01, _, _, _, _ =>
+    -- n = 1: Q(x) = 2·x₀², and e is the only vertex
+    have he0 : e = 0 := Subsingleton.elim _ _
+    constructor <;> intro x
+    · -- Q(x) ≥ (x e)²
+      rw [he0]
+      have hQF : QF adj x = 2 * (x 0) ^ 2 := by
+        unfold QF; simp only [dotProduct, Matrix.mulVec, Fin.sum_univ_one, Matrix.sub_apply,
+          Matrix.smul_apply, Matrix.one_apply, Fin.isValue, ite_true, hdiag, sub_zero]
+        ring
+      rw [hQF]; nlinarith [sq_nonneg (x 0)]
+    · -- Q(x) > 0 for x ≠ 0
+      intro hx
+      have he0 : e = 0 := Subsingleton.elim _ _
+      have hQF : QF adj x = 2 * (x 0) ^ 2 := by
+        unfold QF; simp only [dotProduct, Matrix.mulVec, Fin.sum_univ_one, Matrix.sub_apply,
+          Matrix.smul_apply, Matrix.one_apply, Fin.isValue, ite_true, hdiag, sub_zero]
+        ring
+      rw [hQF]
+      have : x 0 ≠ 0 := by
+        intro h; apply hx; ext ⟨i, hi⟩; interval_cases i; exact h
+      positivity
+  | (k + 2), adj, e, hsymm, hdiag, h01, hconn, h_acyclic, h_deg, he =>
+    -- n = k + 2 ≥ 2. e is a leaf with degree ≤ 1.
+    -- Since n ≥ 2 and graph is connected, e has exactly degree 1.
+    have he_deg1 : vertexDegree adj e = 1 := by
+      apply le_antisymm he
+      -- Degree ≥ 1: pick j ≠ e, get path, first edge gives a neighbor
+      obtain ⟨j, hj⟩ : ∃ j : Fin (k + 2), j ≠ e :=
+        ⟨⟨if e.val = 0 then 1 else 0, by split_ifs <;> omega⟩,
+         fun h => by simp only [Fin.ext_iff] at h; split_ifs at h <;> omega⟩
+      obtain ⟨path, hhead, hlast, hedges⟩ := hconn e j
+      have hlen : 2 ≤ path.length := by
+        rcases path with _ | ⟨a, _ | ⟨b, _⟩⟩
+        · simp at hhead
+        · simp only [List.head?, List.getLast?_singleton] at hhead hlast
+          exact absurd (Option.some.inj hhead ▸ (Option.some.inj hlast).symm) hj
+        · simp
+      have hadj_01 := hedges 0 (by omega)
+      have hp0 : path.get ⟨0, by omega⟩ = e := by
+        rcases path with _ | ⟨a, _⟩
+        · simp at hhead
+        · exact Option.some.inj hhead
+      rw [hp0] at hadj_01
+      exact Finset.one_le_card.mpr ⟨path.get ⟨1, by omega⟩,
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hadj_01⟩⟩
+    -- Get unique neighbor v₁
+    obtain ⟨v₁, hv₁_mem⟩ :=
+      Finset.card_pos.mp (show 0 < vertexDegree adj e by omega)
+    have hv₁_adj : adj e v₁ = 1 := (Finset.mem_filter.mp hv₁_mem).2
+    have hunique : ∀ w, adj e w = 1 → w = v₁ := by
+      intro w hw; by_contra hne
+      have : 2 ≤ vertexDegree adj e := by
+        change 2 ≤ (Finset.univ.filter (fun j => adj e j = 1)).card
+        have hv₁_in : v₁ ∈ Finset.univ.filter (fun j => adj e j = 1) :=
+          Finset.mem_filter.mpr ⟨Finset.mem_univ v₁, hv₁_adj⟩
+        have hw_in : w ∈ Finset.univ.filter (fun j => adj e j = 1) :=
+          Finset.mem_filter.mpr ⟨Finset.mem_univ w, hw⟩
+        calc 2 = ({v₁, w} : Finset _).card := by
+              rw [Finset.card_pair (fun h => hne (h.symm))]
+          _ ≤ _ := Finset.card_le_card (fun x hx => by
+              simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+              rcases hx with rfl | rfl <;> assumption)
+      omega
+    have hne : v₁ ≠ e := by intro h; subst h; rw [hdiag] at hv₁_adj; omega
+    -- Define reduced graph adj' on Fin (k + 1) by removing e
+    set adj' : Matrix (Fin (k + 1)) (Fin (k + 1)) ℤ :=
+      fun i j => adj (e.succAbove i) (e.succAbove j) with hadj'_def
+    -- Lift x : Fin (k+2) → ℤ to x' on Fin (k+1) via succAbove
+    -- and x_ext : Fin (k+2) → ℤ with x_ext(e) = 0
+    -- Key transfer: QF adj' x' = QF adj x_ext (zeroing e)
+    -- Then: QF adj x = QF adj x_ext + 2·(x e)² - 2·(x e)·(x v₁)
+    -- Establish adj' properties
+    have hsymm' : adj'.IsSymm := Matrix.IsSymm.ext (fun i j => hsymm.apply _ _)
+    have hdiag' : ∀ i, adj' i i = 0 := fun i => hdiag _
+    have h01' : ∀ i j, adj' i j = 0 ∨ adj' i j = 1 := fun i j => h01 _ _
+    -- Degree bound for adj'
+    have h_deg' : ∀ v, vertexDegree adj' v < 3 := by
+      intro i; unfold vertexDegree
+      calc (Finset.univ.filter (fun j => adj' i j = 1)).card
+          ≤ (Finset.univ.filter (fun j : Fin (k + 2) => adj (e.succAbove i) j = 1)).card := by
+            have h_image : ((Finset.univ.filter (fun j : Fin (k+1) => adj' i j = 1)).image e.succAbove)
+                ⊆ Finset.univ.filter (fun j : Fin (k + 2) => adj (e.succAbove i) j = 1) :=
+              fun x hx => by
+                simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and] at hx ⊢
+                obtain ⟨y, hy, rfl⟩ := hx; exact hy
+            calc (Finset.univ.filter (fun j : Fin (k+1) => adj' i j = 1)).card
+                = ((Finset.univ.filter (fun j : Fin (k+1) => adj' i j = 1)).image e.succAbove).card :=
+                  (Finset.card_image_of_injective _ Fin.succAbove_right_injective).symm
+              _ ≤ _ := Finset.card_le_card h_image
+        _ < 3 := h_deg _
+    -- v₁' : preimage of v₁ under succAbove
+    obtain ⟨v₁', hv₁'⟩ := Fin.exists_succAbove_eq hne
+    -- v₁' is a leaf in adj'
+    have hv₁'_deg : vertexDegree adj' v₁' ≤ 1 := by
+      unfold vertexDegree
+      have h_image : ((Finset.univ.filter (fun j : Fin (k+1) => adj' v₁' j = 1)).image e.succAbove)
+          ⊆ (Finset.univ.filter (fun j : Fin (k + 2) => adj v₁ j = 1)).erase e := by
+        intro x hx
+        simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and] at hx
+        obtain ⟨y, hy, rfl⟩ := hx
+        exact Finset.mem_erase.mpr ⟨Fin.succAbove_ne e y, by
+          exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, hv₁' ▸ hy⟩⟩
+      have h_card : (Finset.univ.filter (fun j : Fin (k+1) => adj' v₁' j = 1)).card ≤
+          ((Finset.univ.filter (fun j : Fin (k + 2) => adj v₁ j = 1)).erase e).card :=
+        (Finset.card_image_of_injective _ Fin.succAbove_right_injective).symm ▸
+          Finset.card_le_card h_image
+      have hv₀_mem : e ∈ Finset.univ.filter (fun j : Fin (k + 2) => adj v₁ j = 1) :=
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hsymm.apply e v₁ ▸ hv₁_adj⟩
+      rw [Finset.card_erase_of_mem hv₀_mem] at h_card
+      have := h_deg v₁; unfold vertexDegree at this; omega
+    -- Acyclicity of adj': a cycle in adj' maps to a cycle in adj via e.succAbove
+    have h_acyclic' : ∀ (cycle : List (Fin (k+1))) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+        (∀ m, (h : m + 1 < cycle.length) →
+          adj' (cycle.get ⟨m, by omega⟩) (cycle.get ⟨m + 1, h⟩) = 1) →
+        adj' (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+          (cycle.get ⟨0, by omega⟩) ≠ 1 := by
+      intro cycle hclen hnodup hedges hlast
+      -- Map cycle to adj via succAbove
+      set cycle' := cycle.map e.succAbove
+      have hlen' : cycle'.length = cycle.length := List.length_map ..
+      have hget' : ∀ (m : ℕ) (hm : m < cycle'.length),
+          cycle'.get ⟨m, hm⟩ = e.succAbove (cycle.get ⟨m, by rw [hlen'] at hm; exact hm⟩) := by
+        intro m hm; exact List.getElem_map ..
+      apply h_acyclic cycle' (by omega)
+      · exact hnodup.map Fin.succAbove_right_injective
+      · intro m hm
+        rw [hget', hget']
+        exact hedges m (by rw [hlen'] at hm; omega)
+      · simp only [cycle', List.getLast_map, hget']
+        exact hlast
+    -- Connectivity of adj': removing a degree-1 vertex preserves connectivity.
+    -- Uses SimpleGraph.Connected.induce_compl_singleton_of_degree_eq_one.
+    -- (Same technique as DynkinForward.lean path_walk_construction)
+    have hconn' : ∀ i j : Fin (k+1), ∃ path : List (Fin (k+1)),
+        path.head? = some i ∧ path.getLast? = some j ∧
+        ∀ m, (h : m + 1 < path.length) →
+          adj' (path.get ⟨m, by omega⟩) (path.get ⟨m + 1, h⟩) = 1 := by
+      -- Removing a degree-1 vertex preserves connectivity.
+      -- Key insight: in a tree, the unique simple path between two non-leaf
+      -- vertices doesn't pass through a leaf. Our graph is acyclic + connected = tree.
+      -- Therefore, the path from hconn (which we can assume avoids e) maps to adj'.
+      -- TODO(#2284): Formalize path-avoids-leaf argument for connectivity preservation
+      sorry
+    -- Apply induction hypothesis to adj'
+    have ih_result := ih (k + 1) (by omega) adj' v₁' hsymm' hdiag' h01' hconn' h_acyclic' h_deg' hv₁'_deg
+    obtain ⟨ih_lb, ih_pos⟩ := ih_result
+    -- adj(e,j) is 1 only at v₁, 0 elsewhere
+    have hadj_e : ∀ j, adj e j = if j = v₁ then 1 else 0 := by
+      intro j; by_cases hj : j = v₁
+      · simp [hj, hv₁_adj]
+      · rcases h01 e j with h | h
+        · simp [hj, h]
+        · exact absurd (hunique j h) hj
+    -- General decomposition: QF adj x = QF adj (zero at e) + 2·(x e)² - 2·(x e)·(x v₁)
+    have h_decomp_gen : ∀ x : Fin (k+2) → ℤ,
+        QF adj x = QF adj (fun i => if i = e then 0 else x i) +
+          2 * (x e) ^ 2 - 2 * (x e) * (x v₁) := by
+      intro x; set x_ext : Fin (k+2) → ℤ := fun i => if i = e then 0 else x i
+      have hx_ext_e : x_ext e = 0 := by simp [x_ext]
+      have hx_ext_sa : ∀ i, x_ext (e.succAbove i) = x (e.succAbove i) := by
+        intro i; simp [x_ext, Fin.succAbove_ne e i]
+      suffices h_diff : QF adj x - QF adj x_ext = 2 * (x e) ^ 2 - 2 * (x e) * (x v₁) by linarith
+      simp only [QF, dotProduct, Matrix.mulVec, Matrix.sub_apply, Matrix.smul_apply,
+        Matrix.one_apply]
+      rw [Fin.sum_univ_succAbove (f := fun i => x i * _) e,
+          Fin.sum_univ_succAbove (f := fun i => x_ext i * _) e]
+      simp only [hx_ext_e, zero_mul, zero_add]
+      simp_rw [Fin.sum_univ_succAbove (f := fun j => _ * x j) e,
+               Fin.sum_univ_succAbove (f := fun j => _ * x_ext j) e]
+      simp only [hx_ext_e, mul_zero, add_zero]
+      simp_rw [hx_ext_sa]
+      simp only [hdiag, sub_zero, Fin.succAbove_ne, ite_false]
+      simp_rw [show ∀ i, adj (e.succAbove i) e = adj e (e.succAbove i) from
+        fun i => hsymm.apply _ _]
+      simp_rw [hadj_e]
+      simp_rw [show ∀ i : Fin (k+1), (e.succAbove i = v₁) = (i = v₁') from
+        fun i => propext ⟨fun h => Fin.succAbove_right_injective (h.trans hv₁'.symm),
+          fun h => h ▸ hv₁'⟩]
+      simp only [show ∀ i : Fin (k+1), (e = e.succAbove i) = False from
+        fun i => propext ⟨fun h => absurd h.symm (Fin.succAbove_ne e i), False.elim⟩,
+        show ∀ i j : Fin (k+1), (e.succAbove i = e.succAbove j) = (i = j) from
+        fun i j => propext ⟨fun h => Fin.succAbove_right_injective h, fun h => h ▸ rfl⟩,
+        ite_false, ite_true]
+      simp only [nsmul_eq_mul, Nat.cast_ofNat, mul_one, mul_zero, sub_zero,
+        zero_sub, zero_add]
+      conv_lhs =>
+        rw [show ∀ (p : ℤ) (f g h : Fin (k+1) → ℤ),
+            p + ∑ i, f i * (g i + h i) - ∑ i, f i * h i = p + ∑ i, f i * g i from by
+          intros; simp only [mul_add, Finset.sum_add_distrib]; ring]
+      simp only [apply_ite Neg.neg, neg_zero,
+        ite_mul, neg_one_mul, zero_mul, mul_ite, mul_neg, mul_zero,
+        Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+      rw [show x (e.succAbove v₁') = x v₁ from by rw [hv₁']]
+      ring
+    constructor
+    · -- Part 1: QF adj x ≥ (x e)² for all x
+      intro x
+      -- Define x' : Fin (k+1) → ℤ as x restricted via succAbove
+      set x' : Fin (k + 1) → ℤ := fun i => x (e.succAbove i) with hx'_def
+      -- Define x_ext : Fin (k+2) → ℤ as x with x(e) = 0
+      set x_ext : Fin (k + 2) → ℤ := fun i => if i = e then 0 else x i with hx_ext_def
+      have hx_ext_e : x_ext e = 0 := by simp [x_ext]
+      have hx_ext_sa : ∀ i, x_ext (e.succAbove i) = x (e.succAbove i) := by
+        intro i; simp [x_ext, Fin.succAbove_ne e i]
+      -- Transfer: QF adj x_ext = QF adj' x'
+      have h_transfer : QF adj x_ext = QF adj' x' := by
+        simp only [QF, dotProduct, Matrix.mulVec]
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [hx_ext_e, zero_mul, zero_add]
+        congr 1; ext i; rw [hx_ext_sa]; congr 1
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [hx_ext_e, mul_zero, zero_add]
+        congr 1; ext j; rw [hx_ext_sa]; congr 1
+        simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, hadj'_def,
+          Fin.succAbove_right_inj, smul_eq_mul]
+      set a := x e
+      set b := x v₁
+      have h_decomp : QF adj x = QF adj x_ext + 2 * a ^ 2 - 2 * a * b := h_decomp_gen x
+      -- Now combine: QF adj x = QF adj' x' + 2a² - 2ab
+      rw [h_decomp, h_transfer]
+      -- IH gives: QF adj' x' ≥ (x' v₁')² = b²
+      have hb_eq : x' v₁' = b := by show x (e.succAbove v₁') = x v₁; rw [hv₁']
+      have ih_bound := ih_lb x'
+      rw [hb_eq] at ih_bound
+      -- QF adj' x' + 2a² - 2ab ≥ b² + 2a² - 2ab = a² + (a-b)²
+      nlinarith [sq_nonneg (a - b)]
+    · -- Part 2: QF adj x > 0 for x ≠ 0
+      intro x hx
+      set x' : Fin (k + 1) → ℤ := fun i => x (e.succAbove i) with hx'_def
+      set x_ext : Fin (k + 2) → ℤ := fun i => if i = e then 0 else x i with hx_ext_def
+      set a := x e
+      set b := x v₁
+      -- Same decomposition
+      have h_transfer : QF adj x_ext = QF adj' x' := by
+        simp only [QF, dotProduct, Matrix.mulVec]
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [show x_ext e = 0 from by simp [x_ext], zero_mul, zero_add]
+        congr 1; ext i
+        rw [show x_ext (e.succAbove i) = x (e.succAbove i) from by simp [x_ext, Fin.succAbove_ne]]
+        congr 1
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [show x_ext e = 0 from by simp [x_ext], mul_zero, zero_add]
+        congr 1; ext j
+        rw [show x_ext (e.succAbove j) = x (e.succAbove j) from by simp [x_ext, Fin.succAbove_ne]]
+        congr 1
+        simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, hadj'_def,
+          Fin.succAbove_right_inj, smul_eq_mul]
+      -- Convert h_decomp_gen to use local set variables
+      have h_decomp : QF adj x = QF adj x_ext + 2 * a ^ 2 - 2 * a * b := h_decomp_gen x
+      have hb_eq : x' v₁' = b := by show x (e.succAbove v₁') = x v₁; rw [hv₁']
+      by_cases ha : a = 0
+      · -- x(e) = 0: QF adj x = QF adj' x', and x' ≠ 0
+        have hx'_ne : x' ≠ 0 := by
+          intro h; apply hx; funext i
+          by_cases hi : i = e
+          · exact hi ▸ ha
+          · obtain ⟨j, hj⟩ := Fin.exists_succAbove_eq hi
+            have : x' j = (0 : Fin (k + 1) → ℤ) j := congr_fun h j
+            simp only [x', Pi.zero_apply] at this
+            rw [← hj]; exact this
+        rw [h_decomp, ha]; simp; rw [h_transfer]; exact ih_pos x' hx'_ne
+      · -- x(e) ≠ 0: QF adj x ≥ a² > 0
+        have ih_bound := ih_lb x'
+        rw [hb_eq] at ih_bound
+        rw [h_decomp, h_transfer]
+        have ha_pos : 0 < a ^ 2 := by positivity
+        nlinarith [sq_nonneg (a - b)]
+
 /-- A connected acyclic simple graph with all degrees ≤ 2 is a path, hence a Dynkin
     diagram of type A_n, and therefore has positive definite Cartan form. -/
 theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
@@ -2578,7 +2884,20 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     (h_deg : ∀ v, vertexDegree adj v < 3) :
     ∀ x : Fin n → ℤ, x ≠ 0 →
       0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) := by
-  sorry
+  -- Find a leaf
+  have h_has_leaf : ∃ e, vertexDegree adj e ≤ 1 := by
+    by_contra h_no_leaf; push_neg at h_no_leaf
+    -- All degrees ≥ 2, and all < 3, so all = 2. A 2-regular connected graph has a cycle.
+    have hdeg2 : ∀ i, vertexDegree adj i = 2 := by
+      intro i; have := h_deg i; have := h_no_leaf i; omega
+    -- Every vertex has exactly 2 neighbors: given a neighbor, there is exactly one other
+    -- A 2-regular connected finite graph must contain a cycle
+    -- (It's a union of disjoint cycles; since connected, it's a single cycle)
+    -- Proof: walk construction by pigeonhole
+    -- TODO(#2284): Formalize walk construction for 2-regular graph → cycle
+    sorry
+  obtain ⟨e, he⟩ := h_has_leaf
+  exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2
 
 /-- A connected acyclic simple graph with all degrees ≤ 3, at least one degree-3 vertex,
     and non-positive-definite Cartan form has infinite representation type.
