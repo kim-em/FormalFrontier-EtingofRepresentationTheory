@@ -3054,12 +3054,274 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
   obtain ⟨e, he⟩ := h_has_leaf
   exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2
 
+/-- In an acyclic graph (tree), two distinct adjacent vertices have no other common
+    neighbors. More precisely, if `adj v a = 1` and `adj v b = 1` with `a ≠ b`, and
+    `adj v w = 1` with `w ≠ v`, then in the acyclic graph adj a b = 0 (they cannot
+    form a triangle). -/
+private theorem acyclic_no_triangle {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (v a b : Fin n) (hab : a ≠ b) (hav : a ≠ v) (hbv : b ≠ v)
+    (ha : adj v a = 1) (hb : adj v b = 1) : adj a b = 0 := by
+  -- In a tree, if v is adjacent to both a and b, then a-b is not an edge (would form triangle)
+  rcases h01 a b with h | h
+  · exact h
+  · exfalso
+    -- adj_comm: adj i j = adj j i
+    have adj_comm := fun i j => hsymm.apply j i
+    have hcycle := h_acyclic [a, v, b] (by simp)
+      (List.nodup_cons.mpr ⟨by simp [hav, hab],
+        List.nodup_cons.mpr ⟨by simp [hbv.symm],
+          List.nodup_cons.mpr ⟨by simp, List.nodup_nil⟩⟩⟩)
+      (by intro k hk; have hk' : k + 1 < 3 := by simpa using hk
+          have : k = 0 ∨ k = 1 := by omega
+          rcases this with rfl | rfl
+          · exact (adj_comm a v).trans ha
+          · exact hb)
+    exact hcycle ((adj_comm b a).trans h)
+
+/-- In an acyclic graph, vertices at path-distance ≥ 2 are non-adjacent.
+    If there's a path v₁ - v₂ - ... - v_k from a to b (through intermediate vertices),
+    then adj a b = 0 (would create a cycle). -/
+private theorem acyclic_path_nonadj {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (path : List (Fin n)) (hlen : 3 ≤ path.length) (hnodup : path.Nodup)
+    (hedges : ∀ k, (h : k + 1 < path.length) →
+      adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1) :
+    adj (path.getLast (List.ne_nil_of_length_pos (by omega)))
+      (path.get ⟨0, by omega⟩) = 0 := by
+  rcases h01 (path.getLast _) (path.get ⟨0, _⟩) with h | h
+  · exact h
+  · exact absurd h (h_acyclic path hlen hnodup hedges)
+
+/-- A connected acyclic simple graph with two adjacent degree-3 vertices (and all
+    degrees ≤ 3) has infinite representation type, by embedding D̃₅.
+    The two branch points plus their 4 other neighbors give 6 vertices forming D̃₅. -/
+private theorem adjacent_branches_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (v₀ w : Fin n) (hv₀_deg : vertexDegree adj v₀ = 3)
+    (hw_deg : vertexDegree adj w = 3) (hvw_adj : adj v₀ w = 1) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- adj_comm: adj i j = adj j i (from symmetry)
+  have adj_comm : ∀ i j, adj i j = adj j i := fun i j => hsymm.apply j i
+  -- ne_of_adj: adjacent vertices are distinct
+  have ne_of_adj : ∀ a b, adj a b = 1 → a ≠ b := fun a b h hab => by
+    rw [hab, hdiag] at h; exact one_ne_zero h.symm
+  -- Extract the 3 neighbors of v₀
+  set S₀ := Finset.univ.filter (fun j => adj v₀ j = 1) with hS₀_def
+  have hS₀_card : S₀.card = 3 := hv₀_deg
+  have hw_mem : w ∈ S₀ := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hvw_adj⟩
+  have hS₀_erase : (S₀.erase w).card = 2 := by
+    rw [Finset.card_erase_of_mem hw_mem, hS₀_card]
+  obtain ⟨u₁, u₂, hu₁₂, hS₀_eq⟩ := Finset.card_eq_two.mp hS₀_erase
+  have hu₁_mem : u₁ ∈ S₀.erase w := hS₀_eq ▸ Finset.mem_insert_self u₁ _
+  have hu₂_mem : u₂ ∈ S₀.erase w := hS₀_eq ▸ Finset.mem_insert.mpr
+    (Or.inr (Finset.mem_singleton_self u₂))
+  have hu₁_adj : adj v₀ u₁ = 1 :=
+    (Finset.mem_filter.mp (Finset.mem_of_mem_erase hu₁_mem)).2
+  have hu₂_adj : adj v₀ u₂ = 1 :=
+    (Finset.mem_filter.mp (Finset.mem_of_mem_erase hu₂_mem)).2
+  have hu₁_ne_w : u₁ ≠ w := Finset.ne_of_mem_erase hu₁_mem
+  have hu₂_ne_w : u₂ ≠ w := Finset.ne_of_mem_erase hu₂_mem
+  -- Extract the 3 neighbors of w
+  set Sw := Finset.univ.filter (fun j => adj w j = 1) with hSw_def
+  have hSw_card : Sw.card = 3 := hw_deg
+  have hv₀_mem_Sw : v₀ ∈ Sw :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm w v₀).trans hvw_adj⟩
+  have hSw_erase : (Sw.erase v₀).card = 2 := by
+    rw [Finset.card_erase_of_mem hv₀_mem_Sw, hSw_card]
+  obtain ⟨w₁, w₂, hw₁₂, hSw_eq⟩ := Finset.card_eq_two.mp hSw_erase
+  have hw₁_mem : w₁ ∈ Sw.erase v₀ := hSw_eq ▸ Finset.mem_insert_self w₁ _
+  have hw₂_mem : w₂ ∈ Sw.erase v₀ := hSw_eq ▸ Finset.mem_insert.mpr
+    (Or.inr (Finset.mem_singleton_self w₂))
+  have hw₁_adj : adj w w₁ = 1 :=
+    (Finset.mem_filter.mp (Finset.mem_of_mem_erase hw₁_mem)).2
+  have hw₂_adj : adj w w₂ = 1 :=
+    (Finset.mem_filter.mp (Finset.mem_of_mem_erase hw₂_mem)).2
+  have hw₁_ne_v₀ : w₁ ≠ v₀ := Finset.ne_of_mem_erase hw₁_mem
+  have hw₂_ne_v₀ : w₂ ≠ v₀ := Finset.ne_of_mem_erase hw₂_mem
+  -- Key distinctness facts (from adjacency)
+  have hv₀_ne_w : v₀ ≠ w := ne_of_adj v₀ w hvw_adj
+  have hu₁_ne_v₀ : u₁ ≠ v₀ := (ne_of_adj v₀ u₁ hu₁_adj).symm
+  have hu₂_ne_v₀ : u₂ ≠ v₀ := (ne_of_adj v₀ u₂ hu₂_adj).symm
+  have hw₁_ne_w : w₁ ≠ w := (ne_of_adj w w₁ hw₁_adj).symm
+  have hw₂_ne_w : w₂ ≠ w := (ne_of_adj w w₂ hw₂_adj).symm
+  -- Non-edges via acyclic_no_triangle (center has both as neighbors → no triangle)
+  -- u₁-u₂: center v₀
+  have hu₁u₂ : adj u₁ u₂ = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic v₀ u₁ u₂
+      hu₁₂ hu₁_ne_v₀ hu₂_ne_v₀ hu₁_adj hu₂_adj
+  -- u₁-w: center v₀
+  have hu₁_w : adj u₁ w = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic v₀ u₁ w
+      hu₁_ne_w hu₁_ne_v₀ hv₀_ne_w.symm hu₁_adj hvw_adj
+  -- u₂-w: center v₀
+  have hu₂_w : adj u₂ w = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic v₀ u₂ w
+      hu₂_ne_w hu₂_ne_v₀ hv₀_ne_w.symm hu₂_adj hvw_adj
+  -- w₁-w₂: center w
+  have hw₁w₂ : adj w₁ w₂ = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic w w₁ w₂
+      hw₁₂ hw₁_ne_w hw₂_ne_w hw₁_adj hw₂_adj
+  -- v₀-w₁: center w (need adj w v₀ = 1)
+  have hw_v₀ : adj w v₀ = 1 := (adj_comm w v₀).trans hvw_adj
+  have hv₀_w₁ : adj v₀ w₁ = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic w v₀ w₁
+      hw₁_ne_v₀.symm hv₀_ne_w hw₁_ne_w hw_v₀ hw₁_adj
+  -- v₀-w₂: center w
+  have hv₀_w₂ : adj v₀ w₂ = 0 :=
+    acyclic_no_triangle adj hsymm h01 h_acyclic w v₀ w₂
+      hw₂_ne_v₀.symm hv₀_ne_w hw₂_ne_w hw_v₀ hw₂_adj
+  -- u₁ ≠ w₁, etc. (if u₁ = w₁, then adj v₀ w₁ = 1, contradicting hv₀_w₁ = 0)
+  have hu₁_ne_w₁ : u₁ ≠ w₁ := by intro h; rw [h] at hu₁_adj; linarith
+  have hu₁_ne_w₂ : u₁ ≠ w₂ := by intro h; rw [h] at hu₁_adj; linarith
+  have hu₂_ne_w₁ : u₂ ≠ w₁ := by intro h; rw [h] at hu₂_adj; linarith
+  have hu₂_ne_w₂ : u₂ ≠ w₂ := by intro h; rw [h] at hu₂_adj; linarith
+  -- Flipped edge adjacencies for path proofs
+  have hw₁_w : adj w₁ w = 1 := (adj_comm w₁ w).trans hw₁_adj
+  have hw₂_w : adj w₂ w = 1 := (adj_comm w₂ w).trans hw₂_adj
+  -- Path-distance ≥ 3 non-edges via acyclic_path_nonadj
+  -- For path [w_j, w, v₀, u_i]: getLast = u_i, [0] = w_j → adj u_i w_j = 0
+  have path_nodup : ∀ (a b c d : Fin n),
+      a ≠ b → a ≠ c → a ≠ d → b ≠ c → b ≠ d → c ≠ d → [a, b, c, d].Nodup := by
+    intro a b c d hab hac had hbc hbd hcd
+    simp only [List.nodup_cons, List.mem_cons, List.mem_singleton, List.not_mem_nil,
+      not_or, not_false_eq_true, List.nodup_nil, and_self, and_true]
+    exact ⟨⟨hab, hac, had⟩, ⟨hbc, hbd⟩, hcd⟩
+  have path_edges : ∀ (a b c d : Fin n),
+      adj a b = 1 → adj b c = 1 → adj c d = 1 →
+      ∀ k, (hk : k + 1 < [a, b, c, d].length) →
+        adj ([a, b, c, d].get ⟨k, by omega⟩) ([a, b, c, d].get ⟨k + 1, hk⟩) = 1 := by
+    intro a b c d h₁ h₂ h₃ k hk
+    have : k + 1 < 4 := by simpa using hk
+    have : k = 0 ∨ k = 1 ∨ k = 2 := by omega
+    rcases this with rfl | rfl | rfl <;> assumption
+  have hu₁_w₁ : adj u₁ w₁ = 0 :=
+    acyclic_path_nonadj adj hsymm h01 h_acyclic [w₁, w, v₀, u₁] (by simp)
+      (path_nodup w₁ w v₀ u₁ hw₁_ne_w hw₁_ne_v₀ hu₁_ne_w₁.symm hv₀_ne_w.symm hu₁_ne_w.symm hu₁_ne_v₀.symm)
+      (path_edges w₁ w v₀ u₁ hw₁_w hw_v₀ hu₁_adj)
+  have hu₁_w₂ : adj u₁ w₂ = 0 :=
+    acyclic_path_nonadj adj hsymm h01 h_acyclic [w₂, w, v₀, u₁] (by simp)
+      (path_nodup w₂ w v₀ u₁ hw₂_ne_w hw₂_ne_v₀ hu₁_ne_w₂.symm hv₀_ne_w.symm hu₁_ne_w.symm hu₁_ne_v₀.symm)
+      (path_edges w₂ w v₀ u₁ hw₂_w hw_v₀ hu₁_adj)
+  have hu₂_w₁ : adj u₂ w₁ = 0 :=
+    acyclic_path_nonadj adj hsymm h01 h_acyclic [w₁, w, v₀, u₂] (by simp)
+      (path_nodup w₁ w v₀ u₂ hw₁_ne_w hw₁_ne_v₀ hu₂_ne_w₁.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
+      (path_edges w₁ w v₀ u₂ hw₁_w hw_v₀ hu₂_adj)
+  have hu₂_w₂ : adj u₂ w₂ = 0 :=
+    acyclic_path_nonadj adj hsymm h01 h_acyclic [w₂, w, v₀, u₂] (by simp)
+      (path_nodup w₂ w v₀ u₂ hw₂_ne_w hw₂_ne_v₀ hu₂_ne_w₂.symm hv₀_ne_w.symm hu₂_ne_w.symm hu₂_ne_v₀.symm)
+      (path_edges w₂ w v₀ u₂ hw₂_w hw_v₀ hu₂_adj)
+  -- Construct the embedding φ : Fin 6 ↪ Fin n
+  -- Map: 0 → u₁, 1 → u₂, 2 → v₀, 3 → w, 4 → w₁, 5 → w₂
+  let φ_fun : Fin 6 → Fin n := fun i =>
+    match i with
+    | ⟨0, _⟩ => u₁ | ⟨1, _⟩ => u₂ | ⟨2, _⟩ => v₀
+    | ⟨3, _⟩ => w  | ⟨4, _⟩ => w₁ | ⟨5, _⟩ => w₂
+  -- The embedding φ : Fin 6 ↪ Fin n and adjacency verification are computationally
+  -- intensive (36 cases). The key mathematical content is the extraction of the 6 vertices
+  -- and the non-adjacency proofs above. The embedding verification is deferred.
+  sorry
+
+/-- A connected acyclic simple graph with exactly one degree-3 vertex and non-positive-
+    definite Cartan form has infinite representation type.
+
+    The tree is T(p,q,r). Since it's not positive definite, it's not ADE
+    (D_n, E_6, E_7, E_8), so (p,q,r) is in one of the forbidden ranges:
+    - p ≥ 2: contains Ẽ₆ = T(2,2,2)
+    - p = 1, q ≥ 3: contains Ẽ₇ = T(1,3,3)
+    - p = 1, q = 2, r ≥ 5: contains T(1,2,5) -/
+private theorem single_branch_not_posdef_infinite_type {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n) (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_deg : ∀ v, vertexDegree adj v < 4)
+    (v₀ : Fin n) (hv₀ : vertexDegree adj v₀ = 3)
+    (h_unique : ∀ w, vertexDegree adj w = 3 → w = v₀)
+    (h_not_posdef : ¬ ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x)) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- The tree is T(p,q,r). Since only v₀ has degree 3, the 3 subtrees from v₀
+  -- are simple paths. Extract the paths and their lengths.
+  -- If the tree were ADE (D or E type), the Cartan form would be positive definite.
+  -- Since it's not positive definite, the tree is not ADE, so (p,q,r) falls in
+  -- a forbidden range and we can embed one of Ẽ₆, Ẽ₇, or T(1,2,5).
+  sorry
+
+/-- A connected acyclic simple graph with ≥ 2 non-adjacent degree-3 vertices, all
+    degrees ≤ 3, and non-positive-definite Cartan form has infinite representation type.
+
+    Such a graph is a tree with multiple branch points, forming an extended Dynkin D̃_n
+    structure or containing one as a subgraph. The proof constructs a forbidden subgraph
+    embedding (Ẽ₆, Ẽ₇, T(1,2,5) from branch points with long arms) or reduces to the
+    D̃_n infinite type result for the "caterpillar" case H(1,1,d,1,1). -/
+private theorem non_adjacent_branches_infinite_type {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hn : 1 ≤ n) (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_deg : ∀ v, vertexDegree adj v < 4)
+    (v₀ w : Fin n) (hv₀ : vertexDegree adj v₀ = 3) (hw : vertexDegree adj w = 3)
+    (hne : w ≠ v₀) (h_no_adj_branch : ∀ u, adj v₀ u = 1 → vertexDegree adj u < 3) :
+    ¬ IsFiniteTypeQuiver n adj := by
+  -- The tree has ≥ 2 non-adjacent branch points.
+  -- Key sub-cases:
+  -- 1. If ≥ 3 branch points, an interior branch point has 2 long arms (≥ 3)
+  --    and 1 short arm (= 1), enabling Ẽ₇ = T(1,3,3) embedding.
+  -- 2. If exactly 2 branch points at distance d:
+  --    - Choose the branch point with longer leaf arms
+  --    - If it can embed Ẽ₆, Ẽ₇, or T(1,2,5): done
+  --    - Otherwise the tree is H(1,1,d,1,1) = D̃_{d+4} or similar
+  --      which requires D̃_n infinite type (a separate result)
+  sorry
+
 /-- A connected acyclic simple graph with all degrees ≤ 3, at least one degree-3 vertex,
     and non-positive-definite Cartan form has infinite representation type.
 
-    Such a graph is a tree with 1 or 2 branch points. If 2 branch points, it contains D̃₅.
-    If 1 branch point, it's T(p,q,r). The non-positive-definite condition eliminates the
-    ADE cases, leaving extended Dynkin subgraphs Ẽ₆, Ẽ₇, or T(1,2,5). -/
+    The proof proceeds by case analysis on the branch point structure:
+    - **Adjacent branch points**: Embed D̃₅ (6 vertices from 2 adjacent degree-3 vertices
+      plus their 4 other neighbors).
+    - **Single branch point (T(p,q,r))**: The tree's non-positive-definiteness forces it
+      outside ADE, enabling embedding of Ẽ₆, Ẽ₇, or T(1,2,5).
+    - **Non-adjacent branch points**: Extended Dynkin D̃_n structure or contains forbidden
+      subgraph from a well-chosen branch point. -/
 theorem acyclic_branch_not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     (hn : 1 ≤ n)
     (hsymm : adj.IsSymm)
@@ -3079,7 +3341,28 @@ theorem acyclic_branch_not_posdef_infinite_type {n : ℕ} (adj : Matrix (Fin n) 
     (h_not_posdef : ¬ ∀ x : Fin n → ℤ, x ≠ 0 →
       0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x)) :
     ¬ IsFiniteTypeQuiver n adj := by
-  sorry
+  obtain ⟨v₀, hv₀⟩ := h_has_branch
+  -- Does v₀ have an adjacent branch point?
+  by_cases h_adj_branch : ∃ u, adj v₀ u = 1 ∧ vertexDegree adj u = 3
+  · -- Case 1: Adjacent branch points → D̃₅ embedding
+    obtain ⟨w, hw_adj, hw_deg⟩ := h_adj_branch
+    exact adjacent_branches_infinite_type adj hsymm hdiag h01 h_acyclic v₀ w hv₀ hw_deg hw_adj
+  · push_neg at h_adj_branch
+    -- All neighbors of v₀ have degree < 3 (so ≤ 2, meaning no adjacent branch)
+    have h_no_adj : ∀ u, adj v₀ u = 1 → vertexDegree adj u < 3 := by
+      intro u hu
+      have := h_adj_branch u hu
+      have := h_deg u; omega
+    -- Is v₀ the only branch point?
+    by_cases h_unique : ∀ w, vertexDegree adj w = 3 → w = v₀
+    · -- Case 2: Single branch point → T(p,q,r) analysis
+      exact single_branch_not_posdef_infinite_type adj hn hsymm hdiag h01 hconn
+        h_acyclic h_deg v₀ hv₀ h_unique h_not_posdef
+    · -- Case 3: ≥ 2 non-adjacent branch points
+      push_neg at h_unique
+      obtain ⟨w, hw_deg, hw_ne⟩ := h_unique
+      exact non_adjacent_branches_infinite_type adj hn hsymm hdiag h01 hconn
+        h_acyclic h_deg v₀ w hv₀ hw_deg hw_ne h_no_adj
 
 /-- A connected simple graph whose Cartan form (2I - adj) is not positive definite
     has infinite representation type.
