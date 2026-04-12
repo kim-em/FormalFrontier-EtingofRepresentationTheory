@@ -85,20 +85,34 @@ theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
 variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- A `GL_N(k)`-representation whose formal character equals a Schur polynomial
-`S_λ` is isomorphic to the Schur module `L_λ`.
+`S_λ` and whose dimension matches the Schur module is isomorphic to `L_λ`.
 
-This follows from complete reducibility of polynomial `GL_N` representations
-(Schur-Weyl duality) together with the Weyl character formula (`Theorem5_22_1`),
-which shows that distinct Schur modules have distinct characters.
+The dimension hypothesis `h_dim` is necessary: without it, one could take
+`M = L_λ ⊕ det⁻¹`, which has `formalCharacter M = schurPoly N lam` (since
+`det⁻¹` has no `ℕ`-valued weight spaces and is invisible to `formalCharacter`),
+yet `M ≇ L_λ` due to the dimension mismatch. The hypothesis ensures `M` is
+"polynomial" — its `ℕ`-valued weight spaces account for all of `M`.
+
+The proof requires GL_N-equivariant complete reducibility: every polynomial
+`GL_N`-representation decomposes into a direct sum of Schur modules. Combined
+with `Theorem5_22_1` (Weyl character formula) and `schurPoly_injective`,
+this forces `M ≅ L_λ`.
 
 The downstream use is in `schurModule_shift_iso_detTwist` (Proposition 5.22.2),
-where both representations involved are polynomial and have character equal
-to `schurPoly N (λ + 1^N)`. -/
+where both representations are polynomial and have character equal to
+`schurPoly N (λ + 1^N)`. -/
 theorem iso_of_formalCharacter_eq_schurPoly (N : ℕ)
     (lam : Fin N → ℕ) (hlam : Antitone lam)
     (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
-    (h : formalCharacter k N M = schurPoly N lam) :
+    (h : formalCharacter k N M = schurPoly N lam)
+    (h_dim : Module.finrank k M = Module.finrank k (SchurModule k N lam)) :
     Nonempty (M ≅ SchurModule k N lam) := by
+  -- Proof outline:
+  -- 1. From h + Theorem5_22_1: weight space dims match at every ℕ-valued weight
+  -- 2. From h_dim: ℕ-valued weight spaces span M (M is polynomial)
+  -- 3. By GL_N-equivariant complete reducibility (Schur-Weyl): M ≅ ⊕ nᵢ · L_μᵢ
+  -- 4. Character additivity + schurPoly_injective: nλ = 1, all others = 0
+  -- 5. Therefore M ≅ L_λ
   sorry
 
 /-- The finsupp with all values equal to 1 on `Fin N`. -/
