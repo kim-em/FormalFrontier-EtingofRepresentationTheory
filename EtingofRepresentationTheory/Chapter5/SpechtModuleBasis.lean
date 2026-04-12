@@ -290,25 +290,181 @@ private theorem exists_column_standard_mul (σ : Equiv.Perm (Fin n)) :
       (ColumnSubgroup n la).mul_mem hq₀ hswap_mem,
       by rwa [mul_assoc]⟩
 
+/-! ### Row inversion count infrastructure
+
+The row inversion count measures how far a column-standard permutation is from
+being a standard Young tableau permutation. It counts pairs of positions in the
+same row where column order and entry order disagree.
+-/
+
+/-- The number of "row inversions" in the filling defined by σ: pairs (p₁, p₂)
+in the same row with col(p₁) < col(p₂) but σ⁻¹(p₁) > σ⁻¹(p₂). -/
+private def rowInvCount' (σ : Equiv.Perm (Fin n)) : ℕ :=
+  (Finset.univ.filter fun pp : Fin n × Fin n =>
+    rowOfPos la.sortedParts pp.1.val = rowOfPos la.sortedParts pp.2.val ∧
+    colOfPos la.sortedParts pp.1.val < colOfPos la.sortedParts pp.2.val ∧
+    σ.symm pp.2 < σ.symm pp.1).card
+
+/-- A filling is row-standard if all rows are increasing left-to-right. -/
+private def isRowStandard' (σ : Equiv.Perm (Fin n)) : Prop :=
+  ∀ p₁ p₂ : Fin n,
+    rowOfPos la.sortedParts p₁.val = rowOfPos la.sortedParts p₂.val →
+    colOfPos la.sortedParts p₁.val < colOfPos la.sortedParts p₂.val →
+    σ.symm p₁ < σ.symm p₂
+
+/-- Row inversion count is 0 iff the filling is row-standard. -/
+private theorem rowInvCount'_eq_zero_iff (σ : Equiv.Perm (Fin n)) :
+    rowInvCount' (la := la) σ = 0 ↔ isRowStandard' (la := la) σ := by
+  constructor
+  · intro h
+    rw [rowInvCount', Finset.card_eq_zero, Finset.filter_eq_empty_iff] at h
+    intro p₁ p₂ hrow hcol
+    by_contra hlt
+    push_neg at hlt
+    have hne : p₁ ≠ p₂ := by intro heq; rw [heq] at hcol; exact Nat.lt_irrefl _ hcol
+    have hne' : σ.symm p₁ ≠ σ.symm p₂ := σ.symm.injective.ne hne
+    have hlt' : σ.symm p₂ < σ.symm p₁ := lt_of_le_of_ne hlt hne'.symm
+    exact absurd ⟨hrow, hcol, hlt'⟩ (h (Finset.mem_univ (p₁, p₂)))
+  · intro h
+    rw [rowInvCount', Finset.card_eq_zero, Finset.filter_eq_empty_iff]
+    intro ⟨p₁, p₂⟩ _
+    simp only [not_and]
+    intro hrow hcol hinv
+    exact absurd hinv (Nat.not_lt.mpr (Nat.le_of_lt (h p₁ p₂ hrow hcol)))
+
+/-- Two row-standard permutations with the same tabloid are equal.
+Within each row, both arrange the same set of entries in increasing order,
+so they must assign entries identically. -/
+private theorem eq_of_rowStandard_of_toTabloid_eq
+    (σ₁ σ₂ : Equiv.Perm (Fin n))
+    (h₁ : isRowStandard' (la := la) σ₁)
+    (h₂ : isRowStandard' (la := la) σ₂)
+    (ht : toTabloid n la σ₁ = toTabloid n la σ₂) :
+    σ₁ = σ₂ := by
+  sorry
+
+/-- A column-standard, row-standard permutation equals sytPerm T for some SYT T. -/
+private theorem column_row_standard_is_syt
+    (σ : Equiv.Perm (Fin n))
+    (hcs : isColumnStandard' n la σ)
+    (hrs : isRowStandard' (la := la) σ) :
+    ∃ T : StandardYoungTableau n la, σ = sytPerm n la T := by
+  obtain ⟨T, p, hp, hσ⟩ := column_standard_coset_has_syt' n la σ hcs
+  refine ⟨T, ?_⟩
+  -- σ = p * sytPerm T with p ∈ P_λ. Since [σ] = [σ_T] and both are row-standard,
+  -- σ = sytPerm T by uniqueness.
+  have hσT_rs : isRowStandard' (la := la) (sytPerm n la T) := by
+    intro p₁ p₂ hrow hcol
+    -- (sytPerm T).symm p = T.val (canonicalFilling p)
+    have hsymm : ∀ p, (sytPerm n la T).symm p =
+        (Equiv.ofBijective T.val T.prop.1) ((canonicalFilling n la) p) := by
+      intro p; simp only [sytPerm, Equiv.symm_trans_apply, Equiv.symm_symm]
+    rw [hsymm, hsymm]
+    -- canonicalFilling maps positions to cells, preserving row/col
+    set c₁ := (canonicalFilling n la) p₁
+    set c₂ := (canonicalFilling n la) p₂
+    -- Same row and column ordering for cells
+    have hrow' : c₁.val.1 = c₂.val.1 := hrow
+    have hcol' : c₁.val.2 < c₂.val.2 := hcol
+    -- ofBijective T just applies T.val
+    simp only [Equiv.ofBijective_apply]
+    -- Apply SYT row-increasing property
+    exact T.prop.2.1 c₁ c₂ hrow' hcol'
+  have ht_eq : toTabloid n la σ = toTabloid n la (sytPerm n la T) := by
+    rw [toTabloid_eq_iff, hσ, mul_assoc, mul_inv_cancel, mul_one]
+    exact hp
+  exact eq_of_rowStandard_of_toTabloid_eq σ (sytPerm n la T) hrs hσT_rs ht_eq
+
+/-! ### Garnir straightening step
+
+The key technical result: for column-standard σ with row inversions,
+ψ_σ can be expressed via Garnir relations in terms of generalized
+polytabloidTabs with strictly fewer row inversions. This uses:
+1. `garnirAnnihilate_tabloid` — the tabloid-level Garnir identity
+2. Dominance analysis — Garnir permutations produce more dominant tabloids
+3. Column re-standardization — reducing back to column-standard form
+-/
+
+/-- **Garnir straightening step** (key sorry):
+For column-standard σ with positive row inversion count, the generalized
+polytabloidTab ψ_σ lies in the ℂ-span of {ψ_{σ'} : σ' column-standard,
+rowInvCount'(σ') < rowInvCount'(σ)}.
+
+This is the core combinatorial content of the straightening theorem.
+The proof requires:
+1. Finding a row descent in σ (exists since rowInvCount' > 0)
+2. Applying the tabloid-level Garnir identity to each term of ψ_σ
+3. Showing the regrouped terms are column-antisymmetrized sums over
+   strictly more dominant tabloids (twisted polytabloids)
+4. Showing each twisted polytabloid can be column-re-standardized to give
+   standard generalized polytabloidTabs with fewer row inversions
+
+See issue for detailed decomposition of the remaining proof obligations. -/
+private theorem garnir_straightening_step
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (hrp : 0 < rowInvCount' (la := la) σ) :
+    generalizedPolytabloidTab (n := n) (la := la) σ ∈
+      Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+          isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+        generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
+  sorry
+
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
-theorem, requiring the tabloid-level Garnir identity and well-founded
-induction on the dominance order of tabloids.
+theorem.
 
-Proof sketch (James Ch. 7-8):
-- By `column_standard_coset_has_syt'`, σ = p · σ_T for some SYT T and p ∈ P_λ.
-- If p = 1, then ψ_σ = e_T ∈ span{e_T}. ✓
-- If p ≠ 1, σ has a "row descent" (entries in a row not increasing left to right).
-  Apply `garnirAnnihilate_tabloid` with the Garnir set for this descent to each
-  term of ψ_σ. After regrouping, ψ_σ equals a ℂ-linear combination of elements
-  supported on strictly more dominant tabloids. By well-founded induction on the
-  finite dominance order, these are in span{e_T}. -/
+The proof uses strong induction on `rowInvCount'`:
+- **Base case** (rowInvCount' = 0): σ is both column- and row-standard,
+  hence σ = sytPerm T for some SYT T, and ψ_σ = polytabloidTab T ∈ span.
+- **Inductive case** (rowInvCount' > 0): By `garnir_straightening_step`,
+  ψ_σ is in the span of {ψ_{σ'}} where each σ' is column-standard with
+  strictly fewer row inversions. By the induction hypothesis, each
+  ψ_{σ'} ∈ span{polytabloidTab T}, so ψ_σ ∈ span{polytabloidTab T}.
+
+References: James Ch. 7-8, Fulton Ch. 7. -/
 private theorem polytabloidTab_column_standard_in_span
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ) :
     generalizedPolytabloidTab (n := n) (la := la) σ ∈
       Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
         polytabloidTab (n := n) (la := la) T)) := by
-  sorry
+  -- Strong induction on rowInvCount'
+  suffices ∀ (k : ℕ) (τ : Equiv.Perm (Fin n)),
+      k = rowInvCount' (la := la) τ →
+      isColumnStandard' n la τ →
+      generalizedPolytabloidTab (n := n) (la := la) τ ∈
+        Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+          polytabloidTab (n := n) (la := la) T)) from
+    this _ σ rfl hcs
+  intro k
+  induction k using Nat.strongRecOn with
+  | _ k ih =>
+  intro τ hk hcs_τ
+  by_cases hrz : k = 0
+  · -- Base case: rowInvCount' = 0 means row-standard, hence SYT
+    subst hrz
+    have hrs := (rowInvCount'_eq_zero_iff (la := la) τ).mp (by omega)
+    obtain ⟨T, rfl⟩ := column_row_standard_is_syt τ hcs_τ hrs
+    have : generalizedPolytabloidTab (sytPerm n la T) = polytabloidTab T :=
+      generalizedPolytabloidTab_eq_polytabloidTab T
+    rw [this]
+    exact Submodule.subset_span ⟨T, rfl⟩
+  · -- Inductive case: use Garnir straightening step
+    have hrp : 0 < rowInvCount' (la := la) τ := by omega
+    have h_step := garnir_straightening_step τ hcs_τ hrp
+    -- ψ_τ ∈ span{ψ_{τ'} : τ' column-standard, rowInvCount'(τ') < k}
+    -- Each ψ_{τ'} ∈ span{e_T} by induction hypothesis
+    -- Therefore ψ_τ ∈ span{e_T}
+    set S_syt := Set.range (fun T : StandardYoungTableau n la =>
+      polytabloidTab (n := n) (la := la) T)
+    -- Show the Garnir span is contained in the SYT span
+    have h_sub : Set.range (fun τ' : {τ' : Equiv.Perm (Fin n) //
+        isColumnStandard' n la τ' ∧ rowInvCount' (la := la) τ' <
+          rowInvCount' (la := la) τ} =>
+      generalizedPolytabloidTab (n := n) (la := la) τ'.val) ⊆
+        ↑(Submodule.span ℂ S_syt) := by
+      rintro _ ⟨⟨τ', hτ'_cs, hτ'_lt⟩, rfl⟩
+      exact ih (rowInvCount' (la := la) τ') (hk ▸ hτ'_lt) τ' rfl hτ'_cs
+    exact (Submodule.span_le.mpr h_sub) h_step
 
 /-- The tabloid-level straightening theorem: for any permutation σ, the
 generalized polytabloidTab ψ_σ = Σ_{q ∈ Q_λ} sign(q)·[q⁻¹σ] lies in the
