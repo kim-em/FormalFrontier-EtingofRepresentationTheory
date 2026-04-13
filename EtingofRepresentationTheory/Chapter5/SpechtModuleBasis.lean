@@ -502,11 +502,62 @@ private theorem garnir_polytabloid_identity
       -(∑ w : {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1},
         ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
           twistedPolytabloid (la := la) w.val σ)) := by
-  -- The total sum Σ_w sign(w) · f_w(σ) = 0 (from garnirAnnihilate_tabloid
-  -- applied to each q⁻¹σ, multiplied by sign(q), summed over q, sums exchanged).
-  -- This decomposes as: f_1(σ) + Σ_{w≠1} sign(w) · f_w(σ) = 0
-  -- And f_1(σ) = ψ_σ, giving ψ_σ = -Σ_{w≠1} sign(w) · f_w(σ).
-  sorry
+  -- Type abbreviation for the subtype of G-supported permutations
+  set S := { w : Equiv.Perm (Fin n) // ∀ x, x ∉ G → w x = x }
+  -- Step 1: Each garnirAnnihilate_tabloid application gives a zero inner sum
+  have h_garnir_q : ∀ q : ↥(ColumnSubgroup n la),
+      ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        Finsupp.single (toTabloid n la (w.val * (q.val⁻¹ * σ))) (1 : ℂ)) = 0 := by
+    intro q
+    exact garnirAnnihilate_tabloid (la := la) (q.val⁻¹ * σ) G t ht_row ht_supp ht_sign
+  -- Step 2: The total alternating sum of twisted polytabloids is zero.
+  have h_total : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      twistedPolytabloid (la := la) w.val σ) = 0 := by
+    simp only [twistedPolytabloid, Finset.smul_sum]
+    rw [Finset.sum_comm]
+    apply Finset.sum_eq_zero
+    intro q _
+    simp_rw [smul_comm (↑(↑(Equiv.Perm.sign _) : ℤ) : ℂ)
+      (↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ)]
+    rw [← Finset.smul_sum]
+    simp_rw [mul_assoc]
+    rw [h_garnir_q q, smul_zero]
+  -- Step 3: Split the sum via S ≃ Option T where T = {w // supp ∧ w ≠ 1}
+  -- Equivalence between S and Option T
+  set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1} with hT_def
+  let e : S ≃ Option T :=
+    { toFun := fun s => if h : s.val = 1 then none else some ⟨s.val, s.property, h⟩
+      invFun := fun o => o.casesOn ⟨1, fun _ _ => rfl⟩ (fun w => ⟨w.val, w.property.1⟩)
+      left_inv := fun ⟨w, hw⟩ => by
+        simp only
+        split_ifs with h
+        · exact Subtype.ext h.symm
+        · rfl
+      right_inv := fun o => by
+        cases o with
+        | none => simp
+        | some w => simp [w.property.2] }
+  -- Decompose the S-sum as Option-sum
+  have h_sum_decomp : ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) =
+      generalizedPolytabloidTab (n := n) (la := la) σ +
+      ∑ w : T, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) := by
+    -- Reindex via e : S ≃ Option T
+    rw [show ∑ w : S, ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) w.val σ) =
+        ∑ o : Option T, ((↑(↑(Equiv.Perm.sign ((e.symm o).val)) : ℤ) : ℂ) •
+          twistedPolytabloid (la := la) (e.symm o).val σ) from
+      (Equiv.sum_comp e.symm _).symm]
+    rw [Fintype.sum_option]
+    congr 1
+    · -- The none term: e.symm none = ⟨1, _⟩
+      show ((↑(↑(Equiv.Perm.sign (e.symm none).val) : ℤ) : ℂ) •
+        twistedPolytabloid (la := la) (e.symm none).val σ) = _
+      have : (e.symm none).val = 1 := rfl
+      rw [this]; simp [twistedPolytabloid_one]
+  rw [h_sum_decomp] at h_total
+  exact eq_neg_of_add_eq_zero_left h_total
 
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each non-identity Garnir permutation w
@@ -550,13 +601,30 @@ private theorem garnir_straightening_step
         generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   -- Step 1: Find the row inversion pair
   obtain ⟨p₁, p₂, hrow_eq, hcol_lt, hinv⟩ := exists_row_inversion_pair σ hrp
-  -- Step 2: Construct the Garnir set and find the row transposition
-  -- We need a Garnir set G that contains a row pair and is appropriate for
-  -- the row inversion. The garnirSet construction from PolytabloidBasis.lean
-  -- provides this for two positions in the same column spanning adjacent rows.
-  -- For now, we use sorry for the Garnir set construction and proceed with
-  -- the proof structure.
-  sorry
+  -- Step 2: Use G = {p₁, p₂} as Garnir set, t = swap(p₁, p₂) as row transposition
+  have hne : p₁ ≠ p₂ := by intro h; rw [h] at hcol_lt; exact Nat.lt_irrefl _ hcol_lt
+  set G := ({p₁, p₂} : Finset (Fin n))
+  set t := Equiv.swap p₁ p₂
+  have ht_row : t ∈ RowSubgroup n la := by
+    intro k; simp only [t, Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · subst h1; exact hrow_eq.symm
+    · subst h2; exact hrow_eq
+    · rfl
+  have ht_supp : ∀ x, x ∉ G → t x = x := by
+    intro x hx; simp only [G, Finset.mem_insert, Finset.mem_singleton, not_or] at hx
+    simp [t, Equiv.swap_apply_of_ne_of_ne hx.1 hx.2]
+  have ht_sign : Equiv.Perm.sign t = -1 := by
+    simp [t, Equiv.Perm.sign_swap hne]
+  -- Step 3: Apply the Garnir polytabloid identity
+  have h_id := garnir_polytabloid_identity σ G t ht_row ht_supp ht_sign
+  rw [h_id]
+  -- Step 4: Show the negated sum is in the span
+  apply Submodule.neg_mem
+  apply Submodule.sum_mem
+  intro ⟨w, hw_supp, hw_ne⟩ _
+  apply Submodule.smul_mem
+  exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
