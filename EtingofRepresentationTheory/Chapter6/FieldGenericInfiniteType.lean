@@ -207,7 +207,44 @@ theorem nilpotent_invariant_compl_trivial_gen
   rw [hcompl.inf_eq_bot, Submodule.mem_bot] at hmem
   exact hw₂_ne0 hmem
 
-/-! ## Section 3: Field-generic cycle representation -/
+/-! ## Section 3: Identity-map forcing lemma
+
+When two submodules form complements (W₁ ⊕ W₁' = V and W₂ ⊕ W₂' = V) and
+the identity map sends W₁ into W₂ and W₁' into W₂', then W₁ = W₂.
+This is the key to proving orientation-independence of indecomposability. -/
+
+/-- If W₁ ≤ W₂ and W₁' ≤ W₂' where (W₁, W₁') and (W₂, W₂') are both complementary
+pairs in the same module, then W₁ = W₂. This formalizes the intuition that an
+identity map preserving a complement decomposition forces the components to be equal. -/
+theorem compl_le_forces_eq {R M : Type*} [Ring R] [AddCommGroup M] [Module R M]
+    (W₁ W₁' W₂ W₂' : Submodule R M)
+    (hcompl₁ : IsCompl W₁ W₁') (hcompl₂ : IsCompl W₂ W₂')
+    (h₁ : W₁ ≤ W₂) (h₁' : W₁' ≤ W₂') :
+    W₁ = W₂ := by
+  apply le_antisymm h₁
+  intro x hx
+  -- Decompose x using the first complement: x = w + w' with w ∈ W₁, w' ∈ W₁'
+  have hx_top : x ∈ (⊤ : Submodule R M) := Submodule.mem_top
+  rw [← hcompl₁.sup_eq_top] at hx_top
+  obtain ⟨w, hw, w', hw', rfl⟩ := Submodule.mem_sup.mp hx_top
+  -- w ∈ W₁ ≤ W₂, so w ∈ W₂
+  have hw₂ : w ∈ W₂ := h₁ hw
+  -- w' = x - w, and x ∈ W₂, w ∈ W₂, so w' ∈ W₂
+  have hw'₂ : w' ∈ W₂ := by
+    have : (w + w') - w = w' := by abel
+    rw [← this]
+    exact W₂.sub_mem hx hw₂
+  -- w' ∈ W₁' ≤ W₂', so w' ∈ W₂'
+  have hw'₂' : w' ∈ W₂' := h₁' hw'
+  -- w' ∈ W₂ ∩ W₂' = ⊥, so w' = 0
+  have hw'_zero : w' = 0 := by
+    have : w' ∈ W₂ ⊓ W₂' := Submodule.mem_inf.mpr ⟨hw'₂, hw'₂'⟩
+    rwa [hcompl₂.inf_eq_bot, Submodule.mem_bot] at this
+  -- x = w + 0 = w ∈ W₁
+  rw [hw'_zero, add_zero]
+  exact hw
+
+/-! ## Section 4: Field-generic cycle representation -/
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
