@@ -4823,7 +4823,7 @@
     "end_page": "177",
     "start_line": 33,
     "end_line": 14,
-    "status": "proof_partial",
+    "status": "sorry_free",
     "needs_statement": true,
     "attention_needed": "statement fixed: added IsOrientationOf hypothesis and pinned universe (#1094)"
   },
