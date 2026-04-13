@@ -1,8 +1,11 @@
 import EtingofRepresentationTheory.Chapter2.Definition2_8_3
 import EtingofRepresentationTheory.Chapter2.Definition2_8_10
 import EtingofRepresentationTheory.Chapter6.Definition6_1_4
+import EtingofRepresentationTheory.Chapter6.Definition6_4_7
 import EtingofRepresentationTheory.Chapter6.Proposition6_6_5
 import EtingofRepresentationTheory.Chapter6.Problem6_1_5_theorem
+import EtingofRepresentationTheory.Chapter6.Theorem6_5_2
+import EtingofRepresentationTheory.Chapter6.CoxeterInfrastructure
 
 /-!
 # Theorem 2.1.2: Gabriel's Theorem
@@ -19,7 +22,8 @@ Gap — Gabriel's theorem is not in Mathlib. Only basic quiver infrastructure ex
 
 Gabriel's theorem is a deep classification result connecting quiver representations to
 Dynkin diagrams. It requires significant infrastructure (root systems, reflection functors,
-positive definite quadratic forms on graphs). The statement is formalized; the proof is sorry'd.
+positive definite quadratic forms on graphs). The statement is formalized; the proof
+decomposes into focused sub-sorries bridging the Chapter 2 and Chapter 6 formalizations.
 
 We formalize the key supporting concepts:
 - `QuiverRepresentationEquiv`: isomorphism of quiver representations
@@ -125,6 +129,86 @@ lemma HasFiniteRepresentationType.finite_dimVectors (k : Type) [Field k]
     (e.equivAt v).finrank_eq
   linarith
 
+/-! ## Bridge lemmas between Chapter 2 and Chapter 6 definitions -/
+
+/-- Convert a `QuiverRepresentation.Iso` (Chapter 6) to a `QuiverRepresentationEquiv`
+(Chapter 2). These are the same concept with different packaging. -/
+noncomputable def QuiverRepresentation.Iso.toEquiv
+    {k : Type*} [CommSemiring k] {Q : Quiver (Fin n)}
+    {ρ₁ ρ₂ : QuiverRepresentation k (Fin n)}
+    (f : QuiverRepresentation.Iso ρ₁ ρ₂) :
+    QuiverRepresentationEquiv k (Fin n) ρ₁ ρ₂ where
+  equivAt := f.equivAt
+  commutes e x := f.naturality e x
+
+/-- If the Tits form on the underlying graph is not positive definite, then for any
+algebraically closed field k and the given quiver Q, there are infinitely many
+non-isomorphic finite-dimensional indecomposable representations.
+
+This is the per-field version of the infinite type result. The existing
+`not_posdef_infinite_type` (Chapter 6) proves `¬IsFiniteTypeQuiver` which quantifies
+over all fields/orientations. This lemma extracts the consequence for ONE specific
+field and quiver, via the contrapositive of `finite_dimVectors`.
+
+The proof requires showing that the infinite family constructions in Chapter 6
+(cycle families, star graph families, extended Dynkin families) produce
+indecomposable representations for any algebraically closed field k and any
+orientation of the underlying graph. The constructions are uniform in k, but
+the existing formalization wraps them as `¬IsFiniteTypeQuiver` (¬∀) rather than
+the stronger `∀¬` statement needed here. -/
+private lemma not_posdef_not_HasFiniteRepresentationType
+    (k : Type) [Field k] [IsAlgClosed k]
+    (n : ℕ) [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+    (_hconn : QuiverUndirectedConnected n)
+    (h_not_posdef : ∃ x : Fin n → ℤ, x ≠ 0 ∧
+      ¬ (0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
+        quiverUndirectedAdj n).mulVec x))) :
+    ¬ HasFiniteRepresentationType k n :=
+  -- The per-field infinite type result. The InfiniteTypeConstructions in Chapter 6
+  -- prove ¬IsFiniteTypeQuiver (for ALL fields/orientations). Extracting the per-field
+  -- version requires refactoring those proofs to expose the ∀k∀Q quantifier structure.
+  -- See Issue #2255 for details on this bridge.
+  sorry
+
+/-- Backward direction bridge: `IsDynkinDiagram` implies `HasFiniteRepresentationType`
+for any algebraically closed field and the given quiver.
+
+This requires:
+1. Showing the quiver is an orientation of its undirected adjacency (needs Subsingleton
+   homs and no bidirectional arrows — these follow from HasFiniteRepType in the iff,
+   but are needed independently for the backward direction)
+2. Positive roots are finite (Theorem 6.5.2a)
+3. Each positive root gives exactly one indecomposable (Theorem 6.5.2c)
+4. Every indecomposable has dim vector = positive root (indecomposable_bilinearForm_eq_two)
+5. Packaging into HasFiniteRepresentationType with the right universe and iso type -/
+private lemma isDynkinDiagram_HasFiniteRepresentationType
+    (k : Type) [Field k] [IsAlgClosed k]
+    (n : ℕ) [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+    (_hconn : QuiverUndirectedConnected n)
+    (hDynkin : IsDynkinDiagram n (quiverUndirectedAdj n)) :
+    HasFiniteRepresentationType k n := by
+  -- Step 1: The positive roots are finite
+  have _h_fin_roots := Theorem_6_5_2a_finiteness hDynkin
+  -- Step 2: We need to show the quiver is an orientation of quiverUndirectedAdj.
+  -- For a quiver whose underlying graph IS a Dynkin diagram, the standard textbook
+  -- assumption is that the quiver is simple (at most one arrow per pair, no self-loops,
+  -- no bidirectional arrows). This is an orientation of the underlying graph.
+  --
+  -- Step 3: For each positive root α, Theorem 6.5.2(c) gives existence and uniqueness
+  -- of an indecomposable with dimension vector α.
+  --
+  -- Step 4: Every indecomposable ρ satisfies B(dim ρ, dim ρ) = 2
+  -- (by indecomposable_bilinearForm_eq_two), making dim ρ a positive root.
+  --
+  -- Step 5: Package: the finitely many positive roots give finitely many indecomposables,
+  -- covering all indecomposables by steps 3-4.
+  --
+  -- The key technical bridge is converting between:
+  -- - QuiverRepresentation.Iso (Chapter 6) and QuiverRepresentationEquiv (Chapter 2)
+  -- - Universe 0 representations and the polymorphic Theorem_6_5_2c
+  -- - Finite set of ℤ-valued positive roots and Fin m → FinQuiverRep indexing
+  sorry
+
 /-! ## Gabriel's Theorem -/
 
 /-- **Gabriel's theorem**: A connected quiver on `Fin n` vertices has finite representation
@@ -147,18 +231,12 @@ theorem Theorem_2_1_2 (k : Type) [Field k] [IsAlgClosed k]
     intro hfrt
     refine ⟨quiverUndirectedAdj_symm, quiverUndirectedAdj_diag, quiverUndirectedAdj_01,
       hconn, fun x hx => ?_⟩
-    -- Positive definiteness: if the Tits form is not positive definite on the graph,
-    -- one can construct infinitely many non-isomorphic indecomposable representations
-    -- for any algebraically closed field and any orientation (via extended Dynkin subgraph
-    -- embeddings). This contradicts HasFiniteRepresentationType.
-    -- The bridge requires extracting per-field infinite families from the IsFiniteTypeQuiver
-    -- constructions; this is the essential gap between the two finite type definitions.
-    sorry
+    -- Show positive definiteness by contradiction: if not positive definite,
+    -- infinite type constructions give ¬HasFiniteRepresentationType
+    by_contra h_not_pos
+    exact absurd hfrt
+      (not_posdef_not_HasFiniteRepresentationType k n hconn ⟨x, hx, h_not_pos⟩)
   · -- Backward: Dynkin diagram → finite representation type
-    -- IsDynkinDiagram → IsFiniteTypeQuiver (by Theorem 6.1.5 backward)
-    -- → finitely many dim vectors of indecomposables for this k, Q
-    -- Each positive root supports exactly one indecomposable iso class (Gabriel's uniqueness,
-    -- requires Krull-Schmidt + reflection functor bijectivity on indecomposables).
-    sorry
+    exact isDynkinDiagram_HasFiniteRepresentationType k n hconn
 
 end Etingof
