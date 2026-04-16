@@ -4911,15 +4911,37 @@ private theorem non_adjacent_branches_infinite_type {n : ℕ}
       Finset.card_pos.mpr ⟨v₀, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hu₂_v₀⟩⟩
     have hu₃_deg_ge : 1 ≤ vertexDegree adj u₃ :=
       Finset.card_pos.mpr ⟨v₀, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hu₃_v₀⟩⟩
-    -- Case split: do all 3 neighbors have degree 2 (not leaves)?
-    by_cases hu₁_leaf : vertexDegree adj u₁ = 1
-    · -- u₁ is a leaf. Arms from v₀ are (1, ≥1, ≥1).
-      -- Requires Ẽ₇ or T(1,2,5) embedding, or D̃_n infrastructure for caterpillar.
+    -- Helper: the three leaf-cases (u₁ leaf, u₂ leaf, u₃ leaf) are symmetric. We
+    -- extract a uniform `leaf_case` helper that handles all three.
+    --
+    -- Proof strategy (SORRY — see issue for subgraph embedding details):
+    -- v₀ has a leaf neighbor `leaf`. The other two neighbors of v₀ have degree ≤ 2.
+    -- Since w ≠ v₀ is a degree-3 branch point (non-adjacent to v₀), the unique path
+    -- from v₀ to w passes through exactly one of v₀'s non-leaf neighbors (call it
+    -- the "chain-side" neighbor). The path v₀ = p₀, p₁, ..., p_k = w has internal
+    -- vertices of degree exactly 2 (bounded above by h_no_adj_branch applied to
+    -- neighbors of branch points, and below by path structure).
+    --
+    -- Then we case-split on:
+    --   (a) degree of the non-chain non-leaf neighbor of v₀
+    --   (b) degrees of w's two non-chain neighbors
+    --   (c) path length k from v₀ to w
+    -- and embed one of the following forbidden subgraphs based on structure:
+    --   - D̃_{k+3} (when v₀ has 2 leaves AND w has 2 leaves)
+    --   - Ẽ₇ = T(1,3,3)  (when arms extend appropriately)
+    --   - T(1,2,5)       (when long arm at w beyond chain length)
+    -- Subgraph transfer via `subgraph_infinite_type_transfer`.
+    have leaf_case : ∀ leaf : Fin n, adj v₀ leaf = 1 → vertexDegree adj leaf = 1 →
+        ¬ IsFiniteTypeQuiver n adj := fun leaf h_leaf_adj h_leaf_deg => by
+      -- TODO: Complete the subgraph embedding (see issue #2331).
       sorry
+    by_cases hu₁_leaf : vertexDegree adj u₁ = 1
+    · -- u₁ is a leaf. Delegate to leaf_case.
+      exact leaf_case u₁ hu₁_adj hu₁_leaf
     · by_cases hu₂_leaf : vertexDegree adj u₂ = 1
-      · sorry -- u₂ is leaf, similar
+      · exact leaf_case u₂ hu₂_adj hu₂_leaf
       · by_cases hu₃_leaf : vertexDegree adj u₃ = 1
-        · sorry -- u₃ is leaf, similar
+        · exact leaf_case u₃ hu₃_adj hu₃_leaf
         · -- All 3 neighbors have degree = 2. Embed Ẽ₆ = T(2,2,2).
           have hu₁_deg2 : vertexDegree adj u₁ = 2 := by omega
           have hu₂_deg2 : vertexDegree adj u₂ = 2 := by omega
