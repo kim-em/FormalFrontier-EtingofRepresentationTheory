@@ -84,6 +84,111 @@ theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
 
 variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
+/-- The family of weight spaces of a `GL_N(k)`-representation is sup-independent.
+This follows from `Module.End.independent_iInf_maxGenEigenspace_of_forall_mapsTo`
+applied to the commuting family `diagUnit(i, t)`, combined with the containment
+`glWeightSpace μ ≤ ⨅ p, maxGenEigenspace(f p, χ μ p)` and injectivity of
+`χ : μ ↦ (p ↦ t^(μ i))`. -/
+theorem glWeightSpace_iSupIndep (N : ℕ)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k)) :
+    iSupIndep (fun μ : Fin N →₀ ℕ => glWeightSpace k N M (fun i => μ i)) := by
+  set f : Fin N × kˣ → Module.End k M := fun p => M.ρ (diagUnit k N p.1 p.2)
+  have h_comm : ∀ (p₁ p₂ : Fin N × kˣ), Commute (f p₁) (f p₂) :=
+    fun p₁ p₂ => rep_diagUnit_commute k N M p₁.1 p₁.2 p₂.1 p₂.2
+  have h_mapsTo : ∀ (p₁ p₂ : Fin N × kˣ) (φ : k),
+      Set.MapsTo (f p₁) ((f p₂).maxGenEigenspace φ) ((f p₂).maxGenEigenspace φ) :=
+    fun p₁ p₂ φ => Module.End.mapsTo_maxGenEigenspace_of_comm (h_comm p₂ p₁) φ
+  have h_indep := Module.End.independent_iInf_maxGenEigenspace_of_forall_mapsTo f h_mapsTo
+  -- Define eigenvalue map χ μ p = (p.2)^(μ p.1) and show injectivity
+  set χ : (Fin N →₀ ℕ) → (Fin N × kˣ → k) :=
+    fun μ p => (p.2 : k) ^ (μ p.1)
+  have h_inj : Function.Injective χ := by
+    intro μ₁ μ₂ heq
+    ext i
+    by_contra hi
+    obtain ⟨t, ht⟩ := exists_unit_pow_ne k hi
+    exact ht (congr_fun heq (i, t))
+  -- Compose with injective χ to reindex; then use mono with the containment
+  exact (h_indep.comp h_inj).mono (fun μ =>
+    le_iInf (fun p => glWeightSpace_le_maxGenEigenspace k N M (fun j => μ j) p.1 p.2))
+
+/-- For a polynomial `GL_N(k)`-representation (i.e., one where the `ℕ`-valued
+weight spaces span the whole module), the finrank equals the sum of weight space
+dimensions over the (finite) support. -/
+theorem finrank_eq_sum_glWeightSpace (N : ℕ)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (h_top : ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N M (fun i => μ i) = ⊤) :
+    Module.finrank k M =
+      ∑ μ ∈ (glWeightSpace_finite_support k N M).toFinset,
+        Module.finrank k (glWeightSpace k N M (fun i => μ i)) := by
+  set p : (Fin N →₀ ℕ) → Submodule k M :=
+    fun μ => glWeightSpace k N M (fun i => μ i) with hp_def
+  have h_indep : iSupIndep p := glWeightSpace_iSupIndep k N M
+  have hs_fin : {μ | p μ ≠ ⊥}.Finite := glWeightSpace_finite_support k N M
+  haveI : Fintype {μ // p μ ≠ ⊥} := hs_fin.fintype
+  -- Restrict to nonzero weight spaces; still IsInternal
+  have h_internal : DirectSum.IsInternal (fun μ : {μ // p μ ≠ ⊥} => p μ.val) := by
+    rw [DirectSum.isInternal_ne_bot_iff]
+    exact (DirectSum.isInternal_submodule_iff_iSupIndep_and_iSup_eq_top _).mpr
+      ⟨h_indep, h_top⟩
+  -- Linear equivalence (⨁ μ : support, p μ) ≃ M via IsInternal
+  let e : DirectSum {μ // p μ ≠ ⊥} (fun μ => (p μ.val : Submodule k M)) ≃ₗ[k] M :=
+    LinearEquiv.ofBijective (DirectSum.coeLinearMap _) h_internal
+  rw [← LinearEquiv.finrank_eq e, Module.finrank_directSum]
+  -- Convert sum over {μ // p μ ≠ ⊥} to sum over hs_fin.toFinset
+  rw [← Finset.sum_attach hs_fin.toFinset (fun μ => Module.finrank k (p μ)),
+    show hs_fin.toFinset.attach = (Finset.univ : Finset {x // x ∈ hs_fin.toFinset})
+      from Finset.attach_eq_univ]
+  -- Now both sides are Fintype sums on subtypes; relate them via an equiv
+  refine Fintype.sum_equiv
+    ({ toFun := fun ⟨x, hx⟩ => ⟨x, (Set.Finite.mem_toFinset hs_fin).mpr hx⟩,
+       invFun := fun ⟨x, hx⟩ => ⟨x, (Set.Finite.mem_toFinset hs_fin).mp hx⟩,
+       left_inv := fun _ => rfl, right_inv := fun _ => rfl } :
+      {μ // p μ ≠ ⊥} ≃ {x // x ∈ hs_fin.toFinset})
+    (fun μ => Module.finrank k (p μ.val))
+    (fun μ => Module.finrank k (p μ.val)) (fun _ => rfl)
+
+/-- Two polynomial `GL_N(k)`-representations with the same formal character have the
+same finrank. For polynomial reps, `finrank M = ∑_μ finrank(M_μ)`, and equal characters
+imply equal weight space dimensions pointwise via `formalCharacter_coeff`. -/
+theorem finrank_eq_of_formalCharacter_eq (N : ℕ)
+    (M₁ M₂ : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (h₁_top : ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N M₁ (fun i => μ i) = ⊤)
+    (h₂_top : ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N M₂ (fun i => μ i) = ⊤)
+    (h_char : formalCharacter k N M₁ = formalCharacter k N M₂) :
+    Module.finrank k M₁ = Module.finrank k M₂ := by
+  -- Pointwise equality of weight space dimensions via formalCharacter_coeff
+  have h_ptw : ∀ μ : Fin N →₀ ℕ,
+      Module.finrank k (glWeightSpace k N M₁ (fun i => μ i)) =
+      Module.finrank k (glWeightSpace k N M₂ (fun i => μ i)) := by
+    intro μ
+    have h₁ := formalCharacter_coeff k N M₁ μ
+    have h₂ := formalCharacter_coeff k N M₂ μ
+    have h_ℚ : ((Module.finrank k (glWeightSpace k N M₁ (fun i => μ i)) : ℚ) =
+        (Module.finrank k (glWeightSpace k N M₂ (fun i => μ i)) : ℚ)) := by
+      rw [← h₁, ← h₂, h_char]
+    exact_mod_cast h_ℚ
+  -- Both finranks equal sums over respective supports; extend to union of supports
+  rw [finrank_eq_sum_glWeightSpace k N M₁ h₁_top,
+      finrank_eq_sum_glWeightSpace k N M₂ h₂_top]
+  set S₁ := (glWeightSpace_finite_support k N M₁).toFinset
+  set S₂ := (glWeightSpace_finite_support k N M₂).toFinset
+  have h_extend : ∀ (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+      (S : Finset (Fin N →₀ ℕ))
+      (hS : (glWeightSpace_finite_support k N M).toFinset ⊆ S),
+      ∑ μ ∈ (glWeightSpace_finite_support k N M).toFinset,
+          Module.finrank k (glWeightSpace k N M (fun i => μ i)) =
+        ∑ μ ∈ S, Module.finrank k (glWeightSpace k N M (fun i => μ i)) := by
+    intro M S hS
+    apply Finset.sum_subset hS
+    intro μ _ hμ
+    rw [Set.Finite.mem_toFinset] at hμ
+    simp only [Set.mem_setOf_eq, not_not] at hμ
+    rw [hμ, finrank_bot]
+  rw [h_extend M₁ (S₁ ∪ S₂) Finset.subset_union_left,
+      h_extend M₂ (S₁ ∪ S₂) Finset.subset_union_right]
+  exact Finset.sum_congr rfl (fun μ _ => h_ptw μ)
+
 /-- A `GL_N(k)`-representation whose formal character equals a Schur polynomial
 `S_λ` and whose dimension matches the Schur module is isomorphic to `L_λ`.
 
