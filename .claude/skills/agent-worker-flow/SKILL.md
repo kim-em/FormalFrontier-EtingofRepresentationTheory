@@ -111,6 +111,14 @@ Read the specific files mentioned in the plan/issue. Understand the current stat
 of code you'll be modifying. Don't read progress history — the issue body provides
 that context.
 
+**Exception for re-claimed issues**: If the issue comments show it was previously
+claimed and released (sessions died, stale claims), a prior session may have
+committed deep-analysis findings that never made it into the issue body. Run
+`git log --all --oneline --grep='<issue-number>\|<key-term>'` and review any
+"deep analysis" or "analysis of" commits before starting. This can surface
+prior findings (e.g. "this approach doesn't work because X") that save hours
+of re-derivation.
+
 ## Step 4: Verify Assumptions
 
 Check that the plan's assumptions still hold:
