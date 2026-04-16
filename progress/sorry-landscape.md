@@ -1,130 +1,201 @@
-# Sorry Landscape Analysis — Wave 50
+# Sorry Landscape Analysis — Wave 51
 
-Generated 2026-04-13 by summarize session (issue #2309).
+Generated 2026-04-17 by summarize session (issue #2333).
 
 ## Summary
 
-**13 sorries** across 5 files (up from 10/6 in wave 49). Chapters 3, 4, 7, 8, 9 are 100% sorry-free.
+**21 sorries** across 5 files (up from 13/5 in wave 50). The sorry count increased
+by 8, driven almost entirely by the **decomposition of `single_branch_leaf_case`
+from 1 sorry into 12 case-level sub-sorries** (PR #2321), partially offset by
+closures in Cluster A (Garnir straightening) and Cluster C (weight space spanning).
 
-279 of 284 Lean files (98.2%) are sorry-free. 581/583 items (99.7%) sorry-free.
+279 of 285 Lean files (97.9%) are sorry-free. 582/583 items (99.8%) sorry-free.
 
 **Definition-level sorries: 0.** All mathematical objects are constructed.
 
-**Why sorries went UP 10→13:** Continued decomposition strategy. The `non_ade_graph_not_finite_type` sorry (1) was decomposed into 2 sub-cases (`not_posdef_single_branch_infinite_type` + `non_adjacent_branches_infinite_type`); the `polytabloidTab_column_standard_in_span` sorry (1) was decomposed into 3 sub-sorries (`garnir_polytabloid_identity`, `garnir_twisted_in_lower_span`, `garnir_straightening_step`); and a new sorry appeared in Proposition5_22_2 (`glWeightSpace_schurModule_iSup_eq_top`). Meanwhile, **MoritaStructural (Ch9) became sorry-free** — the major achievement of this wave.
+**Why sorries went UP 13→21:** Continued top-down decomposition. The main driver
+is `single_branch_leaf_case` (PR #2321): a single sorry for the "non-ADE single-
+branch tree → positive definite contradiction" was split into 12 sub-sorries
+corresponding to specific tree shapes (T(1,5,2)=E₈, T(1,4,2)=E₇, T(1,3,2)=E₆,
+T(1,2,5)=E₈, T(1,2,4)=E₇, T(1,2,3)=E₆, T(1,2,2)=D₅, plus D-type and generic
+leaf cases). PR #2329 then closed 3 of those sub-sorries (the T(1,2,≥6) and
+T(1,≥6,2) arm-extension cases) by proving `embed_t125_in_tree` holds, leaving
+9 remaining. Simultaneously `non_adjacent_branches_infinite_type` was proved
+modulo 3 leaf-case sorries (PR #2312). Cluster A closed 2 sorries net (garnir
+identity + straightening step proved, twistedPolytabloid_col_eq introduced),
+and Proposition5_22_2 closed 1 sorry (weight space spanning).
 
-### Merges since wave 49 (15 PRs, 2026-04-12):
+### Merges since wave 50 (11 PRs, 2026-04-12 through 2026-04-17):
 
 | PR | Date | Title | Sorry Impact |
 |----|------|-------|-------------|
-| #2272 | 04-12 | Decompose straightening theorem sorry 1→2, prove induction skeleton | SpechtModuleBasis 1→2 |
-| #2278 | 04-12 | Decompose non_ade_graph_not_finite_type, prove degree ≥ 4 and triangle | InfiniteTypeConstructions decompose |
-| #2280 | 04-12 | Weight decomposition infrastructure for Schur modules | Proposition5_22_2 +1 sorry |
-| #2281 | 04-12 | Meditate wave 48 — endgame strategy review and skill updates | Documentation |
-| #2282 | 04-12 | Prove head_isomorphism, reduce MoritaStructural 2→1 | MoritaStructural 2→1 |
-| #2289 | 04-12 | Prove eq_of_rowStandard_of_toTabloid_eq (row-standard uniqueness) | Infrastructure |
-| #2290 | 04-12 | Prove acyclic_deg_le_2_posdef, reduce sorry 1→2 | InfiniteTypeConstructions infra |
-| #2291 | 04-12 | Prove graph_with_list_cycle_infinite_type | InfiniteTypeConstructions infra |
-| #2292 | 04-12 | Prove semisimple_iso_of_finrank_hom_eq, close Ch9 MoritaStructural | **MoritaStructural 1→0** |
-| #2293 | 04-12 | Decompose acyclic_branch sorry 1→3, prove tree acyclicity lemmas | InfiniteTypeConstructions decompose |
-| #2297 | 04-12 | Replace zero maps with real edge maps for etilde7/t125 | InfiniteTypeConstructions fix |
-| #2298 | 04-12 | Prove adjacent_branches_infinite_type D̃₅ embedding | InfiniteTypeConstructions infra |
-| #2304 | 04-12 | Decompose garnir_straightening_step into focused sub-problems | SpechtModuleBasis 2→3 |
-| #2305 | 04-12 | Remove duplicate graph_with_list_cycle_infinite_type, fix call site | Bug fix |
-| #2306 | 04-12 | Prove acyclic_path_posdef sub-goals (connectivity + 2-regular cycle) | InfiniteTypeConstructions infra |
+| #2316 | 04-12 | Prove Ẽ₇ embedding in single_branch_leaf_case (T(1,3,3) subgraph) | InfiniteTypeConstructions infra |
+| #2321 | 04-12 | Decompose single_branch_leaf_case into ADE case analysis | InfiniteTypeConstructions 1→12 (decomposition) |
+| #2324 | 04-13 | Prove Theorem_2_1_2 (Gabriel's theorem structure) | Ch2 Theorem2.1.2 item sorry-free (proof-level 2) |
+| #2322 | 04-13 | Repair InfiniteTypeConstructions + Corollary9_7_3 build | Build fix |
+| #2328 | 04-13 | Field-generic infinite type constructions (cycle case) | New file, no existing sorries closed |
+| #2312 | 04-13 | Prove non_adjacent_branches_infinite_type (multi-branch) | InfiniteTypeConstructions 1→3 (leaf case decomposition) |
+| #2314 | 04-13 | Prove garnir_polytabloid_identity + garnir_straightening_step | SpechtModuleBasis 3→1 |
+| #2320 | 04-13 | Prove glWeightSpace_schurModule_iSup_eq_top | Proposition5_22_2 2→1 |
+| #2329 | 04-13 | T(1,2,5) subgraph embeddings in single_branch_leaf_case | InfiniteTypeConstructions 12→9 (2 sub-cases closed + 1 earlier) |
+| #2323 | 04-13 | Rename/restructure garnir_twisted_in_lower_span | SpechtModuleBasis 1→2 (added twistedPolytabloid_col_eq) |
+| #2337 | 04-16 | Fix PR #2323 merge conflicts (rebase) | No sorry change |
 
-**Net: 1 sorry genuinely closed (MoritaStructural), 4 decomposition sorries introduced (net +3). Files with sorries: 6→5 (MoritaStructural cleared).**
+**Net:**
+- Genuine closures: 3 (garnir_polytabloid_identity, garnir_straightening_step, glWeightSpace_schurModule_iSup_eq_top)
+- Decomposition-driven sorry additions: 11 (single_branch_leaf_case: +11 net, non_adjacent_branches: +3, twistedPolytabloid_col_eq: +1; Cluster A net closes: -2)
+- Closures during decomposition: 3 (T(1,2,≥6)/T(1,≥6,2) arm-extensions in #2329)
+- Raw count change: 13 → 21 (+8)
+- Files with sorries: 5 → 5 (unchanged; no file cleared, no new file gained)
 
-### Files that became sorry-free since wave 49:
-- **MoritaStructural** (Ch9) — closed by PR #2292 (semisimple_iso_of_finrank_hom_eq). Ch9 is now entirely sorry-free.
-
-### Files that gained sorries since wave 49:
-- **InfiniteTypeConstructions** (Ch6) — 4→5 (non_ade_graph decomposed into single_branch + non_adjacent_branches; offset by several infrastructure proofs)
-- **SpechtModuleBasis** (Ch5) — 1→3 (garnir_straightening decomposed into 3 sub-problems)
-- **Proposition5_22_2** (Ch5) — 1→2 (weight space supremum sorry added for dimension infrastructure)
+**Note on PR titles vs. substance:** PR #2320's title claims "Prove
+iso_of_formalCharacter_eq_schurPoly + Proposition5_22_2 h_dim" but its commit
+log shows it only proved `glWeightSpace_schurModule_iSup_eq_top`. Both
+`iso_of_formalCharacter_eq_schurPoly` and `h_dim` remain as sorries. Similarly
+PR #2323's title "Prove garnir_twisted_in_lower_span" is misleading: that
+theorem still has a `sorry`; the PR added the hypothesis `hw_col` to it and
+introduced a new helper `twistedPolytabloid_col_eq` (also `sorry`'d). The
+wave 50 PRs #2307 and #2312 (failing CI in the last report) resolved
+differently: #2307 was closed without merging; its work was subsumed by
+#2316/#2321/#2329. #2312 was rebased and merged.
 
 ## Chapter Breakdown
 
-| Chapter | Sorries | Files | Delta from Wave 49 |
+| Chapter | Sorries | Files | Delta from Wave 50 |
 |---------|---------|-------|---------------------|
 | Ch2 | 2 | 1 | 0 |
-| Ch5 | 6 | 3 | +3 (decompositions in SpechtModuleBasis + Proposition5_22_2) |
-| Ch6 | 5 | 1 | +1 (decomposition in InfiniteTypeConstructions) |
-| Ch9 | 0 | 0 | **−1 (MoritaStructural closed!)** |
+| Ch5 | 4 | 3 | −2 (Garnir identity/step + weight-space spanning proved; new twistedPolytabloid_col_eq sorry) |
+| Ch6 | 15 | 1 | **+10** (single_branch_leaf_case 1→9, non_adjacent_branches 0→3, indecomposability 3→3 unchanged) |
+| Ch9 | 0 | 0 | 0 |
 
 ## Per-File Sorry Detail
 
-| File | Sorries | Theorems | Delta |
-|------|---------|----------|-------|
-| InfiniteTypeConstructions (Ch6) | 5 | `etilde6v2Rep_isIndecomposable` (line 2097), `etilde7Rep_isIndecomposable` (line 2339), `t125Rep_isIndecomposable` (line 2551), `not_posdef_single_branch_infinite_type` (line 3595), `non_adjacent_branches_infinite_type` (line 3631) | **+1** |
-| SpechtModuleBasis (Ch5) | 3 | `garnir_polytabloid_identity` (line 509), `garnir_twisted_in_lower_span` (line 534), `garnir_straightening_step` (line 559) | **+2** |
-| Theorem2_1_2 (Ch2) | 2 | Forward direction: finite rep type → positive definite (line 156), Backward: Dynkin → finite rep type (line 162) | 0 |
-| Proposition5_22_2 (Ch5) | 2 | `glWeightSpace_schurModule_iSup_eq_top` (line 301), `h_dim`: dimension equality for det-twisted Schur module (line 346) | **+1** |
-| FormalCharacterIso (Ch5) | 1 | `iso_of_glWeightSpace_finrank_eq` (line 116, GL_N complete reducibility) | 0 |
+### InfiniteTypeConstructions (Ch6) — 15 sorries
 
-## Open PRs (2)
+**Indecomposability (3):**
+- Line 2097 — `etilde6v2Rep_isIndecomposable` (Ẽ₆ mixed orientation)
+- Line 2339 — `etilde7Rep_isIndecomposable` (Ẽ₇ sink orientation)
+- Line 2551 — `t125Rep_isIndecomposable` (T(1,2,5) sink orientation)
 
-| PR | Title | CI Status | Mergeable |
-|----|-------|-----------|-----------|
-| #2307 | Decompose single_branch_not_posdef_infinite_type, prove Ẽ₆ case | FAILURE | Yes |
-| #2312 | Prove non_adjacent_branches_infinite_type (multi-branch → infinite type) | FAILURE | Yes |
+**`single_branch_leaf_case` ADE positive-definiteness (9):** All of the form
+"∀ x ≠ 0, 0 < dotProduct x ((2·1 − adj).mulVec x)" after tree structure is fixed.
+- Line 4427 — T(1,5,2) = E₈ posdef (arm₂ = 5 branch)
+- Line 4431 — T(1,4,2) = E₇ posdef (arm₂ = 4 branch)
+- Line 4435 — T(1,3,2) = E₆ posdef (arm₂ = 3 branch)
+- Line 4479 — T(1,2,5) = E₈ posdef (arm₃ = 5 branch)
+- Line 4482 — T(1,2,4) = E₇ posdef (arm₃ = 4 branch)
+- Line 4485 — T(1,2,3) = E₆ posdef (arm₃ = 3 branch)
+- Line 4488 — T(1,2,2) = D₅ posdef
+- Line 4510 — D-type (a₃ leaf) posdef
+- Line 4526 — D-type (a₂ leaf) posdef
 
-**Both PRs have failing CI.** These need attention before they can merge.
+**`non_adjacent_branches_infinite_type` leaf-case (3):**
+- Line 4918 — u₁ leaf case
+- Line 4920 — u₂ leaf case
+- Line 4922 — u₃ leaf case
 
-## Blocked Issues (3)
+### SpechtModuleBasis (Ch5) — 2 sorries
+- Line 584 — `twistedPolytabloid_col_eq` (reindexing via conjugation q ↦ wqw⁻¹)
+- Line 609 — `garnir_twisted_in_lower_span` (combinatorial heart, difficulty 8)
+
+### Theorem2_1_2 (Ch2) — 2 sorries (unchanged)
+- Line 171 — Forward bridge: `not_posdef_not_HasFiniteRepresentationType`
+  (needs per-field ∀k∀Q quantifier refactor of InfiniteTypeConstructions)
+- Line 210 — Backward bridge: `isDynkinDiagram_HasFiniteRepresentationType`
+  (needs positive root enumeration + Iso bridge to Chapter 2 setup)
+
+### Proposition5_22_2 (Ch5) — 1 sorry
+- Line 380 — `h_dim` in `schurModule_shift_iso_detTwist`: dimension equality
+  for det-twisted Schur module (needs iSupIndep for weight space direct sums)
+
+### FormalCharacterIso (Ch5) — 1 sorry (unchanged)
+- Line 116 — `iso_of_formalCharacter_eq_schurPoly` (GL_N complete reducibility
+  / Schur-Weyl style argument, difficulty 8)
+
+## Open PRs (0)
+
+No open PRs. The two failing PRs from wave 50 (#2307, #2312) were resolved:
+- #2307 was closed unmerged; its work was subsumed by #2316, #2321, #2329.
+- #2312 was rebased and merged.
+
+This is a clean state for picking up new work.
+
+## Blocked Issues (1, stale)
 
 | Issue | Blocked on | Title |
 |-------|-----------|-------|
-| #2256 | Theorem2_1_2 chain | Prove backward direction (Dynkin → finite rep type) |
-| #2255 | Theorem2_1_2 chain | Prove positive definiteness in forward direction |
 | #1571 | — | Reconcile repo with FormalFrontier templates (stale) |
+
+Issues #2255 and #2256 are no longer `blocked`-labeled — they are unclaimed feature work.
 
 ## Claimed Work Items
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| #2309 | Update sorry landscape wave 50 | Claimed (this session) |
-| #2310 | Prove indecomposability of etilde6v2, etilde7, t125 | Claimed |
-| #2311 | Prove Garnir straightening sub-lemmas | Claimed |
+| #2325 | Prove Dynkin positive definiteness in single_branch_leaf_case (9 sorries) | Claimed 3 days ago |
+| #2331 | Prove leaf-case sorries in non_adjacent_branches_infinite_type (3 sorries) | Claimed 3 days ago |
+| #2333 | Update sorry landscape and progress summary (Wave 51) | Claimed (this session) |
+
+The 3-day-old claims on #2325 and #2331 may be stale. `coordination release-stale-claims`
+(manual) could recover them if the claiming sessions are dead.
 
 ## Unclaimed Work Items
 
 | Issue | Title | Impact |
 |-------|-------|--------|
-| #2247 | Prove Theorem_2_1_2 (Gabriel's theorem) | 2→0 sorry, difficulty 9 |
-| #2263 | Prove iso_of_formalCharacter + Proposition5_22_2 h_dim | 2→0 sorry |
-| #2302 | Prove not_posdef_single_branch_infinite_type | 1→0 sorry, difficulty 7 (has failing PR #2307) |
+| #2255 | Prove positive definiteness in Theorem_2_1_2 forward direction | 1→0 sorry (Ch2), difficulty 8 |
+| #2256 | Prove Theorem_2_1_2 backward direction (Dynkin → finite rep type) | 1→0 sorry (Ch2), difficulty 9 |
+| #2332 | Prove iso_of_glWeightSpace_finrank_eq + Proposition5_22_2 h_dim | 2→0 sorry (Ch5) |
+| #2334 | Prove etilde6v2Rep_isIndecomposable (Ẽ₆ mixed orientation) | 1→0 sorry, difficulty 8 |
+| #2335 | Prove etilde7Rep_isIndecomposable (Ẽ₇ sink orientation) | 1→0 sorry, difficulty 8 |
+| #2336 | Prove t125Rep_isIndecomposable (T(1,2,5) sink orientation) | 1→0 sorry, difficulty 8, ~200 lines |
 
 ## Dependency Clusters
 
-### Cluster A: Polytabloid/Straightening (Ch5, 6 sorries)
-**Files:** SpechtModuleBasis (3), Proposition5_22_2 (2), FormalCharacterIso (1)
+### Cluster A: Polytabloid/Straightening (Ch5, 4 sorries) — SHRINKING
+**Files:** SpechtModuleBasis (2), Proposition5_22_2 (1), FormalCharacterIso (1)
 **Key sorries:**
-- `garnir_polytabloid_identity` — algebraic sum manipulation (difficulty 5)
+- `twistedPolytabloid_col_eq` — reindexing by conjugation (new, moderate)
 - `garnir_twisted_in_lower_span` — combinatorial heart of straightening (difficulty 8)
-- `garnir_straightening_step` — combines the above two
-- `glWeightSpace_schurModule_iSup_eq_top` — weight spaces span Schur module
-- `h_dim` in Proposition5_22_2 — dimension equality
-- `iso_of_glWeightSpace_finrank_eq` — GL_N complete reducibility (difficulty 8)
-**Status:** Up from 3→6 due to decompositions. Issue #2311 (claimed) targets the 3 Garnir sorries. Issue #2263 (unclaimed) targets Proposition5_22_2. The decomposition makes each sub-problem independently attackable.
-**Critical path:** Garnir sub-sorries are self-contained; Proposition5_22_2 and FormalCharacterIso are independent.
+- `h_dim` in Proposition5_22_2 — needs iSupIndep for weight-space direct sums
+- `iso_of_formalCharacter_eq_schurPoly` — GL_N complete reducibility (difficulty 8)
+**Status:** Down 6→4 since wave 50 (garnir_polytabloid_identity, garnir_straightening_step,
+glWeightSpace_schurModule_iSup_eq_top closed). Two genuinely hard sorries remain
+(garnir_twisted_in_lower_span and iso_of_formalCharacter_eq_schurPoly).
+**Critical path:** `iso_of_formalCharacter_eq_schurPoly` is downstream of
+`h_dim` (via the final iso in `schurModule_shift_iso_detTwist`). Garnir work
+is independent.
 
-### Cluster B: Infinite Type Classification (Ch6, 5 sorries)
-**Files:** InfiniteTypeConstructions (5)
+### Cluster B: Infinite Type Classification (Ch6, 15 sorries) — GROWING by decomposition
+**Files:** InfiniteTypeConstructions (15)
 **Key sorries:**
-- 3× `*_isIndecomposable`: etilde6v2, etilde7, t125 (representation indecomposability)
-- `not_posdef_single_branch_infinite_type`: T(p,q,r) classification (PR #2307, failing CI)
-- `non_adjacent_branches_infinite_type`: multi-branch case (PR #2312, failing CI)
-**Status:** Up from 4→5 (decomposition). Major infrastructure landed: graph cycle infinite type (#2291), acyclic path positive definiteness (#2290, #2306), adjacent branches (#2298), tree acyclicity (#2293). Issue #2310 (claimed) targets indecomposability. Two PRs in flight for branch classification but both have CI failures.
-**Critical path:** Branch classification sorries block `not_posdef_infinite_type` → forward direction of Gabriel's theorem.
+- 3× `*_isIndecomposable`: etilde6v2, etilde7, t125
+- 9× positive-definiteness of ADE/D-type trees in `single_branch_leaf_case`
+- 3× leaf-cases in `non_adjacent_branches_infinite_type`
+**Status:** Major decomposition work landed (#2321, #2312, #2316, #2329). Each
+remaining sorry is small and focused: either (a) an ADE-specific positive-definite
+Cartan form proof (E₆, E₇, E₈, D₅, or generic D-type path), or (b) one of three
+leaf-case sub-arguments, or (c) one of three indecomposability proofs. These
+are independent and highly parallelizable.
+**Critical path:** All 15 sorries here block `not_posdef_infinite_type`, which
+in turn blocks Theorem_2_1_2 forward direction (#2255) via the ∀k∀Q bridge
+refactor. The field-generic infrastructure in #2328 (FieldGenericInfiniteType.lean)
+is a first step toward that refactor.
 
-### Cluster C: Morita Theory (Ch9) — CLOSED
-**Files:** MoritaStructural — **sorry-free** as of PR #2292.
+### Cluster C: Morita Theory (Ch9) — CLOSED (wave 50)
 **Status:** Complete. Ch9 has 0 remaining sorries.
 
 ### Cluster D: Gabriel's Theorem (Ch2, 2 sorries)
 **Files:** Theorem2_1_2 (2)
-**Key sorries:** Forward direction (positive definiteness from finite type) and backward direction (Dynkin → finite rep type)
-**Status:** Unchanged from wave 49. Both directions blocked on Cluster B completion (forward) and ADE classification infrastructure (backward). Issues #2255, #2256 blocked.
+**Key sorries:**
+- Forward bridge `not_posdef_not_HasFiniteRepresentationType`: needs the Chapter 6
+  per-field infinite-type constructions (#2328 partial progress).
+- Backward bridge `isDynkinDiagram_HasFiniteRepresentationType`: needs Theorem
+  6.5.2a/c packaging and an Iso/universe bridge between Chapter 2 and Chapter 6.
+**Status:** Unchanged since wave 50 in raw count, but PR #2324 restructured the
+theorem proper into the two named bridges and closed the top-level `Theorem_2_1_2`
+sorry via those bridges. Items.json still shows Chapter2/Theorem2.1.2 as
+`statement_formalized` because the proof depends on the two proof-level sorries.
 
 ## Trajectory
 
@@ -140,41 +211,93 @@ Generated 2026-04-13 by summarize session (issue #2309).
 | 47 | 9 | 6 | 581/583 (99.7%) | 2026-04-11 |
 | 48 | 8 | 6 | 581/583 (99.7%) | 2026-04-11 |
 | 49 | 10 | 6 | 581/583 (99.7%) | 2026-04-12 |
-| **50** | **13** | **5** | **581/583 (99.7%)** | **2026-04-13** |
+| 50 | 13 | 5 | 581/583 (99.7%) | 2026-04-13 |
+| **51** | **21** | **5** | **582/583 (99.8%)** | **2026-04-17** |
 
-**Note on wave 50 increase:** The raw sorry count increased 10→13 because of continued decomposition (non_ade_graph 1→2, garnir_straightening 1→3, Proposition5_22_2 +1). One genuine sorry was closed (MoritaStructural). The file count decreased 6→5. Each remaining sorry is smaller and more focused than the monolithic ones they replaced.
+**Note on wave 51 increase:** The raw count spike (13→21) is an artifact of
+continued decomposition — specifically `single_branch_leaf_case` splitting one
+hard sorry into 12 concrete ADE/D-type case sub-sorries. Each individual sub-
+sorry is much more tractable than the monolithic parent (most are standard
+"this specific small tree has positive definite Cartan form" proofs, difficulty
+3–5). The previous three waves also grew by decomposition; this is the
+intentional top-down strategy, not regression. The item-level count increased
+(581 → 582) because Corollary6.8.4 was recognized as sorry-free in wave 50,
+and Theorem2.1.2 remains the sole non-sorry-free item.
 
 ## Honest Assessment
 
-The project continues in the endgame with **decomposition as the primary strategy**. The headline achievement is **Chapter 9 becoming sorry-free** — the first chapter to clear all sorries since the endgame began. The sorry count increase (10→13) is entirely from decomposition; the "effective difficulty" per sorry has decreased.
+The project continues in the **endgame, decomposition-dominant phase**. All
+remaining mathematical objects are constructed (no definition-level sorries).
+The sorry count will continue to oscillate as large theorems are split into
+cases and cases are discharged.
+
+**Strengths:**
+1. **One item from done.** Only Theorem 2.1.2 remains non-sorry-free at item
+   level (582/583 = 99.83%). Its sorry is proof-level, not statement-level.
+2. **Cluster A is manageable.** 4 remaining Chapter 5 sorries with 2 genuinely
+   hard (garnir_twisted_in_lower_span, iso_of_formalCharacter_eq_schurPoly) and
+   2 tractable (twistedPolytabloid_col_eq reindexing, h_dim iSupIndep).
+3. **Cluster B is parallelizable.** 15 sorries but each is an independent
+   case (ADE tree posdef, leaf case, or single indecomposability proof). Many
+   are difficulty 3–5 elementary positive-definite calculations.
+4. **No open failing PRs.** The Wave-50 CI concerns are resolved.
 
 **Concerns:**
-1. **Two PRs with failing CI** (#2307, #2312) — these represent work that may need significant rework. If the CI failures are due to merge conflicts with the 15 PRs that landed, rebasing may suffice; if they're due to proof errors, the approaches may need revisiting.
-2. **Cluster A growing** (3→6 sorries) — the Garnir straightening and Schur module dimension proofs are hard (difficulty 5-8). The decomposition helps parallelization but doesn't reduce total difficulty.
-3. **No item-level progress** — items.json still shows 581/583. The 2 remaining items (Theorem2.1.2, Corollary6.8.4) have not changed status, though Corollary6.8.4 has no actual sorry tactics remaining and may need a status update.
+1. **Three claims are ≥3 days old** (#2325, #2331, and this issue #2333 was
+   also 3 days old when claimed). If the claiming agents are dead, these block
+   progress on ~12 sorries.
+2. **Two PR titles in this wave were misleading** (#2320, #2323 claim to
+   prove things that are still sorry'd). Future summarize/planner agents
+   should not trust PR titles without checking the diff.
+3. **`iso_of_formalCharacter_eq_schurPoly` remains the hardest Ch5 sorry.**
+   Needs Schur-Weyl / GL_N complete reducibility; may require genuinely
+   new Mathlib infrastructure or an elementary book-specific argument from
+   earlier in Chapter 5.
+4. **Theorem 2.1.2 bridges not yet started.** PRs #2255, #2256 are unclaimed;
+   the bridge from Chapter 6's ¬IsFiniteTypeQuiver to Chapter 2's
+   ¬HasFiniteRepresentationType requires a ∀k∀Q refactor that PR #2328 has
+   only begun.
 
-**Most tractable targets (by difficulty):**
-1. `garnir_polytabloid_identity` (#2311, claimed, difficulty 5) — algebraic sum manipulation
-2. `not_posdef_single_branch_infinite_type` (#2302, has failing PR #2307, difficulty 7) — T(p,q,r) case analysis
-3. `non_adjacent_branches_infinite_type` (has failing PR #2312) — multi-branch embedding
-4. `glWeightSpace_schurModule_iSup_eq_top` — weight space decomposition
+**Most tractable targets (by estimated difficulty):**
+1. 9× `single_branch_leaf_case` ADE posdef sub-sorries (#2325, claimed) —
+   each is elementary (D₅, E₆, E₇, E₈ positive-definiteness), difficulty 3–5.
+2. 3× `non_adjacent_branches_infinite_type` leaf-case sorries (#2331,
+   claimed) — symmetric reductions to Ẽ₆/Ẽ₇/T(1,2,5) embeddings, difficulty 5.
+3. `twistedPolytabloid_col_eq` (SpechtModuleBasis) — standard reindexing by
+   conjugation, difficulty 4.
+4. `h_dim` in Proposition5_22_2 — needs `iSupIndep` infrastructure for weight
+   spaces, difficulty 5.
 
 **Hard targets:**
-5. `*_isIndecomposable` ×3 (#2310, claimed) — nilpotent invariant complement arguments
-6. `garnir_twisted_in_lower_span` (#2311, claimed, difficulty 8) — combinatorial heart of straightening
-7. `iso_of_glWeightSpace_finrank_eq` — GL_N complete reducibility, difficulty 8
-8. Theorem2_1_2 forward/backward — top-level, blocked on Clusters B and D
-
-**CI needs attention** — both open PRs have failing CI. Fixing these should be prioritized over new work.
+5. 3× `*_isIndecomposable` (#2334, #2335, #2336, unclaimed) — nilpotent-
+   invariant complement arguments; each ~100-200 lines, difficulty 8.
+6. `garnir_twisted_in_lower_span` — combinatorial heart of straightening,
+   difficulty 8.
+7. `iso_of_formalCharacter_eq_schurPoly` (#2332 with h_dim) — GL_N complete
+   reducibility, difficulty 8.
+8. Theorem_2_1_2 forward/backward bridges (#2255, #2256) — blocked on
+   Cluster B completion (forward) and Chapter 6 positive-root packaging
+   (backward), difficulty 8–9.
 
 ## Strategic Recommendations
 
-1. **Fix failing PRs #2307 and #2312** — unblocking these is higher priority than new work. Check if the failures are merge conflicts (likely given 15 PRs merged) or proof errors.
+1. **Audit stale claims.** If #2325 and #2331 have dead sessions,
+   `coordination release-stale-claims` frees 12 tractable sorries for new
+   agents.
 
-2. **Update Corollary6.8.4 status** — the file has no sorry tactics. If it's truly sorry-free, update items.json to `sorry_free` (gaining 581→582 items done).
+2. **Decompose Cluster B further.** The 9 `single_branch_leaf_case` posdef
+   sorries are highly parallel and could each be their own small PR. Consider
+   splitting #2325 into 9 issues if it stalls.
 
-3. **Focus on Cluster B** — the infinite type classification is the critical path to Gabriel's theorem. The 3 indecomposability proofs (#2310, claimed) are independent and parallelizable.
+3. **Prioritize the Cluster A closures.** `twistedPolytabloid_col_eq` and
+   `h_dim` together with small effort would take Ch5 to 2 sorries
+   (both the hard ones: `garnir_twisted_in_lower_span` and
+   `iso_of_formalCharacter_eq_schurPoly`).
 
-4. **Garnir sub-lemmas** (#2311, claimed) — the polytabloid identity (difficulty 5) should be attempted first as a quick win.
+4. **Start work on the Theorem_2_1_2 bridges (#2255, #2256).** The forward
+   bridge can proceed in parallel with Cluster B completion — the ∀k∀Q
+   refactor needs to happen regardless of when the Cluster B sorries land.
 
-5. **Accept long-term sorries** — FormalCharacterIso (`iso_of_glWeightSpace_finrank_eq`, GL_N complete reducibility) and possibly the 3 indecomposability proofs may represent genuinely hard formalization beyond current Mathlib infrastructure.
+5. **Continue field-generic infrastructure** (PR #2328 style). Every new
+   field-generic infinite-type construction reduces the surface area of
+   the Chapter 6→2 bridge.
