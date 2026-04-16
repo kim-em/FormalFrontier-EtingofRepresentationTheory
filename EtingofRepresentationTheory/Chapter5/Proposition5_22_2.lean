@@ -290,16 +290,16 @@ private lemma youngSym_tBasis_weightVector (N : ℕ) (lam : Fin N → ℕ)
   rw [glTensor_comm_youngSym k N lam (diagUnit k N i t),
     LinearMap.comp_apply, glTensorRep_diagUnit_tBasis, map_smul]
 
-/-- Weight spaces of the Schur module span the entire module.
-Every element of `L_λ = range(c_λ)` is a sum of weight vectors since each
-`c_λ(e_f)` lies in the weight space for `tensorWeight(f)` (because `c_λ`
-commutes with the torus action). -/
 /-- The weight of a tensor coloring f: counts occurrences of each color. -/
 private def colorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) : Fin N →₀ ℕ where
   toFun i := (Finset.univ.filter (fun j => f j = i)).card
   support := Finset.univ.filter (fun i => 0 < (Finset.univ.filter (fun j => f j = i)).card)
   mem_support_toFun i := by simp [Finset.card_pos, Finset.filter_nonempty_iff]
 
+/-- Weight spaces of the Schur module span the entire module.
+Every element of `L_λ = range(c_λ)` is a sum of weight vectors since each
+`c_λ(e_f)` lies in the weight space for `tensorWeight(f)` (because `c_λ`
+commutes with the torus action). -/
 private theorem glWeightSpace_schurModule_iSup_eq_top (N : ℕ) (lam : Fin N → ℕ) :
     ⨆ (μ : Fin N →₀ ℕ), glWeightSpace k N (SchurModule k N lam) (fun i => μ i) = ⊤ := by
   set n := ∑ j, lam j
@@ -322,14 +322,13 @@ private theorem glWeightSpace_schurModule_iSup_eq_top (N : ℕ) (lam : Fin N →
   rw [eq_top_iff]
   intro v _
   obtain ⟨w, hw⟩ := v.property
-  -- v.val = c(w) = c(∑ coeff ��� B f) = ∑ coeff • c(B f)
+  -- v.val = c(w) = c(∑ coeff • B f) = ∑ coeff • c(B f)
   have hv_sum : v =
-      ∑ f ∈ (B.repr w).support,
-        (B.repr w f) • (⟨c (B f), ⟨B f, rfl⟩⟩ : ↥(SchurModuleSubmodule k N lam)) := by
+      ∑ f, (B.repr w f) • (⟨c (B f), ⟨B f, rfl⟩⟩ : ↥(SchurModuleSubmodule k N lam)) := by
     apply Subtype.ext
     simp only [Submodule.coe_sum, Submodule.coe_smul_of_tower]
-    rw [show v.val = c w from hw.symm,
-      show w = ∑ f ∈ (B.repr w).support, B.repr w f • B f from (B.sum_repr w).symm]
+    rw [show v.val = c w from hw.symm]
+    conv_lhs => rw [show w = ∑ x, B.repr w x • B x from (B.sum_repr w).symm]
     simp only [map_sum, map_smul]
   rw [hv_sum]
   exact Submodule.sum_mem S (fun f _ => Submodule.smul_mem S _ (h_gen_in_S f))
@@ -377,7 +376,31 @@ theorem schurModule_shift_iso_detTwist (N : ℕ) (lam : Fin N → ℕ) (hlam : A
   -- dim L_λ = dim L_{λ+(1,...,1)}.
   have h_dim : Module.finrank k (FDRep.of (detTwistedSchurModuleRep k N lam)) =
       Module.finrank k (SchurModule k N (fun i => lam i + 1)) := by
-    sorry
+    -- The SchurModule for λ+1 is polynomial (ℕ-valued weight spaces span).
+    have h₂_top : ⨆ (μ : Fin N →₀ ℕ),
+        glWeightSpace k N (SchurModule k N (fun i => lam i + 1)) (fun i => μ i) = ⊤ :=
+      glWeightSpace_schurModule_iSup_eq_top k N (fun i => lam i + 1)
+    -- The det-twisted rep is polynomial: its weight spaces at (μ+1) match the SchurModule's
+    -- weight spaces at μ via `glWeightSpace_detTwist_shift`, and the SchurModule is polynomial.
+    have h₁_top : ⨆ (μ : Fin N →₀ ℕ),
+        glWeightSpace k N (FDRep.of (detTwistedSchurModuleRep k N lam))
+          (fun i => μ i) = ⊤ := by
+      rw [eq_top_iff, ← glWeightSpace_schurModule_iSup_eq_top k N lam]
+      apply iSup_le
+      intro μ
+      -- Map μ to its shift (i ↦ μ i + 1) as a Fin N →₀ ℕ
+      set μ_shift : Fin N →₀ ℕ := Finsupp.equivFunOnFinite.symm (fun i => μ i + 1) with hμs
+      refine le_trans ?_ (le_iSup _ μ_shift)
+      -- glWeightSpace_detTwist_shift gives equality (M₁ at μ+1) = (SchurModule at μ)
+      have h_shift := glWeightSpace_detTwist_shift k N lam (fun i => μ i)
+      have h_apply : (fun i => μ_shift i) = (fun i => μ i + 1) := by
+        ext i; simp [μ_shift]
+      rw [h_apply, h_shift]
+    -- Formal characters agree (the det-twist shifts the character by the product of Xᵢ)
+    have h_char_eq : formalCharacter k N (FDRep.of (detTwistedSchurModuleRep k N lam)) =
+        formalCharacter k N (SchurModule k N (fun i => lam i + 1)) :=
+      formalCharacter_detTwist_eq_shift k N lam hlam
+    exact finrank_eq_of_formalCharacter_eq k N _ _ h₁_top h₂_top h_char_eq
   -- By iso_of_formalCharacter_eq_schurPoly, the det-twisted rep ≅ SchurModule k N (λ+1)
   obtain ⟨iso⟩ := iso_of_formalCharacter_eq_schurPoly k N (fun i => lam i + 1) hlam' _ h_char h_dim
   exact ⟨iso.symm⟩
