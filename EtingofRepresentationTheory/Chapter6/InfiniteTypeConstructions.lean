@@ -2880,9 +2880,10 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
         (cycle.get ⟨0, by omega⟩) ≠ 1) →
     (∀ v, vertexDegree adj v < 3) →
     vertexDegree adj e ≤ 1 →
-    -- Conclusion: Q(x) ≥ x(e)² AND Q(x) > 0 for x ≠ 0
+    -- Conclusion: Q(x) ≥ x(e)², Q(x) > 0 for x ≠ 0, AND Q(x) > x(e)² for x ≠ 0
     (∀ x : Fin n → ℤ, (x e) ^ 2 ≤ QF adj x) ∧
-    (∀ x : Fin n → ℤ, x ≠ 0 → 0 < QF adj x) := by
+    (∀ x : Fin n → ℤ, x ≠ 0 → 0 < QF adj x) ∧
+    (∀ x : Fin n → ℤ, x ≠ 0 → (x e) ^ 2 < QF adj x) := by
   intro n
   induction n using Nat.strongRecOn with
   | ind n ih =>
@@ -2892,25 +2893,27 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
   | 1, adj, e, hsymm, hdiag, h01, _, _, _, _ =>
     -- n = 1: Q(x) = 2·x₀², and e is the only vertex
     have he0 : e = 0 := Subsingleton.elim _ _
-    constructor <;> intro x
+    have hQF_gen : ∀ x : Fin 1 → ℤ, QF adj x = 2 * (x 0) ^ 2 := by
+      intro x
+      unfold QF; simp only [dotProduct, Matrix.mulVec, Fin.sum_univ_one, Matrix.sub_apply,
+        Matrix.smul_apply, Matrix.one_apply, Fin.isValue, ite_true, hdiag, sub_zero]
+      ring
+    refine ⟨?_, ?_, ?_⟩
     · -- Q(x) ≥ (x e)²
-      rw [he0]
-      have hQF : QF adj x = 2 * (x 0) ^ 2 := by
-        unfold QF; simp only [dotProduct, Matrix.mulVec, Fin.sum_univ_one, Matrix.sub_apply,
-          Matrix.smul_apply, Matrix.one_apply, Fin.isValue, ite_true, hdiag, sub_zero]
-        ring
-      rw [hQF]; nlinarith [sq_nonneg (x 0)]
+      intro x; rw [he0, hQF_gen]; nlinarith [sq_nonneg (x 0)]
     · -- Q(x) > 0 for x ≠ 0
-      intro hx
-      have he0 : e = 0 := Subsingleton.elim _ _
-      have hQF : QF adj x = 2 * (x 0) ^ 2 := by
-        unfold QF; simp only [dotProduct, Matrix.mulVec, Fin.sum_univ_one, Matrix.sub_apply,
-          Matrix.smul_apply, Matrix.one_apply, Fin.isValue, ite_true, hdiag, sub_zero]
-        ring
-      rw [hQF]
+      intro x hx
+      rw [hQF_gen]
       have : x 0 ≠ 0 := by
         intro h; apply hx; ext ⟨i, hi⟩; interval_cases i; exact h
       positivity
+    · -- Q(x) > (x e)² for x ≠ 0
+      intro x hx
+      rw [he0, hQF_gen]
+      have : x 0 ≠ 0 := by
+        intro h; apply hx; ext ⟨i, hi⟩; interval_cases i; exact h
+      have h_pos : 0 < (x 0) ^ 2 := by positivity
+      nlinarith
   | (k + 2), adj, e, hsymm, hdiag, h01, hconn, h_acyclic, h_deg, he =>
     -- n = k + 2 ≥ 2. e is a leaf with degree ≤ 1.
     -- Since n ≥ 2 and graph is connected, e has exactly degree 1.
@@ -3139,7 +3142,7 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
             exact hedges_rest m' (by simp only [List.length_cons] at hm; omega)
     -- Apply induction hypothesis to adj'
     have ih_result := ih (k + 1) (by omega) adj' v₁' hsymm' hdiag' h01' hconn' h_acyclic' h_deg' hv₁'_deg
-    obtain ⟨ih_lb, ih_pos⟩ := ih_result
+    obtain ⟨ih_lb, ih_pos, ih_strict⟩ := ih_result
     -- adj(e,j) is 1 only at v₁, 0 elsewhere
     have hadj_e : ∀ j, adj e j = if j = v₁ then 1 else 0 := by
       intro j; by_cases hj : j = v₁
@@ -3188,7 +3191,7 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
         Finset.sum_ite_eq', Finset.mem_univ, ite_true]
       rw [show x (e.succAbove v₁') = x v₁ from by rw [hv₁']]
       ring
-    constructor
+    refine ⟨?_, ?_, ?_⟩
     · -- Part 1: QF adj x ≥ (x e)² for all x
       intro x
       -- Define x' : Fin (k+1) → ℤ as x restricted via succAbove
@@ -3261,6 +3264,62 @@ private lemma acyclic_path_posdef_aux : ∀ (n : ℕ) (adj : Matrix (Fin n) (Fin
         rw [h_decomp, h_transfer]
         have ha_pos : 0 < a ^ 2 := by positivity
         nlinarith [sq_nonneg (a - b)]
+    · -- Part 3: QF adj x > (x e)² for x ≠ 0
+      intro x hx
+      set x' : Fin (k + 1) → ℤ := fun i => x (e.succAbove i) with hx'_def
+      set x_ext : Fin (k + 2) → ℤ := fun i => if i = e then 0 else x i with hx_ext_def
+      set a := x e
+      set b := x v₁
+      -- Same transfer as above
+      have h_transfer : QF adj x_ext = QF adj' x' := by
+        simp only [QF, dotProduct, Matrix.mulVec]
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [show x_ext e = 0 from by simp [x_ext], zero_mul, zero_add]
+        congr 1; ext i
+        rw [show x_ext (e.succAbove i) = x (e.succAbove i) from by simp [x_ext, Fin.succAbove_ne]]
+        congr 1
+        conv_lhs => rw [Fin.sum_univ_succAbove _ e]
+        simp only [show x_ext e = 0 from by simp [x_ext], mul_zero, zero_add]
+        congr 1; ext j
+        rw [show x_ext (e.succAbove j) = x (e.succAbove j) from by simp [x_ext, Fin.succAbove_ne]]
+        congr 1
+        simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply, hadj'_def,
+          Fin.succAbove_right_inj, smul_eq_mul]
+      have h_decomp : QF adj x = QF adj x_ext + 2 * a ^ 2 - 2 * a * b := h_decomp_gen x
+      have hb_eq : x' v₁' = b := by show x (e.succAbove v₁') = x v₁; rw [hv₁']
+      by_cases ha : a = 0
+      · -- a = 0: Q(x) = Q'(x'), x' ≠ 0, Part 2 gives Q'(x') > 0 = a²
+        have hx'_ne : x' ≠ 0 := by
+          intro h; apply hx; funext i
+          by_cases hi : i = e
+          · exact hi ▸ ha
+          · obtain ⟨j, hj⟩ := Fin.exists_succAbove_eq hi
+            have : x' j = (0 : Fin (k + 1) → ℤ) j := congr_fun h j
+            simp only [x', Pi.zero_apply] at this
+            rw [← hj]; exact this
+        show a ^ 2 < QF adj x
+        rw [h_decomp, ha, h_transfer]
+        have := ih_pos x' hx'_ne
+        nlinarith
+      · -- a ≠ 0: case on x' = 0 or not
+        by_cases hx'_z : x' = 0
+        · -- x' = 0: QF adj' x' = 0, b = x v₁ = x'(v₁') = 0
+          have hb0 : b = 0 := by
+            rw [← hb_eq]; have := congr_fun hx'_z v₁'
+            simp only [Pi.zero_apply] at this; exact this
+          show a ^ 2 < QF adj x
+          rw [h_decomp, h_transfer, hx'_z, hb0]
+          have hQF0 : QF adj' (0 : Fin (k + 1) → ℤ) = 0 := by
+            simp [QF, dotProduct, Matrix.mulVec]
+          rw [hQF0]
+          have ha_pos : 0 < a ^ 2 := by positivity
+          nlinarith
+        · -- x' ≠ 0: use Part 3 (ih_strict) at x', giving Q'(x') > b²
+          have ih_bound := ih_strict x' hx'_z
+          rw [hb_eq] at ih_bound
+          show a ^ 2 < QF adj x
+          rw [h_decomp, h_transfer]
+          nlinarith [sq_nonneg (a - b)]
 
 /-- A connected acyclic simple graph with all degrees ≤ 2 is a path, hence a Dynkin
     diagram of type A_n, and therefore has positive definite Cartan form. -/
@@ -3378,7 +3437,7 @@ theorem acyclic_deg_le_2_posdef {n : ℕ} (adj : Matrix (Fin n) (Fin n) ℤ)
     simp only [Fintype.card_fin] at h_edges
     omega
   obtain ⟨e, he⟩ := h_has_leaf
-  exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2
+  exact (acyclic_path_posdef_aux n adj e hsymm hdiag h01 hconn h_acyclic h_deg he).2.1
 
 /-- In an acyclic graph (tree), two distinct adjacent vertices have no other common
     neighbors. More precisely, if `adj v a = 1` and `adj v b = 1` with `a ≠ b`, and
