@@ -4011,6 +4011,127 @@ private theorem embed_t125_in_tree {n : ℕ}
   exact subgraph_infinite_type_transfer φ adj t125Adj hsymm
     (fun v h => by linarith [hdiag v]) hembed t125_not_finite_type
 
+set_option maxHeartbeats 1600000 in
+/-- In a tree where v₀ has two degree-1 neighbors L1 and L2, the Cartan form is positive definite.
+    After removing L1 and L2, v₀ becomes a leaf of the resulting path graph.
+    Key identity: Q(x) = Q_path(x_rest) - V² + (V - L - A)² + (L - A)²
+    where V = x(v₀), L = x(L1), A = x(L2), and Q_path is the path's Cartan form. -/
+private lemma tree_two_leaf_posdef {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm) (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_deg : ∀ v, vertexDegree adj v < 4)
+    (v₀ L1 L2 : Fin n)
+    (hL1_adj : adj v₀ L1 = 1) (hL1_deg : vertexDegree adj L1 = 1)
+    (hL2_adj : adj v₀ L2 = 1) (hL2_deg : vertexDegree adj L2 = 1)
+    (hL1L2 : L1 ≠ L2) (hL1_ne_v₀ : L1 ≠ v₀) (hL2_ne_v₀ : L2 ≠ v₀) :
+    ∀ x : Fin n → ℤ, x ≠ 0 →
+      0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) := by
+  -- L1 only connects to v₀
+  have hL1_unique : ∀ j, adj L1 j = if j = v₀ then 1 else 0 := by
+    intro j; by_cases hj : j = v₀
+    · simp only [hj, ite_true]; exact (hsymm.apply v₀ L1).trans hL1_adj
+    · rcases h01 L1 j with h | h
+      · simp [hj, h]
+      · exfalso; have : 2 ≤ vertexDegree adj L1 := by
+          change 2 ≤ (Finset.univ.filter (fun k => adj L1 k = 1)).card
+          have hv₀_in : v₀ ∈ Finset.univ.filter (fun k => adj L1 k = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, (hsymm.apply v₀ L1).trans hL1_adj⟩
+          have hj_in : j ∈ Finset.univ.filter (fun k => adj L1 k = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, h⟩
+          have hne : v₀ ≠ j := Ne.symm hj
+          calc 2 = ({v₀, j} : Finset _).card := by
+                    rw [Finset.card_pair hne]
+            _ ≤ _ := Finset.card_le_card (fun x hx => by
+                simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                rcases hx with rfl | rfl <;> assumption)
+        omega
+  -- L2 only connects to v₀
+  have hL2_unique : ∀ j, adj L2 j = if j = v₀ then 1 else 0 := by
+    intro j; by_cases hj : j = v₀
+    · simp only [hj, ite_true]; exact (hsymm.apply v₀ L2).trans hL2_adj
+    · rcases h01 L2 j with h | h
+      · simp [hj, h]
+      · exfalso; have : 2 ≤ vertexDegree adj L2 := by
+          change 2 ≤ (Finset.univ.filter (fun k => adj L2 k = 1)).card
+          have hv₀_in : v₀ ∈ Finset.univ.filter (fun k => adj L2 k = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, (hsymm.apply v₀ L2).trans hL2_adj⟩
+          have hj_in : j ∈ Finset.univ.filter (fun k => adj L2 k = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, h⟩
+          have hne : v₀ ≠ j := Ne.symm hj
+          calc 2 = ({v₀, j} : Finset _).card := by
+                    rw [Finset.card_pair hne]
+            _ ≤ _ := Finset.card_le_card (fun x hx => by
+                simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                rcases hx with rfl | rfl <;> assumption)
+        omega
+  intro x hx
+  -- Set up key variables
+  set V := x v₀ with hV_def
+  set L := x L1 with hL_def
+  set A := x L2 with hA_def
+  -- Zero out both leaves
+  set x₀₀ : Fin n → ℤ := fun i => if i = L1 ∨ i = L2 then 0 else x i with hx₀₀_def
+  have hx₀₀_L1 : x₀₀ L1 = 0 := by simp [x₀₀]
+  have hx₀₀_L2 : x₀₀ L2 = 0 := by simp [x₀₀, hL1L2]
+  have hx₀₀_v₀ : x₀₀ v₀ = V := by
+    show (if v₀ = L1 ∨ v₀ = L2 then 0 else x v₀) = V
+    rw [if_neg (by push_neg; exact ⟨Ne.symm hL1_ne_v₀, Ne.symm hL2_ne_v₀⟩)]
+  have hx₀₀_else : ∀ i, i ≠ L1 → i ≠ L2 → x₀₀ i = x i := by
+    intro i h1 h2; simp [x₀₀, h1, h2]
+  -- Step 1: Algebraic decomposition
+  -- Q(x) = Q(x₀₀) + 2L² + 2A² - 2LV - 2AV
+  have h_decomp : QF adj x = QF adj x₀₀ +
+      2 * L ^ 2 + 2 * A ^ 2 - 2 * L * V - 2 * A * V := by
+    sorry
+  -- Step 2: Bound on Q(x₀₀) via reduced path graph
+  -- Remove L1 and L2 to get path graph adj₂ with v₀ as leaf
+  -- Part 1: Q(x₀₀) ≥ V²
+  have h_bound : V ^ 2 ≤ QF adj x₀₀ := by sorry
+  -- Part 3: Q(x₀₀) > V² when x₀₀ ≠ 0
+  have h_strict : x₀₀ ≠ 0 → V ^ 2 < QF adj x₀₀ := by sorry
+  -- Step 3: Combine using SoS identity
+  -- 2L² + 2A² - 2LV - 2AV = (V-L-A)² + (L-A)² - V²
+  -- So Q(x) = Q(x₀₀) - V² + (V-L-A)² + (L-A)²
+  by_cases hx₀₀_z : x₀₀ = 0
+  · -- All non-{L1, L2} values zero: V = 0
+    have hV0 : V = 0 := by
+      rw [← hx₀₀_v₀]; exact congr_fun hx₀₀_z v₀
+    -- Q(x) = 0 + 2L² + 2A²  (since Q(0) = 0 and V = 0)
+    have hQF0 : QF adj x₀₀ = 0 := by rw [hx₀₀_z]; simp [QF, dotProduct, Matrix.mulVec]
+    rw [show dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) =
+        QF adj x from rfl]
+    rw [h_decomp, hQF0, hV0]
+    -- Need: 2L² + 2A² > 0, i.e., L ≠ 0 or A ≠ 0
+    have hLA : L ≠ 0 ∨ A ≠ 0 := by
+      by_contra h; push_neg at h; obtain ⟨hL0, hA0⟩ := h
+      apply hx; ext i
+      by_cases hi1 : i = L1
+      · exact hi1 ▸ hL0
+      · by_cases hi2 : i = L2
+        · exact hi2 ▸ hA0
+        · have := congr_fun hx₀₀_z i; simp [x₀₀, hi1, hi2] at this; exact this
+    rcases hLA with hL | hA
+    · have : 0 < L ^ 2 := by positivity
+      nlinarith [sq_nonneg A]
+    · have : 0 < A ^ 2 := by positivity
+      nlinarith [sq_nonneg L]
+  · -- Some non-leaf vertex nonzero: use strict bound
+    have h_strict_bound := h_strict hx₀₀_z
+    rw [show dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) =
+        QF adj x from rfl]
+    rw [h_decomp]
+    nlinarith [sq_nonneg (V - L - A), sq_nonneg (L - A)]
+
 set_option maxHeartbeats 800000 in
 /-- In a tree with unique degree-3 vertex, if some arm has length 1 (a leaf neighbor),
     and the Cartan form is not positive definite, the tree has infinite representation type.
