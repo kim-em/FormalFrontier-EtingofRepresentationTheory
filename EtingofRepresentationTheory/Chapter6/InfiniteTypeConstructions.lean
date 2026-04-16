@@ -2083,9 +2083,16 @@ noncomputable def etilde6v2Rep (m : ℕ) :
 5. nilpotent_invariant_compl_trivial concludes -/
 
 -- For now, sorry the indecomposability; we only need the infinite type theorem.
+-- NOTE: The hypothesis `1 ≤ m` is required. For `m = 0`, `nilpotentShiftLin 0 = 0`
+-- (since `i.val + 1 < 1` is unsatisfiable for `i : Fin 1`), so the nilpotent twist
+-- disappears and the representation is provably decomposable. An explicit
+-- complementary invariant pair is: W₁(0) = {(a,b,0)}, W₂(0) = {(0,0,c)}, with
+-- W₁(1)=W₁(3)=W₁(5)=full, W₁(2)=W₁(4)=full, W₁(6)=0, W₂ the complements.
+-- For m ≥ 1, the nilpotent twist `N ≠ 0` breaks this decomposition at vertex 6,
+-- forcing the argument through via `nilpotent_invariant_compl_trivial`.
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
-theorem etilde6v2Rep_isIndecomposable (m : ℕ) :
+theorem etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 7)
       etilde6v2Quiver (etilde6v2Rep m) := by
   letI := etilde6v2Quiver
@@ -2111,12 +2118,17 @@ theorem etilde6_not_finite_type :
   have hfin := @hft ℂ _ inferInstance etilde6v2Quiver
     (fun a b => etilde6v2Quiver_subsingleton a b)
     etilde6v2Orientation_isOrientationOf
-  have hmem : ∀ m : ℕ, (fun v : Fin 7 => etilde6Dim m v) ∈
+  -- We range over `m + 1` (not `m`) because `etilde6v2Rep_isIndecomposable`
+  -- requires `1 ≤ m`: the `m = 0` case is provably decomposable.
+  -- Shifting gives an infinite family of indecomposables with distinct dim vectors.
+  have hmem : ∀ m : ℕ, (fun v : Fin 7 => etilde6Dim (m + 1) v) ∈
       {d : Fin 7 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 7),
         V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
     intro m
-    exact ⟨etilde6v2Rep m, etilde6v2Rep_isIndecomposable m, etilde6v2Rep_dimVec m⟩
-  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 7 => etilde6Dim m v) := by
+    exact ⟨etilde6v2Rep (m + 1),
+      etilde6v2Rep_isIndecomposable (m + 1) (Nat.succ_le_succ m.zero_le),
+      etilde6v2Rep_dimVec (m + 1)⟩
+  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 7 => etilde6Dim (m + 1) v) := by
     intro m₁ m₂ h
     have h0 := congr_fun h ⟨0, by omega⟩
     simp only [etilde6Dim] at h0
