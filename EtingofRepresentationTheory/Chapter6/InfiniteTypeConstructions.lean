@@ -4421,10 +4421,13 @@ private theorem single_branch_leaf_case {n : ℕ}
                   h_leaf_adj ha₃_adj hb₃_adj ha₂_adj hb₂_adj hc₂_adj hd₂_adj he₂_adj
                   ha₃_ne_leaf.symm ha₂_ne_leaf.symm ha₂₃.symm hb₃_ne_v₀ hb₂_ne_v₀
                   hc₂_ne_a₂ hd₂_ne_b₂ he₂_ne_c₂
-              · -- e₂ is leaf: arm2 has length exactly 5. T(1,5,2)=T(1,2,5)=E₈ → posdef → contradiction
-                exfalso
-                apply h_not_posdef
-                sorry -- T(1,5,2) = E₈ is positive definite
+              · -- e₂ is leaf: arm2 has length exactly 5. T(1,5,2)=T(1,2,5)=Ẽ₈ has infinite type.
+                -- The 9 named vertices already form T(1,2,5), so embed them directly.
+                exact embed_t125_in_tree adj hsymm hdiag h01 h_acyclic
+                  v₀ leaf a₃ b₃ a₂ b₂ c₂ d₂ e₂
+                  h_leaf_adj ha₃_adj hb₃_adj ha₂_adj hb₂_adj hc₂_adj hd₂_adj he₂_adj
+                  ha₃_ne_leaf.symm ha₂_ne_leaf.symm ha₂₃.symm hb₃_ne_v₀ hb₂_ne_v₀
+                  hc₂_ne_a₂ hd₂_ne_b₂ he₂_ne_c₂
             · -- d₂ is leaf: arm2 has length exactly 4. T(1,4,2)=T(1,2,4)=E₇ → posdef → contradiction
               exfalso
               apply h_not_posdef
@@ -4474,9 +4477,13 @@ private theorem single_branch_leaf_case {n : ℕ}
                   h_leaf_adj ha₂_adj hb₂_adj ha₃_adj hb₃_adj hc₃_adj hd₃_adj he₃_adj
                   ha₂_ne_leaf.symm ha₃_ne_leaf.symm ha₂₃ hb₂_ne_v₀ hb₃_ne_v₀
                   hc₃_ne_a₃ hd₃_ne_b₃ he₃_ne_c₃
-              · -- e₃ is leaf: arm3 length = 5. T(1,2,5) = E₈ → posdef → contradiction
-                exfalso; apply h_not_posdef
-                sorry -- T(1,2,5) = E₈ is positive definite
+              · -- e₃ is leaf: arm3 length = 5. T(1,2,5) = Ẽ₈ has infinite type.
+                -- The 9 named vertices already form T(1,2,5), so embed them directly.
+                exact embed_t125_in_tree adj hsymm hdiag h01 h_acyclic
+                  v₀ leaf a₂ b₂ a₃ b₃ c₃ d₃ e₃
+                  h_leaf_adj ha₂_adj hb₂_adj ha₃_adj hb₃_adj hc₃_adj hd₃_adj he₃_adj
+                  ha₂_ne_leaf.symm ha₃_ne_leaf.symm ha₂₃ hb₂_ne_v₀ hb₃_ne_v₀
+                  hc₃_ne_a₃ hd₃_ne_b₃ he₃_ne_c₃
             · -- d₃ is leaf: arm3 length = 4. T(1,2,4) = E₇ → posdef → contradiction
               exfalso; apply h_not_posdef
               sorry -- T(1,2,4) = E₇ is positive definite
