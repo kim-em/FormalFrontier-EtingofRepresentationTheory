@@ -37,6 +37,7 @@ Run this checklist before writing a single tactic. Skipping it has caused agents
    - Non-commutative `TensorProduct` — Mathlib requires `CommSemiring`. Balanced tensor product `A ⊗_{eAe} N` must be built as a manual quotient (~100 lines boilerplate). Blocks corner ring Morita equivalence and BasicAlgebraExistence.
    - `garnir_reduction'` algebraic approach — The standard approach using `a_λ · G = 0` (Garnir element annihilated by row symmetrizer) and Lemma 5.13.1 collapses to a tautology when trying to extract the linear combination. The algebraic identity only shows the existing tabloid is in the span — it doesn't produce the *smaller* tabloids needed for the inductive step. Needs tabloid-level reasoning (James' approach: work with equivalence classes of fillings under row permutations) instead.
    - Polytabloid transfer map `tabloidProjection(polytabloid T) = polytabloidTab T` — **PROVEN FALSE** (Wave 46-49): For partition (3,2), two distinct SYTs can map to the same inverse-tabloid. The dominance property (`swap_column_dominance`) fails for σ_T⁻¹. 4+ agent sessions were wasted on this approach across issues #2189, #2212. The correct approach uses tabloid-level unitriangularity (Track 2 in TabloidModule.lean), not direct transfer.
+   - `iso_of_formalCharacter_eq_schurPoly` — Requires GL_N complete reducibility (Schur-Weyl duality), which is NOT in Mathlib. The supporting lemmas are all proved (schurPoly_injective, finrank equality, weight space independence), but the core reduction step needs polynomial GL_N representation theory that would be ~300+ lines of new infrastructure. Mark as a Mathlib dependency gap. (Wave 49 meditate assessment.)
 
 2. **Search for existing definitions and infrastructure.** Before defining any concept or building any equivalence/isomorphism, search the codebase:
    ```bash
@@ -654,6 +655,27 @@ For classifying indecomposable representations:
 1. Check kernels of arrow maps — if `ker Aᵢ ≠ ⊥`, split off the kernel as a direct summand
 2. This reduces to the "all injective" case, which is the hard subspace-configuration problem
 3. For the injective case, use `Submodule.IsCompl` and `Module.finrank` to classify
+
+### Indecomposability via Nilpotent Complement (Extended Dynkin Types)
+
+For extended Dynkin quiver representations (Ẽ₆, Ẽ₇, T(1,2,5), D̃_n), the established
+proof pattern uses `nilpotent_invariant_compl_trivial` (InfiniteTypeConstructions.lean:158).
+Reference implementation: `cycleRep_isIndecomposable` (lines 304-372).
+
+**Pattern:**
+1. **Nontriviality:** Show representation is nonzero at some vertex
+2. **Setup:** Assume complementary invariant submodules W₁, W₂ at all vertices
+3. **Propagate to leaf:** Use map injectivity to show W₁(leaf) ≤ W₁(leaf') for
+   leaves connected through arm chains. Establish W(leaf₁) = W(leaf₂) or similar.
+4. **Nilpotent invariance:** Show W₁(leaf) and W₂(leaf) are both invariant under
+   the nilpotent shift `nilpotentShiftLin m` at a leaf vertex. This is the HARD step —
+   the nilpotent enters through one arm but must be shown to propagate to the leaf.
+5. **Apply lemma:** `nilpotent_invariant_compl_trivial` gives W₁(leaf) = ⊥ or W₂(leaf) = ⊥
+6. **Propagate back:** From W(leaf) = ⊥, propagate via injectivity of all edge maps
+   to show W(v) = ⊥ for all vertices.
+
+**Critical:** The m ≥ 1 hypothesis is essential. For m = 0, the nilpotent is zero and
+the representations are genuinely decomposable (issues #2342, #2374, #2376).
 
 ### Dimension Vector Pattern
 
