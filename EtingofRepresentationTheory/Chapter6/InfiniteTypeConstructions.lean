@@ -4260,7 +4260,8 @@ private lemma tree_two_leaf_posdef {n : ℕ}
     (v₀ L1 L2 : Fin n)
     (hL1_adj : adj v₀ L1 = 1) (hL1_deg : vertexDegree adj L1 = 1)
     (hL2_adj : adj v₀ L2 = 1) (hL2_deg : vertexDegree adj L2 = 1)
-    (hL1L2 : L1 ≠ L2) (hL1_ne_v₀ : L1 ≠ v₀) (hL2_ne_v₀ : L2 ≠ v₀) :
+    (hL1L2 : L1 ≠ L2) (hL1_ne_v₀ : L1 ≠ v₀) (hL2_ne_v₀ : L2 ≠ v₀)
+    (h_deg_le2 : ∀ v, v ≠ v₀ → vertexDegree adj v ≤ 2) :
     ∀ x : Fin n → ℤ, x ≠ 0 →
       0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x) := by
   -- L1 only connects to v₀
@@ -4315,16 +4316,123 @@ private lemma tree_two_leaf_posdef {n : ℕ}
     rw [if_neg (by push_neg; exact ⟨Ne.symm hL1_ne_v₀, Ne.symm hL2_ne_v₀⟩)]
   have hx₀₀_else : ∀ i, i ≠ L1 → i ≠ L2 → x₀₀ i = x i := by
     intro i h1 h2; simp [x₀₀, h1, h2]
+  -- adj L1 L2 = 0 (L1 is a leaf connected only to v₀, and L2 ≠ v₀)
+  have hL1L2_adj : adj L1 L2 = 0 := by
+    rcases h01 L1 L2 with h | h; exact h
+    have := hL1_unique L2; rw [if_neg hL2_ne_v₀] at this; omega
+  have hL2L1_adj : adj L2 L1 = 0 := by
+    have := hsymm.apply L1 L2; rw [hL1L2_adj] at this; linarith
+  -- adj symmetry helpers
+  have h_adj_i_L1 : ∀ i, adj i L1 = if i = v₀ then 1 else 0 := by
+    intro i; rw [hsymm.apply]; exact hL1_unique i
+  have h_adj_i_L2 : ∀ i, adj i L2 = if i = v₀ then 1 else 0 := by
+    intro i; rw [hsymm.apply]; exact hL2_unique i
   -- Step 1: Algebraic decomposition
   -- Q(x) = Q(x₀₀) + 2L² + 2A² - 2LV - 2AV
   have h_decomp : QF adj x = QF adj x₀₀ +
       2 * L ^ 2 + 2 * A ^ 2 - 2 * L * V - 2 * A * V := by
-    sorry
+    -- Helper: evaluate sum with two nonzero terms
+    have sum_two : ∀ (a b : Fin n) (f : Fin n → ℤ), a ≠ b →
+        (∀ i, i ≠ a → i ≠ b → f i = 0) →
+        ∑ i : Fin n, f i = f a + f b := by
+      intro a b f hab hf
+      have hb_mem : b ∈ Finset.univ.erase a :=
+        Finset.mem_erase.mpr ⟨hab.symm, Finset.mem_univ b⟩
+      rw [← Finset.add_sum_erase Finset.univ f (Finset.mem_univ a)]
+      congr 1
+      rw [← Finset.add_sum_erase (Finset.univ.erase a) f hb_mem]
+      suffices ∑ i ∈ (Finset.univ.erase a).erase b, f i = 0 by linarith
+      exact Finset.sum_eq_zero fun i hi => by
+        simp only [Finset.mem_erase] at hi; exact hf i hi.2.1 hi.1
+    suffices h : QF adj x - QF adj x₀₀ =
+        2 * L ^ 2 + 2 * A ^ 2 - 2 * L * V - 2 * A * V by linarith
+    simp only [QF, dotProduct, Matrix.mulVec, Matrix.sub_apply, Matrix.smul_apply,
+      Matrix.one_apply]
+    rw [← Finset.sum_sub_distrib]
+    have haL1v₀ : adj L1 v₀ = 1 := by rw [hsymm.apply]; exact hL1_adj
+    have haL2v₀ : adj L2 v₀ = 1 := by rw [hsymm.apply]; exact hL2_adj
+    -- Evaluate inner(x, L1) = 2L - V via indicator decomposition
+    have inner_x_L1 : ∑ j : Fin n,
+        ((2 • if L1 = j then (1 : ℤ) else 0) - adj L1 j) * x j =
+        2 * L - V := by
+      have hf : ∀ k, ((2 • if L1 = k then (1 : ℤ) else 0) - adj L1 k) * x k =
+          (if k = L1 then 2 * L else 0) + (if k = v₀ then -V else 0) := by
+        intro k
+        by_cases hk1 : k = L1
+        · rw [hk1]; simp [hdiag, hL1_ne_v₀, ← hL_def]
+        · by_cases hkv : k = v₀
+          · rw [hkv]; simp [hL1_ne_v₀, Ne.symm hL1_ne_v₀, haL1v₀, ← hV_def]
+          · have := hL1_unique k; rw [if_neg hkv] at this
+            simp [Ne.symm hk1, hk1, hkv, this]
+      simp_rw [hf, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, ite_true]; ring
+    -- Evaluate inner(x, L2) = 2A - V
+    have inner_x_L2 : ∑ j : Fin n,
+        ((2 • if L2 = j then (1 : ℤ) else 0) - adj L2 j) * x j =
+        2 * A - V := by
+      have hf : ∀ k, ((2 • if L2 = k then (1 : ℤ) else 0) - adj L2 k) * x k =
+          (if k = L2 then 2 * A else 0) + (if k = v₀ then -V else 0) := by
+        intro k
+        by_cases hk2 : k = L2
+        · rw [hk2]; simp [hdiag, hL2_ne_v₀, ← hA_def]
+        · by_cases hkv : k = v₀
+          · rw [hkv]; simp [hL2_ne_v₀, Ne.symm hL2_ne_v₀, haL2v₀, ← hV_def]
+          · have := hL2_unique k; rw [if_neg hkv] at this
+            simp [Ne.symm hk2, hk2, hkv, this]
+      simp_rw [hf, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, ite_true]; ring
+    -- Per-term difference decomposed into three indicator functions
+    have hterm : ∀ i : Fin n,
+        x i * ∑ j, ((2 • if i = j then (1 : ℤ) else 0) - adj i j) * x j -
+        x₀₀ i * ∑ j, ((2 • if i = j then (1 : ℤ) else 0) - adj i j) * x₀₀ j =
+        (if i = L1 then 2 * L ^ 2 - L * V else 0) +
+        (if i = L2 then 2 * A ^ 2 - A * V else 0) +
+        (if i = v₀ then -(V * L) - V * A else 0) := by
+      intro i
+      by_cases hi1 : i = L1
+      · subst hi1
+        simp only [hx₀₀_L1, zero_mul, sub_zero, ite_true, hL1L2, hL1_ne_v₀, ite_false]
+        rw [inner_x_L1]; ring
+      · by_cases hi2 : i = L2
+        · subst hi2
+          simp only [hx₀₀_L2, zero_mul, sub_zero, hi1, ite_false, ite_true, hL2_ne_v₀]
+          rw [inner_x_L2]; ring
+        · by_cases hiv : i = v₀
+          · rw [hiv]
+            simp only [hi1, hi2, ite_false, ite_true, hx₀₀_v₀]
+            have hrw1 : V * ∑ j, ((2 • if v₀ = j then (1 : ℤ) else 0) - adj v₀ j) * x j -
+                V * ∑ j, ((2 • if v₀ = j then (1 : ℤ) else 0) - adj v₀ j) * x₀₀ j =
+                V * ∑ j, ((2 • if v₀ = j then (1 : ℤ) else 0) - adj v₀ j) *
+                  (x j - x₀₀ j) := by
+              rw [← mul_sub, ← Finset.sum_sub_distrib]; congr 1
+              apply Finset.sum_congr rfl; intro k _; ring
+            rw [hrw1]
+            rw [sum_two L1 L2 _ hL1L2 (by
+              intro k hk1 hk2; rw [hx₀₀_else k hk1 hk2]; ring)]
+            simp only [Ne.symm hL1_ne_v₀, Ne.symm hL2_ne_v₀, hL1_adj, hL2_adj,
+              hx₀₀_L1, hx₀₀_L2, ite_false, ← hL_def, ← hA_def]; ring
+          · -- i ≠ L1, L2, v₀: all three indicators are 0
+            simp only [hi1, hi2, hiv, ite_false, add_zero]
+            rw [← hx₀₀_else i hi1 hi2]
+            have hrw2 : x₀₀ i * ∑ j, ((2 • if i = j then (1 : ℤ) else 0) - adj i j) * x j -
+                x₀₀ i * ∑ j, ((2 • if i = j then (1 : ℤ) else 0) - adj i j) * x₀₀ j =
+                x₀₀ i * ∑ j, ((2 • if i = j then (1 : ℤ) else 0) - adj i j) *
+                  (x j - x₀₀ j) := by
+              rw [← mul_sub, ← Finset.sum_sub_distrib]; congr 1
+              apply Finset.sum_congr rfl; intro k _; ring
+            rw [hrw2]
+            rw [sum_two L1 L2 _ hL1L2 (by
+              intro k hk1 hk2; rw [hx₀₀_else k hk1 hk2]; ring)]
+            simp only [hx₀₀_L1, hx₀₀_L2, hi1, hi2, ite_false,
+              h_adj_i_L1 i, h_adj_i_L2 i, hiv]; ring
+    simp_rw [hterm, Finset.sum_add_distrib, Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+    ring
   -- Step 2: Bound on Q(x₀₀) via reduced path graph
-  -- Remove L1 and L2 to get path graph adj₂ with v₀ as leaf
+  -- Strategy: Remove L1, L2 via two Fin.succAbove operations to get adj₂ on Fin (n-2).
+  -- Since x₀₀(L1) = x₀₀(L2) = 0, QF adj x₀₀ = QF adj₂ x₂ (transfer via
+  -- Fin.sum_univ_succAbove). Then adj₂ is a path graph with v₀ as leaf, and
+  -- acyclic_path_posdef_aux gives V² ≤ QF adj₂ x₂ and strict when x₂ ≠ 0.
   -- Part 1: Q(x₀₀) ≥ V²
   have h_bound : V ^ 2 ≤ QF adj x₀₀ := by sorry
-  -- Part 3: Q(x₀₀) > V² when x₀₀ ≠ 0
+  -- Part 2: Q(x₀₀) > V² when x₀₀ ≠ 0
   have h_strict : x₀₀ ≠ 0 → V ^ 2 < QF adj x₀₀ := by sorry
   -- Step 3: Combine using SoS identity
   -- 2L² + 2A² - 2LV - 2AV = (V-L-A)² + (L-A)² - V²
