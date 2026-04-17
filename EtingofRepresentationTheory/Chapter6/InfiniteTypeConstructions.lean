@@ -2423,6 +2423,70 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) :
             · rw [dif_pos h4]; exact key ⟨i, by omega⟩ h1
             · rw [dif_neg h4]
           · omega
+    -- Leaf containment: W(4) ≤ W(7) via the center
+    -- If x ∈ W(4), arm2 gives E ∈ W(0). Decompose x at W(7): x = a+b.
+    -- arm3 gives F ∈ W(0), G ∈ W'(0). arms_agree gives E = F+G.
+    -- So G = E-F ∈ W(0), hence G ∈ W(0) ∩ W'(0) = 0, so b = 0.
+    have leaf_containment
+        (W W' : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W' a, (etilde7Rep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (4 : Fin 8)) :
+        x ∈ W (7 : Fin 8) := by
+      -- Decompose x at vertex 7
+      have htop7 := (hc (7 : Fin 8)).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop7
+      -- arm2: x ∈ W(4) → E ∈ W(0)
+      have hE := arm2_to_center W hW x hx
+      -- arm3: a ∈ W(7) → F ∈ W(0), b ∈ W'(7) → G ∈ W'(0)
+      have hF := arm3_to_center W hW a ha
+      have hG := arm3_to_center W' hW' b hb
+      -- G ∈ W(0): since E and arm3(x) agree, and x = a+b, we can extract G
+      have hG_W : (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 b)) ∈ W (0 : Fin 8) := by
+        -- arm2(x) = arm3(x) = arm3(a) + arm3(b) = F + G
+        have key : (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+            ((etilde7Rep m).mapLinear hom43 x)) =
+          (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 a)) +
+          (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 b)) := by
+          have h1 := arms_agree x
+          rw [h1, ← hab, map_add, map_add, map_add]
+        -- arm3(b) = arm2(x) - arm3(a), and both are in W(0)
+        have hFneg := (W (0 : Fin 8)).smul_mem (-1 : ℂ) hF
+        have h := (W (0 : Fin 8)).add_mem hE hFneg
+        have h2 : (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 b)) =
+          (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+            ((etilde7Rep m).mapLinear hom43 x)) +
+          (-1 : ℂ) • (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 a)) := by
+          rw [key]; funext i
+          show _ = (_ + _ + (-1 : ℂ) * _)
+          ring
+        rw [h2]; exact h
+      -- G ∈ W(0) ∩ W'(0) = {0}
+      have hzero := Submodule.mem_inf.mpr ⟨hG_W, hG⟩
+      rw [(hc (0 : Fin 8)).inf_eq_bot, Submodule.mem_bot] at hzero
+      -- From hzero, extract b = 0 via block A of the center
+      have hb_zero : b = 0 := by
+        ext ⟨j, hj⟩
+        -- Evaluate hzero at position j (block A of center)
+        have hj4 : j < 4 * (m + 1) := by omega
+        have := congr_fun hzero ⟨j, by show j < etilde7Dim m (0 : Fin 8); simp [etilde7Dim]; omega⟩
+        -- This is embed3to4_ACD(embed2to3_AB(starEmbed1(b))) at j = b_j
+        show b ⟨j, hj⟩ = 0
+        change embed3to4_ACD m (embed2to3_AB m (starEmbed1 m b))
+          ⟨j, by show j < etilde7Dim m (0 : Fin 8); simp [etilde7Dim]; omega⟩ = 0 at this
+        simp only [embed3to4_ACD, embed2to3_AB, starEmbed1,
+          LinearMap.coe_mk, AddHom.coe_mk,
+          dif_pos hj, dif_pos (show j < 2 * (m + 1) by omega)] at this
+        simpa using this
+      rw [hb_zero, add_zero] at hab; rw [← hab]; exact ha
     sorry
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
