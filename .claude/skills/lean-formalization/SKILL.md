@@ -2032,6 +2032,21 @@ congr 1; exact Fin.ext h_nat
 Don't try `Fin.ext (by omega)` in term mode — omega often can't see the goal
 through the Fin wrapper.
 
+**Nested `dite` in block embeddings:** When proving properties of maps defined
+with nested `if h : P then ... else if h2 : Q then ...`, do NOT use `split_ifs`
+— it creates unpredictable branch counts and opaque hypotheses. Instead, use
+explicit `dif_pos`/`dif_neg` with omega-proved conditions:
+```lean
+simp only [myEmbed, LinearMap.coe_mk, AddHom.coe_mk,
+  dif_neg (show ¬(j + (m + 1) < m + 1) from by omega),
+  dif_pos (show j + (m + 1) < 2 * (m + 1) from by omega),
+  Nat.add_sub_cancel, Pi.zero_apply] at this
+exact this
+```
+For index simplification like `m + 1 + j - (m + 1) = j` that `Nat.add_sub_cancel`
+doesn't match (wrong argument order), use inline proofs:
+`show m + 1 + j - (m + 1) = j from by omega` in the simp set.
+
 **Finset.erase parsing:** `S.erase a |>.erase b` in a type annotation
 parses as `(S.erase a).erase b` in term position but `(x ∈ S.erase a).erase b`
 in proposition position. Always use explicit parentheses: `(S.erase a).erase b`.
