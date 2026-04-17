@@ -2080,6 +2080,83 @@ theorem dTildeOrientation_isOrientationOf (k : ℕ) :
       rcases hq with ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4, h5⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ <;>
         omega
 
+/-! ## Section 17a.2: D̃_n representation construction
+
+Dimension vector: leaf vertices (0, 1, k+4, k+5) get m+1;
+interior path vertices (2, ..., k+3) get 2(m+1).
+
+Maps (under orientation 0→2, 1→2, 2→3→...→(k+3), (k+4)→(k+3), (k+5)→(k+3)):
+- 0→2: starEmbed1 (first-component embedding)
+- 1→2: starEmbed2 (second-component embedding)
+- 2→3: d5tildeGamma (the [[I,I],[I,N]] coupling map)
+- i→(i+1) for i=3,...,k+2: identity (LinearMap.id on ℂ^{2(m+1)})
+- (k+4)→(k+3): starEmbed1
+- (k+5)→(k+3): starEmbed2
+-/
+
+/-- Dimension of vertex v in the D̃_{k+5} representation:
+    vertices 0,1,k+4,k+5 get m+1; interior vertices 2,...,k+3 get 2(m+1). -/
+def dTildeDim (k m : ℕ) (v : Fin (k + 6)) : ℕ :=
+  if 2 ≤ v.val ∧ v.val ≤ k + 3 then 2 * (m + 1) else m + 1
+
+/-- The identity map between identical 2(m+1)-dimensional spaces, cast through
+    the dimension function. Used for path edges i→(i+1) where both endpoints
+    are interior vertices. -/
+private noncomputable def dTildePathId (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
+  LinearMap.id
+
+/-- Match-based map for the D̃_{k+5} representation. -/
+private noncomputable def dTildeRepMap (k m : ℕ) (a b : Fin (k + 6)) :
+    (Fin (dTildeDim k m a) → ℂ) →ₗ[ℂ] (Fin (dTildeDim k m b) → ℂ) :=
+  if h : a.val = 0 ∧ b.val = 2 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed1 m
+  else if h : a.val = 1 ∧ b.val = 2 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed2 m
+  else if h : a.val = 2 ∧ b.val = 3 then
+    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ d5tildeGamma m
+  else if h : 3 ≤ a.val ∧ a.val + 1 = b.val ∧ b.val ≤ k + 3 then
+    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ dTildePathId m
+  else if h : a.val = k + 4 ∧ b.val = k + 3 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed1 m
+  else if h : a.val = k + 5 ∧ b.val = k + 3 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed2 m
+  else
+    0
+
+-- The D̃_{k+5} representation with dimension vector δ·(m+1).
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+noncomputable def dTildeRep (k m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (Fin (k + 6)) _ (dTildeQuiver k) := by
+  letI := dTildeQuiver k
+  exact {
+    obj := fun v => Fin (dTildeDim k m v) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} _ => dTildeRepMap k m a b
+  }
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem dTildeRep_dimVec (k m : ℕ) (v : Fin (k + 6)) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin (k + 6)) _
+      (dTildeQuiver k) (dTildeRep k m) v ≃ₗ[ℂ]
+      (Fin (dTildeDim k m v) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
 /-! ## Section 17b: Ẽ₆ with mixed orientation (for indecomposability proof)
 
 The sink orientation (all arrows toward center) makes indecomposability proofs hard
