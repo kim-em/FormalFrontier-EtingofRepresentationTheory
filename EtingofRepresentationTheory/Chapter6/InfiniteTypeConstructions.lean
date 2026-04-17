@@ -2487,6 +2487,58 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) :
           dif_pos hj, dif_pos (show j < 2 * (m + 1) by omega)] at this
         simpa using this
       rw [hb_zero, add_zero] at hab; rw [← hab]; exact ha
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- W₁(4) = W₁(7) and W₂(4) = W₂(7)
+    have heq47 : W₁ (4 : Fin 8) = W₁ (7 : Fin 8) := compl_eq_of_le _ _ _ _
+      (fun x hx => leaf_containment W₁ W₂ hW₁_inv hW₂_inv hcompl x hx)
+      (fun x hx => leaf_containment W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx)
+      (hcompl (4 : Fin 8)) (hcompl (7 : Fin 8))
+    have heq47' : W₂ (4 : Fin 8) = W₂ (7 : Fin 8) := compl_eq_of_le _ _ _ _
+      (fun x hx => leaf_containment W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx)
+      (fun x hx => leaf_containment W₁ W₂ hW₁_inv hW₂_inv hcompl x hx)
+      ((hcompl (4 : Fin 8)).symm) ((hcompl (7 : Fin 8)).symm)
+    -- N-invariance of W₁(4) and W₂(4) under nilpotentShiftLin
+    -- KEY DIFFICULTY: The nilpotent enters through arm 1 (vertex 1→0),
+    -- but leaves 4 and 7 connect only to block A of the center.
+    -- The connection from arm1's block D (which carries Nq) to block A
+    -- (which carries leaf data) requires a non-trivial argument about
+    -- the complement decomposition at the center and intermediate vertices.
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ (4 : Fin 8) → nilpotentShiftLin m x ∈ W₁ (4 : Fin 8) := by
+      sorry
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ (4 : Fin 8) → nilpotentShiftLin m x ∈ W₂ (4 : Fin 8) := by
+      sorry
+    -- Apply nilpotent_invariant_compl_trivial at vertex 4
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ (4 : Fin 8)) (W₂ (4 : Fin 8)) hN₁ hN₂ (hcompl (4 : Fin 8))
+    -- Propagation: W(4) = ⊥ → W(0) = ⊥ → all W(v) = ⊥
+    -- W(4) = ⊥ → W(7) = ⊥ → W'(4) = ⊤, W'(7) = ⊤
+    -- → block A of center filled in W' → ... → W(0) = ⊥
+    -- → all arrows injective → all vertices ⊥
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((etilde7Rep m).obj v)),
+        (∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W' a, (etilde7Rep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W (4 : Fin 8) = W (7 : Fin 8) →
+        W (4 : Fin 8) = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₂_inv hcompl heq47 h
+      · right; exact propagate W₂ W₁ hW₁_inv (fun v => (hcompl v).symm) heq47' h
+    intro W W' hW'_inv hc h47 hbot v
     sorry
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
