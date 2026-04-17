@@ -2348,7 +2348,82 @@ attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
 theorem etilde7Rep_isIndecomposable (m : ℕ) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 8)
       etilde7Quiver (etilde7Rep m) := by
-  sorry
+  letI := etilde7Quiver
+  constructor
+  · -- Nontrivial at vertex 4 (dim m+1 ≥ 1)
+    refine ⟨⟨4, by omega⟩, ?_⟩
+    show Nontrivial (Fin (etilde7Dim m ⟨4, by omega⟩) → ℂ)
+    simp only [etilde7Dim]
+    infer_instance
+  · -- Indecomposability
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Helper: Quiver.Hom constructors for each arrow
+    have hom10 : @Quiver.Hom _ etilde7Quiver ⟨1, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inl ⟨rfl, rfl⟩⟩
+    have hom43 : @Quiver.Hom _ etilde7Quiver ⟨4, by omega⟩ ⟨3, by omega⟩ :=
+      ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩
+    have hom32 : @Quiver.Hom _ etilde7Quiver ⟨3, by omega⟩ ⟨2, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩
+    have hom20 : @Quiver.Hom _ etilde7Quiver ⟨2, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩
+    have hom76 : @Quiver.Hom _ etilde7Quiver ⟨7, by omega⟩ ⟨6, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))⟩
+    have hom65 : @Quiver.Hom _ etilde7Quiver ⟨6, by omega⟩ ⟨5, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))))⟩
+    have hom50 : @Quiver.Hom _ etilde7Quiver ⟨5, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))))⟩
+    -- Arm chain helpers: push x ∈ W(leaf) to center via invariance
+    have arm2_to_center (W : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (4 : Fin 8)) :
+        (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+          ((etilde7Rep m).mapLinear hom43 x)) ∈ W (0 : Fin 8) :=
+      hW hom20 _ (hW hom32 _ (hW hom43 x hx))
+    have arm3_to_center (W : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (7 : Fin 8)) :
+        (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 x)) ∈ W (0 : Fin 8) :=
+      hW hom50 _ (hW hom65 _ (hW hom76 x hx))
+    -- Both arm chains produce the same element (x,0,0,0) at the center
+    have arms_agree : ∀ x : Fin (m + 1) → ℂ,
+        (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+          ((etilde7Rep m).mapLinear hom43 x)) =
+        (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 x)) := by
+      intro x
+      show embed3to4_ABC m (embed2to3_AB m (starEmbed1 m x)) =
+           embed3to4_ACD m (embed2to3_AB m (starEmbed1 m x))
+      -- Intermediate: embed2to3_AB ∘ starEmbed1 has zero in blocks B, C
+      -- so embed3to4_ABC and embed3to4_ACD agree (only block A is nonzero)
+      have key : ∀ (j : Fin (3 * (m + 1))),
+          ¬ (j.val < m + 1) → embed2to3_AB m (starEmbed1 m x) j = 0 := by
+        intro ⟨j, hj⟩ hjlt
+        simp only [embed2to3_AB, starEmbed1, LinearMap.coe_mk, AddHom.coe_mk]
+        split_ifs with h1 h2 <;> first | rfl | (exfalso; omega)
+      ext ⟨i, hi⟩
+      simp only [embed3to4_ABC, embed3to4_ACD, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases h1 : i < m + 1
+      · -- Block A: both select the same element from the intermediate space
+        rw [dif_pos (show i < 3 * (m + 1) by omega), dif_pos h1]
+      · rw [dif_neg h1]
+        by_cases h2 : m + 1 ≤ i ∧ i < 2 * (m + 1)
+        · -- Block B: ABC gives intermediate[i] = 0, ACD gives 0
+          rw [dif_pos (show i < 3 * (m + 1) by omega), dif_pos h2]
+          exact key ⟨i, by omega⟩ h1
+        · rw [dif_neg h2]
+          by_cases h3 : i < 4 * (m + 1)
+          · -- Blocks C/D: ACD gives intermediate[i-(m+1)] = 0
+            rw [dif_pos h3]
+            have hj : ¬ (i - (m + 1) < m + 1) := by omega
+            rw [key ⟨i - (m + 1), by omega⟩ hj]
+            by_cases h4 : i < 3 * (m + 1)
+            · rw [dif_pos h4]; exact key ⟨i, by omega⟩ h1
+            · rw [dif_neg h4]
+          · omega
+    sorry
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
     Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 8) _ etilde7Quiver
