@@ -2035,6 +2035,51 @@ theorem dTildeAdj_01 (k : ℕ) (i j : Fin (k + 6)) :
     dTildeAdj k i j = 0 ∨ dTildeAdj k i j = 1 := by
   unfold dTildeAdj; split_ifs <;> simp
 
+/-- Arrow predicate for D̃_{k+5}: orientation 0→2, 1→2, 2→3→...→(k+3), (k+4)→(k+3), (k+5)→(k+3).
+    Leaf arrows point inward to branch points; path arrows go left-to-right. -/
+private def dTildeArrowPred (k : ℕ) (i j : Fin (k + 6)) : Prop :=
+  (i.val = 0 ∧ j.val = 2) ∨ (i.val = 1 ∧ j.val = 2) ∨
+  (2 ≤ i.val ∧ i.val + 1 = j.val ∧ j.val ≤ k + 3) ∨
+  (i.val = k + 4 ∧ j.val = k + 3) ∨ (i.val = k + 5 ∧ j.val = k + 3)
+
+private instance (k : ℕ) (i j : Fin (k + 6)) : Decidable (dTildeArrowPred k i j) := by
+  unfold dTildeArrowPred; infer_instance
+
+/-- Orientation for D̃_{k+5}: 0→2, 1→2, path left-to-right, (k+4)→(k+3), (k+5)→(k+3). -/
+def dTildeQuiver (k : ℕ) : Quiver (Fin (k + 6)) where
+  Hom i j := PLift (dTildeArrowPred k i j)
+
+instance dTildeQuiver_subsingleton (k : ℕ) (a b : Fin (k + 6)) :
+    Subsingleton (@Quiver.Hom (Fin (k + 6)) (dTildeQuiver k) a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+/-- The arrow predicate exactly captures one direction of each edge. -/
+private theorem dTildeArrowPred_eq_edgePred (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeArrowPred k i j ↔ dTildeEdgePred k i j := by
+  simp only [dTildeArrowPred, dTildeEdgePred]
+
+private theorem dTildeAdj_eq_one_iff (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeAdj k i j = 1 ↔ dTildeEdgePred k i j ∨ dTildeEdgePred k j i := by
+  simp only [dTildeAdj]; split_ifs with h <;> simp [h]
+
+theorem dTildeOrientation_isOrientationOf (k : ℕ) :
+    @Etingof.IsOrientationOf (k + 6) (dTildeQuiver k) (dTildeAdj k) := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    have := (dTildeArrowPred_eq_edgePred k i j).mp hp
+    exact hij ((dTildeAdj_eq_one_iff k i j).mpr (Or.inl this))
+  · -- Each edge has an arrow in one direction
+    rcases (dTildeAdj_eq_one_iff k i j).mp hij with hp | hp
+    · left; exact ⟨⟨(dTildeArrowPred_eq_edgePred k i j).mpr hp⟩⟩
+    · right; exact ⟨⟨(dTildeArrowPred_eq_edgePred k j i).mpr hp⟩⟩
+  · -- No two-way arrows (antisymmetry)
+    obtain ⟨⟨hp⟩⟩ := hi; obtain ⟨⟨hq⟩⟩ := hj
+    simp only [dTildeArrowPred, dTildeEdgePred] at hp hq
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      rcases hq with ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4, h5⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ <;>
+        omega
+
 /-! ## Section 17b: Ẽ₆ with mixed orientation (for indecomposability proof)
 
 The sink orientation (all arrows toward center) makes indecomposability proofs hard
