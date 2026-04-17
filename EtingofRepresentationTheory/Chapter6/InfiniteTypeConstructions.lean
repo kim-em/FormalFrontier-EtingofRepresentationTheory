@@ -2518,8 +2518,8 @@ noncomputable def embed3to4_ACD (m : ℕ) :
   map_smul' c x := by
     ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
 
-/-- Ẽ₇ arm 1 embedding ℂ^{2(m+1)} into ℂ^{4(m+1)}: (p,q) ↦ (p+q, p, 0, Nq).
-    Couples blocks A,B and introduces nilpotent twist in block D. -/
+/-- Ẽ₇ arm 1 embedding ℂ^{2(m+1)} into ℂ^{4(m+1)}: (p,q) ↦ (p+q, p, q, Nq).
+    Couples all four blocks and introduces nilpotent twist in block D. -/
 noncomputable def etilde7Arm1Embed (m : ℕ) :
     (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (4 * (m + 1)) → ℂ) where
   toFun w i :=
@@ -2530,8 +2530,8 @@ noncomputable def etilde7Arm1Embed (m : ℕ) :
       -- Block B: p = w_{i-(m+1)} (first component)
       w ⟨i.val - (m + 1), by omega⟩
     else if h3 : i.val < 3 * (m + 1) then
-      -- Block C: 0
-      0
+      -- Block C: q = w_{m+1+(i-2(m+1))} (second component)
+      w ⟨m + 1 + (i.val - 2 * (m + 1)), by omega⟩
     else
       -- Block D: Nq = nilpotentShift applied to second component
       let j := i.val - 3 * (m + 1)
@@ -2828,7 +2828,7 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
           dif_pos (show j + (m + 1) < 4 * (m + 1) from by omega),
           Nat.add_sub_cancel, Pi.zero_apply] at this
         exact this
-    -- Injectivity of etilde7Arm1Embed: (p,q) ↦ (p+q, p, 0, Nq) is injective
+    -- Injectivity of etilde7Arm1Embed: (p,q) ↦ (p+q, p, q, Nq) is injective
     have inj_arm1 : ∀ x : Fin (2 * (m + 1)) → ℂ, etilde7Arm1Embed m x = 0 → x = 0 := by
       intro w h; ext ⟨j, hj⟩
       have h0 : ∀ i : Fin (4 * (m + 1)), etilde7Arm1Embed m w i = 0 :=
@@ -2842,22 +2842,15 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
           show m + 1 + j - (m + 1) = j from by omega,
           Pi.zero_apply] at this
         exact this
-      · -- Second component (q): Block B gives first comp = 0, then Block A propagates
-        have hp : w ⟨j - (m + 1), by omega⟩ = 0 := by
-          have := h0 ⟨j, by omega⟩
-          simp only [etilde7Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk,
-            dif_neg (show ¬(j < m + 1) from hjlt),
-            dif_pos (show j < 2 * (m + 1) from hj),
-            Pi.zero_apply] at this
-          exact this
-        -- Block A at position j-(m+1): w(j-(m+1)) + w(m+1+(j-(m+1))) = 0
-        have hA := h0 ⟨j - (m + 1), by omega⟩
+      · -- Second component (q): read from block C (position 2(m+1)+j-(m+1))
+        have := h0 ⟨2 * (m + 1) + (j - (m + 1)), by omega⟩
         simp only [etilde7Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk,
-          dif_pos (show j - (m + 1) < m + 1 from by omega),
-          Pi.zero_apply] at hA
-        rw [hp, zero_add] at hA
-        simp only [show m + 1 + (j - (m + 1)) = j from by omega] at hA
-        exact hA
+          dif_neg (show ¬(2 * (m + 1) + (j - (m + 1)) < m + 1) from by omega),
+          dif_neg (show ¬(2 * (m + 1) + (j - (m + 1)) < 2 * (m + 1)) from by omega),
+          dif_pos (show 2 * (m + 1) + (j - (m + 1)) < 3 * (m + 1) from by omega),
+          show m + 1 + (2 * (m + 1) + (j - (m + 1)) - 2 * (m + 1)) = j from by omega,
+          Pi.zero_apply] at this
+        exact this
     -- Chain: W(0)=⊥ → W(1)=⊥, W(2)=⊥, W(5)=⊥; then W(2)=⊥ → W(3)=⊥; W(5)=⊥ → W(6)=⊥
     have hbot1 : W (1 : Fin 8) = ⊥ := prop_inj hom10 inj_arm1 hbot0
     have hbot2 : W (2 : Fin 8) = ⊥ := prop_inj hom20 inj_embed3to4_ABC hbot0
@@ -3027,8 +3020,8 @@ noncomputable def embedSkipBlockB (m : ℕ) (k n : ℕ) (hkn : k + 1 ≤ n) (hk 
     ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
 
 /-- T_{1,2,5} arm 1 embedding: ℂ^{3(m+1)} → ℂ^{6(m+1)}.
-    (p,q,r) ↦ (p+q+r, p+q, p, 0, 0, Nr) where p,q,r are blocks of size (m+1).
-    Couples blocks A,B,C and introduces nilpotent twist in block F. -/
+    (p,q,r) ↦ (p+q+r, p+q, p, q, r, Nr) where p,q,r are blocks of size (m+1).
+    Couples all six blocks and introduces nilpotent twist in block F. -/
 noncomputable def t125Arm1Embed (m : ℕ) :
     (Fin (3 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (6 * (m + 1)) → ℂ) where
   toFun w i :=
@@ -3044,13 +3037,16 @@ noncomputable def t125Arm1Embed (m : ℕ) :
       -- Block C: p
       let j := i.val - 2 * (m + 1)
       w ⟨j, by omega⟩
-    else if h4 : i.val < 5 * (m + 1) then
-      -- Blocks D, E: zero
-      0
+    else if h4 : i.val < 4 * (m + 1) then
+      -- Block D: q
+      w ⟨m + 1 + (i.val - 3 * (m + 1)), by omega⟩
+    else if h5 : i.val < 5 * (m + 1) then
+      -- Block E: r
+      w ⟨2 * (m + 1) + (i.val - 4 * (m + 1)), by omega⟩
     else
       -- Block F: Nr (nilpotent shift of third component r)
       let j := i.val - 5 * (m + 1)
-      if h5 : j + 1 < m + 1 then w ⟨2 * (m + 1) + j + 1, by omega⟩ else 0
+      if h6 : j + 1 < m + 1 then w ⟨2 * (m + 1) + j + 1, by omega⟩ else 0
   map_add' x y := by ext i; simp only [Pi.add_apply]; split_ifs <;> ring
   map_smul' c x := by
     ext i; simp only [Pi.smul_apply, smul_eq_mul, RingHom.id_apply]; split_ifs <;> ring
@@ -3268,10 +3264,9 @@ theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     have inj_10 : Function.Injective ((t125Rep m).mapLinear hom10) := by
       show Function.Injective (t125Arm1Embed m)
       intro x y h
-      -- Extract block-level equalities from h
-      -- Block C: output[2(m+1)+j] = input[j] (recovers p)
-      have hC : ∀ j (hj : j < m + 1), x ⟨j, by omega⟩ = y ⟨j, by omega⟩ := by
-        intro j hj
+      ext ⟨j, hj⟩
+      by_cases hj1 : j < m + 1
+      · -- p block: read from Block C (position 2(m+1)+j)
         have h1 := congr_fun h ⟨2 * (m + 1) + j, by omega⟩
         simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
           dif_neg (show ¬(2 * (m + 1) + j < m + 1) by omega),
@@ -3279,59 +3274,26 @@ theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
           dif_pos (show 2 * (m + 1) + j < 3 * (m + 1) by omega)] at h1
         convert h1 using 1 <;>
           exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
-      -- Block B: output[(m+1)+j] = input[j] + input[(m+1)+j] (gives p+q)
-      have hB : ∀ j (hj : j < m + 1),
-          x ⟨j, by omega⟩ + x ⟨m + 1 + j, by omega⟩ =
-          y ⟨j, by omega⟩ + y ⟨m + 1 + j, by omega⟩ := by
-        intro j hj
-        have h1 := congr_fun h ⟨m + 1 + j, by omega⟩
-        simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
-          dif_neg (show ¬(m + 1 + j < m + 1) by omega),
-          dif_pos (show m + 1 + j < 2 * (m + 1) by omega)] at h1
-        convert h1 using 2 <;>
-          exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
-      -- Block A: output[j] = input[j] + input[(m+1)+j] + input[2(m+1)+j] (gives p+q+r)
-      have hA : ∀ j (hj : j < m + 1),
-          x ⟨j, by omega⟩ + x ⟨m + 1 + j, by omega⟩ + x ⟨2 * (m + 1) + j, by omega⟩ =
-          y ⟨j, by omega⟩ + y ⟨m + 1 + j, by omega⟩ + y ⟨2 * (m + 1) + j, by omega⟩ := by
-        intro j hj
-        have h1 := congr_fun h ⟨j, by omega⟩
-        simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
-          dif_pos (show j < m + 1 from hj)] at h1
-        exact h1
-      -- Recover each component by subtraction
-      ext ⟨j, hj⟩
-      by_cases hj1 : j < m + 1
-      · exact hC j hj1
       · by_cases hj2 : j < 2 * (m + 1)
-        · -- q block: from hB - hC
-          have hp := hC (j - (m + 1)) (by omega)
-          have hpq := hB (j - (m + 1)) (by omega)
-          -- hpq : x ⟨j-(m+1), _⟩ + x ⟨m+1+(j-(m+1)), _⟩ = ...
-          -- rewrite m+1+(j-(m+1)) to j in hpq
-          have hpq' : x ⟨j - (m + 1), by omega⟩ + x ⟨j, hj⟩ =
-              y ⟨j - (m + 1), by omega⟩ + y ⟨j, hj⟩ := by
-            convert hpq using 2 <;>
-              exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
-          linear_combination hpq' - hp
-        · -- r block: from hA - hB
-          have hp := hC (j - 2 * (m + 1)) (by omega)
-          have hpq := hB (j - 2 * (m + 1)) (by omega)
-          have hpqr := hA (j - 2 * (m + 1)) (by omega)
-          -- Rewrite indices to match goal
-          have hpq' : x ⟨j - 2 * (m + 1), by omega⟩ + x ⟨j - (m + 1), by omega⟩ =
-              y ⟨j - 2 * (m + 1), by omega⟩ + y ⟨j - (m + 1), by omega⟩ := by
-            convert hpq using 2 <;>
-              exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
-          have e1 : (⟨m + 1 + (j - 2 * (m + 1)), by omega⟩ : Fin (3 * (m + 1))) =
-              ⟨j - (m + 1), by omega⟩ :=
-            Fin.ext (by simp only [Fin.val_mk]; omega)
-          have e2 : (⟨2 * (m + 1) + (j - 2 * (m + 1)), by omega⟩ : Fin (3 * (m + 1))) =
-              ⟨j, hj⟩ :=
-            Fin.ext (by simp only [Fin.val_mk]; omega)
-          simp only [e1, e2] at hpqr
-          have hpqr' := hpqr
-          linear_combination hpqr' - hpq'
+        · -- q block: read from Block D (position 3(m+1)+(j-(m+1)))
+          have h1 := congr_fun h ⟨3 * (m + 1) + (j - (m + 1)), by omega⟩
+          simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+            dif_neg (show ¬(3 * (m + 1) + (j - (m + 1)) < m + 1) by omega),
+            dif_neg (show ¬(3 * (m + 1) + (j - (m + 1)) < 2 * (m + 1)) by omega),
+            dif_neg (show ¬(3 * (m + 1) + (j - (m + 1)) < 3 * (m + 1)) by omega),
+            dif_pos (show 3 * (m + 1) + (j - (m + 1)) < 4 * (m + 1) by omega),
+            show m + 1 + (3 * (m + 1) + (j - (m + 1)) - 3 * (m + 1)) = j from by omega] at h1
+          exact h1
+        · -- r block: read from Block E (position 4(m+1)+(j-2(m+1)))
+          have h1 := congr_fun h ⟨4 * (m + 1) + (j - 2 * (m + 1)), by omega⟩
+          simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+            dif_neg (show ¬(4 * (m + 1) + (j - 2 * (m + 1)) < m + 1) by omega),
+            dif_neg (show ¬(4 * (m + 1) + (j - 2 * (m + 1)) < 2 * (m + 1)) by omega),
+            dif_neg (show ¬(4 * (m + 1) + (j - 2 * (m + 1)) < 3 * (m + 1)) by omega),
+            dif_neg (show ¬(4 * (m + 1) + (j - 2 * (m + 1)) < 4 * (m + 1)) by omega),
+            dif_pos (show 4 * (m + 1) + (j - 2 * (m + 1)) < 5 * (m + 1) by omega),
+            show 2 * (m + 1) + (4 * (m + 1) + (j - 2 * (m + 1)) - 4 * (m + 1)) = j from by omega] at h1
+          exact h1
     have inj_32 : Function.Injective ((t125Rep m).mapLinear hom32) := by
       show Function.Injective (embedFirstBlocks m 2 4 (by omega))
       intro x y h; ext ⟨j, hj⟩
