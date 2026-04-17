@@ -5619,7 +5619,226 @@ private theorem single_branch_leaf_case {n : ℕ}
             · -- d₂ is leaf: arm2 has length exactly 4. T(1,4,2)=T(1,2,4)=E₇ → posdef → contradiction
               exfalso
               apply h_not_posdef
-              sorry -- T(1,4,2) = E₇ is positive definite
+              -- d₂ has degree 1
+              have hd₂_ne_v₀ : d₂ ≠ v₀ := by
+                intro h
+                have hv₀_ne_a₂ : v₀ ≠ a₂ := ne_of_adj' v₀ a₂ ha₂_adj
+                have ha₂_ne_b₂ : a₂ ≠ b₂ := ne_of_adj' a₂ b₂ hb₂_adj
+                have hb₂_ne_c₂ : b₂ ≠ c₂ := ne_of_adj' b₂ c₂ hc₂_adj
+                have hv₀_ne_b₂ : v₀ ≠ b₂ := hb₂_ne_v₀.symm
+                have hv₀_ne_c₂ : v₀ ≠ c₂ := by
+                  intro heq; rw [h, heq] at hd₂_adj; linarith [hdiag c₂]
+                have ha₂_ne_c₂ : a₂ ≠ c₂ := hc₂_ne_a₂.symm
+                have h_nonadj : adj c₂ v₀ = 0 := acyclic_path_nonadj adj hsymm h01 h_acyclic
+                  [v₀, a₂, b₂, c₂] (by simp)
+                  (by simp only [List.nodup_cons, List.mem_cons, List.not_mem_nil,
+                      not_or, not_false_eq_true, List.nodup_nil, and_self, and_true]
+                      exact ⟨⟨hv₀_ne_a₂, hv₀_ne_b₂, hv₀_ne_c₂⟩, ⟨ha₂_ne_b₂, ha₂_ne_c₂⟩, hb₂_ne_c₂⟩)
+                  (by intro k hk
+                      have : k + 1 < 4 := by simpa using hk
+                      have : k = 0 ∨ k = 1 ∨ k = 2 := by omega
+                      rcases this with rfl | rfl | rfl
+                      · exact ha₂_adj
+                      · exact hb₂_adj
+                      · exact hc₂_adj)
+                have hcv : adj c₂ v₀ = 1 := by rw [← h]; exact hd₂_adj
+                linarith [hcv, h_nonadj]
+              have hd₂_deg1 : vertexDegree adj d₂ = 1 := by
+                have := h_deg_le2 d₂ hd₂_ne_v₀; omega
+              -- Establish "only" facts for each named vertex
+              have hv₀_only : ∀ w, adj v₀ w = 1 → w = leaf ∨ w = a₂ ∨ w = a₃ := by
+                intro w hw
+                have hw_mem : w ∈ S₀ := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwl : w = leaf; · left; exact hwl
+                have hw_mem' : w ∈ S₀.erase leaf := Finset.mem_erase.mpr ⟨hwl, hw_mem⟩
+                rw [hS₀_eq] at hw_mem'
+                rcases Finset.mem_insert.mp hw_mem' with h | h
+                · right; left; exact h
+                · right; right; exact Finset.mem_singleton.mp h
+              have hleaf_only : ∀ w, adj leaf w = 1 → w = v₀ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj leaf := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj leaf j = 1)).card
+                  have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj leaf j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm leaf v₀).trans h_leaf_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj leaf j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({v₀, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have ha₂_only : ∀ w, adj a₂ w = 1 → w = v₀ ∨ w = b₂ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj a₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwv : w = v₀; · left; exact hwv
+                right
+                have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj a₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm a₂ v₀).trans ha₂_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj a₂ j = 1)).erase v₀ :=
+                  Finset.mem_erase.mpr ⟨hwv, hw_mem⟩
+                rw [hb₂_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hb₂_only : ∀ w, adj b₂ w = 1 → w = a₂ ∨ w = c₂ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj b₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwa : w = a₂; · left; exact hwa
+                right
+                have ha₂_in : a₂ ∈ Finset.univ.filter (fun j => adj b₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm b₂ a₂).trans hb₂_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj b₂ j = 1)).erase a₂ :=
+                  Finset.mem_erase.mpr ⟨hwa, hw_mem⟩
+                rw [hc₂_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hc₂_only : ∀ w, adj c₂ w = 1 → w = b₂ ∨ w = d₂ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj c₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwb : w = b₂; · left; exact hwb
+                right
+                have hb₂_in : b₂ ∈ Finset.univ.filter (fun j => adj c₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm c₂ b₂).trans hc₂_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj c₂ j = 1)).erase b₂ :=
+                  Finset.mem_erase.mpr ⟨hwb, hw_mem⟩
+                rw [hd₂_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hd₂_only : ∀ w, adj d₂ w = 1 → w = c₂ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj d₂ := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj d₂ j = 1)).card
+                  have hc₂_in : c₂ ∈ Finset.univ.filter (fun j => adj d₂ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm d₂ c₂).trans hd₂_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj d₂ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({c₂, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have ha₃_only : ∀ w, adj a₃ w = 1 → w = v₀ ∨ w = b₃ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj a₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwv : w = v₀; · left; exact hwv
+                right
+                have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj a₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm a₃ v₀).trans ha₃_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj a₃ j = 1)).erase v₀ :=
+                  Finset.mem_erase.mpr ⟨hwv, hw_mem⟩
+                rw [hb₃_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hb₃_only : ∀ w, adj b₃ w = 1 → w = a₃ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj b₃ := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj b₃ j = 1)).card
+                  have ha₃_in : a₃ ∈ Finset.univ.filter (fun j => adj b₃ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm b₃ a₃).trans hb₃_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj b₃ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({a₃, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have h_all_named : ∀ w : Fin n,
+                  w = v₀ ∨ w = leaf ∨ w = a₂ ∨ w = b₂ ∨ w = c₂ ∨ w = d₂ ∨
+                  w = a₃ ∨ w = b₃ := by
+                apply connected_closed_set_is_all adj hconn
+                  (fun w => w = v₀ ∨ w = leaf ∨ w = a₂ ∨ w = b₂ ∨ w = c₂ ∨ w = d₂ ∨
+                    w = a₃ ∨ w = b₃) v₀ (Or.inl rfl)
+                intro v w hv hvw
+                rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+                · -- v = v₀: hvw : adj v₀ w = 1
+                  rcases hv₀_only w hvw with rfl | rfl | rfl
+                  · exact Or.inr (Or.inl rfl)
+                  · exact Or.inr (Or.inr (Or.inl rfl))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))))
+                · -- v = leaf: hvw : adj leaf w = 1
+                  rcases hleaf_only w hvw with rfl
+                  exact Or.inl rfl
+                · -- v = a₂: hvw : adj a₂ w = 1
+                  rcases ha₂_only w hvw with rfl | rfl
+                  · exact Or.inl rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+                · -- v = b₂: hvw : adj b₂ w = 1
+                  rcases hb₂_only w hvw with rfl | rfl
+                  · exact Or.inr (Or.inr (Or.inl rfl))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+                · -- v = c₂: hvw : adj c₂ w = 1
+                  rcases hc₂_only w hvw with rfl | rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl)))))
+                · -- v = d₂: hvw : adj d₂ w = 1
+                  rcases hd₂_only w hvw with rfl
+                  exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+                · -- v = a₃: hvw : adj a₃ w = 1
+                  rcases ha₃_only w hvw with rfl | rfl
+                  · exact Or.inl rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr rfl))))))
+                · -- v = b₃: hvw : adj b₃ w = 1
+                  rcases hb₃_only w hvw with rfl
+                  exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))))
+              have hb₃_deg1 : vertexDegree adj b₃ = 1 := by
+                have := h_deg_le2 b₃ hb₃_ne_v₀; omega
+              have hd_e8 : E8Distinct v₀ leaf a₂ b₂ c₂ d₂ a₃ b₃ := by
+                refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_,
+                        ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+                · exact ne_of_adj' v₀ leaf h_leaf_adj
+                · exact ne_of_adj' v₀ a₂ ha₂_adj
+                · intro h; subst h
+                  rcases hb₂_only leaf h_leaf_adj with rfl | rfl
+                  · linarith [h_leaf_deg, h_a2_ext]
+                  · linarith [h_leaf_deg, h_c2_ext]
+                · intro h; subst h
+                  rcases hc₂_only a₂ ha₂_adj with rfl | rfl
+                  · linarith [hdiag a₂, hb₂_adj]
+                  · linarith [h_a2_ext, hd₂_deg1]
+                · intro h; subst h; exact absurd rfl hd₂_ne_v₀
+                · exact ne_of_adj' v₀ a₃ ha₃_adj
+                · intro heq; linarith [hv₀, heq ▸ hb₃_deg1]
+                · exact ha₂_ne_leaf.symm
+                · intro h; linarith [h_leaf_deg, h ▸ h_b2_ext]
+                · intro h; linarith [h_leaf_deg, h ▸ h_c2_ext]
+                · intro h; subst h
+                  have : c₂ = v₀ := hleaf_only c₂ ((adj_comm leaf c₂).trans hd₂_adj)
+                  subst this; linarith [hv₀, h_c2_ext]
+                · exact ha₃_ne_leaf.symm
+                · intro h; subst h
+                  have : a₃ = v₀ := hleaf_only a₃ ((adj_comm leaf a₃).trans hb₃_adj)
+                  subst this; linarith [hv₀, h_a3_ext]
+                · exact ne_of_adj' a₂ b₂ hb₂_adj
+                · intro h; subst h
+                  rcases ha₂_only d₂ hd₂_adj with rfl | rfl
+                  · linarith [hv₀, hd₂_deg1]
+                  · linarith [h_b2_ext, hd₂_deg1]
+                · intro h; linarith [h_a2_ext, h ▸ hd₂_deg1]
+                · exact ha₂₃
+                · intro h; linarith [h_a2_ext, h ▸ hb₃_deg1]
+                · exact ne_of_adj' b₂ c₂ hc₂_adj
+                · intro h; linarith [h_b2_ext, h ▸ hd₂_deg1]
+                · intro h
+                  rw [h] at hb₂_only
+                  rcases hb₂_only v₀ ((adj_comm a₃ v₀).trans ha₃_adj) with rfl | rfl
+                  · linarith [hv₀, h_a2_ext]
+                  · linarith [hv₀, h_c2_ext]
+                · intro h; linarith [h_b2_ext, h ▸ hb₃_deg1]
+                · exact ne_of_adj' c₂ d₂ hd₂_adj
+                · intro h
+                  rw [h] at hc₂_only
+                  rcases hc₂_only v₀ ((adj_comm a₃ v₀).trans ha₃_adj) with rfl | rfl
+                  · linarith [hv₀, h_b2_ext]
+                  · linarith [hv₀, hd₂_deg1]
+                · intro h; linarith [h_c2_ext, h ▸ hb₃_deg1]
+                · intro h; linarith [hd₂_deg1, h ▸ h_a3_ext]
+                · intro h; subst h
+                  have ha₃_eq_c₂ := hd₂_only a₃ ((adj_comm d₂ a₃).trans hb₃_adj)
+                  rcases hc₂_only v₀ (ha₃_eq_c₂ ▸ (adj_comm a₃ v₀).trans ha₃_adj) with rfl | rfl
+                  · linarith [hv₀, h_b2_ext]
+                  · linarith [hv₀, hd₂_deg1]
+                · exact ne_of_adj' a₃ b₃ hb₃_adj
+              intro x hx
+              exact e8_posdef adj hsymm hdiag h01 v₀ leaf a₂ b₂ c₂ d₂ a₃ b₃ hd_e8
+                h_leaf_adj ha₂_adj hb₂_adj hc₂_adj hd₂_adj ha₃_adj hb₃_adj
+                hv₀_only hleaf_only ha₂_only hb₂_only hc₂_only hd₂_only
+                ha₃_only hb₃_only h_all_named x hx
           · -- c₂ is leaf: arm2 has length exactly 3. T(1,3,2)=T(1,2,3)=E₆ → posdef → contradiction
             exfalso
             apply h_not_posdef
@@ -5648,6 +5867,9 @@ private theorem single_branch_leaf_case {n : ℕ}
             have hd₃_adj : adj c₃ d₃ = 1 :=
               (Finset.mem_filter.mp (Finset.mem_of_mem_erase hd₃_mem)).2
             have hd₃_ne_b₃ : d₃ ≠ b₃ := Finset.ne_of_mem_erase hd₃_mem
+            have hd₃_deg_ge1 : 1 ≤ vertexDegree adj d₃ :=
+              Finset.card_pos.mpr ⟨c₃, Finset.mem_filter.mpr
+                ⟨Finset.mem_univ _, (adj_comm d₃ c₃).trans hd₃_adj⟩⟩
             by_cases h_d3_ext : vertexDegree adj d₃ = 2
             · obtain ⟨e₃, he₃_eq⟩ := extract_other d₃ c₃
                 ((adj_comm d₃ c₃).trans hd₃_adj) h_d3_ext
@@ -5674,7 +5896,245 @@ private theorem single_branch_leaf_case {n : ℕ}
                   hc₃_ne_a₃ hd₃_ne_b₃ he₃_ne_c₃
             · -- d₃ is leaf: arm3 length = 4. T(1,2,4) = E₇ → posdef → contradiction
               exfalso; apply h_not_posdef
-              sorry -- T(1,2,4) = E₇ is positive definite
+              -- Mapping: v₀→v₀, l→leaf, a→a₃, b→b₃, c→c₃, d→d₃, p→a₂, q→b₂
+              have hd₃_ne_v₀ : d₃ ≠ v₀ := by
+                intro h
+                have hv₀_ne_a₃ : v₀ ≠ a₃ := ne_of_adj' v₀ a₃ ha₃_adj
+                have ha₃_ne_b₃ : a₃ ≠ b₃ := ne_of_adj' a₃ b₃ hb₃_adj
+                have hb₃_ne_c₃ : b₃ ≠ c₃ := ne_of_adj' b₃ c₃ hc₃_adj
+                have hv₀_ne_c₃ : v₀ ≠ c₃ := by
+                  intro heq; rw [h, heq] at hd₃_adj; linarith [hdiag c₃]
+                have ha₃_ne_c₃ : a₃ ≠ c₃ := hc₃_ne_a₃.symm
+                have h_nonadj : adj c₃ v₀ = 0 := acyclic_path_nonadj adj hsymm h01 h_acyclic
+                  [v₀, a₃, b₃, c₃] (by simp)
+                  (by simp only [List.nodup_cons, List.mem_cons, List.not_mem_nil,
+                      not_or, not_false_eq_true, List.nodup_nil, and_self, and_true]
+                      exact ⟨⟨hv₀_ne_a₃, hb₃_ne_v₀.symm, hv₀_ne_c₃⟩, ⟨ha₃_ne_b₃, ha₃_ne_c₃⟩, hb₃_ne_c₃⟩)
+                  (by intro k hk
+                      have : k + 1 < 4 := by simpa using hk
+                      have : k = 0 ∨ k = 1 ∨ k = 2 := by omega
+                      rcases this with rfl | rfl | rfl
+                      · exact ha₃_adj
+                      · exact hb₃_adj
+                      · exact hc₃_adj)
+                have hcv : adj c₃ v₀ = 1 := by rw [← h]; exact hd₃_adj
+                linarith [hcv, h_nonadj]
+              have hd₃_deg1 : vertexDegree adj d₃ = 1 := by
+                have := h_deg_le2 d₃ hd₃_ne_v₀; omega
+              have hv₀_only : ∀ w, adj v₀ w = 1 → w = leaf ∨ w = a₃ ∨ w = a₂ := by
+                intro w hw
+                have hw_mem : w ∈ S₀ := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwl : w = leaf; · left; exact hwl
+                have hw_mem' : w ∈ S₀.erase leaf := Finset.mem_erase.mpr ⟨hwl, hw_mem⟩
+                rw [hS₀_eq] at hw_mem'
+                rcases Finset.mem_insert.mp hw_mem' with h | h
+                · right; right; exact h
+                · right; left; exact Finset.mem_singleton.mp h
+              have hleaf_only : ∀ w, adj leaf w = 1 → w = v₀ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj leaf := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj leaf j = 1)).card
+                  have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj leaf j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm leaf v₀).trans h_leaf_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj leaf j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({v₀, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have ha₃_only : ∀ w, adj a₃ w = 1 → w = v₀ ∨ w = b₃ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj a₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwv : w = v₀; · left; exact hwv
+                right
+                have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj a₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm a₃ v₀).trans ha₃_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj a₃ j = 1)).erase v₀ :=
+                  Finset.mem_erase.mpr ⟨hwv, hw_mem⟩
+                rw [hb₃_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hb₃_only : ∀ w, adj b₃ w = 1 → w = a₃ ∨ w = c₃ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj b₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwa : w = a₃; · left; exact hwa
+                right
+                have ha₃_in : a₃ ∈ Finset.univ.filter (fun j => adj b₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm b₃ a₃).trans hb₃_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj b₃ j = 1)).erase a₃ :=
+                  Finset.mem_erase.mpr ⟨hwa, hw_mem⟩
+                rw [hc₃_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hc₃_only : ∀ w, adj c₃ w = 1 → w = b₃ ∨ w = d₃ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj c₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwb : w = b₃; · left; exact hwb
+                right
+                have hb₃_in : b₃ ∈ Finset.univ.filter (fun j => adj c₃ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm c₃ b₃).trans hc₃_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj c₃ j = 1)).erase b₃ :=
+                  Finset.mem_erase.mpr ⟨hwb, hw_mem⟩
+                rw [hd₃_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hd₃_only : ∀ w, adj d₃ w = 1 → w = c₃ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj d₃ := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj d₃ j = 1)).card
+                  have hc₃_in : c₃ ∈ Finset.univ.filter (fun j => adj d₃ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm d₃ c₃).trans hd₃_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj d₃ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({c₃, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have ha₂_only : ∀ w, adj a₂ w = 1 → w = v₀ ∨ w = b₂ := by
+                intro w hw
+                have hw_mem : w ∈ Finset.univ.filter (fun j => adj a₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                by_cases hwv : w = v₀; · left; exact hwv
+                right
+                have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj a₂ j = 1) :=
+                  Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm a₂ v₀).trans ha₂_adj⟩
+                have hw' : w ∈ (Finset.univ.filter (fun j => adj a₂ j = 1)).erase v₀ :=
+                  Finset.mem_erase.mpr ⟨hwv, hw_mem⟩
+                rw [hb₂_eq] at hw'; exact Finset.mem_singleton.mp hw'
+              have hb₂_only : ∀ w, adj b₂ w = 1 → w = a₂ := by
+                intro w hw; by_contra hne
+                have : 2 ≤ vertexDegree adj b₂ := by
+                  change 2 ≤ (Finset.univ.filter (fun j => adj b₂ j = 1)).card
+                  have ha₂_in : a₂ ∈ Finset.univ.filter (fun j => adj b₂ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm b₂ a₂).trans hb₂_adj⟩
+                  have hw_in : w ∈ Finset.univ.filter (fun j => adj b₂ j = 1) :=
+                    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw⟩
+                  calc 2 = ({a₂, w} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+                    _ ≤ _ := Finset.card_le_card (fun x hx => by
+                        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+                        rcases hx with rfl | rfl <;> assumption)
+                omega
+              have h_all_named : ∀ w : Fin n,
+                  w = v₀ ∨ w = leaf ∨ w = a₃ ∨ w = b₃ ∨ w = c₃ ∨ w = d₃ ∨
+                  w = a₂ ∨ w = b₂ := by
+                apply connected_closed_set_is_all adj hconn
+                  (fun w => w = v₀ ∨ w = leaf ∨ w = a₃ ∨ w = b₃ ∨ w = c₃ ∨ w = d₃ ∨
+                    w = a₂ ∨ w = b₂) v₀ (Or.inl rfl)
+                intro v w hv hvw
+                rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+                · -- v = v₀: hvw : adj v₀ w = 1
+                  rcases hv₀_only w hvw with rfl | rfl | rfl
+                  · exact Or.inr (Or.inl rfl)
+                  · exact Or.inr (Or.inr (Or.inl rfl))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))))
+                · -- v = leaf: hvw : adj leaf w = 1
+                  rcases hleaf_only w hvw with rfl
+                  exact Or.inl rfl
+                · -- v = a₃: hvw : adj a₃ w = 1
+                  rcases ha₃_only w hvw with rfl | rfl
+                  · exact Or.inl rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+                · -- v = b₃: hvw : adj b₃ w = 1
+                  rcases hb₃_only w hvw with rfl | rfl
+                  · exact Or.inr (Or.inr (Or.inl rfl))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+                · -- v = c₃: hvw : adj c₃ w = 1
+                  rcases hc₃_only w hvw with rfl | rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl)))))
+                · -- v = d₃: hvw : adj d₃ w = 1
+                  rcases hd₃_only w hvw with rfl
+                  exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+                · -- v = a₂: hvw : adj a₂ w = 1
+                  rcases ha₂_only w hvw with rfl | rfl
+                  · exact Or.inl rfl
+                  · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr rfl))))))
+                · -- v = b₂: hvw : adj b₂ w = 1
+                  rcases hb₂_only w hvw with rfl
+                  exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))))
+              -- Construct E8Distinct v₀ leaf a₃ b₃ c₃ d₃ a₂ b₂
+              have hd_e8 : E8Distinct v₀ leaf a₃ b₃ c₃ d₃ a₂ b₂ := by
+                refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_,
+                        ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+                -- ne_v₀l
+                · exact ne_of_adj' v₀ leaf h_leaf_adj
+                -- ne_v₀a
+                · exact ne_of_adj' v₀ a₃ ha₃_adj
+                -- ne_v₀b: v₀ ≠ b₃ (degrees 3 vs 2)
+                · intro h; linarith [hv₀, h.symm ▸ h_b3_ext']
+                -- ne_v₀c: v₀ ≠ c₃ (degrees 3 vs 2)
+                · intro h; linarith [hv₀, h.symm ▸ h_c3_ext]
+                -- ne_v₀d: v₀ ≠ d₃ (degrees 3 vs 1)
+                · intro h; linarith [hv₀, h.symm ▸ hd₃_deg1]
+                -- ne_v₀p
+                · exact ne_of_adj' v₀ a₂ ha₂_adj
+                -- ne_v₀q: v₀ ≠ b₂ (degrees 3 vs 1)
+                · intro h; linarith [hv₀, h.symm ▸ hb₂_deg1]
+                -- ne_la
+                · exact ha₃_ne_leaf.symm
+                -- ne_lb: leaf ≠ b₃ (degrees 1 vs 2)
+                · intro h; linarith [h_leaf_deg, h ▸ h_b3_ext']
+                -- ne_lc: leaf ≠ c₃ (degrees 1 vs 2)
+                · intro h; linarith [h_leaf_deg, h ▸ h_c3_ext]
+                -- ne_ld: leaf ≠ d₃ (both degree 1; leaf's neighbor is v₀, d₃'s neighbor is c₃)
+                · intro h
+                  have hadj : adj leaf c₃ = 1 := by rw [h]; exact (adj_comm d₃ c₃).trans hd₃_adj
+                  have hc₃v₀ : c₃ = v₀ := hleaf_only c₃ hadj
+                  linarith [hv₀, hc₃v₀ ▸ h_c3_ext]
+                -- ne_lp
+                · exact ha₂_ne_leaf.symm
+                -- ne_lq: leaf ≠ b₂ (both degree 1; leaf's neighbor is v₀, b₂'s neighbor is a₂)
+                · intro h
+                  have hadj : adj leaf a₂ = 1 := by rw [h]; exact (adj_comm b₂ a₂).trans hb₂_adj
+                  have ha₂v₀ : a₂ = v₀ := hleaf_only a₂ hadj
+                  linarith [hv₀, ha₂v₀ ▸ h_a2_ext]
+                -- ne_ab
+                · exact ne_of_adj' a₃ b₃ hb₃_adj
+                -- ne_ac: a₃ ≠ c₃ (already have hc₃_ne_a₃)
+                · exact hc₃_ne_a₃.symm
+                -- ne_ad: a₃ ≠ d₃ (degrees 2 vs 1)
+                · intro h; linarith [h_a3_ext, h ▸ hd₃_deg1]
+                -- ne_ap
+                · exact ha₂₃.symm
+                -- ne_aq: a₃ ≠ b₂ (degrees 2 vs 1)
+                · intro h; linarith [h_a3_ext, h ▸ hb₂_deg1]
+                -- ne_bc
+                · exact ne_of_adj' b₃ c₃ hc₃_adj
+                -- ne_bd: b₃ ≠ d₃ (already have hd₃_ne_b₃)
+                · exact hd₃_ne_b₃.symm
+                -- ne_bp: b₃ ≠ a₂ (b₃ is internal on arm3, a₂ is on arm2 adjacent to v₀)
+                · intro h
+                  have hb₃v₀ : adj b₃ v₀ = 1 := (adj_comm b₃ v₀).trans (h.symm ▸ ha₂_adj)
+                  rcases hb₃_only v₀ hb₃v₀ with heq | heq
+                  · linarith [hdiag a₃, heq ▸ ha₃_adj]
+                  · linarith [hv₀, heq.symm ▸ h_c3_ext]
+                -- ne_bq: b₃ ≠ b₂ (degrees 2 vs 1)
+                · intro h; linarith [h_b3_ext', h ▸ hb₂_deg1]
+                -- ne_cd
+                · exact ne_of_adj' c₃ d₃ hd₃_adj
+                -- ne_cp: c₃ ≠ a₂ (c₃ is adjacent to v₀ would require being on both arms)
+                · intro h
+                  have hv₀c₃ : adj c₃ v₀ = 1 := by rw [adj_comm, h]; exact ha₂_adj
+                  rcases hc₃_only v₀ hv₀c₃ with heq | heq
+                  · exact absurd heq hb₃_ne_v₀.symm
+                  · linarith [hv₀, heq.symm ▸ hd₃_deg1]
+                -- ne_cq: c₃ ≠ b₂ (degrees 2 vs 1)
+                · intro h; linarith [h_c3_ext, h ▸ hb₂_deg1]
+                -- ne_dp: d₃ ≠ a₂ (degrees 1 vs 2)
+                · intro h; linarith [hd₃_deg1, h ▸ h_a2_ext]
+                -- ne_dq: d₃ ≠ b₂ (both degree 1; d₃'s neighbor is c₃, b₂'s neighbor is a₂)
+                · intro h
+                  have ha₂d₃ : adj d₃ a₂ = 1 := by rw [adj_comm, h]; exact hb₂_adj
+                  have ha₂c₃ := hd₃_only a₂ ha₂d₃
+                  rcases ha₂_only b₃ ((adj_comm a₂ b₃).trans (ha₂c₃.symm ▸ hc₃_adj)) with heq | heq
+                  · linarith [h_b3_ext', heq ▸ hv₀]
+                  · linarith [h_b3_ext', heq ▸ hb₂_deg1]
+                -- ne_pq
+                · exact ne_of_adj' a₂ b₂ hb₂_adj
+              intro x hx
+              exact e8_posdef adj hsymm hdiag h01 v₀ leaf a₃ b₃ c₃ d₃ a₂ b₂ hd_e8
+                h_leaf_adj ha₃_adj hb₃_adj hc₃_adj hd₃_adj ha₂_adj hb₂_adj
+                hv₀_only hleaf_only ha₃_only hb₃_only hc₃_only hd₃_only
+                ha₂_only hb₂_only h_all_named x hx
           · -- c₃ is leaf: arm3 length = 3. T(1,2,3) = E₆ → posdef → contradiction
             exfalso; apply h_not_posdef
             sorry -- T(1,2,3) = E₆ is positive definite
