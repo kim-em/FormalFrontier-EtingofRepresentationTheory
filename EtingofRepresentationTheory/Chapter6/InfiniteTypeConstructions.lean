@@ -6116,6 +6116,115 @@ private theorem single_branch_not_posdef_infinite_type {n : ℕ}
     exact single_branch_leaf_case adj hn hsymm hdiag h01 hconn h_acyclic h_deg v₀ hv₀
       h_unique h_not_posdef a₁ ha₁_adj ha₁_deg1
 
+/-- If an injective map φ from a connected acyclic subgraph to an acyclic host graph
+    preserves edges, then it preserves ALL adjacencies (edges AND non-edges).
+
+    Proof idea: For non-adjacent i ≠ j in the subgraph, connectivity gives a Nodup path
+    from i to j of length ≥ 3. Map via φ to get a Nodup path in the host. If φ(i) and
+    φ(j) were adjacent, this path + that edge would form a cycle, contradicting acyclicity. -/
+private theorem tree_embed_adj_eq {m n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (adj_sub : Matrix (Fin m) (Fin m) ℤ)
+    (hsymm : adj.IsSymm) (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hdiag : ∀ i, adj i i = 0)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (h_sub_01 : ∀ i j, adj_sub i j = 0 ∨ adj_sub i j = 1)
+    (φ : Fin m ↪ Fin n)
+    (hedges : ∀ i j, adj_sub i j = 1 → adj (φ i) (φ j) = 1)
+    -- For each pair of non-adjacent distinct vertices in the subgraph, there exists
+    -- a Nodup path of length ≥ 3 connecting them:
+    (h_sub_conn : ∀ i j : Fin m, i ≠ j → adj_sub i j = 0 →
+      ∃ path : List (Fin m),
+        path.head? = some i ∧ path.getLast? = some j ∧
+        path.Nodup ∧ 3 ≤ path.length ∧
+        ∀ t, (ht : t + 1 < path.length) →
+          adj_sub (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1) :
+    ∀ i j, adj_sub i j = adj (φ i) (φ j) := by
+  intro i j
+  rcases h_sub_01 i j with h | h
+  · -- adj_sub i j = 0: need adj (φ i) (φ j) = 0
+    rw [h]; symm
+    by_cases hij : i = j
+    · subst hij; exact hdiag _
+    · obtain ⟨path, hhead, hlast, hnodup, hlen, hpath⟩ := h_sub_conn i j hij h
+      -- Map path via φ → Nodup host path from φ i to φ j
+      set host_path := path.map φ with host_path_def
+      have host_len : host_path.length = path.length := List.length_map ..
+      have host_nodup : host_path.Nodup := hnodup.map φ.injective
+      have host_edges : ∀ t, (ht : t + 1 < host_path.length) →
+          adj (host_path.get ⟨t, by omega⟩) (host_path.get ⟨t + 1, ht⟩) = 1 := by
+        intro t ht
+        have ht' : t + 1 < path.length := by rw [← host_len]; exact ht
+        have hget : ∀ (k : ℕ) (hk : k < host_path.length),
+            host_path.get ⟨k, hk⟩ = φ (path.get ⟨k, by rw [← host_len]; exact hk⟩) :=
+          fun k hk => List.getElem_map ..
+        rw [hget, hget]
+        exact hedges _ _ (hpath t ht')
+      -- Apply acyclic_path_nonadj: adj (last) (first) = 0
+      have key := acyclic_path_nonadj adj hsymm h01 h_acyclic host_path
+        (by omega) host_nodup host_edges
+      -- key : adj (host_path.getLast _) (host_path.get ⟨0, _⟩) = 0
+      -- Rewrite host_path getLast and get 0 in terms of φ and path
+      have hget0 : host_path.get ⟨0, by omega⟩ = φ (path.get ⟨0, by omega⟩) :=
+        List.getElem_map ..
+      have hgetL : host_path.getLast (List.ne_nil_of_length_pos (by omega)) =
+          φ (path.getLast (List.ne_nil_of_length_pos (by omega))) := by
+        simp [host_path_def, List.getLast_map]
+      -- Convert path endpoints to i and j
+      have hpath_ne : path ≠ [] := List.ne_nil_of_length_pos (by omega)
+      have h_first_i : path.get ⟨0, by omega⟩ = i := by
+        cases path with
+        | nil => exact absurd rfl hpath_ne
+        | cons a t => simpa using hhead
+      have h_last_j : path.getLast hpath_ne = j := by
+        have h := hlast
+        rw [List.getLast?_eq_some_getLast hpath_ne] at h
+        exact Option.some_injective _ h
+      rw [hgetL, hget0, h_last_j, h_first_i] at key
+      -- key : adj (φ j) (φ i) = 0. By symmetry: adj (φ i) (φ j) = 0.
+      rwa [hsymm.apply (φ i) (φ j)] at key
+  · -- adj_sub i j = 1: follows from edge preservation
+    rw [h]; exact (hedges i j h).symm
+
+/-- D̃_{k+5} has Nodup paths of length ≥ 3 between any two non-adjacent distinct vertices.
+    This follows from D̃ being a tree: the unique path between any pair goes through
+    the spine (vertices 2 to k+3), possibly via leaf branch points. -/
+private theorem dTilde_nodup_path_between (k : ℕ) (i j : Fin (k + 6))
+    (hij : i ≠ j) (h_nonadj : dTildeAdj k i j = 0) :
+    ∃ path : List (Fin (k + 6)),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      path.Nodup ∧ 3 ≤ path.length ∧
+      ∀ t, (ht : t + 1 < path.length) →
+        dTildeAdj k (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 := by
+  -- TODO: Construct explicit paths via D̃ spine (see issue #2363).
+  sorry
+
+/-- In a connected acyclic graph, any walk can be trimmed to a Nodup (simple) path
+    with the same endpoints. -/
+private theorem walk_to_nodup_path {n : ℕ} {i j : Fin n} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    (walk : List (Fin n))
+    (hhead : walk.head? = some i) (hlast : walk.getLast? = some j)
+    (hlen : 2 ≤ walk.length)
+    (hedges : ∀ t, (ht : t + 1 < walk.length) →
+      adj (walk.get ⟨t, by omega⟩) (walk.get ⟨t + 1, ht⟩) = 1) :
+    ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      path.Nodup ∧ 2 ≤ path.length ∧
+      ∀ t, (ht : t + 1 < path.length) →
+        adj (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 := by
+  -- TODO: Strong induction on walk length, splicing at repeated vertices.
+  sorry
+
 -- Ẽ₆ embedding requires 49-pair adjacency verification via fin_cases + linarith
 set_option maxHeartbeats 6400000 in
 /-- A connected acyclic simple graph with ≥ 2 non-adjacent degree-3 vertices, all
