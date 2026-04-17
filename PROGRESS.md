@@ -75,5 +75,5 @@ Progress is recorded here as stages from PLAN.md are completed.
 ## Stage 3.2: Proof Filling
 - **Status:** In progress
 - **Date started:** 2026-03-16
-- **Latest update:** 2026-03-20 (wave 24 summary #1490)
-- **Notes:** 206/583 items sorry_free in items.json (35.3%). 90 sorry occurrences across 28 files. ~359 PRs merged across twenty-four proof waves. Four chapters at 100% formal completion: Ch3, Ch4, Ch7, Ch8. Chapter-level sorry breakdown: Ch2: 3 sorries in 2 files, Ch5: 44 sorries in 14 files, Ch6: 35 sorries in 9 files, Ch9: 8 sorries in 3 files. Wave 24 highlights: Theorem5_18_1 (double centralizer theorem) became sorry-free, Proposition5_19_1 polynomial density proved, hook length formula progress (inner_product_eq_of_partition_eq), character orthogonality infrastructure for GL₂(𝔽_q). Dynkin branch_classification decomposed into sub-goals (+8 sorries structural, -2 real proof progress).
+- **Latest update:** 2026-04-17 (wave 53 summary #2393)
+- **Notes:** 582/583 items sorry-free (99.8%). 13 sorry occurrences across 4 files. Six chapters at 100% formal completion: Ch3, Ch4, Ch7, Ch8, Ch9, and all of Ch5/Ch6 except 4 files. All posdef and leaf-case sorries eliminated in wave 53 (9 closures). Remaining sorries: 7 indecomposability (Ch6), 2 path infrastructure (Ch6), 2 Ch5 combinatorics, 2 Ch2 bridges. All remaining sorries are difficulty 8+.
