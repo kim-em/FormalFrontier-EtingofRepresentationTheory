@@ -7953,6 +7953,224 @@ private theorem tree_embed_adj_eq {m n : ℕ}
   · -- adj_sub i j = 1: follows from edge preservation
     rw [h]; exact (hedges i j h).symm
 
+/-- Ascending spine path [⟨a,_⟩, ⟨a+1,_⟩, ..., ⟨b,_⟩] in D̃. -/
+private def dTildeSpinePath (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    List (Fin (k + 6)) :=
+  List.ofFn (fun i : Fin (b - a + 1) => ⟨a + i.val, by omega⟩)
+
+private lemma dTildeSpinePath_length (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    (dTildeSpinePath k a b ha hb hab).length = b - a + 1 := by
+  simp [dTildeSpinePath, List.length_ofFn]
+
+private lemma dTildeSpinePath_ne_nil (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    dTildeSpinePath k a b ha hb hab ≠ [] := by
+  intro h; have := congr_arg List.length h
+  simp [dTildeSpinePath_length] at this
+
+private lemma dTildeSpinePath_getElem (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b)
+    (idx : ℕ) (hidx : idx < (dTildeSpinePath k a b ha hb hab).length) :
+    (dTildeSpinePath k a b ha hb hab)[idx] = ⟨a + idx, by
+      rw [dTildeSpinePath_length] at hidx; omega⟩ := by
+  unfold dTildeSpinePath; rw [List.getElem_ofFn]
+
+private lemma dTildeSpinePath_head (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    (dTildeSpinePath k a b ha hb hab).head? = some ⟨a, by omega⟩ := by
+  rw [List.head?_eq_head (dTildeSpinePath_ne_nil k a b ha hb hab)]
+  congr 1; rw [← List.getElem_zero (by rw [dTildeSpinePath_length]; omega)]
+  simp [dTildeSpinePath_getElem]
+
+private lemma dTildeSpinePath_last (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    (dTildeSpinePath k a b ha hb hab).getLast? = some ⟨b, by omega⟩ := by
+  rw [List.getLast?_eq_some_getLast (dTildeSpinePath_ne_nil k a b ha hb hab)]
+  congr 1
+  have hlen := dTildeSpinePath_length k a b ha hb hab
+  rw [List.getLast_eq_getElem]
+  rw [dTildeSpinePath_getElem]
+  congr 1; omega
+
+private lemma dTildeSpinePath_nodup (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    (dTildeSpinePath k a b ha hb hab).Nodup := by
+  simp only [dTildeSpinePath, List.nodup_ofFn]
+  intro x y hxy
+  ext; simpa using hxy
+
+private lemma dTildeSpinePath_edges (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b) :
+    ∀ t, (ht : t + 1 < (dTildeSpinePath k a b ha hb hab).length) →
+      dTildeAdj k ((dTildeSpinePath k a b ha hb hab).get ⟨t, by omega⟩)
+        ((dTildeSpinePath k a b ha hb hab).get ⟨t + 1, ht⟩) = 1 := by
+  intro t ht
+  have hlen := dTildeSpinePath_length k a b ha hb hab
+  show dTildeAdj k (dTildeSpinePath k a b ha hb hab)[t]
+    (dTildeSpinePath k a b ha hb hab)[t + 1] = 1
+  rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+  simp only [dTildeAdj]; rw [if_pos]
+  left; right; right; left
+  simp only [Fin.val_mk]
+  refine ⟨by omega, by omega, by omega⟩
+
+private lemma dTildeSpinePath_mem_val (k a b : ℕ) (ha : 2 ≤ a) (hb : b ≤ k + 3) (hab : a ≤ b)
+    (v : Fin (k + 6)) (hv : v ∈ dTildeSpinePath k a b ha hb hab) :
+    a ≤ v.val ∧ v.val ≤ b := by
+  simp only [dTildeSpinePath, List.mem_ofFn] at hv
+  obtain ⟨i, rfl⟩ := hv
+  simp only [Fin.val_mk]
+  exact ⟨by omega, by omega⟩
+
+/-- A non-Nodup list has two distinct indices with equal elements. -/
+private lemma exists_dup_indices {α : Type*} [DecidableEq α] :
+    ∀ (l : List α), ¬ l.Nodup →
+    ∃ (p q : ℕ) (hp : p < l.length) (hq : q < l.length),
+      p < q ∧ l.get ⟨p, hp⟩ = l.get ⟨q, hq⟩ := by
+  intro l
+  induction l with
+  | nil => intro h; exact absurd List.nodup_nil h
+  | cons a t ih =>
+    intro hnd
+    rw [List.nodup_cons] at hnd; push_neg at hnd
+    by_cases ha : a ∈ t
+    · rw [List.mem_iff_get] at ha
+      obtain ⟨⟨q, hq⟩, hq_eq⟩ := ha
+      exact ⟨0, q + 1, by simp, by simp; omega, by omega, by
+        simp [List.get_cons_zero, List.get_cons_succ, hq_eq.symm]⟩
+    · obtain ⟨p, q, hp, hq, hpq, heq⟩ := ih (hnd ha)
+      exact ⟨p + 1, q + 1, by simp; omega, by simp; omega, by omega, by
+        simp [List.get_cons_succ]; exact heq⟩
+
+/-- Any walk between distinct vertices can be trimmed to a
+    Nodup (simple) path with the same endpoints. -/
+private theorem walk_to_nodup_path {n : ℕ} {i j : Fin n} (adj : Matrix (Fin n) (Fin n) ℤ)
+    (walk : List (Fin n))
+    (hhead : walk.head? = some i) (hlast : walk.getLast? = some j)
+    (hij : i ≠ j)
+    (hedges : ∀ t, (ht : t + 1 < walk.length) →
+      adj (walk.get ⟨t, by omega⟩) (walk.get ⟨t + 1, ht⟩) = 1) :
+    ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      path.Nodup ∧ 2 ≤ path.length ∧
+      ∀ t, (ht : t + 1 < path.length) →
+        adj (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 := by
+  -- General statement with universally quantified endpoints, by induction on length.
+  -- At each step: if the head appears in the tail, drop to its occurrence and recurse.
+  -- If not, recurse on the tail and prepend the head.
+  suffices h_gen : ∀ (m : ℕ) (w : List (Fin n)) (a b : Fin n),
+      w.length ≤ m → a ≠ b →
+      w.head? = some a → w.getLast? = some b →
+      (∀ t, (ht : t + 1 < w.length) →
+        adj (w.get ⟨t, by omega⟩) (w.get ⟨t + 1, ht⟩) = 1) →
+      ∃ path : List (Fin n),
+        path.head? = some a ∧ path.getLast? = some b ∧
+        path.Nodup ∧ 2 ≤ path.length ∧
+        ∀ t, (ht : t + 1 < path.length) →
+          adj (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 by
+    exact h_gen walk.length walk i j le_rfl hij hhead hlast hedges
+  intro m
+  induction m with
+  | zero =>
+    intro w a b hwm _ hwh
+    exact absurd hwh (by cases w <;> simp_all)
+  | succ m ih =>
+    intro w a b hwm hab hwh hwl hwe
+    match w, hwh, hwl with
+    | [], hwh, _ => simp at hwh
+    | [x], hwh, hwl =>
+      simp only [List.head?, List.getLast?_singleton, Option.some.injEq] at hwh hwl
+      exact absurd (hwh ▸ hwl ▸ rfl : a = b) hab
+    | x :: y :: tl, hwh, hwl =>
+      -- x = a from the head
+      have hxa : x = a := by simpa using hwh
+      have rest_last : (y :: tl).getLast? = some b := by
+        rwa [← List.getLast?_cons_cons (a := x)]
+      have hxy : adj x y = 1 := by have := hwe 0 (by simp); simpa
+      have rest_edges : ∀ t, (ht : t + 1 < (y :: tl).length) →
+          adj ((y :: tl).get ⟨t, by omega⟩) ((y :: tl).get ⟨t + 1, ht⟩) = 1 := by
+        intro t ht; simpa using hwe (t + 1) (by simp at ht ⊢; omega)
+      by_cases hyb : y = b
+      · -- y = b, path = [x, y] = [a, b]
+        refine ⟨[x, y], ?_, ?_, ?_, ?_, ?_⟩
+        · simp [hxa]
+        · simp [hyb]
+        · simp only [List.nodup_cons, List.mem_cons, List.mem_nil_iff, or_false,
+            List.not_mem_nil, not_false_eq_true, List.nodup_nil, and_self, and_true]
+          intro h; exact hab (hxa ▸ h ▸ hyb)
+        · simp
+        · intro t ht; simp at ht
+          have ht0 : t = 0 := by omega
+          subst ht0; simpa
+      · -- y ≠ b, recurse on (y :: tl)
+        obtain ⟨P, hPh, hPl, hPnd, hPlen, hPe⟩ :=
+          ih (y :: tl) y b (by simp only [List.length_cons] at hwm ⊢; omega) hyb (by simp) rest_last rest_edges
+        by_cases ha_in : x ∈ P
+        · -- x ∈ P: extract subpath from x to b by dropping prefix
+          obtain ⟨⟨q, hq⟩, hq_eq⟩ := List.mem_iff_get.mp ha_in
+          have hP_drop_ne : P.drop q ≠ [] := by
+            intro h; simp [List.length_drop] at h; omega
+          refine ⟨P.drop q, ?_, ?_, ?_, ?_, ?_⟩
+          · -- head = x = a
+            rw [List.head?_eq_head hP_drop_ne]; congr 1
+            have h0 : (P.drop q)[0]'(by simp; omega) = P[q] := by
+              simp [List.getElem_drop]
+            rw [← List.getElem_zero (h := by simp; omega), h0]
+            show P.get ⟨q, hq⟩ = a; rw [hq_eq, hxa]
+          · -- last = b
+            have hPne : P ≠ [] := by intro h; simp [h] at hPlen
+            have : (P.drop q).getLast? = P.getLast? := by
+              rw [List.getLast?_eq_some_getLast hP_drop_ne,
+                  List.getLast?_eq_some_getLast hPne]; congr 1
+              simp [List.getLast_eq_getElem, List.getElem_drop]; congr 1; omega
+            rw [this]; exact hPl
+          · exact hPnd.sublist (List.drop_sublist q P)
+          · -- length ≥ 2
+            by_contra hlt; push_neg at hlt
+            obtain ⟨v, hv⟩ : ∃ v, P.drop q = [v] := by
+              match hm : P.drop q, hP_drop_ne with
+              | [v], _ => exact ⟨v, rfl⟩
+              | [], h => exact absurd rfl h
+              | _ :: _ :: _, _ => rw [hm] at hlt; simp at hlt; omega
+            have hva : v = x := by
+              have h1 : (P.drop q)[0]'(by simp; omega) = P[q] := by
+                simp [List.getElem_drop]
+              simp [hv] at h1; exact h1 ▸ hq_eq
+            have hvb : v = b := by
+              have hPne : P ≠ [] := by intro h; simp [h] at hPlen
+              have hPl' : P.getLast hPne = b := by
+                rw [List.getLast?_eq_some_getLast hPne] at hPl
+                exact Option.some_injective _ hPl
+              have : (P.drop q).getLast hP_drop_ne = P.getLast hPne := by
+                simp [List.getLast_eq_getElem, List.getElem_drop]; congr 1; omega
+              simp [hv] at this; rw [this]; exact hPl'
+            exact hab (by rw [← hxa, ← hva, hvb])
+          · -- edges
+            intro t ht
+            have hlen_drop : (P.drop q).length = P.length - q := by simp
+            have := hPe (q + t) (by omega)
+            show adj (P.drop q)[t] (P.drop q)[t + 1] = 1
+            simp only [List.getElem_drop]
+            convert this using 2 <;> omega
+        · -- x ∉ P: prepend x
+          refine ⟨x :: P, ?_, ?_, ?_, ?_, ?_⟩
+          · simp [hxa]
+          · -- last = b
+            cases P with
+            | nil => simp at hPlen
+            | cons p ps => simp only [List.getLast?_cons_cons]; exact hPl
+          · exact List.nodup_cons.mpr ⟨ha_in, hPnd⟩
+          · simp; omega
+          · -- edges
+            intro t ht
+            match t with
+            | 0 =>
+              show adj (x :: P)[0] (x :: P)[1] = 1
+              simp only [List.getElem_cons_zero, List.getElem_cons_succ]
+              have hP0 : P[0]'(by omega) = y := by
+                cases P with
+                | nil => simp at hPlen
+                | cons p ps => simp only [List.head?, Option.some.injEq] at hPh; simp [hPh]
+              rw [hP0]; exact hxy
+            | t' + 1 =>
+              show adj (x :: P)[t' + 1] (x :: P)[t' + 2] = 1
+              simp only [List.getElem_cons_succ]
+              exact hPe t' (by simp at ht; omega)
+
 /-- D̃_{k+5} has Nodup paths of length ≥ 3 between any two non-adjacent distinct vertices.
     This follows from D̃ being a tree: the unique path between any pair goes through
     the spine (vertices 2 to k+3), possibly via leaf branch points. -/
@@ -7963,30 +8181,675 @@ private theorem dTilde_nodup_path_between (k : ℕ) (i j : Fin (k + 6))
       path.Nodup ∧ 3 ≤ path.length ∧
       ∀ t, (ht : t + 1 < path.length) →
         dTildeAdj k (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 := by
-  -- TODO: Construct explicit paths via D̃ spine (see issue #2363).
-  sorry
-
-/-- In a connected acyclic graph, any walk can be trimmed to a Nodup (simple) path
-    with the same endpoints. -/
-private theorem walk_to_nodup_path {n : ℕ} {i j : Fin n} (adj : Matrix (Fin n) (Fin n) ℤ)
-    (hsymm : adj.IsSymm)
-    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
-      (∀ k, (h : k + 1 < cycle.length) →
-        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
-      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
-        (cycle.get ⟨0, by omega⟩) ≠ 1)
-    (walk : List (Fin n))
-    (hhead : walk.head? = some i) (hlast : walk.getLast? = some j)
-    (hlen : 2 ≤ walk.length)
-    (hedges : ∀ t, (ht : t + 1 < walk.length) →
-      adj (walk.get ⟨t, by omega⟩) (walk.get ⟨t + 1, ht⟩) = 1) :
-    ∃ path : List (Fin n),
-      path.head? = some i ∧ path.getLast? = some j ∧
-      path.Nodup ∧ 2 ≤ path.length ∧
-      ∀ t, (ht : t + 1 < path.length) →
-        adj (path.get ⟨t, by omega⟩) (path.get ⟨t + 1, ht⟩) = 1 := by
-  -- TODO: Strong induction on walk length, splicing at repeated vertices.
-  sorry
+  -- Step 1: adjacency helpers
+  have adj_edge : ∀ (a b : Fin (k + 6)), dTildeEdgePred k a b → dTildeAdj k a b = 1 := by
+    intro a b h; rw [dTildeAdj_eq_one_iff]; exact Or.inl h
+  have adj_edge' : ∀ (a b : Fin (k + 6)), dTildeEdgePred k b a → dTildeAdj k a b = 1 := by
+    intro a b h; rw [dTildeAdj_eq_one_iff]; exact Or.inr h
+  -- Step 2: construct a walk between any two vertices via the spine
+  -- Every vertex reaches vertex 2 or k+3, and spine connects them all
+  -- We construct a walk, then use walk_to_nodup_path
+  suffices h_walk : ∃ walk : List (Fin (k + 6)),
+      walk.head? = some i ∧ walk.getLast? = some j ∧
+      ∀ t, (ht : t + 1 < walk.length) →
+        dTildeAdj k (walk.get ⟨t, by omega⟩) (walk.get ⟨t + 1, ht⟩) = 1 by
+    obtain ⟨walk, hwh, hwl, hwe⟩ := h_walk
+    obtain ⟨path, hph, hpl, hpnd, hplen, hpe⟩ :=
+      walk_to_nodup_path (dTildeAdj k) walk hwh hwl hij hwe
+    refine ⟨path, hph, hpl, hpnd, ?_, hpe⟩
+    -- Boost length ≥ 2 to ≥ 3: if length = 2, path = [i, j], adj i j = 1, contradiction
+    by_contra hlt; push_neg at hlt
+    have hlen2 : path.length = 2 := by omega
+    have h0 : path.get ⟨0, by omega⟩ = i := by
+      cases path with
+      | nil => simp at hplen
+      | cons a _ => simpa using hph
+    have h1 : path.get ⟨1, by omega⟩ = j := by
+      match path, hlen2, hpl with
+      | [_, b], _, hpl => simpa using hpl
+    have := hpe 0 (by omega)
+    rw [h0, h1] at this
+    rw [this] at h_nonadj; exact one_ne_zero h_nonadj
+  -- Step 3: construct the walk by classifying vertices
+  -- Spine helpers for edge construction
+  have spine_edge (a : ℕ) (ha : 2 ≤ a) (ha' : a + 1 ≤ k + 3) :
+      dTildeAdj k ⟨a, by omega⟩ ⟨a + 1, by omega⟩ = 1 :=
+    adj_edge _ _ (Or.inr (Or.inr (Or.inl ⟨ha, rfl, ha'⟩)))
+  have left_edge (v : Fin (k + 6)) (hv : v.val ≤ 1) :
+      dTildeAdj k v ⟨2, by omega⟩ = 1 := by
+    rcases show v.val = 0 ∨ v.val = 1 from by omega with h | h
+    · exact adj_edge _ _ (Or.inl ⟨h, rfl⟩)
+    · exact adj_edge _ _ (Or.inr (Or.inl ⟨h, rfl⟩))
+  have right_edge (v : Fin (k + 6)) (hv : k + 4 ≤ v.val) :
+      dTildeAdj k v ⟨k + 3, by omega⟩ = 1 := by
+    rcases show v.val = k + 4 ∨ v.val = k + 5 from by omega with h | h
+    · exact adj_edge _ _ (Or.inr (Or.inr (Or.inr (Or.inl ⟨h, rfl⟩))))
+    · exact adj_edge _ _ (Or.inr (Or.inr (Or.inr (Or.inr ⟨h, rfl⟩))))
+  -- Classify i and j into left leaf (val ≤ 1), spine (2 ≤ val ≤ k+3), right leaf (val ≥ k+4)
+  rcases show i.val ≤ 1 ∨ (2 ≤ i.val ∧ i.val ≤ k + 3) ∨ k + 4 ≤ i.val from by omega with
+    hi_l | hi_s | hi_r <;>
+  rcases show j.val ≤ 1 ∨ (2 ≤ j.val ∧ j.val ≤ k + 3) ∨ k + 4 ≤ j.val from by omega with
+    hj_l | hj_s | hj_r
+  · -- Case 1: left-left (both val ≤ 1), walk = [i, 2, j]
+    exact ⟨[i, ⟨2, by omega⟩, j], by simp, by simp, fun t ht => by
+      simp only [List.length_cons, List.length_nil] at ht
+      match t, ht with
+      | 0, _ => simp only [List.get]; exact left_edge i hi_l
+      | 1, _ => simp only [List.get]; rw [(dTildeAdj_symm k).apply]; exact left_edge j hj_l⟩
+  · -- Case 2: left-spine, walk = [i] ++ spine(2, j.val)
+    have h2j : 2 ≤ j.val := hj_s.1
+    refine ⟨i :: dTildeSpinePath k 2 j.val (by omega) hj_s.2 h2j, by simp, ?_, fun t ht => ?_⟩
+    · rw [show i :: dTildeSpinePath k 2 j.val (by omega) hj_s.2 h2j =
+          [i] ++ dTildeSpinePath k 2 j.val (by omega) hj_s.2 h2j from rfl,
+          List.getLast?_append_of_ne_nil _
+            (dTildeSpinePath_ne_nil k 2 j.val (by omega) hj_s.2 h2j)]
+      convert dTildeSpinePath_last k 2 j.val (by omega) hj_s.2 h2j using 2
+    · have hsplen := dTildeSpinePath_length k 2 j.val (by omega) hj_s.2 h2j
+      simp only [List.length_cons] at ht
+      simp only [List.get_eq_getElem]
+      rcases t with _ | t
+      · simp only [List.getElem_cons_zero, List.getElem_cons_succ,
+                    dTildeSpinePath_getElem]
+        convert left_edge i hi_l using 2
+      · simp only [List.getElem_cons_succ]
+        exact dTildeSpinePath_edges k 2 j.val (by omega) hj_s.2 h2j t
+          (by rw [hsplen] at ht ⊢; omega)
+  · -- Case 3: left-right, walk = [i] ++ spine(2, k+3) ++ [j]
+    set sp := dTildeSpinePath k 2 (k + 3) (by omega) (by omega) (by omega)
+    have hsplen : sp.length = k + 3 - 2 + 1 :=
+      dTildeSpinePath_length k 2 (k + 3) (by omega) (by omega) (by omega)
+    refine ⟨(i :: sp) ++ [j], ?_, ?_, fun t ht => ?_⟩
+    · simp -- head? = some i
+    · rw [List.getLast?_append_of_ne_nil _ (List.cons_ne_nil j [])]; simp
+    · have hwlen : ((i :: sp) ++ [j]).length = sp.length + 2 := by
+        simp [List.length_append, List.length_cons, List.length_singleton, List.length_nil]
+      rcases t with _ | t
+      · -- t = 0: edge from i to sp[0] = ⟨2, _⟩
+        have h0 : ((i :: sp) ++ [j]).get ⟨0, by omega⟩ = i := by
+          show ((i :: sp) ++ [j])[0] = i; simp
+        have h1 : ((i :: sp) ++ [j]).get ⟨1, by rw [hwlen]; rw [hsplen]; omega⟩ =
+            ⟨2, by omega⟩ := by
+          show ((i :: sp) ++ [j])[1] = ⟨2, by omega⟩
+          simp only [List.getElem_append_left (show 1 < (i :: sp).length from by
+            simp only [List.length_cons]; rw [hsplen]; omega),
+            List.getElem_cons_succ]
+          rw [dTildeSpinePath_getElem]
+        rw [h0, h1]; exact left_edge i hi_l
+      · -- t+1: edges in (i :: sp) ++ [j]
+        rw [hwlen] at ht
+        by_cases ht' : t + 2 < sp.length + 1
+        · -- both indices in (i :: sp), use spine edges
+          have h1 : ((i :: sp) ++ [j]).get ⟨t + 1, by omega⟩ =
+              sp.get ⟨t, by omega⟩ := by
+            show ((i :: sp) ++ [j])[t + 1] = sp[t]
+            simp only [List.getElem_append_left (show t + 1 < (i :: sp).length from by
+              simp only [List.length_cons]; omega), List.getElem_cons_succ]
+          have h2 : ((i :: sp) ++ [j]).get ⟨t + 2, by omega⟩ =
+              sp.get ⟨t + 1, by omega⟩ := by
+            show ((i :: sp) ++ [j])[t + 2] = sp[t + 1]
+            simp only [List.getElem_append_left (show t + 2 < (i :: sp).length from by
+              simp only [List.length_cons]; omega), List.getElem_cons_succ]
+          rw [h1, h2]
+          exact dTildeSpinePath_edges k 2 (k + 3) (by omega) (by omega) (by omega) t
+            (by rw [hsplen]; omega)
+        · -- last edge: sp[last] = ⟨k+3,_⟩ to j
+          have ht'eq : t + 2 = sp.length + 1 := by omega
+          have h1 : ((i :: sp) ++ [j]).get ⟨t + 1, by omega⟩ =
+              sp.get ⟨t, by omega⟩ := by
+            show ((i :: sp) ++ [j])[t + 1] = sp[t]
+            simp only [List.getElem_append_left (show t + 1 < (i :: sp).length from by
+              simp only [List.length_cons]; omega), List.getElem_cons_succ]
+          have h2 : ((i :: sp) ++ [j]).get ⟨t + 2, by omega⟩ = j := by
+            show ((i :: sp) ++ [j])[t + 2] = j
+            simp only [List.getElem_append_right (show (i :: sp).length ≤ t + 2 from by
+              simp only [List.length_cons]; omega), List.length_cons,
+              show t + 2 - (sp.length + 1) = 0 from by omega, List.getElem_cons_zero]
+          rw [h1, h2, show sp.get ⟨t, _⟩ = sp[t] from rfl, dTildeSpinePath_getElem]
+          rw [(dTildeAdj_symm k).apply]
+          convert right_edge j hj_r using 2
+          ext; simp only [Fin.val_mk]; rw [hsplen] at ht'eq; omega
+  · -- Case 4: spine-left, walk = reverse(spine(2, i.val)) ++ [j]
+    set sp := dTildeSpinePath k 2 i.val (by omega) hi_s.2 hi_s.1
+    have hsplen : sp.length = i.val - 2 + 1 :=
+      dTildeSpinePath_length k 2 i.val (by omega) hi_s.2 hi_s.1
+    have hne : sp ≠ [] := dTildeSpinePath_ne_nil k 2 i.val (by omega) hi_s.2 hi_s.1
+    refine ⟨sp.reverse ++ [j], ?_, by simp [List.getLast?_append_of_ne_nil], fun t ht => ?_⟩
+    · -- head? = some i (head of reversed spine is the last of spine = ⟨i.val, _⟩)
+      have : (sp.reverse ++ [j]).head? = sp.reverse.head? := by
+        have : sp.reverse ≠ [] := by rwa [List.reverse_ne_nil_iff]
+        exact List.head?_append_of_ne_nil _ this
+      rw [this, List.head?_reverse]
+      convert dTildeSpinePath_last k 2 i.val (by omega) hi_s.2 hi_s.1 using 2
+    · have hwlen : (sp.reverse ++ [j]).length = sp.length + 1 := by
+        simp [List.length_reverse]
+      rw [hwlen] at ht
+      by_cases ht' : t + 1 < sp.length
+      · -- reversed spine edge: both indices in sp.reverse
+        have h1 : (sp.reverse ++ [j]).get ⟨t, by omega⟩ =
+            sp.get ⟨sp.length - 1 - t, by omega⟩ := by
+          show (sp.reverse ++ [j])[t] = sp[sp.length - 1 - t]
+          simp only [List.getElem_append_left (show t < sp.reverse.length from by
+            rw [List.length_reverse]; omega), List.getElem_reverse]
+        have h2 : (sp.reverse ++ [j]).get ⟨t + 1, by omega⟩ =
+            sp.get ⟨sp.length - 1 - (t + 1), by omega⟩ := by
+          show (sp.reverse ++ [j])[t + 1] = sp[sp.length - 1 - (t + 1)]
+          simp only [List.getElem_append_left (show t + 1 < sp.reverse.length from by
+            rw [List.length_reverse]; omega), List.getElem_reverse]
+        rw [h1, h2]
+        rw [show sp.get ⟨sp.length - 1 - t, _⟩ = sp[sp.length - 1 - t] from rfl,
+            show sp.get ⟨sp.length - 1 - (t + 1), _⟩ = sp[sp.length - 1 - (t + 1)] from rfl,
+            dTildeSpinePath_getElem, dTildeSpinePath_getElem, (dTildeAdj_symm k).apply]
+        convert spine_edge (2 + (sp.length - 1 - (t + 1)))
+          (by rw [hsplen]; omega) (by rw [hsplen]; omega) using 2
+        ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+      · -- last edge: spine end (= ⟨2, _⟩) to left leaf j
+        have ht'eq : t + 1 = sp.length := by omega
+        have h1 : (sp.reverse ++ [j]).get ⟨t, by omega⟩ =
+            sp.get ⟨sp.length - 1 - t, by omega⟩ := by
+          show (sp.reverse ++ [j])[t] = sp[sp.length - 1 - t]
+          simp only [List.getElem_append_left (show t < sp.reverse.length from by
+            rw [List.length_reverse]; omega), List.getElem_reverse]
+        have h2 : (sp.reverse ++ [j]).get ⟨t + 1, by omega⟩ = j := by
+          show (sp.reverse ++ [j])[t + 1] = j
+          simp only [List.getElem_append_right (show sp.reverse.length ≤ t + 1 from by
+            rw [List.length_reverse]; omega), List.length_reverse,
+            show t + 1 - sp.length = 0 from by omega, List.getElem_cons_zero]
+        rw [h1, h2, show sp.get ⟨sp.length - 1 - t, _⟩ = sp[sp.length - 1 - t] from rfl,
+            dTildeSpinePath_getElem]
+        have : (⟨2 + (sp.length - 1 - t), by rw [hsplen]; omega⟩ : Fin (k + 6)) =
+            ⟨2, by omega⟩ := by
+          ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+        rw [this]
+        exact adj_edge' _ _ (by
+          rcases show j.val = 0 ∨ j.val = 1 from by omega with h | h
+          · exact Or.inl ⟨h, rfl⟩
+          · exact Or.inr (Or.inl ⟨h, rfl⟩))
+  · -- Case 5: spine-spine, ascending or reversed spine path
+    rcases show i.val ≤ j.val ∨ j.val < i.val from by omega with hij_le | hij_lt
+    · exact ⟨dTildeSpinePath k i.val j.val hi_s.1 hj_s.2 (by omega),
+        by convert dTildeSpinePath_head k i.val j.val hi_s.1 hj_s.2 (by omega) using 2,
+        by convert dTildeSpinePath_last k i.val j.val hi_s.1 hj_s.2 (by omega) using 2,
+        dTildeSpinePath_edges k i.val j.val hi_s.1 hj_s.2 (by omega)⟩
+    · set sp := dTildeSpinePath k j.val i.val hj_s.1 hi_s.2 (by omega)
+      refine ⟨sp.reverse,
+        by rw [List.head?_reverse]; convert dTildeSpinePath_last k j.val i.val hj_s.1 hi_s.2 (by omega) using 2,
+        by rw [List.getLast?_reverse]; convert dTildeSpinePath_head k j.val i.val hj_s.1 hi_s.2 (by omega) using 2,
+        fun t ht => by
+          have hsplen := dTildeSpinePath_length k j.val i.val hj_s.1 hi_s.2 (by omega)
+          rw [List.length_reverse] at ht
+          show dTildeAdj k sp.reverse[t] sp.reverse[t + 1] = 1
+          simp only [List.getElem_reverse]
+          rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+          rw [(dTildeAdj_symm k).apply]
+          convert spine_edge (j.val + (sp.length - 1 - (t + 1)))
+            (by rw [hsplen]; omega) (by rw [hsplen]; omega) using 2
+          ext; simp only [Fin.val_mk, hsplen]; omega⟩
+  · -- Case 6: spine-right, walk = spine(i.val, k+3) ++ [j]
+    set sp := dTildeSpinePath k i.val (k + 3) hi_s.1 (by omega) (by omega)
+    have hsplen : sp.length = k + 3 - i.val + 1 :=
+      dTildeSpinePath_length k i.val (k+3) hi_s.1 (by omega) (by omega)
+    refine ⟨sp ++ [j], ?_, by simp [List.getLast?_append_of_ne_nil], ?_⟩
+    · have hne : sp ≠ [] := dTildeSpinePath_ne_nil k i.val (k+3) hi_s.1 (by omega) (by omega)
+      have : (sp ++ [j]).head? = sp.head? := List.head?_append_of_ne_nil _ hne
+      rw [this]; convert dTildeSpinePath_head k i.val (k+3) hi_s.1 (by omega) (by omega) using 2
+    · intro t ht
+      have hwlen : (sp ++ [j]).length = sp.length + 1 := by simp
+      rw [hwlen] at ht
+      by_cases ht' : t + 1 < sp.length
+      · -- both indices in sp
+        have h1 : (sp ++ [j]).get ⟨t, by omega⟩ = sp.get ⟨t, by omega⟩ := by
+          show (sp ++ [j])[t] = sp[t]
+          simp only [List.getElem_append_left (show t < sp.length from by omega)]
+        have h2 : (sp ++ [j]).get ⟨t + 1, by omega⟩ = sp.get ⟨t + 1, by omega⟩ := by
+          show (sp ++ [j])[t + 1] = sp[t + 1]
+          simp only [List.getElem_append_left (show t + 1 < sp.length from by omega)]
+        rw [h1, h2]
+        exact dTildeSpinePath_edges k i.val (k+3) hi_s.1 (by omega) (by omega) t
+          (by rw [hsplen]; omega)
+      · -- last edge: sp[last] to j
+        have ht'eq : t + 1 = sp.length := by omega
+        have h1 : (sp ++ [j]).get ⟨t, by omega⟩ = sp.get ⟨t, by omega⟩ := by
+          show (sp ++ [j])[t] = sp[t]
+          simp only [List.getElem_append_left (show t < sp.length from by omega)]
+        have h2 : (sp ++ [j]).get ⟨t + 1, by omega⟩ = j := by
+          show (sp ++ [j])[t + 1] = j
+          simp only [List.getElem_append_right (show sp.length ≤ t + 1 from by omega),
+            show t + 1 - sp.length = 0 from by omega, List.getElem_cons_zero]
+        rw [h1, h2, show sp.get ⟨t, _⟩ = sp[t] from rfl, dTildeSpinePath_getElem]
+        rw [(dTildeAdj_symm k).apply]
+        convert right_edge j hj_r using 2
+        ext; simp only [Fin.val_mk]; rw [hsplen] at ht'eq; omega
+  · -- Case 7: right-left, walk = [i] ++ reverse(spine(2, k+3)) ++ [j]
+    set sp := dTildeSpinePath k 2 (k + 3) (by omega) (by omega) (by omega)
+    have hsplen : sp.length = k + 3 - 2 + 1 :=
+      dTildeSpinePath_length k 2 (k + 3) (by omega) (by omega) (by omega)
+    have hne : sp ≠ [] := dTildeSpinePath_ne_nil k 2 (k + 3) (by omega) (by omega) (by omega)
+    refine ⟨(i :: sp.reverse) ++ [j], ?_, ?_, fun t ht => ?_⟩
+    · simp -- head? = some i
+    · rw [List.getLast?_append_of_ne_nil _ (List.cons_ne_nil j [])]; simp
+    · have hwlen : ((i :: sp.reverse) ++ [j]).length = sp.length + 2 := by
+        simp only [List.length_append, List.length_cons, List.length_singleton,
+                    List.length_reverse, List.length_nil]
+      rcases t with _ | t
+      · -- t = 0: edge from i to sp.reverse[0] = ⟨k+3, _⟩
+        have h0 : ((i :: sp.reverse) ++ [j]).get ⟨0, by omega⟩ = i := by
+          show ((i :: sp.reverse) ++ [j])[0] = i; simp
+        have h1 : ((i :: sp.reverse) ++ [j]).get ⟨1, by rw [hwlen]; rw [hsplen]; omega⟩ =
+            ⟨k + 3, by omega⟩ := by
+          show ((i :: sp.reverse) ++ [j])[1] = ⟨k + 3, by omega⟩
+          simp only [List.getElem_append_left (show 1 < (i :: sp.reverse).length from by
+            simp only [List.length_cons, List.length_reverse]; omega),
+            List.getElem_cons_succ, List.getElem_reverse]
+          rw [dTildeSpinePath_getElem]
+          congr 1; rw [hsplen]; omega
+        rw [h0, h1]; exact right_edge i hi_r
+      · -- t+1: edges in (i :: sp.reverse) ++ [j]
+        by_cases ht' : t + 2 < sp.length + 1
+        · -- both indices in (i :: sp.reverse)
+          have h1 : ((i :: sp.reverse) ++ [j]).get ⟨t + 1, by omega⟩ =
+              sp.get ⟨sp.length - 1 - t, by omega⟩ := by
+            show ((i :: sp.reverse) ++ [j])[t + 1] = sp[sp.length - 1 - t]
+            simp only [List.getElem_append_left (show t + 1 < (i :: sp.reverse).length from by
+              simp only [List.length_cons, List.length_reverse]; omega),
+              List.getElem_cons_succ, List.getElem_reverse]
+          have h2 : ((i :: sp.reverse) ++ [j]).get ⟨t + 2, by omega⟩ =
+              sp.get ⟨sp.length - 1 - (t + 1), by omega⟩ := by
+            show ((i :: sp.reverse) ++ [j])[t + 2] = sp[sp.length - 1 - (t + 1)]
+            simp only [List.getElem_append_left (show t + 2 < (i :: sp.reverse).length from by
+              simp only [List.length_cons, List.length_reverse]; omega),
+              List.getElem_cons_succ, List.getElem_reverse]
+          rw [h1, h2,
+              show sp.get ⟨sp.length - 1 - t, _⟩ = sp[sp.length - 1 - t] from rfl,
+              show sp.get ⟨sp.length - 1 - (t + 1), _⟩ = sp[sp.length - 1 - (t + 1)] from rfl,
+              dTildeSpinePath_getElem, dTildeSpinePath_getElem, (dTildeAdj_symm k).apply]
+          convert spine_edge (2 + (sp.length - 1 - (t + 1)))
+            (by rw [hsplen]; omega) (by rw [hsplen]; omega) using 2
+          ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+        · -- last edge: ⟨2, _⟩ to left leaf j
+          have ht'eq : t + 2 = sp.length + 1 := by omega
+          have h1 : ((i :: sp.reverse) ++ [j]).get ⟨t + 1, by omega⟩ =
+              sp.get ⟨sp.length - 1 - t, by omega⟩ := by
+            show ((i :: sp.reverse) ++ [j])[t + 1] = sp[sp.length - 1 - t]
+            simp only [List.getElem_append_left (show t + 1 < (i :: sp.reverse).length from by
+              simp only [List.length_cons, List.length_reverse]; omega),
+              List.getElem_cons_succ, List.getElem_reverse]
+          have h2 : ((i :: sp.reverse) ++ [j]).get ⟨t + 2, by omega⟩ = j := by
+            show ((i :: sp.reverse) ++ [j])[t + 2] = j
+            simp only [List.getElem_append_right (show (i :: sp.reverse).length ≤ t + 2 from by
+              simp only [List.length_cons, List.length_reverse]; omega),
+              List.length_cons, List.length_reverse,
+              show t + 2 - (sp.length + 1) = 0 from by omega, List.getElem_cons_zero]
+          rw [h1, h2, show sp.get ⟨sp.length - 1 - t, _⟩ = sp[sp.length - 1 - t] from rfl,
+              dTildeSpinePath_getElem]
+          have : (⟨2 + (sp.length - 1 - t), by rw [hsplen]; omega⟩ : Fin (k + 6)) =
+              ⟨2, by omega⟩ := by
+            ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+          rw [this]
+          exact adj_edge' _ _ (by
+            rcases show j.val = 0 ∨ j.val = 1 from by omega with h | h
+            · exact Or.inl ⟨h, rfl⟩
+            · exact Or.inr (Or.inl ⟨h, rfl⟩))
+  · -- Case 8: right-spine, walk = [i] ++ reverse(spine(j.val, k+3))
+    have hjs1 := hj_s.1
+    refine ⟨i :: (dTildeSpinePath k j.val (k + 3) hjs1 (by omega) (by omega)).reverse,
+      by simp, ?_, fun t ht => ?_⟩
+    · -- getLast? = some j (getLast of reversed spine = head of spine = ⟨j.val, _⟩)
+      rw [show i :: (dTildeSpinePath k j.val (k + 3) hjs1 (by omega) (by omega)).reverse =
+          [i] ++ (dTildeSpinePath k j.val (k + 3) hjs1 (by omega) (by omega)).reverse from rfl,
+          List.getLast?_append_of_ne_nil _ (by
+            rw [List.reverse_ne_nil_iff]
+            exact dTildeSpinePath_ne_nil k j.val (k + 3) hjs1 (by omega) (by omega)),
+          List.getLast?_reverse]
+      convert dTildeSpinePath_head k j.val (k + 3) hjs1 (by omega) (by omega) using 2
+    · set sp := dTildeSpinePath k j.val (k + 3) hjs1 (by omega) (by omega)
+      have hsplen : sp.length = k + 3 - j.val + 1 :=
+        dTildeSpinePath_length k j.val (k + 3) hjs1 (by omega) (by omega)
+      simp only [List.length_cons, List.length_reverse] at ht
+      simp only [List.get_eq_getElem]
+      rcases t with _ | t
+      · -- t = 0: edge from i to sp.reverse[0] = ⟨k+3, _⟩
+        simp only [List.getElem_cons_zero, List.getElem_cons_succ, List.getElem_reverse,
+                    dTildeSpinePath_getElem]
+        convert right_edge i hi_r using 2; ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+      · -- t+1: reversed spine edges
+        simp only [List.getElem_cons_succ, List.getElem_reverse]
+        rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem, (dTildeAdj_symm k).apply]
+        convert spine_edge (j.val + (sp.length - 1 - (t + 1)))
+          (by rw [hsplen]; omega) (by rw [hsplen]; omega) using 2
+        ext; simp only [Fin.val_mk]; rw [hsplen]; omega
+  · -- Case 9: right-right (both val ≥ k+4), walk = [i, k+3, j]
+    exact ⟨[i, ⟨k + 3, by omega⟩, j], by simp, by simp, fun t ht => by
+      simp only [List.length_cons, List.length_nil] at ht
+      match t, ht with
+      | 0, _ => simp only [List.get]; exact right_edge i hi_r
+      | 1, _ => simp only [List.get]; rw [(dTildeAdj_symm k).apply]; exact right_edge j hj_r⟩
+  /- -- Old proof attempt with many errors
+  have spine_adj
+      dTildeAdj k ⟨a, by omega⟩ ⟨a + 1, by omega⟩ = 1 := by
+    intro a ha ha'; simp only [dTildeAdj]; rw [if_pos]
+    left; right; right; left; exact ⟨ha, rfl, ha'⟩
+  have spine_adj' : ∀ (a : ℕ), 2 ≤ a → a + 1 ≤ k + 3 →
+      dTildeAdj k ⟨a + 1, by omega⟩ ⟨a, by omega⟩ = 1 := by
+    intro a ha ha'
+    have := (dTildeAdj_symm k).apply ⟨a + 1, by omega⟩ ⟨a, by omega⟩
+    rw [this]; exact spine_adj a ha ha'
+  have left_adj : ∀ (v : Fin (k + 6)), v.val ≤ 1 →
+      dTildeAdj k v ⟨2, by omega⟩ = 1 := by
+    intro v hv; simp only [dTildeAdj]; rw [if_pos]
+    rcases show v.val = 0 ∨ v.val = 1 from by omega with h | h
+    · left; constructor <;> [exact h; rfl]
+    · left; right; left; constructor <;> [exact h; rfl]
+  have left_adj' : ∀ (v : Fin (k + 6)), v.val ≤ 1 →
+      dTildeAdj k ⟨2, by omega⟩ v = 1 := by
+    intro v hv; rw [(dTildeAdj_symm k).apply]; exact left_adj v hv
+  have right_adj : ∀ (v : Fin (k + 6)), k + 4 ≤ v.val →
+      dTildeAdj k v ⟨k + 3, by omega⟩ = 1 := by
+    intro v hv; simp only [dTildeAdj]; rw [if_pos]
+    rcases show v.val = k + 4 ∨ v.val = k + 5 from by omega with h | h
+    · left; right; right; right; left; constructor <;> [exact h; rfl]
+    · left; right; right; right; right; constructor <;> [exact h; rfl]
+  have right_adj' : ∀ (v : Fin (k + 6)), k + 4 ≤ v.val →
+      dTildeAdj k ⟨k + 3, by omega⟩ v = 1 := by
+    intro v hv; rw [(dTildeAdj_symm k).apply]; exact right_adj v hv
+  -- Adjacency implies adjacency of values
+  have adj_spine_consec : ∀ (a b : Fin (k + 6)), dTildeAdj k a b = 1 →
+      (a.val ≤ 1 ∧ b.val = 2) ∨ (b.val ≤ 1 ∧ a.val = 2) ∨
+      (2 ≤ a.val ∧ a.val + 1 = b.val ∧ b.val ≤ k + 3) ∨
+      (2 ≤ b.val ∧ b.val + 1 = a.val ∧ a.val ≤ k + 3) ∨
+      (a.val ≥ k + 4 ∧ b.val = k + 3) ∨ (b.val ≥ k + 4 ∧ a.val = k + 3) := by
+    intro a b h
+    simp only [dTildeAdj, dTildeEdgePred] at h
+    split_ifs at h with hcond
+    · rcases hcond with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ |
+          ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> omega
+    · exact absurd h (by omega)
+  -- Non-adjacency constraint
+  have h_not_adj : ¬ (dTildeEdgePred k i j ∨ dTildeEdgePred k j i) := by
+    intro h; simp only [dTildeAdj, h, ite_true] at h_nonadj
+  -- Classify vertices
+  rcases show i.val ≤ 1 ∨ (2 ≤ i.val ∧ i.val ≤ k + 3) ∨ k + 4 ≤ i.val from by omega with
+    hi_l | hi_s | hi_r <;>
+  rcases show j.val ≤ 1 ∨ (2 ≤ j.val ∧ j.val ≤ k + 3) ∨ k + 4 ≤ j.val from by omega with
+    hj_l | hj_s | hj_r
+  · -- Both left leaves: path = [i, 2, j]
+    refine ⟨[i, ⟨2, by omega⟩, j], by simp, by simp, ?_, by simp, ?_⟩
+    · simp only [List.nodup_cons, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false,
+        List.nodup_nil, and_self, and_true]
+      exact ⟨by intro h; have := congr_arg Fin.val h; simp at this; omega,
+        by intro h; rcases h with h | h <;> [exact hij h; have := congr_arg Fin.val h; simp at this; omega]⟩
+    · intro t ht; simp at ht
+      match t with
+      | 0 => simp; exact left_adj i hi_l
+      | 1 => simp; exact left_adj' j hj_l
+  · -- Left leaf + spine j: need j.val ≥ 3 (since i adj to 2 but non-adj to j)
+    have hj3 : 3 ≤ j.val := by
+      by_contra h; push_neg at h; interval_cases j.val using hj_s.1, h
+      · exact absurd (left_adj i hi_l) (by rw [show (⟨2, by omega⟩ : Fin (k + 6)) = j from by ext; omega]; rw [h_nonadj]; exact one_ne_zero)
+    -- Path = [i] ++ spine(2, j.val)
+    set spine := dTildeSpinePath k 2 j.val (by omega) hj_s.2 (by omega) with hspine_def
+    refine ⟨i :: spine, ?_, ?_, ?_, ?_, ?_⟩
+    · simp
+    · rw [List.getLast?_cons_cons (by exact dTildeSpinePath_ne_nil k 2 j.val (by omega) hj_s.2 (by omega))]
+      convert dTildeSpinePath_last k 2 j.val (by omega) hj_s.2 (by omega) using 2
+      ext; simp
+    · rw [List.nodup_cons]
+      exact ⟨fun hm => by have := (dTildeSpinePath_mem_val k 2 j.val (by omega) hj_s.2 (by omega) i hm).1; omega,
+        dTildeSpinePath_nodup k 2 j.val (by omega) hj_s.2 (by omega)⟩
+    · simp [dTildeSpinePath_length]; omega
+    · intro t ht
+      match t with
+      | 0 =>
+        show dTildeAdj k i spine[0] = 1
+        rw [dTildeSpinePath_getElem]; simp; exact left_adj i hi_l
+      | t' + 1 =>
+        show dTildeAdj k spine[t'] spine[t' + 1] = 1
+        exact dTildeSpinePath_edges k 2 j.val (by omega) hj_s.2 (by omega) t' (by
+          simp [dTildeSpinePath_length] at ht ⊢; omega)
+  · -- Left leaf + right leaf: path = [i] ++ spine(2, k+3) ++ [j]
+    set spine := dTildeSpinePath k 2 (k + 3) (by omega) (by omega) (by omega) with hspine_def
+    refine ⟨i :: (spine ++ [j]), ?_, ?_, ?_, ?_, ?_⟩
+    · simp
+    · simp [List.getLast?_append_of_ne_nil _ (by simp)]
+    · rw [List.nodup_cons]; constructor
+      · intro hm; rw [List.mem_append] at hm; rcases hm with hm | hm
+        · exact absurd (dTildeSpinePath_mem_val k 2 (k+3) (by omega) (by omega) (by omega) i hm).1 (by omega)
+        · simp at hm; exact hij (by rw [← hm])
+      · rw [List.nodup_append]; refine ⟨dTildeSpinePath_nodup k 2 (k+3) (by omega) (by omega) (by omega),
+          List.nodup_singleton j, ?_⟩
+        intro v hv; simp at hv ⊢; intro heq; rw [← heq]
+        exact absurd (dTildeSpinePath_mem_val k 2 (k+3) (by omega) (by omega) (by omega) v hv).2 (by omega)
+    · simp [dTildeSpinePath_length]; omega
+    · intro t ht
+      have hspine_len := dTildeSpinePath_length k 2 (k+3) (by omega) (by omega) (by omega)
+      match t with
+      | 0 =>
+        show dTildeAdj k i (spine ++ [j])[0] = 1
+        rw [List.getElem_append_left (by rw [hspine_len]; omega)]
+        rw [dTildeSpinePath_getElem]; simp; exact left_adj i hi_l
+      | t' + 1 =>
+        show dTildeAdj k (spine ++ [j])[t'] (spine ++ [j])[t' + 1] = 1
+        simp at ht
+        by_cases ht' : t' + 1 < spine.length
+        · rw [List.getElem_append_left (by omega), List.getElem_append_left ht']
+          exact dTildeSpinePath_edges k 2 (k+3) (by omega) (by omega) (by omega) t' (by omega)
+        · -- t' is last spine index, t'+1 is j
+          have ht'eq : t' + 1 = spine.length := by omega
+          rw [List.getElem_append_left (by omega)]
+          rw [show (spine ++ [j])[t' + 1] = j from by
+            rw [List.getElem_append_right (by omega)]; simp [ht'eq]]
+          rw [dTildeSpinePath_getElem]; simp [hspine_len] at ht'eq
+          have : t' = k + 1 := by omega
+          subst this; simp; exact right_adj' j hj_r
+  · -- Spine i + left leaf j: need i.val ≥ 3
+    have hi3 : 3 ≤ i.val := by
+      by_contra h; push_neg at h; interval_cases i.val using hi_s.1, h
+      · rw [show i = (⟨2, by omega⟩ : Fin (k + 6)) from by ext; omega] at h_nonadj
+        exact absurd (left_adj' j hj_l) (by rw [h_nonadj]; exact one_ne_zero)
+    -- Path = spine(j→2→i) reversed: actually spine(2, i.val) reversed ++ [j]
+    -- Simpler: path = spine(i.val, 2) descending ++ [j]
+    -- Use ascending spine reversed: spine(2, i.val).reverse ++ [j]
+    -- Or: construct directly as [i, i-1, ..., 2, j]
+    -- Let's use: reverse(spine(2, i.val)) ++ [j]
+    set spine := dTildeSpinePath k 2 i.val (by omega) hi_s.2 (by omega) with hspine_def
+    set path := spine.reverse ++ [j] with hpath_def
+    refine ⟨path, ?_, ?_, ?_, ?_, ?_⟩
+    · rw [hpath_def, List.head?_append (by simp [List.length_reverse]; rw [dTildeSpinePath_length]; omega)]
+      rw [List.head?_reverse]
+      convert dTildeSpinePath_last k 2 i.val (by omega) hi_s.2 (by omega) using 2
+      ext; simp
+    · simp [hpath_def, List.getLast?_append_of_ne_nil _ (by simp)]
+    · rw [hpath_def, List.nodup_append]
+      refine ⟨(dTildeSpinePath_nodup k 2 i.val (by omega) hi_s.2 (by omega)).reverse,
+        List.nodup_singleton j, ?_⟩
+      intro v hv; simp at hv ⊢; intro heq; rw [← heq]
+      rw [List.mem_reverse] at hv
+      exact absurd (dTildeSpinePath_mem_val k 2 i.val (by omega) hi_s.2 (by omega) v hv).1 (by omega)
+    · simp [hpath_def, dTildeSpinePath_length]; omega
+    · intro t ht
+      rw [hpath_def] at ht ⊢
+      have hspine_len := dTildeSpinePath_length k 2 i.val (by omega) hi_s.2 (by omega)
+      have hrev_len : spine.reverse.length = spine.length := List.length_reverse _
+      by_cases ht' : t + 1 < spine.reverse.length
+      · -- Both in reversed spine
+        show dTildeAdj k (spine.reverse ++ [j])[t] (spine.reverse ++ [j])[t + 1] = 1
+        rw [List.getElem_append_left (by omega), List.getElem_append_left ht']
+        -- spine.reverse[t] = spine[spine.length - 1 - t]
+        simp only [List.getElem_reverse]
+        rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+        -- Elements: ⟨2 + (len - 1 - t), _⟩ and ⟨2 + (len - 1 - (t + 1)), _⟩
+        -- = ⟨2 + len - 1 - t, _⟩ and ⟨2 + len - 2 - t, _⟩
+        -- This is adj (a+1) a where a = 2 + len - 2 - t
+        exact spine_adj' (2 + (spine.length - 1 - (t + 1))) (by omega) (by omega)
+      · -- t is last of reversed spine, t+1 is j
+        have ht'eq : t + 1 = spine.reverse.length := by omega
+        show dTildeAdj k (spine.reverse ++ [j])[t] (spine.reverse ++ [j])[t + 1] = 1
+        rw [List.getElem_append_left (by omega)]
+        rw [show (spine.reverse ++ [j])[t + 1] = j from by
+          rw [List.getElem_append_right (by omega)]; simp [ht'eq]]
+        simp only [List.getElem_reverse]
+        rw [dTildeSpinePath_getElem]; simp [hspine_len, hrev_len] at ht'eq
+        have : spine.length - 1 - t = 0 := by omega
+        simp [this]; exact left_adj' j hj_l
+  · -- Both spine: path along spine
+    -- Non-adjacency means |i.val - j.val| ≥ 2
+    have hdist : (i.val < j.val ∧ i.val + 1 < j.val) ∨ (j.val < i.val ∧ j.val + 1 < i.val) := by
+      rcases show i.val < j.val ∨ j.val < i.val from by
+        rcases Nat.lt_or_ge i.val j.val with h | h
+        · left; exact h
+        · right; exact lt_of_le_of_ne h (by intro h; exact hij (by ext; exact h)) with h | h
+      · left; refine ⟨h, ?_⟩; by_contra hc; push_neg at hc
+        have : i.val + 1 = j.val := by omega
+        exact h_not_adj (Or.inl (Or.inr (Or.inr (Or.inl ⟨hi_s.1, this, by omega⟩))))
+      · right; refine ⟨h, ?_⟩; by_contra hc; push_neg at hc
+        have : j.val + 1 = i.val := by omega
+        exact h_not_adj (Or.inr (Or.inr (Or.inl ⟨hj_s.1, this, by omega⟩)))
+    rcases hdist with ⟨hij_lt, hij_gap⟩ | ⟨hji_lt, hji_gap⟩
+    · -- i.val < j.val, ascending
+      set spine := dTildeSpinePath k i.val j.val hi_s.1 hj_s.2 (by omega) with hspine_def
+      refine ⟨spine, ?_, ?_, ?_, ?_, ?_⟩
+      · convert dTildeSpinePath_head k i.val j.val hi_s.1 hj_s.2 (by omega) using 2; ext; simp
+      · convert dTildeSpinePath_last k i.val j.val hi_s.1 hj_s.2 (by omega) using 2; ext; simp
+      · exact dTildeSpinePath_nodup k i.val j.val hi_s.1 hj_s.2 (by omega)
+      · rw [dTildeSpinePath_length]; omega
+      · exact dTildeSpinePath_edges k i.val j.val hi_s.1 hj_s.2 (by omega)
+    · -- j.val < i.val, descending: use reversed ascending spine
+      set spine := dTildeSpinePath k j.val i.val hj_s.1 hi_s.2 (by omega) with hspine_def
+      refine ⟨spine.reverse, ?_, ?_, ?_, ?_, ?_⟩
+      · rw [List.head?_reverse]
+        convert dTildeSpinePath_last k j.val i.val hj_s.1 hi_s.2 (by omega) using 2; ext; simp
+      · rw [List.getLast?_reverse]
+        convert dTildeSpinePath_head k j.val i.val hj_s.1 hi_s.2 (by omega) using 2; ext; simp
+      · exact (dTildeSpinePath_nodup k j.val i.val hj_s.1 hi_s.2 (by omega)).reverse
+      · rw [List.length_reverse, dTildeSpinePath_length]; omega
+      · intro t ht
+        rw [List.length_reverse] at ht
+        show dTildeAdj k spine.reverse[t] spine.reverse[t + 1] = 1
+        simp only [List.getElem_reverse]
+        rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+        exact spine_adj' (j.val + (spine.length - 1 - (t + 1))) (by rw [dTildeSpinePath_length]; omega) (by rw [dTildeSpinePath_length]; omega)
+  · -- Spine i + right leaf j: need i.val ≤ k + 2
+    have hik2 : i.val ≤ k + 2 := by
+      by_contra h; push_neg at h; have : i.val = k + 3 := by omega
+      rw [show i = (⟨k + 3, by omega⟩ : Fin (k + 6)) from by ext; omega] at h_nonadj
+      exact absurd (right_adj' j hj_r) (by rw [show dTildeAdj k ⟨k + 3, _⟩ j = dTildeAdj k i j from by
+        congr 1; ext; omega]; rw [h_nonadj]; exact one_ne_zero)
+    -- Path = spine(i.val, k+3) ++ [j]
+    set spine := dTildeSpinePath k i.val (k + 3) hi_s.1 (by omega) (by omega) with hspine_def
+    refine ⟨spine ++ [j], ?_, ?_, ?_, ?_, ?_⟩
+    · rw [List.head?_append (by rw [dTildeSpinePath_length]; omega)]
+      convert dTildeSpinePath_head k i.val (k+3) hi_s.1 (by omega) (by omega) using 2; ext; simp
+    · simp [List.getLast?_append_of_ne_nil _ (by simp)]
+    · rw [List.nodup_append]
+      refine ⟨dTildeSpinePath_nodup k i.val (k+3) hi_s.1 (by omega) (by omega),
+        List.nodup_singleton j, ?_⟩
+      intro v hv; simp at hv ⊢; intro heq; rw [← heq]
+      exact absurd (dTildeSpinePath_mem_val k i.val (k+3) hi_s.1 (by omega) (by omega) v hv).2 (by omega)
+    · simp [dTildeSpinePath_length]; omega
+    · intro t ht
+      have hspine_len := dTildeSpinePath_length k i.val (k+3) hi_s.1 (by omega) (by omega)
+      by_cases ht' : t + 1 < spine.length
+      · rw [List.getElem_append_left (by omega), List.getElem_append_left ht']
+        exact dTildeSpinePath_edges k i.val (k+3) hi_s.1 (by omega) (by omega) t (by omega)
+      · have ht'eq : t + 1 = spine.length := by omega
+        rw [List.getElem_append_left (by omega)]
+        rw [show (spine ++ [j])[t + 1] = j from by
+          rw [List.getElem_append_right (by omega)]; simp [ht'eq]]
+        rw [dTildeSpinePath_getElem]; simp [hspine_len] at ht'eq
+        have : t = k + 3 - i.val := by omega
+        subst this; simp; exact right_adj' j hj_r
+  · -- Right leaf + left leaf: path = [i] ++ spine(k+3, 2).reverse ++ [j]
+    -- = [i] ++ reverse(spine(2, k+3)) ++ [j]
+    set spine := dTildeSpinePath k 2 (k + 3) (by omega) (by omega) (by omega) with hspine_def
+    set path := [i] ++ spine.reverse ++ [j] with hpath_def
+    refine ⟨path, ?_, ?_, ?_, ?_, ?_⟩
+    · simp [hpath_def]
+    · simp [hpath_def, List.getLast?_append_of_ne_nil _ (by simp)]
+    · rw [hpath_def]
+      simp only [List.nodup_cons, List.nodup_append, List.nodup_singleton]
+      refine ⟨?_, (dTildeSpinePath_nodup k 2 (k+3) (by omega) (by omega) (by omega)).reverse,
+        ?_, ?_⟩
+      · intro hm; rw [List.mem_append] at hm; rcases hm with hm | hm
+        · rw [List.mem_reverse] at hm
+          exact absurd (dTildeSpinePath_mem_val k 2 (k+3) (by omega) (by omega) (by omega) i hm).2 (by omega)
+        · simp at hm; exact hij (by rw [← hm])
+      · intro v hv; simp at hv ⊢; intro heq; rw [← heq]
+        rw [List.mem_reverse] at hv
+        exact absurd (dTildeSpinePath_mem_val k 2 (k+3) (by omega) (by omega) (by omega) v hv).1 (by omega)
+      · simp; intro v hv heq
+        rw [← heq, List.mem_reverse] at hv
+        exact absurd (dTildeSpinePath_mem_val k 2 (k+3) (by omega) (by omega) (by omega) v hv).2 (by omega)
+    · simp [hpath_def, dTildeSpinePath_length, List.length_reverse]; omega
+    · intro t ht
+      rw [hpath_def] at ht ⊢
+      have hspine_len := dTildeSpinePath_length k 2 (k+3) (by omega) (by omega) (by omega)
+      have hrev_len : spine.reverse.length = spine.length := List.length_reverse _
+      show dTildeAdj k (([i] ++ spine.reverse ++ [j]).get ⟨t, by omega⟩)
+        (([i] ++ spine.reverse ++ [j]).get ⟨t + 1, by omega⟩) = 1
+      match t with
+      | 0 =>
+        simp; show dTildeAdj k i (spine.reverse ++ [j])[0] = 1
+        rw [List.getElem_append_left (by rw [hrev_len]; rw [hspine_len]; omega)]
+        simp only [List.getElem_reverse]; rw [dTildeSpinePath_getElem]
+        simp [hspine_len]; exact right_adj i hi_r
+      | t' + 1 =>
+        simp
+        show dTildeAdj k (spine.reverse ++ [j])[t'] (spine.reverse ++ [j])[t' + 1] = 1
+        simp at ht
+        by_cases ht'' : t' + 1 < spine.reverse.length
+        · rw [List.getElem_append_left (by omega), List.getElem_append_left ht'']
+          simp only [List.getElem_reverse]; rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+          exact spine_adj (2 + (spine.length - 1 - (t' + 1))) (by omega) (by rw [hspine_len]; omega)
+        · have ht'eq : t' + 1 = spine.reverse.length := by omega
+          rw [List.getElem_append_left (by omega)]
+          rw [show (spine.reverse ++ [j])[t' + 1] = j from by
+            rw [List.getElem_append_right (by omega)]; simp [ht'eq]]
+          simp only [List.getElem_reverse]; rw [dTildeSpinePath_getElem]
+          simp [hspine_len, hrev_len] at ht'eq
+          have : spine.length - 1 - t' = 0 := by omega
+          simp [this]; exact left_adj j hj_l
+  · -- Right leaf + spine j: need j.val ≤ k + 2
+    have hjk2 : j.val ≤ k + 2 := by
+      by_contra h; push_neg at h; have : j.val = k + 3 := by omega
+      rw [show j = (⟨k + 3, by omega⟩ : Fin (k + 6)) from by ext; omega] at h_nonadj
+      exact absurd (right_adj i hi_r) (by rw [h_nonadj]; exact one_ne_zero)
+    -- Path = [i] ++ reverse(spine(j.val, k+3))
+    set spine := dTildeSpinePath k j.val (k + 3) hj_s.1 (by omega) (by omega) with hspine_def
+    set path := i :: spine.reverse with hpath_def
+    refine ⟨path, ?_, ?_, ?_, ?_, ?_⟩
+    · simp [hpath_def]
+    · rw [hpath_def, show (i :: spine.reverse).getLast? = spine.reverse.getLast? from by
+        cases spine.reverse with | nil => simp [List.length_reverse, dTildeSpinePath_length] at * | cons a t => rfl]
+      rw [List.getLast?_reverse]
+      convert dTildeSpinePath_head k j.val (k+3) hj_s.1 (by omega) (by omega) using 2; ext; simp
+    · rw [hpath_def, List.nodup_cons]
+      exact ⟨fun hm => by rw [List.mem_reverse] at hm
+        exact absurd (dTildeSpinePath_mem_val k j.val (k+3) hj_s.1 (by omega) (by omega) i hm).2 (by omega),
+        (dTildeSpinePath_nodup k j.val (k+3) hj_s.1 (by omega) (by omega)).reverse⟩
+    · simp [hpath_def, dTildeSpinePath_length, List.length_reverse]; omega
+    · intro t ht
+      rw [hpath_def] at ht ⊢
+      have hspine_len := dTildeSpinePath_length k j.val (k+3) hj_s.1 (by omega) (by omega)
+      match t with
+      | 0 =>
+        show dTildeAdj k i spine.reverse[0] = 1
+        simp only [List.getElem_reverse]; rw [dTildeSpinePath_getElem]
+        simp [hspine_len]; exact right_adj i hi_r
+      | t' + 1 =>
+        show dTildeAdj k spine.reverse[t'] spine.reverse[t' + 1] = 1
+        simp only [List.getElem_reverse]; rw [dTildeSpinePath_getElem, dTildeSpinePath_getElem]
+        exact spine_adj (j.val + (spine.length - 1 - (t' + 1))) (by omega) (by
+          rw [hspine_len]; simp at ht; omega)
+  · -- Both right leaves: path = [i, k+3, j]
+    refine ⟨[i, ⟨k + 3, by omega⟩, j], by simp, by simp, ?_, by simp, ?_⟩
+    · simp only [List.nodup_cons, List.mem_cons, List.mem_singleton, List.not_mem_nil, or_false,
+        List.nodup_nil, and_self, and_true]
+      exact ⟨by intro h; have := congr_arg Fin.val h; simp at this; omega,
+        by intro h; rcases h with h | h <;> [exact hij h; have := congr_arg Fin.val h; simp at this; omega]⟩
+    · intro t ht; simp at ht
+      match t with
+      | 0 => simp; exact right_adj i hi_r
+      | 1 => simp; exact right_adj' j hj_r
+  -/
 
 -- Ẽ₆ embedding requires 49-pair adjacency verification via fin_cases + linarith
 set_option maxHeartbeats 6400000 in
@@ -8102,10 +8965,21 @@ private theorem non_adjacent_branches_infinite_type {n : ℕ}
         -- Get walk from hconn, trim to Nodup
         obtain ⟨walk, hwh, hwl, hwe⟩ := hconn v₀ w
         obtain ⟨spath, hsh, hsl, hsd, hslen, hse⟩ :=
-          walk_to_nodup_path adj hsymm h_acyclic walk hwh hwl (by sorry) hwe
+          walk_to_nodup_path adj walk hwh hwl hne.symm hwe
         -- Nodup path length ≥ 3 since v₀ and w are non-adjacent
         refine ⟨spath, hsh, hsl, hsd, ?_, hse⟩
-        sorry -- length ≥ 3 from non-adjacency of v₀ and w
+        by_contra hlt; push_neg at hlt
+        have hlen2 : spath.length = 2 := by omega
+        have h0 : spath.get ⟨0, by omega⟩ = v₀ := by
+          cases spath with
+          | nil => simp at hslen
+          | cons a _ => simpa using hsh
+        have h1 : spath.get ⟨1, by omega⟩ = w := by
+          match spath, hlen2, hsl with
+          | [_, b], _, hsl => simpa using hsl
+        have := hse 0 (by omega)
+        rw [h0, h1] at this
+        exact h_adj_exists v₀ w this hv₀ hw
       -- chain[0] = v₀, chain[last] = w
       have hchain_ne : chain ≠ [] := List.ne_nil_of_length_pos (by omega)
       have hchain_first : chain.get ⟨0, by omega⟩ = v₀ := by
