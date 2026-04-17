@@ -2572,7 +2572,7 @@ noncomputable def etilde7Rep (m : ℕ) :
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
-theorem etilde7Rep_isIndecomposable (m : ℕ) :
+theorem etilde7Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 8)
       etilde7Quiver (etilde7Rep m) := by
   letI := etilde7Quiver
@@ -2758,14 +2758,36 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) :
     -- → all arrows injective → all vertices ⊥
     suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((etilde7Rep m).obj v)),
         (∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b) →
+        (∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
           ∀ x ∈ W' a, (etilde7Rep m).mapLinear e x ∈ W' b) →
         (∀ v, IsCompl (W v) (W' v)) →
         W (4 : Fin 8) = W (7 : Fin 8) →
         W (4 : Fin 8) = ⊥ → ∀ v, W v = ⊥ by
       rcases hresult with h | h
-      · left; exact propagate W₁ W₂ hW₂_inv hcompl heq47 h
-      · right; exact propagate W₂ W₁ hW₁_inv (fun v => (hcompl v).symm) heq47' h
-    intro W W' hW'_inv hc h47 hbot v
+      · left; exact propagate W₁ W₂ hW₁_inv hW₂_inv hcompl heq47 h
+      · right; exact propagate W₂ W₁ hW₂_inv hW₁_inv
+          (fun v => (hcompl v).symm) heq47' h
+    intro W W' hW_inv hW'_inv hc h47 hbot v
+    -- Strategy: show W(0) = ⊥ using W invariance, the complement condition,
+    -- and the nilpotent coupling in arm 1 (requires hm : 1 ≤ m).
+    -- Then propagate to all vertices via injectivity of the representation maps.
+    -- KEY SORRY: Show W(0) = ⊥.
+    -- Proof sketch: W'(4) = ⊤ and W'(7) = ⊤ (from W(4) = W(7) = ⊥).
+    -- Pushing through arm chains gives {(x,0,0,0)} ⊂ W'(0).
+    -- For m ≥ 1, the arm 1 map (p,q) ↦ (p+q, p, 0, Nq) with nontrivial N
+    -- forces W'(0) to span blocks A, B, and D: any element of W(1) mapping
+    -- to W(0) must satisfy p+q ∈ block_A_of_W(0) = 0 (since block A ⊂ W'(0)),
+    -- which constrains W(1) to {(p,-p)} and forces W'(1) large enough that
+    -- its image fills the remaining blocks. For m = 0 (N = 0), this fails:
+    -- the representation is genuinely decomposable (see issue #2374).
+    have hbot0 : W (0 : Fin 8) = ⊥ := by sorry
+    -- Propagate from W(0) = ⊥ to all vertices via injectivity of maps.
+    -- Each representation map is a block embedding (hence injective).
+    -- If W(target) = ⊥ and f : V(source) → V(target) is injective with
+    -- f(W(source)) ⊂ W(target) = ⊥, then W(source) = ⊥.
+    -- Chain: W(0)=⊥ → W(1)=⊥ (1→0), W(2)=⊥ (2→0), W(5)=⊥ (5→0)
+    --        W(2)=⊥ → W(3)=⊥ (3→2), W(5)=⊥ → W(6)=⊥ (6→5)
     sorry
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
@@ -2782,12 +2804,16 @@ theorem etilde7_not_finite_type :
   have hfin := @hft ℂ _ inferInstance etilde7Quiver
     (fun a b => etilde7Quiver_subsingleton a b)
     etilde7Orientation_isOrientationOf
-  have hmem : ∀ m : ℕ, (fun v : Fin 8 => etilde7Dim m v) ∈
+  -- We range over `m + 1` (not `m`) because `etilde7Rep_isIndecomposable`
+  -- requires `1 ≤ m`: the `m = 0` case is provably decomposable.
+  have hmem : ∀ m : ℕ, (fun v : Fin 8 => etilde7Dim (m + 1) v) ∈
       {d : Fin 8 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 8),
         V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
     intro m
-    exact ⟨etilde7Rep m, etilde7Rep_isIndecomposable m, etilde7Rep_dimVec m⟩
-  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 8 => etilde7Dim m v) := by
+    exact ⟨etilde7Rep (m + 1),
+      etilde7Rep_isIndecomposable (m + 1) (Nat.succ_le_succ m.zero_le),
+      etilde7Rep_dimVec (m + 1)⟩
+  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 8 => etilde7Dim (m + 1) v) := by
     intro m₁ m₂ h
     have h0 := congr_fun h ⟨4, by omega⟩
     simp only [etilde7Dim] at h0
@@ -2975,7 +3001,7 @@ noncomputable def t125Rep (m : ℕ) :
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
-theorem t125Rep_isIndecomposable (m : ℕ) :
+theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 9)
       t125Quiver (t125Rep m) := by
   sorry
@@ -2994,12 +3020,16 @@ theorem t125_not_finite_type :
   have hfin := @hft ℂ _ inferInstance t125Quiver
     (fun a b => t125Quiver_subsingleton a b)
     t125Orientation_isOrientationOf
-  have hmem : ∀ m : ℕ, (fun v : Fin 9 => t125Dim m v) ∈
+  -- We range over `m + 1` (not `m`) because `t125Rep_isIndecomposable`
+  -- requires `1 ≤ m`: the `m = 0` case is provably decomposable.
+  have hmem : ∀ m : ℕ, (fun v : Fin 9 => t125Dim (m + 1) v) ∈
       {d : Fin 9 → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin 9),
         V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
     intro m
-    exact ⟨t125Rep m, t125Rep_isIndecomposable m, t125Rep_dimVec m⟩
-  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 9 => t125Dim m v) := by
+    exact ⟨t125Rep (m + 1),
+      t125Rep_isIndecomposable (m + 1) (Nat.succ_le_succ m.zero_le),
+      t125Rep_dimVec (m + 1)⟩
+  have hinj : Function.Injective (fun m : ℕ => fun v : Fin 9 => t125Dim (m + 1) v) := by
     intro m₁ m₂ h
     have h0 := congr_fun h ⟨8, by omega⟩
     simp only [t125Dim] at h0
