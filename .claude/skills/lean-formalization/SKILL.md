@@ -677,6 +677,24 @@ Reference implementation: `cycleRep_isIndecomposable` (lines 304-372).
 **Critical:** The m ≥ 1 hypothesis is essential. For m = 0, the nilpotent is zero and
 the representations are genuinely decomposable (issues #2342, #2374, #2376).
 
+### AddCommGroup Diamond When Deriving Module.Free
+
+`QuiverRepresentation` provides `AddCommMonoid` but `Module.Free.of_divisionRing` needs
+`AddCommGroup`. After upgrading via `addCommGroupOfRing`, instance resolution fails because
+the `Module k M` instance was registered with the original `AddCommMonoid`. Use explicit `@`:
+
+```lean
+-- BAD: instance resolution can't match Module with new AddCommGroup
+letI : AddCommGroup M := addCommGroupOfRing (k := k)
+exact Module.Free.of_divisionRing  -- fails
+
+-- GOOD: explicit @ bypasses the mismatch
+exact @Module.Free.of_divisionRing k M _ (addCommGroupOfRing (k := k)) _
+
+-- Same for Module.finrank_zero_iff:
+exact @Module.finrank_zero_iff k M _ (addCommGroupOfRing (k := k)) _ _ |>.mp hfr
+```
+
 ### Dimension Vector Pattern
 
 Track dimension vectors `(dim V, dim V₁, ..., dim Vₙ)` as the primary classification tool. Indecomposability constraints on dimension vectors are often finite and enumerable.
