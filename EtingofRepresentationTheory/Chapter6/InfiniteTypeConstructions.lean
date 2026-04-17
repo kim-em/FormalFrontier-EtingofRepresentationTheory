@@ -3267,9 +3267,71 @@ theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     -- The proofs show: if f(x) = f(y), reading the output blocks recovers x = y.
     have inj_10 : Function.Injective ((t125Rep m).mapLinear hom10) := by
       show Function.Injective (t125Arm1Embed m)
-      -- t125Arm1Embed: (p,q,r) ↦ (p+q+r, p+q, p, 0, 0, Nr) is injective:
-      -- Block C recovers p, cancel to get q from block B, cancel to get r from block A.
-      sorry
+      intro x y h
+      -- Extract block-level equalities from h
+      -- Block C: output[2(m+1)+j] = input[j] (recovers p)
+      have hC : ∀ j (hj : j < m + 1), x ⟨j, by omega⟩ = y ⟨j, by omega⟩ := by
+        intro j hj
+        have h1 := congr_fun h ⟨2 * (m + 1) + j, by omega⟩
+        simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+          dif_neg (show ¬(2 * (m + 1) + j < m + 1) by omega),
+          dif_neg (show ¬(2 * (m + 1) + j < 2 * (m + 1)) by omega),
+          dif_pos (show 2 * (m + 1) + j < 3 * (m + 1) by omega)] at h1
+        convert h1 using 1 <;>
+          exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
+      -- Block B: output[(m+1)+j] = input[j] + input[(m+1)+j] (gives p+q)
+      have hB : ∀ j (hj : j < m + 1),
+          x ⟨j, by omega⟩ + x ⟨m + 1 + j, by omega⟩ =
+          y ⟨j, by omega⟩ + y ⟨m + 1 + j, by omega⟩ := by
+        intro j hj
+        have h1 := congr_fun h ⟨m + 1 + j, by omega⟩
+        simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+          dif_neg (show ¬(m + 1 + j < m + 1) by omega),
+          dif_pos (show m + 1 + j < 2 * (m + 1) by omega)] at h1
+        convert h1 using 2 <;>
+          exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
+      -- Block A: output[j] = input[j] + input[(m+1)+j] + input[2(m+1)+j] (gives p+q+r)
+      have hA : ∀ j (hj : j < m + 1),
+          x ⟨j, by omega⟩ + x ⟨m + 1 + j, by omega⟩ + x ⟨2 * (m + 1) + j, by omega⟩ =
+          y ⟨j, by omega⟩ + y ⟨m + 1 + j, by omega⟩ + y ⟨2 * (m + 1) + j, by omega⟩ := by
+        intro j hj
+        have h1 := congr_fun h ⟨j, by omega⟩
+        simp only [t125Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+          dif_pos (show j < m + 1 from hj)] at h1
+        exact h1
+      -- Recover each component by subtraction
+      ext ⟨j, hj⟩
+      by_cases hj1 : j < m + 1
+      · exact hC j hj1
+      · by_cases hj2 : j < 2 * (m + 1)
+        · -- q block: from hB - hC
+          have hp := hC (j - (m + 1)) (by omega)
+          have hpq := hB (j - (m + 1)) (by omega)
+          -- hpq : x ⟨j-(m+1), _⟩ + x ⟨m+1+(j-(m+1)), _⟩ = ...
+          -- rewrite m+1+(j-(m+1)) to j in hpq
+          have hpq' : x ⟨j - (m + 1), by omega⟩ + x ⟨j, hj⟩ =
+              y ⟨j - (m + 1), by omega⟩ + y ⟨j, hj⟩ := by
+            convert hpq using 2 <;>
+              exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
+          linear_combination hpq' - hp
+        · -- r block: from hA - hB
+          have hp := hC (j - 2 * (m + 1)) (by omega)
+          have hpq := hB (j - 2 * (m + 1)) (by omega)
+          have hpqr := hA (j - 2 * (m + 1)) (by omega)
+          -- Rewrite indices to match goal
+          have hpq' : x ⟨j - 2 * (m + 1), by omega⟩ + x ⟨j - (m + 1), by omega⟩ =
+              y ⟨j - 2 * (m + 1), by omega⟩ + y ⟨j - (m + 1), by omega⟩ := by
+            convert hpq using 2 <;>
+              exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
+          have e1 : (⟨m + 1 + (j - 2 * (m + 1)), by omega⟩ : Fin (3 * (m + 1))) =
+              ⟨j - (m + 1), by omega⟩ :=
+            Fin.ext (by simp only [Fin.val_mk]; omega)
+          have e2 : (⟨2 * (m + 1) + (j - 2 * (m + 1)), by omega⟩ : Fin (3 * (m + 1))) =
+              ⟨j, hj⟩ :=
+            Fin.ext (by simp only [Fin.val_mk]; omega)
+          simp only [e1, e2] at hpqr
+          have hpqr' := hpqr
+          linear_combination hpqr' - hpq'
     have inj_32 : Function.Injective ((t125Rep m).mapLinear hom32) := by
       show Function.Injective (embedFirstBlocks m 2 4 (by omega))
       intro x y h; ext ⟨j, hj⟩
@@ -3308,8 +3370,22 @@ theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
       exact this
     have inj_40 : Function.Injective ((t125Rep m).mapLinear hom40) := by
       show Function.Injective (embedSkipBlockB m 5 6 (by omega) (by omega))
-      -- Block A of output = block A of input; blocks C..F of output = blocks B..E of input.
-      sorry
+      intro x y h
+      ext ⟨j, hj⟩
+      by_cases hj1 : j < m + 1
+      · -- Block A: output[j] = input[j]
+        have h1 := congr_fun h ⟨j, by omega⟩
+        simp only [embedSkipBlockB, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+          dif_pos (show j < m + 1 from hj1)] at h1
+        exact h1
+      · -- Blocks B..E: output[j + (m+1)] = input[j] (skip block B)
+        have h1 := congr_fun h ⟨j + (m + 1), by omega⟩
+        simp only [embedSkipBlockB, LinearMap.coe_mk, AddHom.coe_mk, Fin.val_mk,
+          dif_neg (show ¬(j + (m + 1) < m + 1) by omega),
+          dif_neg (show ¬(j + (m + 1) < 2 * (m + 1)) by omega),
+          dif_pos (show j + (m + 1) < (5 + 1) * (m + 1) by ring_nf; omega)] at h1
+        convert h1 using 1 <;>
+          exact congrArg _ (Fin.ext (by try simp only [Fin.val_mk]; omega))
     -- Chain: W(0)=⊥ → W(1)=⊥ (1→0), W(2)=⊥ (2→0), W(4)=⊥ (4→0)
     --        W(2)=⊥ → W(3)=⊥ (3→2), W(4)=⊥ → W(5)=⊥ (5→4)
     --        W(5)=⊥ → W(6)=⊥ (6→5), W(6)=⊥ → W(7)=⊥ (7→6)
