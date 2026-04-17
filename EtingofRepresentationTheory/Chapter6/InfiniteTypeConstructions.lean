@@ -4737,7 +4737,38 @@ private lemma deg3_three_neighbors {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
           rcases hx with rfl | rfl | rfl | rfl <;> assumption⟩
   omega
 
-set_option maxHeartbeats 3200000 in
+-- Helper: a sum of 9 nonneg integer terms = 0 implies each = 0
+private lemma e7_arms_zero (Xl A₂ B₂ C₂ A₃ B₃ : ℤ)
+    (h : Xl ^ 2 + Xl ^ 2 + A₂ ^ 2 + (A₂ - B₂) ^ 2 +
+         (B₂ - C₂) ^ 2 + C₂ ^ 2 + A₃ ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2 = 0) :
+    Xl = 0 ∧ A₂ = 0 ∧ B₂ = 0 ∧ C₂ = 0 ∧ A₃ = 0 ∧ B₃ = 0 := by
+  have hXl : Xl = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  have hA₂ : A₂ = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  have hC₂ : C₂ = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  have hB₃ : B₃ = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  have hB₂ : B₂ = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  have hA₃ : A₃ = 0 := by
+    nlinarith [sq_nonneg Xl, sq_nonneg A₂, sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg A₃,
+               sq_nonneg (A₃ - B₃), sq_nonneg B₃]
+  exact ⟨hXl, hA₂, hB₂, hC₂, hA₃, hB₃⟩
+
+set_option maxHeartbeats 6400000 in
 /-- E₇ tree T(1,3,2) has positive definite Cartan form.
     Given 7 named vertices forming the E₇ tree in a connected acyclic graph,
     the Cartan quadratic form is positive definite. -/
@@ -4964,8 +4995,208 @@ private lemma e7_tree_posdef {n : ℕ}
         _ ≤ Finset.univ.card := Finset.card_le_univ _
         _ = n := Fintype.card_fin n
     omega
-  sorry
+  -- Step 5: Prove QF positive definite using sum-of-squares decomposition
+  subst hn7
+  intro x hx
+  -- Non-edge facts: for each non-adjacent pair, adj u w = 0
+  -- v₀ non-neighbors: b₂, c₂, b₃ (v₀'s only neighbors are L, a₂, a₃)
+  have hv₀b₂ : adj v₀ b₂ = 0 := by
+    rcases h01 v₀ b₂ with h | h; exact h
+    rcases hv₀_only b₂ h with rfl | rfl | rfl
+    exacts [absurd rfl hL_ne_b₂, absurd rfl ha₂_ne_b₂, absurd rfl hb₂_ne_a₃.symm]
+  have hv₀c₂ : adj v₀ c₂ = 0 := by
+    rcases h01 v₀ c₂ with h | h; exact h
+    rcases hv₀_only c₂ h with rfl | rfl | rfl
+    exacts [absurd rfl hL_ne_c₂, absurd rfl hc₂_ne_a₂.symm, absurd rfl hc₂_ne_a₃.symm]
+  have hv₀b₃ : adj v₀ b₃ = 0 := by
+    rcases h01 v₀ b₃ with h | h; exact h
+    rcases hv₀_only b₃ h with rfl | rfl | rfl
+    exacts [absurd rfl hL_ne_b₃, absurd rfl hb₃_ne_a₂.symm, absurd rfl hb₃_ne_a₃.symm]
+  -- L non-neighbors: a₂, b₂, c₂, a₃, b₃ (L's only neighbor is v₀)
+  have hLa₂ : adj L a₂ = 0 := by
+    rcases h01 L a₂ with h | h; exact h; exact absurd (hL_only a₂ h) hv₀_ne_a₂.symm
+  have hLb₂ : adj L b₂ = 0 := by
+    rcases h01 L b₂ with h | h; exact h; exact absurd (hL_only b₂ h) hv₀_ne_b₂.symm
+  have hLc₂ : adj L c₂ = 0 := by
+    rcases h01 L c₂ with h | h; exact h; exact absurd (hL_only c₂ h) hv₀_ne_c₂.symm
+  have hLa₃ : adj L a₃ = 0 := by
+    rcases h01 L a₃ with h | h; exact h; exact absurd (hL_only a₃ h) hv₀_ne_a₃.symm
+  have hLb₃ : adj L b₃ = 0 := by
+    rcases h01 L b₃ with h | h; exact h; exact absurd (hL_only b₃ h) hv₀_ne_b₃.symm
+  -- a₂ non-neighbors: c₂, a₃, b₃ (a₂'s neighbors are v₀ and b₂)
+  have ha₂c₂ : adj a₂ c₂ = 0 := by
+    rcases h01 a₂ c₂ with h | h; exact h
+    rcases ha₂_only c₂ h with rfl | rfl
+    exacts [absurd rfl hv₀_ne_c₂, absurd rfl hb₂_ne_c₂]
+  have ha₂a₃ : adj a₂ a₃ = 0 := by
+    rcases h01 a₂ a₃ with h | h; exact h
+    rcases ha₂_only a₃ h with rfl | rfl
+    exacts [absurd rfl hv₀_ne_a₃, absurd rfl hb₂_ne_a₃]
+  have ha₂b₃ : adj a₂ b₃ = 0 := by
+    rcases h01 a₂ b₃ with h | h; exact h
+    rcases ha₂_only b₃ h with rfl | rfl
+    exacts [absurd rfl hv₀_ne_b₃, absurd rfl hb₃_ne_b₂.symm]
+  -- b₂ non-neighbors: a₃, b₃ (b₂'s neighbors are a₂ and c₂)
+  have hb₂a₃ : adj b₂ a₃ = 0 := by
+    rcases h01 b₂ a₃ with h | h; exact h
+    rcases hb₂_only a₃ h with rfl | rfl
+    exacts [absurd rfl ha₂_ne_a₃, absurd rfl hc₂_ne_a₃]
+  have hb₂b₃ : adj b₂ b₃ = 0 := by
+    rcases h01 b₂ b₃ with h | h; exact h
+    rcases hb₂_only b₃ h with rfl | rfl
+    exacts [absurd rfl hb₃_ne_a₂.symm, absurd rfl hc₂_ne_b₃]
+  -- c₂ non-neighbors: a₃, b₃ (c₂'s only neighbor is b₂)
+  have hc₂a₃ : adj c₂ a₃ = 0 := by
+    rcases h01 c₂ a₃ with h | h; exact h; exact absurd (hc₂_only a₃ h) hb₂_ne_a₃.symm
+  have hc₂b₃ : adj c₂ b₃ = 0 := by
+    rcases h01 c₂ b₃ with h | h; exact h; exact absurd (hc₂_only b₃ h) hb₃_ne_b₂
+  -- a₃ non-neighbor: (all handled by symmetry below)
+  -- Symmetric adj facts (edge reverses and non-edge reverses)
+  have hLv₀ : adj L v₀ = 1 := (adj_comm L v₀).trans hL
+  have ha₂v₀ : adj a₂ v₀ = 1 := (adj_comm a₂ v₀).trans ha₂
+  have ha₃v₀ : adj a₃ v₀ = 1 := (adj_comm a₃ v₀).trans ha₃
+  have hb₂a₂' : adj b₂ a₂ = 1 := (adj_comm b₂ a₂).trans hb₂
+  have hc₂b₂' : adj c₂ b₂ = 1 := (adj_comm c₂ b₂).trans hc₂
+  have hb₃a₃ : adj b₃ a₃ = 1 := (adj_comm b₃ a₃).trans hb₃
+  -- Symmetric non-edges
+  have ha₂L : adj a₂ L = 0 := (adj_comm a₂ L).trans hLa₂
+  have hb₂v₀ : adj b₂ v₀ = 0 := (adj_comm b₂ v₀).trans hv₀b₂
+  have hb₂L : adj b₂ L = 0 := (adj_comm b₂ L).trans hLb₂
+  have hc₂v₀ : adj c₂ v₀ = 0 := (adj_comm c₂ v₀).trans hv₀c₂
+  have hc₂L : adj c₂ L = 0 := (adj_comm c₂ L).trans hLc₂
+  have hc₂a₂ : adj c₂ a₂ = 0 := (adj_comm c₂ a₂).trans ha₂c₂
+  have ha₃L : adj a₃ L = 0 := (adj_comm a₃ L).trans hLa₃
+  have ha₃a₂ : adj a₃ a₂ = 0 := (adj_comm a₃ a₂).trans ha₂a₃
+  have ha₃b₂ : adj a₃ b₂ = 0 := (adj_comm a₃ b₂).trans hb₂a₃
+  have ha₃c₂ : adj a₃ c₂ = 0 := (adj_comm a₃ c₂).trans hc₂a₃
+  have hb₃v₀ : adj b₃ v₀ = 0 := (adj_comm b₃ v₀).trans hv₀b₃
+  have hb₃L : adj b₃ L = 0 := (adj_comm b₃ L).trans hLb₃
+  have hb₃a₂ : adj b₃ a₂ = 0 := (adj_comm b₃ a₂).trans ha₂b₃
+  have hb₃b₂ : adj b₃ b₂ = 0 := (adj_comm b₃ b₂).trans hb₂b₃
+  have hb₃c₂ : adj b₃ c₂ = 0 := (adj_comm b₃ c₂).trans hc₂b₃
+  -- Finset.univ = {v₀, L, a₂, b₂, c₂, a₃, b₃}
+  have huniv : (Finset.univ : Finset (Fin 7)) = {v₀, L, a₂, b₂, c₂, a₃, b₃} := by
+    ext w; simp only [Finset.mem_univ, true_iff, Finset.mem_insert, Finset.mem_singleton]
+    rcases hall w with h | h | h | h | h | h | h <;> simp [h]
+  -- Membership proofs for Finset expansion
+  have hv₀_nmem : v₀ ∉ ({L, a₂, b₂, c₂, a₃, b₃} : Finset _) := by
+    simp [hv₀_ne_L, hv₀_ne_a₂, hv₀_ne_b₂, hv₀_ne_c₂, hv₀_ne_a₃, hv₀_ne_b₃]
+  have hL_nmem : L ∉ ({a₂, b₂, c₂, a₃, b₃} : Finset _) := by
+    simp [hL_ne_a₂, hL_ne_b₂, hL_ne_c₂, hL_ne_a₃, hL_ne_b₃]
+  have ha₂_nmem : a₂ ∉ ({b₂, c₂, a₃, b₃} : Finset _) := by
+    simp [ha₂_ne_b₂, hc₂_ne_a₂.symm, ha₂_ne_a₃, hb₃_ne_a₂.symm]
+  have hb₂_nmem : b₂ ∉ ({c₂, a₃, b₃} : Finset _) := by
+    simp [hb₂_ne_c₂, hb₂_ne_a₃, hb₃_ne_b₂.symm]
+  have hc₂_nmem : c₂ ∉ ({a₃, b₃} : Finset _) := by
+    simp [hc₂_ne_a₃, hc₂_ne_b₃]
+  have ha₃_nmem : a₃ ∉ ({b₃} : Finset _) := by
+    simp [ha₃_ne_b₃]
+  -- Expand QF over the 7 named vertices
+  have hQF : QF adj x =
+      x v₀ * (2 * x v₀ - x L - x a₂ - x a₃) +
+      x L * (2 * x L - x v₀) +
+      x a₂ * (2 * x a₂ - x v₀ - x b₂) +
+      x b₂ * (2 * x b₂ - x a₂ - x c₂) +
+      x c₂ * (2 * x c₂ - x b₂) +
+      x a₃ * (2 * x a₃ - x v₀ - x b₃) +
+      x b₃ * (2 * x b₃ - x a₃) := by
+    -- QF = x^T (2I - adj) x, expand double sum over named vertices
+    have h_adj_row : ∀ v : Fin 7, ∀ j : Fin 7,
+        (2 • (1 : Matrix (Fin 7) (Fin 7) ℤ) - adj) v j =
+        (if v = j then 2 else 0) - adj v j := by
+      intro v j
+      simp only [Matrix.sub_apply, Matrix.smul_apply, smul_eq_mul, Matrix.one_apply]
+      split_ifs <;> ring
+    unfold QF dotProduct
+    simp only [Matrix.mulVec, dotProduct]
+    simp_rw [h_adj_row]
+    rw [show ∑ i : Fin 7, x i * ∑ j : Fin 7, ((if i = j then 2 else 0) - adj i j) * x j =
+        ∑ i ∈ (Finset.univ : Finset (Fin 7)),
+          x i * ∑ j ∈ (Finset.univ : Finset (Fin 7)),
+            ((if i = j then (2 : ℤ) else 0) - adj i j) * x j from rfl]
+    rw [huniv]
+    simp only [Finset.sum_insert hv₀_nmem, Finset.sum_insert hL_nmem,
+               Finset.sum_insert ha₂_nmem, Finset.sum_insert hb₂_nmem,
+               Finset.sum_insert hc₂_nmem, Finset.sum_insert ha₃_nmem,
+               Finset.sum_singleton]
+    simp only [hdiag, hL, ha₂, ha₃, hb₂, hc₂, hb₃,
+               hLv₀, ha₂v₀, ha₃v₀, hb₂a₂', hc₂b₂', hb₃a₃,
+               hv₀b₂, hv₀c₂, hv₀b₃, hLa₂, hLb₂, hLc₂, hLa₃, hLb₃,
+               ha₂L, ha₂c₂, ha₂a₃, ha₂b₃,
+               hb₂v₀, hb₂L, hb₂a₃, hb₂b₃,
+               hc₂v₀, hc₂L, hc₂a₂, hc₂a₃, hc₂b₃,
+               ha₃L, ha₃a₂, ha₃b₂, ha₃c₂,
+               hb₃v₀, hb₃L, hb₃a₂, hb₃b₂, hb₃c₂,
+               ite_true, ite_false, eq_self_iff_true,
+               hv₀_ne_L, hv₀_ne_a₂, hv₀_ne_b₂, hv₀_ne_c₂, hv₀_ne_a₃, hv₀_ne_b₃,
+               hL_ne_a₂, hL_ne_b₂, hL_ne_c₂, hL_ne_a₃, hL_ne_b₃,
+               ha₂_ne_b₂, hc₂_ne_a₂, ha₂_ne_a₃, hb₃_ne_a₂,
+               hb₂_ne_c₂, hb₂_ne_a₃, hb₃_ne_b₂,
+               hc₂_ne_a₃, hc₂_ne_b₃, ha₃_ne_b₃,
+               Ne.symm hv₀_ne_L, Ne.symm hv₀_ne_a₂, Ne.symm hv₀_ne_b₂,
+               Ne.symm hv₀_ne_c₂, Ne.symm hv₀_ne_a₃, Ne.symm hv₀_ne_b₃,
+               Ne.symm hL_ne_a₂, Ne.symm hL_ne_b₂, Ne.symm hL_ne_c₂,
+               Ne.symm hL_ne_a₃, Ne.symm hL_ne_b₃,
+               Ne.symm ha₂_ne_b₂, hc₂_ne_a₂.symm, Ne.symm ha₂_ne_a₃, hb₃_ne_a₂.symm,
+               Ne.symm hb₂_ne_c₂, Ne.symm hb₂_ne_a₃, hb₃_ne_b₂.symm,
+               Ne.symm hc₂_ne_a₃, Ne.symm hc₂_ne_b₃, Ne.symm ha₃_ne_b₃]
+    ring
 
+  -- Sum-of-squares identity
+  set V := x v₀; set Xl := x L; set A₂ := x a₂; set B₂ := x b₂
+  set C₂ := x c₂; set A₃ := x a₃; set B₃ := x b₃
+  have hQF_poly : V * (2 * V - Xl - A₂ - A₃) + Xl * (2 * Xl - V) +
+      A₂ * (2 * A₂ - V - B₂) + B₂ * (2 * B₂ - A₂ - C₂) +
+      C₂ * (2 * C₂ - B₂) + A₃ * (2 * A₃ - V - B₃) + B₃ * (2 * B₃ - A₃) =
+      (V - Xl) ^ 2 + Xl ^ 2 + (V - A₂) ^ 2 + (A₂ - B₂) ^ 2 +
+      (B₂ - C₂) ^ 2 + C₂ ^ 2 + (V - A₃) ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2 - V ^ 2 := by ring
+  -- Nonzero condition
+  have hvals_ne : ¬(V = 0 ∧ Xl = 0 ∧ A₂ = 0 ∧ B₂ = 0 ∧ C₂ = 0 ∧ A₃ = 0 ∧ B₃ = 0) := by
+    intro ⟨hV, hXl, hA₂, hB₂, hC₂, hA₃, hB₃⟩
+    apply hx; ext i
+    rcases hall i with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> assumption
+  -- Arm bounds (Cauchy-Schwarz: k * sum_of_k_squares ≥ v²)
+  have hl_bound : 2 * ((V - Xl) ^ 2 + Xl ^ 2) ≥ V ^ 2 := by
+    nlinarith [sq_nonneg (V - 2 * Xl)]
+  have ha₂_bound : 4 * ((V - A₂) ^ 2 + (A₂ - B₂) ^ 2 + (B₂ - C₂) ^ 2 + C₂ ^ 2) ≥ V ^ 2 := by
+    nlinarith [sq_nonneg ((V - A₂) - (A₂ - B₂)), sq_nonneg ((V - A₂) - (B₂ - C₂)),
+               sq_nonneg ((V - A₂) - C₂), sq_nonneg ((A₂ - B₂) - (B₂ - C₂)),
+               sq_nonneg ((A₂ - B₂) - C₂), sq_nonneg ((B₂ - C₂) - C₂)]
+  have ha₃_bound : 3 * ((V - A₃) ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2) ≥ V ^ 2 := by
+    nlinarith [sq_nonneg (V - A₃ - (A₃ - B₃)), sq_nonneg ((V - A₃) - B₃),
+               sq_nonneg ((A₃ - B₃) - B₃), sq_nonneg (V - A₃ - B₃),
+               sq_nonneg (V - 2 * A₃ + B₃), sq_nonneg ((V - A₃) - 2 * (A₃ - B₃) + B₃)]
+  -- QF ≥ 0
+  have hQF_nonneg : 0 ≤ QF adj x := by
+    rw [hQF, hQF_poly]
+    nlinarith [sq_nonneg (V - Xl), sq_nonneg Xl, sq_nonneg (V - A₂), sq_nonneg (A₂ - B₂),
+               sq_nonneg (B₂ - C₂), sq_nonneg C₂, sq_nonneg (V - A₃), sq_nonneg (A₃ - B₃),
+               sq_nonneg B₃]
+  -- QF = 0 → contradiction
+  rcases eq_or_lt_of_le hQF_nonneg with heq | hlt
+  · exfalso
+    have hQF0 : QF adj x = 0 := heq.symm
+    have harms0 : (V - Xl) ^ 2 + Xl ^ 2 + (V - A₂) ^ 2 + (A₂ - B₂) ^ 2 +
+        (B₂ - C₂) ^ 2 + C₂ ^ 2 + (V - A₃) ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2 - V ^ 2 = 0 := by
+      linarith [hQF.trans hQF_poly]
+    -- V must be 0
+    have hV0 : V = 0 := by
+      set Sl := (V - Xl) ^ 2 + Xl ^ 2
+      set Sa := (V - A₂) ^ 2 + (A₂ - B₂) ^ 2 + (B₂ - C₂) ^ 2 + C₂ ^ 2
+      set Sp := (V - A₃) ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2
+      have hSlSaSp : Sl + Sa + Sp = V ^ 2 := by linarith
+      have hSl_nn : 0 ≤ Sl := by positivity
+      have hSa_nn : 0 ≤ Sa := by positivity
+      have hSp_nn : 0 ≤ Sp := by positivity
+      nlinarith [sq_nonneg V]
+    -- All values are 0
+    have harms0' : Xl ^ 2 + Xl ^ 2 + A₂ ^ 2 + (A₂ - B₂) ^ 2 +
+        (B₂ - C₂) ^ 2 + C₂ ^ 2 + A₃ ^ 2 + (A₃ - B₃) ^ 2 + B₃ ^ 2 = 0 := by
+      have := harms0; rw [hV0] at this
+      linarith [sq_nonneg (0 - Xl), sq_nonneg (0 - A₂), sq_nonneg (0 - A₃)]
+    obtain ⟨hXl0, hA₂0, hB₂0, hC₂0, hA₃0, hB₃0⟩ := e7_arms_zero Xl A₂ B₂ C₂ A₃ B₃ harms0'
+    exact hvals_ne ⟨hV0, hXl0, hA₂0, hB₂0, hC₂0, hA₃0, hB₃0⟩
+  · exact hlt
 
 
 /-- In a connected graph, if a predicate S holds for a vertex v₀ and is closed
@@ -5016,6 +5247,7 @@ private lemma e8_arm_p (v p q : ℤ) : 3 * ((v - p)^2 + (p - q)^2 + q^2) ≥ v^2
   nlinarith [sq_nonneg (v - p - (p - q)), sq_nonneg ((v - p) - q),
              sq_nonneg ((p - q) - q), sq_nonneg (v - p - q),
              sq_nonneg (v - 2*p + q), sq_nonneg ((v-p) - 2*(p-q) + q)]
+
 
 set_option maxHeartbeats 800000 in
 private lemma e8_arm_a (v a b c d : ℤ) :
