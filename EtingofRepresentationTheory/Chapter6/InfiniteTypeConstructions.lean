@@ -1985,6 +1985,233 @@ theorem d5tilde_not_finite_type :
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
 
+/-! ## Section 17a: Parameterized D̃_n infrastructure
+
+For parameter k ∈ ℕ, D̃_{k+5} has k+6 vertices:
+  - Vertices 0, 1: leaves of branch point 2
+  - Vertices 2, 3, ..., k+3: path (branch points at 2 and k+3)
+  - Vertices k+4, k+5: leaves of branch point k+3
+
+Null root δ = (1, 1, 2, 2, ..., 2, 1, 1) with k+2 interior 2's.
+
+For m ∈ ℕ, the representation has dimension vector m·δ + δ:
+  - Leaf vertices: dim m+1
+  - Interior path vertices: dim 2(m+1)
+
+This generalizes the D̃_5 (k=0) construction above. -/
+
+/-- Edge predicate for D̃_{k+5}: vertices i,j are adjacent iff they form
+    a leaf-branch edge or a consecutive path edge. -/
+private def dTildeEdgePred (k : ℕ) (i j : Fin (k + 6)) : Prop :=
+  -- Leaf edges at first branch point
+  (i.val = 0 ∧ j.val = 2) ∨ (i.val = 1 ∧ j.val = 2) ∨
+  -- Path edges: consecutive vertices on the path 2-3-..-(k+3)
+  (2 ≤ i.val ∧ i.val + 1 = j.val ∧ j.val ≤ k + 3) ∨
+  -- Leaf edges at second branch point
+  (i.val = k + 4 ∧ j.val = k + 3) ∨ (i.val = k + 5 ∧ j.val = k + 3)
+
+private instance (k : ℕ) (i j : Fin (k + 6)) : Decidable (dTildeEdgePred k i j) := by
+  unfold dTildeEdgePred; infer_instance
+
+private theorem dTildeEdgePred_irrefl (k : ℕ) (i : Fin (k + 6)) :
+    ¬ dTildeEdgePred k i i := by
+  simp only [dTildeEdgePred]; push_neg; exact ⟨by omega, by omega, by omega, by omega, by omega⟩
+
+/-- Adjacency matrix for D̃_{k+5}: the extended Dynkin diagram with k+6 vertices,
+    two branch points connected by a path of length k+1. -/
+def dTildeAdj (k : ℕ) : Matrix (Fin (k + 6)) (Fin (k + 6)) ℤ :=
+  fun i j => if dTildeEdgePred k i j ∨ dTildeEdgePred k j i then 1 else 0
+
+theorem dTildeAdj_symm (k : ℕ) : (dTildeAdj k).IsSymm := by
+  ext i j; simp only [dTildeAdj, Matrix.transpose_apply]
+  simp only [show dTildeEdgePred k j i ∨ dTildeEdgePred k i j ↔
+    dTildeEdgePred k i j ∨ dTildeEdgePred k j i from Or.comm]
+
+theorem dTildeAdj_diag (k : ℕ) (i : Fin (k + 6)) : dTildeAdj k i i = 0 := by
+  simp only [dTildeAdj, show ¬(dTildeEdgePred k i i ∨ dTildeEdgePred k i i) from by
+    push_neg; exact ⟨dTildeEdgePred_irrefl k i, dTildeEdgePred_irrefl k i⟩, ite_false]
+
+theorem dTildeAdj_01 (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeAdj k i j = 0 ∨ dTildeAdj k i j = 1 := by
+  unfold dTildeAdj; split_ifs <;> simp
+
+/-- Arrow predicate for D̃_{k+5}: orientation 0→2, 1→2, 2→3→...→(k+3), (k+4)→(k+3), (k+5)→(k+3).
+    Leaf arrows point inward to branch points; path arrows go left-to-right. -/
+private def dTildeArrowPred (k : ℕ) (i j : Fin (k + 6)) : Prop :=
+  (i.val = 0 ∧ j.val = 2) ∨ (i.val = 1 ∧ j.val = 2) ∨
+  (2 ≤ i.val ∧ i.val + 1 = j.val ∧ j.val ≤ k + 3) ∨
+  (i.val = k + 4 ∧ j.val = k + 3) ∨ (i.val = k + 5 ∧ j.val = k + 3)
+
+private instance (k : ℕ) (i j : Fin (k + 6)) : Decidable (dTildeArrowPred k i j) := by
+  unfold dTildeArrowPred; infer_instance
+
+/-- Orientation for D̃_{k+5}: 0→2, 1→2, path left-to-right, (k+4)→(k+3), (k+5)→(k+3). -/
+def dTildeQuiver (k : ℕ) : Quiver (Fin (k + 6)) where
+  Hom i j := PLift (dTildeArrowPred k i j)
+
+instance dTildeQuiver_subsingleton (k : ℕ) (a b : Fin (k + 6)) :
+    Subsingleton (@Quiver.Hom (Fin (k + 6)) (dTildeQuiver k) a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+/-- The arrow predicate exactly captures one direction of each edge. -/
+private theorem dTildeArrowPred_eq_edgePred (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeArrowPred k i j ↔ dTildeEdgePred k i j := by
+  simp only [dTildeArrowPred, dTildeEdgePred]
+
+private theorem dTildeAdj_eq_one_iff (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeAdj k i j = 1 ↔ dTildeEdgePred k i j ∨ dTildeEdgePred k j i := by
+  simp only [dTildeAdj]; split_ifs with h <;> simp [h]
+
+theorem dTildeOrientation_isOrientationOf (k : ℕ) :
+    @Etingof.IsOrientationOf (k + 6) (dTildeQuiver k) (dTildeAdj k) := by
+  refine ⟨fun i j hij => ?_, fun i j hij => ?_, fun i j hi hj => ?_⟩
+  · -- Non-edges have no arrows
+    constructor; intro ⟨hp⟩
+    have := (dTildeArrowPred_eq_edgePred k i j).mp hp
+    exact hij ((dTildeAdj_eq_one_iff k i j).mpr (Or.inl this))
+  · -- Each edge has an arrow in one direction
+    rcases (dTildeAdj_eq_one_iff k i j).mp hij with hp | hp
+    · left; exact ⟨⟨(dTildeArrowPred_eq_edgePred k i j).mpr hp⟩⟩
+    · right; exact ⟨⟨(dTildeArrowPred_eq_edgePred k j i).mpr hp⟩⟩
+  · -- No two-way arrows (antisymmetry)
+    obtain ⟨⟨hp⟩⟩ := hi; obtain ⟨⟨hq⟩⟩ := hj
+    simp only [dTildeArrowPred, dTildeEdgePred] at hp hq
+    rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      rcases hq with ⟨h3, h4⟩ | ⟨h3, h4⟩ | ⟨h3, h4, h5⟩ | ⟨h3, h4⟩ | ⟨h3, h4⟩ <;>
+        omega
+
+/-! ## Section 17a.2: D̃_n representation construction
+
+Dimension vector: leaf vertices (0, 1, k+4, k+5) get m+1;
+interior path vertices (2, ..., k+3) get 2(m+1).
+
+Maps (under orientation 0→2, 1→2, 2→3→...→(k+3), (k+4)→(k+3), (k+5)→(k+3)):
+- 0→2: starEmbed1 (first-component embedding)
+- 1→2: starEmbed2 (second-component embedding)
+- 2→3: d5tildeGamma (the [[I,I],[I,N]] coupling map)
+- i→(i+1) for i=3,...,k+2: identity (LinearMap.id on ℂ^{2(m+1)})
+- (k+4)→(k+3): starEmbed1
+- (k+5)→(k+3): starEmbed2
+-/
+
+/-- Dimension of vertex v in the D̃_{k+5} representation:
+    vertices 0,1,k+4,k+5 get m+1; interior vertices 2,...,k+3 get 2(m+1). -/
+def dTildeDim (k m : ℕ) (v : Fin (k + 6)) : ℕ :=
+  if 2 ≤ v.val ∧ v.val ≤ k + 3 then 2 * (m + 1) else m + 1
+
+/-- The identity map between identical 2(m+1)-dimensional spaces, cast through
+    the dimension function. Used for path edges i→(i+1) where both endpoints
+    are interior vertices. -/
+private noncomputable def dTildePathId (m : ℕ) :
+    (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
+  LinearMap.id
+
+/-- Match-based map for the D̃_{k+5} representation. -/
+private noncomputable def dTildeRepMap (k m : ℕ) (a b : Fin (k + 6)) :
+    (Fin (dTildeDim k m a) → ℂ) →ₗ[ℂ] (Fin (dTildeDim k m b) → ℂ) :=
+  if h : a.val = 0 ∧ b.val = 2 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed1 m
+  else if h : a.val = 1 ∧ b.val = 2 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed2 m
+  else if h : a.val = 2 ∧ b.val = 3 then
+    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ d5tildeGamma m
+  else if h : 3 ≤ a.val ∧ a.val + 1 = b.val ∧ b.val ≤ k + 3 then
+    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ dTildePathId m
+  else if h : a.val = k + 4 ∧ b.val = k + 3 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed1 m
+  else if h : a.val = k + 5 ∧ b.val = k + 3 then
+    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
+    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
+    ha ▸ hb ▸ starEmbed2 m
+  else
+    0
+
+-- The D̃_{k+5} representation with dimension vector δ·(m+1).
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+noncomputable def dTildeRep (k m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (Fin (k + 6)) _ (dTildeQuiver k) := by
+  letI := dTildeQuiver k
+  exact {
+    obj := fun v => Fin (dTildeDim k m v) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} _ => dTildeRepMap k m a b
+  }
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem dTildeRep_dimVec (k m : ℕ) (v : Fin (k + 6)) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin (k + 6)) _
+      (dTildeQuiver k) (dTildeRep k m) v ≃ₗ[ℂ]
+      (Fin (dTildeDim k m v) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
+/-! ## Section 17a.3: Indecomposability of D̃_n representations
+
+The proof follows the same structure as D̃_5:
+1. Core argument at each branch point: embed1/embed2 split W into leaf components
+2. Gamma coupling forces containment between leaf subspaces
+3. Identity maps along the path propagate containment from branch point 2 to k+3
+4. By complement equality, all leaf subspaces are equal
+5. Nilpotent invariance gives the final contradiction
+-/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+set_option maxHeartbeats 3200000 in
+theorem dTildeRep_isIndecomposable (k m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin (k + 6))
+      (dTildeQuiver k) (dTildeRep k m) := by
+  letI := dTildeQuiver k
+  sorry
+
+/-! ## Section 17a.4: D̃_n has infinite representation type -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem dTilde_not_finite_type (k : ℕ) :
+    ¬ Etingof.IsFiniteTypeQuiver (k + 6) (dTildeAdj k) := by
+  intro hft
+  letI := dTildeQuiver k
+  have hfin := @hft ℂ _ inferInstance (dTildeQuiver k)
+    (fun a b => dTildeQuiver_subsingleton k a b)
+    (dTildeOrientation_isOrientationOf k)
+  have hmem : ∀ m : ℕ, (dTildeDim k m) ∈
+      {d : Fin (k + 6) → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin (k + 6)),
+        V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
+    intro m
+    exact ⟨dTildeRep k m, dTildeRep_isIndecomposable k m, dTildeRep_dimVec k m⟩
+  have hinj : Function.Injective (dTildeDim k) := by
+    intro m₁ m₂ h
+    have h0 := congr_fun h ⟨0, by omega⟩
+    have : ¬(2 ≤ (⟨0, by omega⟩ : Fin (k + 6)).val ∧
+      (⟨0, by omega⟩ : Fin (k + 6)).val ≤ k + 3) := by simp
+    simp only [dTildeDim, this, ite_false] at h0
+    omega
+  exact (Set.infinite_range_of_injective hinj |>.mono
+    (Set.range_subset_iff.mpr hmem)).not_finite hfin
+
+/-- The null root of D̃_{k+5}: δ = (1,1,2,...,2,1,1) with 2's at interior vertices.
+    Useful for downstream proofs: (2I - A)δ = 0 witnesses non-positive-definiteness. -/
+def dTildeNullRoot (k : ℕ) : Fin (k + 6) → ℤ :=
+  fun v => if 2 ≤ v.val ∧ v.val ≤ k + 3 then 2 else 1
+
+theorem dTildeNullRoot_ne_zero (k : ℕ) : dTildeNullRoot k ≠ 0 := by
+  intro h
+  have := congr_fun h ⟨0, by omega⟩
+  simp [dTildeNullRoot] at this
+
 /-! ## Section 17b: Ẽ₆ with mixed orientation (for indecomposability proof)
 
 The sink orientation (all arrows toward center) makes indecomposability proofs hard
