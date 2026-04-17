@@ -4400,6 +4400,401 @@ private lemma connected_closed_set_is_all {n : ℕ}
     exact Option.some.inj hlast
   rwa [hfinal] at h_last
 
+-- Arm bounds for tree positive definiteness proofs
+private lemma arm_bound_1 (v l : ℤ) : 2 * ((v - l)^2 + l^2) ≥ v^2 := by
+  nlinarith [sq_nonneg (v - 2*l)]
+
+private lemma arm_bound_2 (v p q : ℤ) : 3 * ((v - p)^2 + (p - q)^2 + q^2) ≥ v^2 := by
+  nlinarith [sq_nonneg (v - p - (p - q)), sq_nonneg ((v - p) - q),
+             sq_nonneg ((p - q) - q), sq_nonneg (v - p - q),
+             sq_nonneg (v - 2*p + q), sq_nonneg ((v-p) - 2*(p-q) + q)]
+
+private lemma arm_bound_3 (v a b c : ℤ) :
+    4 * ((v - a)^2 + (a - b)^2 + (b - c)^2 + c^2) ≥ v^2 := by
+  nlinarith [sq_nonneg ((v-a) - (a-b)), sq_nonneg ((a-b) - (b-c)),
+             sq_nonneg ((b-c) - c), sq_nonneg ((v-a) - (b-c)),
+             sq_nonneg ((v-a) - c), sq_nonneg ((a-b) - c),
+             sq_nonneg v, sq_nonneg (v-a), sq_nonneg (a-b), sq_nonneg (b-c), sq_nonneg c]
+
+-- All 21 pairs distinct for 7 vertices, bundled as a structure
+private structure E7Distinct {n : ℕ} (v₀ l a b c p q : Fin n) : Prop where
+  ne_v₀l : v₀ ≠ l
+  ne_v₀a : v₀ ≠ a
+  ne_v₀b : v₀ ≠ b
+  ne_v₀c : v₀ ≠ c
+  ne_v₀p : v₀ ≠ p
+  ne_v₀q : v₀ ≠ q
+  ne_la : l ≠ a
+  ne_lb : l ≠ b
+  ne_lc : l ≠ c
+  ne_lp : l ≠ p
+  ne_lq : l ≠ q
+  ne_ab : a ≠ b
+  ne_ac : a ≠ c
+  ne_ap : a ≠ p
+  ne_aq : a ≠ q
+  ne_bc : b ≠ c
+  ne_bp : b ≠ p
+  ne_bq : b ≠ q
+  ne_cp : c ≠ p
+  ne_cq : c ≠ q
+  ne_pq : p ≠ q
+
+-- mulVec computation: expand adj row sum over all 7 named vertices
+set_option maxHeartbeats 3200000 in
+private lemma mulVec_at7 {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ) (x : Fin n → ℤ)
+    (v₀ l a b c p q : Fin n)
+    (hd : E7Distinct v₀ l a b c p q)
+    (huniv : (Finset.univ : Finset (Fin n)) = {v₀, l, a, b, c, p, q})
+    (v : Fin n)
+    (r₀ r₁ r₂ r₃ r₄ r₅ r₆ : ℤ)
+    (hself : adj v v = 0)
+    (h₀ : adj v v₀ = r₀) (h₁ : adj v l = r₁) (h₂ : adj v a = r₂) (h₃ : adj v b = r₃)
+    (h₄ : adj v c = r₄) (h₅ : adj v p = r₅) (h₆ : adj v q = r₆)
+    (hv : v = v₀ ∨ v = l ∨ v = a ∨ v = b ∨ v = c ∨ v = p ∨ v = q) :
+    (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x v =
+      2 * x v - r₀ * x v₀ - r₁ * x l - r₂ * x a - r₃ * x b -
+      r₄ * x c - r₅ * x p - r₆ * x q := by
+  have h_row : ∀ j : Fin n, (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj) v j =
+      2 * (if v = j then 1 else 0) - adj v j := by
+    intro j
+    simp only [Matrix.sub_apply, Matrix.smul_apply, Matrix.one_apply]
+    split_ifs <;> simp
+  simp only [Matrix.mulVec, dotProduct]
+  simp_rw [h_row]
+  have expand : ∑ j : Fin n, (2 * (if v = j then (1 : ℤ) else 0) - adj v j) * x j =
+      ∑ j ∈ (Finset.univ : Finset (Fin n)),
+        (2 * (if v = j then (1 : ℤ) else 0) - adj v j) * x j := rfl
+  rw [expand, huniv]
+  rw [Finset.sum_insert (by simp [hd.ne_v₀l, hd.ne_v₀a, hd.ne_v₀b, hd.ne_v₀c,
+                                   hd.ne_v₀p, hd.ne_v₀q] :
+        v₀ ∉ ({l, a, b, c, p, q} : Finset _)),
+      Finset.sum_insert (by simp [hd.ne_la, hd.ne_lb, hd.ne_lc, hd.ne_lp, hd.ne_lq] :
+        l ∉ ({a, b, c, p, q} : Finset _)),
+      Finset.sum_insert (by simp [hd.ne_ab, hd.ne_ac, hd.ne_ap, hd.ne_aq] :
+        a ∉ ({b, c, p, q} : Finset _)),
+      Finset.sum_insert (by simp [hd.ne_bc, hd.ne_bp, hd.ne_bq] :
+        b ∉ ({c, p, q} : Finset _)),
+      Finset.sum_insert (by simp [hd.ne_cp, hd.ne_cq] :
+        c ∉ ({p, q} : Finset _)),
+      Finset.sum_insert (by simp [hd.ne_pq] : p ∉ ({q} : Finset _)),
+      Finset.sum_singleton]
+  rw [h₀, h₁, h₂, h₃, h₄, h₅, h₆]
+  have ne_v₀l := hd.ne_v₀l; have ne_v₀a := hd.ne_v₀a; have ne_v₀b := hd.ne_v₀b
+  have ne_v₀c := hd.ne_v₀c; have ne_v₀p := hd.ne_v₀p; have ne_v₀q := hd.ne_v₀q
+  have ne_la := hd.ne_la; have ne_lb := hd.ne_lb; have ne_lc := hd.ne_lc
+  have ne_lp := hd.ne_lp; have ne_lq := hd.ne_lq
+  have ne_ab := hd.ne_ab; have ne_ac := hd.ne_ac; have ne_ap := hd.ne_ap
+  have ne_aq := hd.ne_aq
+  have ne_bc := hd.ne_bc; have ne_bp := hd.ne_bp; have ne_bq := hd.ne_bq
+  have ne_cp := hd.ne_cp; have ne_cq := hd.ne_cq; have ne_pq := hd.ne_pq
+  rcases hv with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+    simp only [ite_true, ite_false, Ne.symm ne_v₀l, Ne.symm ne_v₀a, Ne.symm ne_v₀b,
+               Ne.symm ne_v₀c, Ne.symm ne_v₀p, Ne.symm ne_v₀q,
+               ne_v₀l, ne_v₀a, ne_v₀b, ne_v₀c, ne_v₀p, ne_v₀q,
+               ne_la, ne_lb, ne_lc, ne_lp, ne_lq,
+               Ne.symm ne_la, Ne.symm ne_lb, Ne.symm ne_lc,
+               Ne.symm ne_lp, Ne.symm ne_lq,
+               ne_ab, ne_ac, ne_ap, ne_aq,
+               Ne.symm ne_ab, Ne.symm ne_ac, Ne.symm ne_ap, Ne.symm ne_aq,
+               ne_bc, ne_bp, ne_bq,
+               Ne.symm ne_bc, Ne.symm ne_bp, Ne.symm ne_bq,
+               ne_cp, ne_cq,
+               Ne.symm ne_cp, Ne.symm ne_cq,
+               ne_pq, Ne.symm ne_pq,
+               hself] <;>
+    ring
+
+-- Helper: sum of nonneg terms = 0 implies each = 0 (E₇ version)
+private lemma e7_arms_zero (L A B C P Q : ℤ)
+    (h : L^2 + L^2 + A^2 + (A - B)^2 + (B - C)^2 + C^2 +
+         P^2 + (P - Q)^2 + Q^2 = 0) :
+    L = 0 ∧ A = 0 ∧ B = 0 ∧ C = 0 ∧ P = 0 ∧ Q = 0 := by
+  have hL : L = 0 := by nlinarith [sq_nonneg L, sq_nonneg A, sq_nonneg (A-B), sq_nonneg (B-C),
+                                    sq_nonneg C, sq_nonneg P, sq_nonneg (P-Q), sq_nonneg Q]
+  have hA : A = 0 := by nlinarith [sq_nonneg L, sq_nonneg A, sq_nonneg (A-B), sq_nonneg (B-C),
+                                    sq_nonneg C, sq_nonneg P, sq_nonneg (P-Q), sq_nonneg Q]
+  have hC : C = 0 := by nlinarith [sq_nonneg L, sq_nonneg A, sq_nonneg (A-B), sq_nonneg (B-C),
+                                    sq_nonneg C, sq_nonneg P, sq_nonneg (P-Q), sq_nonneg Q]
+  have hQ : Q = 0 := by nlinarith [sq_nonneg L, sq_nonneg A, sq_nonneg (A-B), sq_nonneg (B-C),
+                                    sq_nonneg C, sq_nonneg P, sq_nonneg (P-Q), sq_nonneg Q]
+  have hB : B = 0 := by nlinarith [sq_nonneg (A-B), sq_nonneg (B-C)]
+  have hP : P = 0 := by nlinarith [sq_nonneg P, sq_nonneg (P-Q)]
+  exact ⟨hL, hA, hB, hC, hP, hQ⟩
+
+set_option maxHeartbeats 3200000 in
+/-- E₇ = T(1,2,3) positive definiteness for an abstract graph with 7 named vertices.
+    Arms: v₀-l (length 1), v₀-a-b-c (length 3), v₀-p-q (length 2). -/
+private theorem e7_posdef {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm)
+    (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (v₀ l a b c p q : Fin n)
+    (hd : E7Distinct v₀ l a b c p q)
+    (hadj_v₀l : adj v₀ l = 1) (hadj_v₀a : adj v₀ a = 1)
+    (hadj_ab : adj a b = 1) (hadj_bc : adj b c = 1)
+    (hadj_v₀p : adj v₀ p = 1) (hadj_pq : adj p q = 1)
+    (hv₀_only : ∀ w, adj v₀ w = 1 → w = l ∨ w = a ∨ w = p)
+    (hl_only : ∀ w, adj l w = 1 → w = v₀)
+    (ha_only : ∀ w, adj a w = 1 → w = v₀ ∨ w = b)
+    (hb_only : ∀ w, adj b w = 1 → w = a ∨ w = c)
+    (hc_only : ∀ w, adj c w = 1 → w = b)
+    (hp_only : ∀ w, adj p w = 1 → w = v₀ ∨ w = q)
+    (hq_only : ∀ w, adj q w = 1 → w = p)
+    (h_all_named : ∀ w : Fin n,
+      w = v₀ ∨ w = l ∨ w = a ∨ w = b ∨ w = c ∨ w = p ∨ w = q)
+    (x : Fin n → ℤ) (hx : x ≠ 0) :
+    0 < QF adj x := by
+  have adj_comm : ∀ i j, adj i j = adj j i := fun i j => hsymm.apply j i
+  have hadj_lv₀ : adj l v₀ = 1 := (adj_comm l v₀).trans hadj_v₀l
+  have hadj_av₀ : adj a v₀ = 1 := (adj_comm a v₀).trans hadj_v₀a
+  have hadj_ba : adj b a = 1 := (adj_comm b a).trans hadj_ab
+  have hadj_cb : adj c b = 1 := (adj_comm c b).trans hadj_bc
+  have hadj_pv₀ : adj p v₀ = 1 := (adj_comm p v₀).trans hadj_v₀p
+  have hadj_qp : adj q p = 1 := (adj_comm q p).trans hadj_pq
+  have huniv : (Finset.univ : Finset (Fin n)) = {v₀, l, a, b, c, p, q} := by
+    ext w
+    simp only [Finset.mem_univ, true_iff, Finset.mem_insert, Finset.mem_singleton]
+    rcases h_all_named w with h | h | h | h | h | h | h <;> simp [h]
+  -- Non-edge facts
+  have hadj_v₀b : adj v₀ b = 0 := by
+    rcases h01 v₀ b with h | h; · exact h
+    rcases hv₀_only b h with rfl | rfl | rfl
+    · exact (hd.ne_lb rfl).elim
+    · exact (hd.ne_ab rfl).elim
+    · exact (hd.ne_bp rfl).elim
+  have hadj_v₀c : adj v₀ c = 0 := by
+    rcases h01 v₀ c with h | h; · exact h
+    rcases hv₀_only c h with rfl | rfl | rfl
+    · exact (hd.ne_lc rfl).elim
+    · exact (hd.ne_ac rfl).elim
+    · exact (hd.ne_cp rfl).elim
+  have hadj_v₀q : adj v₀ q = 0 := by
+    rcases h01 v₀ q with h | h; · exact h
+    rcases hv₀_only q h with rfl | rfl | rfl
+    · exact (hd.ne_lq rfl).elim
+    · exact (hd.ne_aq rfl).elim
+    · exact (hd.ne_pq rfl).elim
+  have hadj_la : adj l a = 0 := by
+    rcases h01 l a with h | h; · exact h
+    exact absurd (hl_only a h) (Ne.symm hd.ne_v₀a)
+  have hadj_lb : adj l b = 0 := by
+    rcases h01 l b with h | h; · exact h
+    exact absurd (hl_only b h) (Ne.symm hd.ne_v₀b)
+  have hadj_lc : adj l c = 0 := by
+    rcases h01 l c with h | h; · exact h
+    exact absurd (hl_only c h) (Ne.symm hd.ne_v₀c)
+  have hadj_lp : adj l p = 0 := by
+    rcases h01 l p with h | h; · exact h
+    exact absurd (hl_only p h) (Ne.symm hd.ne_v₀p)
+  have hadj_lq : adj l q = 0 := by
+    rcases h01 l q with h | h; · exact h
+    exact absurd (hl_only q h) (Ne.symm hd.ne_v₀q)
+  have hadj_ac : adj a c = 0 := by
+    rcases h01 a c with h | h; · exact h
+    rcases ha_only c h with rfl | rfl
+    · exact (hd.ne_v₀c rfl).elim
+    · exact (hd.ne_bc rfl).elim
+  have hadj_ap : adj a p = 0 := by
+    rcases h01 a p with h | h; · exact h
+    rcases ha_only p h with rfl | rfl
+    · exact (hd.ne_v₀p rfl).elim
+    · exact (hd.ne_bp rfl).elim
+  have hadj_aq : adj a q = 0 := by
+    rcases h01 a q with h | h; · exact h
+    rcases ha_only q h with rfl | rfl
+    · exact (hd.ne_v₀q rfl).elim
+    · exact (hd.ne_bq rfl).elim
+  have hadj_bp : adj b p = 0 := by
+    rcases h01 b p with h | h; · exact h
+    rcases hb_only p h with rfl | rfl
+    · exact (hd.ne_ap rfl).elim
+    · exact (hd.ne_cp rfl).elim
+  have hadj_bq : adj b q = 0 := by
+    rcases h01 b q with h | h; · exact h
+    rcases hb_only q h with rfl | rfl
+    · exact (hd.ne_aq rfl).elim
+    · exact (hd.ne_cq rfl).elim
+  have hadj_cp : adj c p = 0 := by
+    rcases h01 c p with h | h; · exact h
+    exact absurd (hc_only p h) (Ne.symm hd.ne_bp)
+  have hadj_cq : adj c q = 0 := by
+    rcases h01 c q with h | h; · exact h
+    exact absurd (hc_only q h) (Ne.symm hd.ne_bq)
+  have hadj_qv₀ : adj q v₀ = 0 := by
+    rcases h01 q v₀ with h | h; · exact h
+    exact absurd (hq_only v₀ h) hd.ne_v₀p
+  have hadj_ql : adj q l = 0 := by
+    rcases h01 q l with h | h; · exact h
+    exact absurd (hq_only l h) hd.ne_lp
+  have hadj_qa : adj q a = 0 := by
+    rcases h01 q a with h | h; · exact h
+    exact absurd (hq_only a h) hd.ne_ap
+  have hadj_qb : adj q b = 0 := by
+    rcases h01 q b with h | h; · exact h
+    exact absurd (hq_only b h) hd.ne_bp
+  have hadj_qc : adj q c = 0 := by
+    rcases h01 q c with h | h; · exact h
+    exact absurd (hq_only c h) hd.ne_cp
+  -- Compute mulVec at each named vertex
+  have hmv_v₀ : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x v₀ =
+      2 * x v₀ - 0 * x v₀ - 1 * x l - 1 * x a - 0 * x b - 0 * x c - 1 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv v₀ 0 1 1 0 0 1 0
+      (hdiag v₀) (hdiag v₀) hadj_v₀l hadj_v₀a hadj_v₀b hadj_v₀c hadj_v₀p hadj_v₀q
+      (Or.inl rfl)
+  have hmv_l : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x l =
+      2 * x l - 1 * x v₀ - 0 * x l - 0 * x a - 0 * x b - 0 * x c - 0 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv l 1 0 0 0 0 0 0
+      (hdiag l) hadj_lv₀ (hdiag l) hadj_la hadj_lb hadj_lc hadj_lp hadj_lq
+      (Or.inr (Or.inl rfl))
+  have hmv_a : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x a =
+      2 * x a - 1 * x v₀ - 0 * x l - 0 * x a - 1 * x b - 0 * x c - 0 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv a 1 0 0 1 0 0 0
+      (hdiag a) hadj_av₀ ((adj_comm a l).trans hadj_la) (hdiag a) hadj_ab hadj_ac hadj_ap hadj_aq
+      (Or.inr (Or.inr (Or.inl rfl)))
+  have hmv_b : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x b =
+      2 * x b - 0 * x v₀ - 0 * x l - 1 * x a - 0 * x b - 1 * x c - 0 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv b 0 0 1 0 1 0 0
+      (hdiag b) ((adj_comm b v₀).trans hadj_v₀b) ((adj_comm b l).trans hadj_lb) hadj_ba (hdiag b)
+      hadj_bc hadj_bp hadj_bq
+      (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+  have hmv_c : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x c =
+      2 * x c - 0 * x v₀ - 0 * x l - 0 * x a - 1 * x b - 0 * x c - 0 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv c 0 0 0 1 0 0 0
+      (hdiag c) ((adj_comm c v₀).trans hadj_v₀c) ((adj_comm c l).trans hadj_lc)
+      ((adj_comm c a).trans hadj_ac) hadj_cb (hdiag c) hadj_cp hadj_cq
+      (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl)))))
+  have hmv_p : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x p =
+      2 * x p - 1 * x v₀ - 0 * x l - 0 * x a - 0 * x b - 0 * x c - 0 * x p - 1 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv p 1 0 0 0 0 0 1
+      (hdiag p) hadj_pv₀ ((adj_comm p l).trans hadj_lp) ((adj_comm p a).trans hadj_ap)
+      ((adj_comm p b).trans hadj_bp) ((adj_comm p c).trans hadj_cp) (hdiag p) hadj_pq
+      (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))))
+  have hmv_q : (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x q =
+      2 * x q - 0 * x v₀ - 0 * x l - 0 * x a - 0 * x b - 0 * x c - 1 * x p - 0 * x q :=
+    mulVec_at7 adj x v₀ l a b c p q hd huniv q 0 0 0 0 0 1 0
+      (hdiag q) hadj_qv₀ hadj_ql hadj_qa hadj_qb hadj_qc hadj_qp (hdiag q)
+      (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr rfl))))))
+  -- Expand QF over the 7 named vertices
+  have hQF : QF adj x =
+      x v₀ * (2 * x v₀ - x l - x a - x p) +
+      x l * (2 * x l - x v₀) +
+      x a * (2 * x a - x v₀ - x b) +
+      x b * (2 * x b - x a - x c) +
+      x c * (2 * x c - x b) +
+      x p * (2 * x p - x v₀ - x q) +
+      x q * (2 * x q - x p) := by
+    unfold QF dotProduct
+    have expand : ∑ i : Fin n, x i * (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x i =
+        ∑ i ∈ (Finset.univ : Finset (Fin n)),
+          x i * (2 • (1 : Matrix (Fin n) (Fin n) ℤ) - adj).mulVec x i := rfl
+    rw [expand, huniv]
+    rw [Finset.sum_insert (by simp [hd.ne_v₀l, hd.ne_v₀a, hd.ne_v₀b, hd.ne_v₀c,
+                                     hd.ne_v₀p, hd.ne_v₀q] :
+          v₀ ∉ ({l, a, b, c, p, q} : Finset _)),
+        Finset.sum_insert (by simp [hd.ne_la, hd.ne_lb, hd.ne_lc, hd.ne_lp, hd.ne_lq] :
+          l ∉ ({a, b, c, p, q} : Finset _)),
+        Finset.sum_insert (by simp [hd.ne_ab, hd.ne_ac, hd.ne_ap, hd.ne_aq] :
+          a ∉ ({b, c, p, q} : Finset _)),
+        Finset.sum_insert (by simp [hd.ne_bc, hd.ne_bp, hd.ne_bq] :
+          b ∉ ({c, p, q} : Finset _)),
+        Finset.sum_insert (by simp [hd.ne_cp, hd.ne_cq] :
+          c ∉ ({p, q} : Finset _)),
+        Finset.sum_insert (by simp [hd.ne_pq] : p ∉ ({q} : Finset _)),
+        Finset.sum_singleton]
+    rw [hmv_v₀, hmv_l, hmv_a, hmv_b, hmv_c, hmv_p, hmv_q]
+    ring
+  -- Nonzero condition
+  have hvals_ne : ¬(x v₀ = 0 ∧ x l = 0 ∧ x a = 0 ∧ x b = 0 ∧ x c = 0 ∧
+      x p = 0 ∧ x q = 0) := by
+    intro ⟨hV, hL, hA, hB, hC, hP, hQ⟩
+    apply hx; ext i
+    rcases h_all_named i with rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> assumption
+  set V := x v₀; set L := x l; set A := x a; set B := x b
+  set C := x c; set P := x p; set Q := x q
+  -- E₇ QF = sum of squares - V²
+  have hQF_poly : V * (2 * V - L - A - P) +
+      L * (2 * L - V) +
+      A * (2 * A - V - B) +
+      B * (2 * B - A - C) +
+      C * (2 * C - B) +
+      P * (2 * P - V - Q) +
+      Q * (2 * Q - P) =
+      (V - L)^2 + L^2 + (V - A)^2 + (A - B)^2 + (B - C)^2 + C^2 +
+      (V - P)^2 + (P - Q)^2 + Q^2 - V^2 := by ring
+  have hl_bound := arm_bound_1 V L
+  have ha_bound := arm_bound_3 V A B C
+  have hp_bound := arm_bound_2 V P Q
+  have hQF_nonneg : 0 ≤ QF adj x := by
+    rw [hQF, hQF_poly]
+    nlinarith [sq_nonneg (V - L), sq_nonneg (V - A), sq_nonneg (A - B),
+               sq_nonneg (B - C), sq_nonneg (V - P), sq_nonneg (P - Q),
+               sq_nonneg L, sq_nonneg C, sq_nonneg Q]
+  rcases eq_or_lt_of_le hQF_nonneg with heq | hlt
+  · exfalso
+    have hQF0 : QF adj x = 0 := heq.symm
+    have harms0 : (V - L)^2 + L^2 + (V - A)^2 + (A - B)^2 + (B - C)^2 + C^2 +
+        (V - P)^2 + (P - Q)^2 + Q^2 - V^2 = 0 := by
+      linarith [hQF.trans hQF_poly]
+    have hV0 : V = 0 := by
+      set Sl := (V - L)^2 + L^2
+      set Sa := (V - A)^2 + (A - B)^2 + (B - C)^2 + C^2
+      set Sp := (V - P)^2 + (P - Q)^2 + Q^2
+      have hSlSaSp : Sl + Sa + Sp = V^2 := by linarith
+      have hSl_nn : 0 ≤ Sl := by positivity
+      have hSa_nn : 0 ≤ Sa := by positivity
+      have hSp_nn : 0 ≤ Sp := by positivity
+      nlinarith [sq_nonneg V]
+    have harms0' : L^2 + L^2 + A^2 + (A - B)^2 + (B - C)^2 + C^2 +
+        P^2 + (P - Q)^2 + Q^2 = 0 := by
+      have := harms0; rw [hV0] at this
+      linarith [sq_nonneg (0 - L), sq_nonneg (0 - A), sq_nonneg (0 - P)]
+    obtain ⟨hL0, hA0, hB0, hC0, hP0, hQ0⟩ := e7_arms_zero L A B C P Q harms0'
+    exact hvals_ne ⟨hV0, hL0, hA0, hB0, hC0, hP0, hQ0⟩
+  · exact hlt
+
+-- Helper: in a connected graph, if a set S is nonempty and closed under adjacency,
+-- then S contains all vertices.
+private lemma connected_graph_all_named {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (S : Finset (Fin n))
+    (hne : S.Nonempty)
+    (hclosed : ∀ v ∈ S, ∀ w : Fin n, adj v w = 1 → w ∈ S) :
+    ∀ w : Fin n, w ∈ S := by
+  intro w
+  obtain ⟨s, hs⟩ := hne
+  obtain ⟨path, hhead, hlast, hedges⟩ := hconn s w
+  -- Show w is in S by induction on the path
+  -- First: every vertex at index i on the path is in S
+  have hpath_in : ∀ i (hi : i < path.length), path.get ⟨i, hi⟩ ∈ S := by
+    intro i hi; induction i with
+    | zero =>
+      rcases path with _ | ⟨p, _⟩
+      · simp at hi
+      · exact Option.some.inj hhead ▸ hs
+    | succ k ih => exact hclosed _ (ih (by omega)) _ (hedges k (by omega))
+  -- path is nonempty (has head = some s)
+  rcases path with _ | ⟨p, ps⟩
+  · simp at hhead
+  -- w is at the last index
+  · have hlast_in := hpath_in ((p :: ps).length - 1) (by simp)
+    -- Show w equals the element at the last index, by induction on ps
+    suffices h : ∀ (l : List (Fin n)) (a : Fin n),
+        (a :: l).getLast? = some w → w = (a :: l).get ⟨(a :: l).length - 1, by simp⟩ by
+      exact h ps p hlast ▸ hlast_in
+    intro l; induction l with
+    | nil => intro a h; simp [List.getLast?] at h; exact h.symm
+    | cons b bs ih =>
+      intro a h; simp only [List.getLast?_cons_cons] at h
+      simp only [List.length_cons, Nat.add_sub_cancel, List.get_cons_succ]
+      exact ih b h
+
 -- Cauchy-Schwarz arm bounds for E₈ positive definiteness
 private lemma e8_arm_l (v l : ℤ) : 2 * ((v - l)^2 + l^2) ≥ v^2 := by
   nlinarith [sq_nonneg (v - 2*l)]
