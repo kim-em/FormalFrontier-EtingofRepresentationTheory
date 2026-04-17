@@ -2785,11 +2785,99 @@ theorem etilde7Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     have hbot0 : W (0 : Fin 8) = ⊥ := by sorry
     -- Propagate from W(0) = ⊥ to all vertices via injectivity of maps.
     -- Each representation map is a block embedding (hence injective).
-    -- If W(target) = ⊥ and f : V(source) → V(target) is injective with
-    -- f(W(source)) ⊂ W(target) = ⊥, then W(source) = ⊥.
-    -- Chain: W(0)=⊥ → W(1)=⊥ (1→0), W(2)=⊥ (2→0), W(5)=⊥ (5→0)
-    --        W(2)=⊥ → W(3)=⊥ (3→2), W(5)=⊥ → W(6)=⊥ (6→5)
-    sorry
+    -- Helper: if an injective arrow maps W(source) into W(target) = ⊥, then W(source) = ⊥.
+    have prop_inj {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b)
+        (hinj : ∀ x : (etilde7Rep m).obj a, (etilde7Rep m).mapLinear e x = 0 → x = 0)
+        (htarget : W b = ⊥) : W a = ⊥ := by
+      rw [eq_bot_iff]; intro x hx; rw [Submodule.mem_bot]
+      have := hW_inv e x hx; rw [htarget, Submodule.mem_bot] at this
+      exact hinj x this
+    -- Injectivity of starEmbed1: x ↦ (x, 0) is injective
+    have inj_starEmbed1 : ∀ x : Fin (m + 1) → ℂ, starEmbed1 m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [starEmbed1, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj, Pi.zero_apply] at this
+      exact this
+    -- Injectivity of embed2to3_AB: (x,y) ↦ (x,y,0) is injective
+    have inj_embed2to3_AB : ∀ x : Fin (2 * (m + 1)) → ℂ, embed2to3_AB m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embed2to3_AB, LinearMap.coe_mk, AddHom.coe_mk, dif_pos (show j < 2 * (m + 1) from hj),
+        Pi.zero_apply] at this
+      exact this
+    -- Injectivity of embed3to4_ABC: (x,y,z) ↦ (x,y,z,0) is injective
+    have inj_embed3to4_ABC : ∀ x : Fin (3 * (m + 1)) → ℂ, embed3to4_ABC m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by show j < 4 * (m + 1); omega⟩
+      simp only [embed3to4_ABC, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj, Pi.zero_apply] at this
+      exact this
+    -- Injectivity of embed3to4_ACD: (x,y,z) ↦ (x,0,y,z) is injective
+    have inj_embed3to4_ACD : ∀ x : Fin (3 * (m + 1)) → ℂ, embed3to4_ACD m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      by_cases hjlt : j < m + 1
+      · -- Block A: output at position j
+        have := congr_fun h ⟨j, by omega⟩
+        simp only [embed3to4_ACD, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_pos hjlt, Pi.zero_apply] at this
+        exact this
+      · -- Blocks C,D: output at position j + (m+1)
+        have := congr_fun h ⟨j + (m + 1), by omega⟩
+        simp only [embed3to4_ACD, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_neg (show ¬(j + (m + 1) < m + 1) from by omega),
+          dif_neg (show ¬(m + 1 ≤ j + (m + 1) ∧ j + (m + 1) < 2 * (m + 1)) from by omega),
+          dif_pos (show j + (m + 1) < 4 * (m + 1) from by omega),
+          Nat.add_sub_cancel, Pi.zero_apply] at this
+        exact this
+    -- Injectivity of etilde7Arm1Embed: (p,q) ↦ (p+q, p, 0, Nq) is injective
+    have inj_arm1 : ∀ x : Fin (2 * (m + 1)) → ℂ, etilde7Arm1Embed m x = 0 → x = 0 := by
+      intro w h; ext ⟨j, hj⟩
+      have h0 : ∀ i : Fin (4 * (m + 1)), etilde7Arm1Embed m w i = 0 :=
+        fun i => by have := congr_fun h i; simpa using this
+      by_cases hjlt : j < m + 1
+      · -- First component (p): read from block B (position m+1+j)
+        have := h0 ⟨m + 1 + j, by omega⟩
+        simp only [etilde7Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_neg (show ¬(m + 1 + j < m + 1) from by omega),
+          dif_pos (show m + 1 + j < 2 * (m + 1) from by omega),
+          show m + 1 + j - (m + 1) = j from by omega,
+          Pi.zero_apply] at this
+        exact this
+      · -- Second component (q): Block B gives first comp = 0, then Block A propagates
+        have hp : w ⟨j - (m + 1), by omega⟩ = 0 := by
+          have := h0 ⟨j, by omega⟩
+          simp only [etilde7Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk,
+            dif_neg (show ¬(j < m + 1) from hjlt),
+            dif_pos (show j < 2 * (m + 1) from hj),
+            Pi.zero_apply] at this
+          exact this
+        -- Block A at position j-(m+1): w(j-(m+1)) + w(m+1+(j-(m+1))) = 0
+        have hA := h0 ⟨j - (m + 1), by omega⟩
+        simp only [etilde7Arm1Embed, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_pos (show j - (m + 1) < m + 1 from by omega),
+          Pi.zero_apply] at hA
+        rw [hp, zero_add] at hA
+        simp only [show m + 1 + (j - (m + 1)) = j from by omega] at hA
+        exact hA
+    -- Chain: W(0)=⊥ → W(1)=⊥, W(2)=⊥, W(5)=⊥; then W(2)=⊥ → W(3)=⊥; W(5)=⊥ → W(6)=⊥
+    have hbot1 : W (1 : Fin 8) = ⊥ := prop_inj hom10 inj_arm1 hbot0
+    have hbot2 : W (2 : Fin 8) = ⊥ := prop_inj hom20 inj_embed3to4_ABC hbot0
+    have hbot5 : W (5 : Fin 8) = ⊥ := prop_inj hom50 inj_embed3to4_ACD hbot0
+    have hbot3 : W (3 : Fin 8) = ⊥ := by
+      have hom32' := hom32
+      exact prop_inj hom32' inj_embed2to3_AB hbot2
+    have hbot6 : W (6 : Fin 8) = ⊥ := by
+      have hom65' := hom65
+      exact prop_inj hom65' inj_embed2to3_AB hbot5
+    have hbot7 : W (7 : Fin 8) = ⊥ := h47 ▸ hbot
+    fin_cases v
+    · exact hbot0  -- v = 0
+    · exact hbot1  -- v = 1
+    · exact hbot2  -- v = 2
+    · exact hbot3  -- v = 3
+    · exact hbot   -- v = 4
+    · exact hbot5  -- v = 5
+    · exact hbot6  -- v = 6
+    · exact hbot7  -- v = 7
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
     Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 8) _ etilde7Quiver
