@@ -581,7 +581,30 @@ private theorem twistedPolytabloid_col_eq (w : Equiv.Perm (Fin n))
   -- Step 2: Show the sums are equal by reindexing
   -- f_w(σ) = Σ_q sign(q) · [wq⁻¹σ] and ψ_{wσ} = Σ_q sign(q) · [q⁻¹wσ]
   -- Reindex ψ_{wσ} via conjugation φ : q ↦ wqw⁻¹ to get f_w(σ)
-  sorry
+  classical
+  simp only [twistedPolytabloid, generalizedPolytabloidTab]
+  -- Conjugation bijection on Q_λ: q ↦ w * q * w⁻¹
+  set φ : ↥(ColumnSubgroup n la) ≃ ↥(ColumnSubgroup n la) :=
+    ⟨fun q => ⟨w * q.val * w⁻¹, (ColumnSubgroup n la).mul_mem
+        ((ColumnSubgroup n la).mul_mem hw q.prop)
+        ((ColumnSubgroup n la).inv_mem hw)⟩,
+     fun q => ⟨w⁻¹ * q.val * w, (ColumnSubgroup n la).mul_mem
+        ((ColumnSubgroup n la).mul_mem
+          ((ColumnSubgroup n la).inv_mem hw) q.prop) hw⟩,
+     fun ⟨q, _⟩ => Subtype.ext (by group),
+     fun ⟨q, _⟩ => Subtype.ext (by group)⟩
+  refine Fintype.sum_equiv φ _ _ (fun ⟨q, hq⟩ => ?_)
+  -- φ q = w * q * w⁻¹, so (φ q)⁻¹ * (w * σ) = w * q⁻¹ * σ
+  have hφ_val : (φ ⟨q, hq⟩ : ↥(ColumnSubgroup n la)).val = w * q * w⁻¹ := rfl
+  simp only [hφ_val]
+  congr 1
+  · -- sign(q) = sign(w * q * w⁻¹)
+    have hsign : Equiv.Perm.sign (w * q * w⁻¹) = Equiv.Perm.sign q := by
+      rw [map_mul, map_mul, map_inv, mul_inv_cancel_comm]
+    simp [hsign]
+  · -- toTabloid (w * q⁻¹ * σ) = toTabloid ((w * q * w⁻¹)⁻¹ * (w * σ))
+    congr 1
+    group
 
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each non-identity Garnir permutation w
