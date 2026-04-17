@@ -2329,7 +2329,29 @@ theorem etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     change Nontrivial (Fin (etilde6Dim m ⟨2, by omega⟩) → ℂ)
     show Nontrivial (Fin (m + 1) → ℂ)
     infer_instance
-  · sorry
+  · -- Indecomposability
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Proof strategy (following D̃₅ pattern adapted for T(2,2,2)):
+    --
+    -- Edge structure: 2→1→0→3←4, 6→5→0  (vertex 3 is sink of arm 1)
+    -- Maps: 2→1: starEmbed1 (x↦(x,0))
+    --       1→0: embed2to3_AB ((a,b)↦(a,b,0))
+    --       0→3: etilde6v2Gamma (Γ(a,b,c)=(a+b, a+Nc))
+    --       4→3: starEmbed1 (x↦(x,0))
+    --       6→5: starEmbedNilp (x↦(x,Nx))
+    --       5→0: embed2to3_CA ((a,b)↦(b,0,a))
+    --
+    -- Key computation: Γ(x,0,0) = (x,x) (diagonal embedding)
+    -- From tip 2: x ∈ W(2) → (x,0) ∈ W(1) → (x,0,0) ∈ W(0) → (x,x) ∈ W(3)
+    -- So W(2) embeds into both blocks of W(3), coupling with tip 4.
+    --
+    -- From tip 6: y ∈ W(6) → (y,Ny) ∈ W(5) → (Ny,0,y) ∈ W(0)
+    --   → Γ(Ny,0,y) = (Ny, Ny+Ny) ∈ W(3)
+    -- Combined with the (x,x) structure: forces N-invariance of the leaf subspace.
+    --
+    -- Then nilpotent_invariant_compl_trivial gives W(2)=⊥ or W₂(2)=⊥.
+    -- Propagation: W(tip)=⊥ at all tips → W'(tip)=⊤ → push through arms → all ⊥.
+    sorry
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
