@@ -7317,10 +7317,9 @@ private theorem single_branch_leaf_case {n : ℕ}
       apply h_not_posdef
       -- Prove: D-type tree (leaf-v₀-a₂-..., a₃ hanging off v₀) has positive definite Cartan form
       intro x hx
-      -- Key decomposition: QF adj x = QF_path(x) + (x v₀ - x leaf - x a₃)² + (x leaf - x a₃)²
-      -- where QF_path counts only edges incident to the path leaf-v₀-a₂-... (not the a₃ edge)
-      -- and QF_path ≥ (x v₀)²  by acyclic_path_posdef_aux applied to path v₀-a₂-...
-      sorry
+      exact tree_two_leaf_posdef adj hsymm hdiag h01 hconn h_acyclic h_deg v₀ leaf a₃
+        h_leaf_adj h_leaf_deg ha₃_adj ha₃_deg1
+        ha₃_ne_leaf.symm hleaf_ne_v₀ ha₃_ne_v₀ h_deg_le2 x hx
   · -- a₂ has degree 1 (leaf): T(1,≥1,1) — symmetric to the a₃ leaf case.
     -- v₀ has three neighbors: leaf (deg 1), a₂ (deg 1), a₃ (deg ≤ 2).
     -- The tree is D-type (or has leaf+a₂ both as leaves) → positive definite → contradiction.
@@ -7335,8 +7334,9 @@ private theorem single_branch_leaf_case {n : ℕ}
     -- where QF_path ≥ 0, and equality forces x = 0.
     exfalso
     apply h_not_posdef
-    intro x hx
-    sorry
+    exact tree_two_leaf_posdef adj hsymm hdiag h01 hconn h_acyclic h_deg v₀ leaf a₂
+      h_leaf_adj h_leaf_deg ha₂_adj ha₂_deg1
+      ha₂_ne_leaf.symm hleaf_ne_v₀ ha₂_ne_v₀ h_deg_le2
 
 set_option maxHeartbeats 3200000 in
 /-- A connected acyclic simple graph with exactly one degree-3 vertex and non-positive-
