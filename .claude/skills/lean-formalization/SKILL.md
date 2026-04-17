@@ -1974,3 +1974,42 @@ theorems using `Fintype.card` can't be applied without `classical`.
 classical
 rw [Finset.card_univ, ← Nat.card_eq_fintype_card, ← Nat.cast_smul_eq_nsmul ℂ]
 ```
+
+## Lean 4 List API Naming Conventions
+
+Many Lean 3 / old Mathlib List lemma names have changed. Common pitfalls:
+
+| What you want | Wrong name | Correct name |
+|---|---|---|
+| Map preserves indexing | `List.get_map` | `List.getElem_map` |
+| Nodup + injection | `List.Nodup.get_inj` | `List.Nodup.get_inj_iff` |
+| getLast? to getLast | `List.getLast?_eq_getLast` | `List.getLast?_eq_some_getLast` |
+| getLast as getElem | `List.getLast_eq_get` | `List.getLast_eq_getElem` |
+
+**Pattern for `head?` extraction:** Don't chain `head?_eq_getElem?` + `getElem?_eq_getElem`.
+Instead, pattern-match directly:
+```lean
+cases path with
+| nil => absurd hlast (by simp)
+| cons a t => simpa using hhead
+```
+
+**`Matrix.IsSymm.apply` direction:** `hsymm.apply a b` gives `adj b a = adj a b`
+(swapped from what you might expect). So `hsymm.apply (φ i) (φ j)` gives
+`adj (φ j) (φ i) = adj (φ i) (φ j)` — useful when rewriting a hypothesis
+that has `adj (φ j) (φ i)`.
+
+## Fin Arithmetic in Proofs
+
+When proving `Fin.ext` goals where the nat-level equality needs `omega`
+(e.g., `chain.length - 2 + 1 = chain.length - 1`), **extract the nat proof first**:
+```lean
+have h_nat : chain.length - 2 + 1 = chain.length - 1 := by omega
+congr 1; exact Fin.ext h_nat
+```
+Don't try `Fin.ext (by omega)` in term mode — omega often can't see the goal
+through the Fin wrapper.
+
+**Finset.erase parsing:** `S.erase a |>.erase b` in a type annotation
+parses as `(S.erase a).erase b` in term position but `(x ∈ S.erase a).erase b`
+in proposition position. Always use explicit parentheses: `(S.erase a).erase b`.
