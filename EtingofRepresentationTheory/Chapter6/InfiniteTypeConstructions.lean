@@ -4659,6 +4659,285 @@ private lemma tree_two_leaf_posdef {n : ℕ}
     nlinarith [sq_nonneg (V - L - A), sq_nonneg (L - A)]
 
 
+-- Helper: if a vertex has degree 1, its sole neighbor is the known one.
+private lemma deg1_unique_neighbor {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    {v w : Fin n} (hadj : adj v w = 1) (hdeg : vertexDegree adj v = 1) :
+    ∀ j, adj v j = 1 → j = w := by
+  intro j hj; by_contra hne
+  have : 2 ≤ vertexDegree adj v := by
+    change 2 ≤ (Finset.univ.filter (fun k => adj v k = 1)).card
+    calc 2 = ({w, j} : Finset _).card := by rw [Finset.card_pair (Ne.symm hne)]
+      _ ≤ _ := Finset.card_le_card fun x hx => by
+        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+        exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, by rcases hx with rfl | rfl <;> assumption⟩
+  omega
+
+-- Helper: if a vertex has degree 2 with two known distinct neighbors, any neighbor is one of them.
+private lemma deg2_two_neighbors {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    {v w₁ w₂ : Fin n} (h1 : adj v w₁ = 1) (h2 : adj v w₂ = 1) (hne : w₁ ≠ w₂)
+    (hdeg : vertexDegree adj v = 2) :
+    ∀ j, adj v j = 1 → j = w₁ ∨ j = w₂ := by
+  intro j hj; by_contra h; push_neg at h
+  have : 3 ≤ vertexDegree adj v := by
+    change 3 ≤ (Finset.univ.filter (fun k => adj v k = 1)).card
+    calc 3 = ({w₁, w₂, j} : Finset _).card := by
+          rw [Finset.card_insert_of_notMem (by simp [hne, h.1.symm]),
+              Finset.card_pair h.2.symm]
+      _ ≤ _ := Finset.card_le_card fun x hx => by
+        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+        exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, by rcases hx with rfl | rfl | rfl <;> assumption⟩
+  omega
+
+-- Helper: if a vertex has degree 3 with three known distinct neighbors, any neighbor is one of them.
+private lemma deg3_three_neighbors {n : ℕ} {adj : Matrix (Fin n) (Fin n) ℤ}
+    {v w₁ w₂ w₃ : Fin n} (h1 : adj v w₁ = 1) (h2 : adj v w₂ = 1) (h3 : adj v w₃ = 1)
+    (hne12 : w₁ ≠ w₂) (hne13 : w₁ ≠ w₃) (hne23 : w₂ ≠ w₃)
+    (hdeg : vertexDegree adj v = 3) :
+    ∀ j, adj v j = 1 → j = w₁ ∨ j = w₂ ∨ j = w₃ := by
+  intro j hj; by_contra h; push_neg at h
+  have : 4 ≤ vertexDegree adj v := by
+    change 4 ≤ (Finset.univ.filter (fun k => adj v k = 1)).card
+    calc 4 = ({w₁, w₂, w₃, j} : Finset _).card := by
+          rw [Finset.card_insert_of_notMem (by simp [hne12, hne13, h.1.symm]),
+              Finset.card_insert_of_notMem (by simp [hne23, h.2.1.symm]),
+              Finset.card_pair h.2.2.symm]
+      _ ≤ _ := Finset.card_le_card fun x hx => by
+        simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+        exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, by
+          rcases hx with rfl | rfl | rfl | rfl <;> assumption⟩
+  omega
+
+set_option maxHeartbeats 3200000 in
+/-- E₇ tree T(1,3,2) has positive definite Cartan form.
+    Given 7 named vertices forming the E₇ tree in a connected acyclic graph,
+    the Cartan quadratic form is positive definite. -/
+private lemma e7_tree_posdef {n : ℕ}
+    (adj : Matrix (Fin n) (Fin n) ℤ)
+    (hsymm : adj.IsSymm) (hdiag : ∀ i, adj i i = 0)
+    (h01 : ∀ i j, adj i j = 0 ∨ adj i j = 1)
+    (hconn : ∀ i j : Fin n, ∃ path : List (Fin n),
+      path.head? = some i ∧ path.getLast? = some j ∧
+      ∀ k, (h : k + 1 < path.length) →
+        adj (path.get ⟨k, by omega⟩) (path.get ⟨k + 1, h⟩) = 1)
+    (h_acyclic : ∀ (cycle : List (Fin n)) (hclen : 3 ≤ cycle.length), cycle.Nodup →
+      (∀ k, (h : k + 1 < cycle.length) →
+        adj (cycle.get ⟨k, by omega⟩) (cycle.get ⟨k + 1, h⟩) = 1) →
+      adj (cycle.getLast (List.ne_nil_of_length_pos (by omega)))
+        (cycle.get ⟨0, by omega⟩) ≠ 1)
+    -- 7 named vertices
+    (v₀ L a₂ b₂ c₂ a₃ b₃ : Fin n)
+    -- Adjacencies (6 edges of the E₇ tree)
+    (hL : adj v₀ L = 1) (ha₂ : adj v₀ a₂ = 1) (ha₃ : adj v₀ a₃ = 1)
+    (hb₂ : adj a₂ b₂ = 1) (hc₂ : adj b₂ c₂ = 1)
+    (hb₃ : adj a₃ b₃ = 1)
+    -- Degrees
+    (hv₀_deg : vertexDegree adj v₀ = 3)
+    (hL_deg : vertexDegree adj L = 1)
+    (ha₂_deg : vertexDegree adj a₂ = 2) (ha₃_deg : vertexDegree adj a₃ = 2)
+    (hb₂_deg : vertexDegree adj b₂ = 2)
+    (hc₂_deg : vertexDegree adj c₂ = 1)
+    (hb₃_deg : vertexDegree adj b₃ = 1) :
+    ∀ x : Fin n → ℤ, x ≠ 0 → 0 < QF adj x := by
+  have adj_comm : ∀ i j, adj i j = adj j i := fun i j => hsymm.apply j i
+  -- ne_of_adj: adjacent vertices are distinct
+  have ne_of_adj : ∀ a b, adj a b = 1 → a ≠ b :=
+    fun a b h hab => by rw [hab, hdiag] at h; omega
+  -- Step 1: Derive distinctness
+  -- Most pairs: degree mismatch (v₀=3, L/c₂/b₃=1, a₂/b₂/a₃=2)
+  -- If u = v, their degrees match, contradicting the given degree values.
+  have deg_ne : ∀ u v : Fin n, vertexDegree adj u ≠ vertexDegree adj v → u ≠ v :=
+    fun _ _ h heq => h (heq ▸ rfl)
+  have hv₀_ne_L := deg_ne _ _ (hv₀_deg ▸ hL_deg ▸ (by omega : (3 : ℕ) ≠ 1))
+  have hv₀_ne_a₂ := deg_ne _ _ (hv₀_deg ▸ ha₂_deg ▸ (by omega : (3 : ℕ) ≠ 2))
+  have hv₀_ne_a₃ := deg_ne _ _ (hv₀_deg ▸ ha₃_deg ▸ (by omega : (3 : ℕ) ≠ 2))
+  have hv₀_ne_b₂ := deg_ne _ _ (hv₀_deg ▸ hb₂_deg ▸ (by omega : (3 : ℕ) ≠ 2))
+  have hv₀_ne_c₂ := deg_ne _ _ (hv₀_deg ▸ hc₂_deg ▸ (by omega : (3 : ℕ) ≠ 1))
+  have hv₀_ne_b₃ := deg_ne _ _ (hv₀_deg ▸ hb₃_deg ▸ (by omega : (3 : ℕ) ≠ 1))
+  have hL_ne_a₂ := deg_ne _ _ (hL_deg ▸ ha₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hL_ne_b₂ := deg_ne _ _ (hL_deg ▸ hb₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hL_ne_a₃ := deg_ne _ _ (hL_deg ▸ ha₃_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hc₂_ne_a₂ := deg_ne _ _ (hc₂_deg ▸ ha₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hc₂_ne_b₂ := deg_ne _ _ (hc₂_deg ▸ hb₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hc₂_ne_a₃ := deg_ne _ _ (hc₂_deg ▸ ha₃_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hb₃_ne_a₂ := deg_ne _ _ (hb₃_deg ▸ ha₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hb₃_ne_b₂ := deg_ne _ _ (hb₃_deg ▸ hb₂_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  have hb₃_ne_a₃ := deg_ne _ _ (hb₃_deg ▸ ha₃_deg ▸ (by omega : (1 : ℕ) ≠ 2))
+  -- Adjacent pairs (same degree) are distinct
+  have ha₂_ne_b₂ := ne_of_adj _ _ hb₂
+  have hb₂_ne_c₂ := ne_of_adj _ _ hc₂
+  have ha₃_ne_b₃ := ne_of_adj _ _ hb₃
+  -- Same-degree, non-adjacent pairs: use deg2_two_neighbors
+  -- a₂ ≠ a₃: if equal, a₂'s neighbor b₃ must be v₀ or b₂, both degree contradictions
+  have ha₂_ne_a₃ : a₂ ≠ a₃ := by
+    intro h
+    have ha₂_nbrs := deg2_two_neighbors ((adj_comm a₂ v₀).trans ha₂) hb₂
+      hv₀_ne_b₂ ha₂_deg
+    rcases ha₂_nbrs b₃ (by rw [← h] at hb₃; exact hb₃) with rfl | rfl
+    · exact absurd hb₃_deg (by rw [hv₀_deg]; omega)
+    · exact absurd hb₃_deg (by rw [hb₂_deg]; omega)
+  -- b₂ ≠ a₃: if equal, b₂'s neighbor v₀ must be a₂ or c₂, both degree contradictions
+  have hb₂_ne_a₃ : b₂ ≠ a₃ := by
+    intro h
+    have hb₂_nbrs := deg2_two_neighbors ((adj_comm b₂ a₂).trans hb₂) hc₂
+      hc₂_ne_a₂.symm hb₂_deg
+    have : adj b₂ v₀ = 1 := by rw [h]; exact (adj_comm a₃ v₀).trans ha₃
+    rcases hb₂_nbrs v₀ this with rfl | rfl
+    · exact absurd hv₀_deg (by rw [ha₂_deg]; omega)
+    · exact absurd hv₀_deg (by rw [hc₂_deg]; omega)
+  -- L ≠ c₂: L's sole neighbor is v₀, c₂'s sole neighbor is b₂; if L=c₂ then v₀=b₂
+  have hL_ne_c₂ : L ≠ c₂ := fun h => hv₀_ne_b₂ (by
+    have hL_only := deg1_unique_neighbor ((adj_comm L v₀).trans hL) hL_deg
+    have hc₂_only := deg1_unique_neighbor ((adj_comm c₂ b₂).trans hc₂) hc₂_deg
+    have := hc₂_only v₀ (h ▸ (adj_comm L v₀).trans hL); exact this)
+  -- L ≠ b₃: similarly, if L=b₃ then v₀=a₃
+  have hL_ne_b₃ : L ≠ b₃ := fun h => hv₀_ne_a₃ (by
+    have hL_only := deg1_unique_neighbor ((adj_comm L v₀).trans hL) hL_deg
+    have hb₃_only := deg1_unique_neighbor ((adj_comm b₃ a₃).trans hb₃) hb₃_deg
+    have := hb₃_only v₀ (h ▸ (adj_comm L v₀).trans hL); exact this)
+  -- c₂ ≠ b₃: if c₂=b₃ then b₂=a₃ (sole neighbors), giving b₂ 3 neighbors
+  have hc₂_ne_b₃ : c₂ ≠ b₃ := fun h => hb₂_ne_a₃ (by
+    have hc₂_only := deg1_unique_neighbor ((adj_comm c₂ b₂).trans hc₂) hc₂_deg
+    have hb₃_only := deg1_unique_neighbor ((adj_comm b₃ a₃).trans hb₃) hb₃_deg
+    exact hb₃_only b₂ (h ▸ (adj_comm c₂ b₂).trans hc₂))
+  -- Step 2: Closed neighborhoods (neighbors of each named vertex are all named)
+  have hL_only : ∀ j, adj L j = 1 → j = v₀ :=
+    deg1_unique_neighbor ((adj_comm L v₀).trans hL) hL_deg
+  have hc₂_only : ∀ j, adj c₂ j = 1 → j = b₂ :=
+    deg1_unique_neighbor ((adj_comm c₂ b₂).trans hc₂) hc₂_deg
+  have hb₃_only : ∀ j, adj b₃ j = 1 → j = a₃ :=
+    deg1_unique_neighbor ((adj_comm b₃ a₃).trans hb₃) hb₃_deg
+  have ha₂_only : ∀ j, adj a₂ j = 1 → j = v₀ ∨ j = b₂ :=
+    deg2_two_neighbors ((adj_comm a₂ v₀).trans ha₂) hb₂ hv₀_ne_b₂ ha₂_deg
+  have hb₂_only : ∀ j, adj b₂ j = 1 → j = a₂ ∨ j = c₂ :=
+    deg2_two_neighbors ((adj_comm b₂ a₂).trans hb₂) hc₂ hc₂_ne_a₂.symm hb₂_deg
+  have ha₃_only : ∀ j, adj a₃ j = 1 → j = v₀ ∨ j = b₃ :=
+    deg2_two_neighbors ((adj_comm a₃ v₀).trans ha₃) hb₃ hv₀_ne_b₃ ha₃_deg
+  have hv₀_only : ∀ j, adj v₀ j = 1 → j = L ∨ j = a₂ ∨ j = a₃ :=
+    deg3_three_neighbors hL ha₂ ha₃ hL_ne_a₂ hL_ne_a₃ ha₂_ne_a₃ hv₀_deg
+  -- Step 3: Every vertex is named (closed neighborhood + connectedness)
+  have hnamed : ∀ v : Fin n, adj v L = 1 ∨ adj v a₂ = 1 ∨ adj v b₂ = 1 ∨
+      adj v c₂ = 1 ∨ adj v a₃ = 1 ∨ adj v b₃ = 1 ∨ adj v v₀ = 1 ∨ v = v₀ →
+      v = v₀ ∨ v = L ∨ v = a₂ ∨ v = b₂ ∨ v = c₂ ∨ v = a₃ ∨ v = b₃ := by
+    intro v hv; rcases hv with h | h | h | h | h | h | h | h
+    -- adj v L = 1: v is L's neighbor, so v = v₀
+    · have := hL_only v ((adj_comm L v).trans h); subst this; left; rfl
+    -- adj v a₂ = 1: v = v₀ or v = b₂
+    · rcases ha₂_only v ((adj_comm a₂ v).trans h) with rfl | rfl
+      · left; rfl
+      · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+    -- adj v b₂ = 1: v = a₂ or v = c₂
+    · rcases hb₂_only v ((adj_comm b₂ v).trans h) with rfl | rfl
+      · exact Or.inr (Or.inr (Or.inl rfl))
+      · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+    -- adj v c₂ = 1: v = b₂
+    · have := hc₂_only v ((adj_comm c₂ v).trans h); subst this
+      exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+    -- adj v a₃ = 1: v = v₀ or v = b₃
+    · rcases ha₃_only v ((adj_comm a₃ v).trans h) with rfl | rfl
+      · left; rfl
+      · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr rfl)))))
+    -- adj v b₃ = 1: v = a₃
+    · have := hb₃_only v ((adj_comm b₃ v).trans h); subst this
+      exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl)))))
+    -- adj v v₀ = 1: v = L or v = a₂ or v = a₃
+    · rcases hv₀_only v ((adj_comm v₀ v).trans h) with rfl | rfl | rfl
+      · exact Or.inr (Or.inl rfl)
+      · exact Or.inr (Or.inr (Or.inl rfl))
+      · exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl rfl)))))
+    -- v = v₀
+    · left; exact h
+  -- Every vertex is named: use connectedness
+  have hall : ∀ i : Fin n,
+      i = v₀ ∨ i = L ∨ i = a₂ ∨ i = b₂ ∨ i = c₂ ∨ i = a₃ ∨ i = b₃ := by
+    intro i
+    obtain ⟨path, hhead, hlast, hedges⟩ := hconn v₀ i
+    -- All path elements are named, by induction on position
+    suffices hpath : ∀ k (hk : k < path.length),
+        path.get ⟨k, hk⟩ = v₀ ∨ path.get ⟨k, hk⟩ = L ∨
+        path.get ⟨k, hk⟩ = a₂ ∨ path.get ⟨k, hk⟩ = b₂ ∨
+        path.get ⟨k, hk⟩ = c₂ ∨ path.get ⟨k, hk⟩ = a₃ ∨
+        path.get ⟨k, hk⟩ = b₃ by
+      -- Extract that i (last element) is named
+      rcases path with _ | ⟨p, ps⟩
+      · simp at hlast
+      · -- last element = i
+        have hlt : (p :: ps).length - 1 < (p :: ps).length :=
+          Nat.sub_lt (Nat.succ_pos ps.length) Nat.one_pos
+        have hlast_get := hpath ((p :: ps).length - 1) hlt
+        -- get(length-1) = getLast
+        have hget_eq : (p :: ps).get ⟨(p :: ps).length - 1, hlt⟩ =
+            (p :: ps).getLast (List.cons_ne_nil _ _) := by
+          simp [List.getLast_eq_getElem]
+        rw [hget_eq] at hlast_get
+        -- getLast = i (from getLast? = some i)
+        have hlast_eq : (p :: ps).getLast (List.cons_ne_nil _ _) = i := by
+          have h := @List.getLast?_eq_getLast _ (p :: ps) (List.cons_ne_nil _ _)
+          rw [h] at hlast; injection hlast
+        rwa [hlast_eq] at hlast_get
+    intro k hk
+    induction k with
+    | zero =>
+      rcases path with _ | ⟨p, _⟩
+      · exact absurd hk (by simp)
+      · simp only [List.head?, Option.some.injEq] at hhead
+        simp only [List.get]; left; exact hhead
+    | succ k ih =>
+      have hk' : k < path.length := by omega
+      have hprev := ih hk'
+      have hedge := hedges k hk
+      -- adj(path[k+1], path[k]) = 1 by symmetry
+      have hadj : adj (path.get ⟨k + 1, hk⟩)
+          (path.get ⟨k, hk'⟩) = 1 := (adj_comm _ _).trans hedge
+      apply hnamed
+      -- path[k] is named; provide adjacency to hnamed
+      rcases hprev with heq | heq | heq | heq | heq | heq | heq
+          <;> rw [heq] at hadj
+      -- path[k] = v₀: adj(path[k+1], v₀) = 1 → 7th disjunct
+      · exact .inr (.inr (.inr (.inr (.inr (.inr (.inl hadj))))))
+      -- path[k] = L: adj(path[k+1], L) = 1 → 1st disjunct
+      · exact .inl hadj
+      -- path[k] = a₂
+      · exact .inr (.inl hadj)
+      -- path[k] = b₂
+      · exact .inr (.inr (.inl hadj))
+      -- path[k] = c₂
+      · exact .inr (.inr (.inr (.inl hadj)))
+      -- path[k] = a₃
+      · exact .inr (.inr (.inr (.inr (.inl hadj))))
+      -- path[k] = b₃
+      · exact .inr (.inr (.inr (.inr (.inr (.inl hadj)))))
+  -- Step 4: n = 7
+  have hn7 : n = 7 := by
+    have hsurj : Function.Surjective
+        (![v₀, L, a₂, b₂, c₂, a₃, b₃] : Fin 7 → Fin n) := by
+      intro i; rcases hall i with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      exacts [⟨0, rfl⟩, ⟨1, rfl⟩, ⟨2, rfl⟩, ⟨3, rfl⟩, ⟨4, rfl⟩,
+              ⟨5, rfl⟩, ⟨6, rfl⟩]
+    have h_le : n ≤ 7 := by
+      have := Fintype.card_le_of_surjective _ hsurj
+      simp [Fintype.card_fin] at this; exact this
+    have h_ge : 7 ≤ n := by
+      -- Use that {v₀, L, a₂, b₂, c₂, a₃, b₃} has 7 elements (all distinct)
+      have hcard : ({v₀, L, a₂, b₂, c₂, a₃, b₃} : Finset (Fin n)).card = 7 := by
+        rw [Finset.card_insert_of_notMem (by simp [hv₀_ne_L, hv₀_ne_a₂,
+            hv₀_ne_b₂, hv₀_ne_c₂, hv₀_ne_a₃, hv₀_ne_b₃]),
+          Finset.card_insert_of_notMem (by simp [hL_ne_a₂, hL_ne_b₂,
+            hL_ne_c₂, hL_ne_a₃, hL_ne_b₃]),
+          Finset.card_insert_of_notMem (by simp [ha₂_ne_b₂, hc₂_ne_a₂.symm,
+            ha₂_ne_a₃, hb₃_ne_a₂.symm]),
+          Finset.card_insert_of_notMem (by simp [hb₂_ne_c₂, hb₂_ne_a₃,
+            hb₃_ne_b₂.symm]),
+          Finset.card_insert_of_notMem (by simp [hc₂_ne_a₃, hc₂_ne_b₃]),
+          Finset.card_insert_of_notMem (by simp [hb₃_ne_a₃.symm]),
+          Finset.card_singleton]
+      calc 7 = ({v₀, L, a₂, b₂, c₂, a₃, b₃} : Finset (Fin n)).card := hcard.symm
+        _ ≤ Finset.univ.card := Finset.card_le_univ _
+        _ = n := Fintype.card_fin n
+    omega
+  sorry
+
+
+
 /-- In a connected graph, if a predicate S holds for a vertex v₀ and is closed
     under adjacency (S v ∧ adj v w = 1 → S w), then S holds for all vertices. -/
 private lemma connected_closed_set_is_all {n : ℕ}
@@ -5842,7 +6121,35 @@ private theorem single_branch_leaf_case {n : ℕ}
           · -- c₂ is leaf: arm2 has length exactly 3. T(1,3,2)=T(1,2,3)=E₆ → posdef → contradiction
             exfalso
             apply h_not_posdef
-            sorry -- T(1,3,2) = E₆ is positive definite
+            -- T(1,3,2) = E₇: 7 vertices, posdef by e7_tree_posdef
+            have hc₂_ne_v₀ : c₂ ≠ v₀ := by
+              intro heq
+              have hb₂v₀ : adj v₀ b₂ = 1 := by
+                rw [adj_comm]; rw [heq] at hc₂_adj; exact hc₂_adj
+              have hv₀_nbrs := deg3_three_neighbors h_leaf_adj ha₂_adj
+                ha₃_adj ha₂_ne_leaf.symm ha₃_ne_leaf.symm ha₂₃ hv₀
+              rcases hv₀_nbrs b₂ hb₂v₀ with h_eq | h_eq | h_eq
+              · -- b₂ = leaf: degree mismatch
+                rw [h_eq] at h_b2_ext; omega
+              · -- b₂ = a₂: adj a₂ a₂ = 1 contradicts diagonal
+                rw [h_eq] at hb₂_adj; have := hdiag a₂; omega
+              · -- b₂ = a₃: a₃'s neighbors are v₀ and b₃,
+                -- but also a₂
+                rw [h_eq] at hb₂_adj
+                have ha₃_nbrs := deg2_two_neighbors
+                  ((adj_comm a₃ v₀).trans ha₃_adj)
+                  hb₃_adj hb₃_ne_v₀.symm h_a3_ext
+                rcases ha₃_nbrs a₂
+                  ((adj_comm a₃ a₂).trans hb₂_adj) with h' | h'
+                · exact ha₂_ne_v₀ h'
+                · rw [h'] at h_a2_ext; omega
+            have hc₂_deg1 : vertexDegree adj c₂ = 1 := by
+              have hle := h_deg_le2 c₂ hc₂_ne_v₀; omega
+            exact e7_tree_posdef adj hsymm hdiag h01 hconn h_acyclic
+              v₀ leaf a₂ b₂ c₂ a₃ b₃
+              h_leaf_adj ha₂_adj ha₃_adj hb₂_adj hc₂_adj hb₃_adj
+              hv₀ h_leaf_deg h_a2_ext h_a3_ext h_b2_ext
+              hc₂_deg1 hb₃_deg1
       · -- b₂ is leaf (arm2 length = 2): T(1,2,≥q) with q ≥ 2 (arm3 = a₃-b₃-...).
         -- T(1,2,3)=E₆, T(1,2,4)=E₇, T(1,2,5)=E₈ → posdef contradiction; T(1,2,≥6) → embed T(1,2,5).
         have hb₂_deg1 : vertexDegree adj b₂ = 1 := by
@@ -6137,7 +6444,36 @@ private theorem single_branch_leaf_case {n : ℕ}
                 ha₂_only hb₂_only h_all_named x hx
           · -- c₃ is leaf: arm3 length = 3. T(1,2,3) = E₆ → posdef → contradiction
             exfalso; apply h_not_posdef
-            sorry -- T(1,2,3) = E₆ is positive definite
+            -- T(1,2,3) = E₇: 7 vertices (swap arms),
+            -- posdef by e7_tree_posdef
+            have hc₃_ne_v₀ : c₃ ≠ v₀ := by
+              intro heq
+              have hb₃v₀ : adj v₀ b₃ = 1 := by
+                rw [adj_comm]; rw [heq] at hc₃_adj; exact hc₃_adj
+              have hv₀_nbrs := deg3_three_neighbors h_leaf_adj ha₂_adj
+                ha₃_adj ha₂_ne_leaf.symm ha₃_ne_leaf.symm ha₂₃ hv₀
+              rcases hv₀_nbrs b₃ hb₃v₀ with h_eq | h_eq | h_eq
+              · -- b₃ = leaf: degree mismatch
+                rw [h_eq] at h_b3_ext'; omega
+              · -- b₃ = a₂: a₂'s neighbors are v₀ and b₂,
+                -- but also a₃
+                rw [h_eq] at hb₃_adj
+                have ha₂_nbrs := deg2_two_neighbors
+                  ((adj_comm a₂ v₀).trans ha₂_adj)
+                  hb₂_adj hb₂_ne_v₀.symm h_a2_ext
+                rcases ha₂_nbrs a₃
+                  ((adj_comm a₂ a₃).trans hb₃_adj) with h' | h'
+                · exact ha₃_ne_v₀ h'
+                · rw [h'] at h_a3_ext; omega
+              · -- b₃ = a₃: adj a₃ a₃ = 1 contradicts diagonal
+                rw [h_eq] at hb₃_adj; have := hdiag a₃; omega
+            have hc₃_deg1 : vertexDegree adj c₃ = 1 := by
+              have hle := h_deg_le2 c₃ hc₃_ne_v₀; omega
+            exact e7_tree_posdef adj hsymm hdiag h01 hconn h_acyclic
+              v₀ leaf a₃ b₃ c₃ a₂ b₂
+              h_leaf_adj ha₃_adj ha₂_adj hb₃_adj hc₃_adj hb₂_adj
+              hv₀ h_leaf_deg h_a3_ext h_a2_ext h_b3_ext'
+              hc₃_deg1 hb₂_deg1
         · -- b₃ is also leaf: arm3 length = 2. T(1,2,2) = D₅ → posdef → contradiction
           exfalso; apply h_not_posdef
           -- T(1,2,2) positive definiteness proof
