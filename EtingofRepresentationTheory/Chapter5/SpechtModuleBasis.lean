@@ -645,9 +645,15 @@ private theorem twistedPolytabloid_col_eq (w : Equiv.Perm (Fin n))
     group
 
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
-For column-standard σ with row inversion, each non-identity Garnir permutation w
+For column-standard σ with row inversion, each cross-column Garnir permutation w
+(i.e., w ∉ Q_λ, so w moves at least one position to a different column)
 produces a "twisted polytabloid" f_w(σ) that lies in the span of
 {ψ_τ : τ column-standard, rowInvCount'(τ) < rowInvCount'(σ)}.
+
+The hypothesis `hw_col : w ∉ ColumnSubgroup n la` is essential: for w ∈ Q_λ,
+`twistedPolytabloid_col_eq` gives f_w(σ) = sign(w) · ψ_σ, and proving ψ_σ is
+in the lower span would be circular. The algebraic splitting of Q_λ vs non-Q_λ
+terms is handled in `garnir_straightening_step`.
 
 The proof requires:
 1. Column-restandardize wσ: find q₀ ∈ Q_λ with q₀·w·σ column-standard.
@@ -662,7 +668,7 @@ private theorem garnir_twisted_in_lower_span
     (hrp : 0 < rowInvCount' (la := la) σ)
     (G : Finset (Fin n))
     (w : Equiv.Perm (Fin n)) (hw_supp : ∀ x, x ∉ G → w x = x)
-    (hw_ne : w ≠ 1) :
+    (hw_ne : w ≠ 1) (hw_col : w ∉ ColumnSubgroup n la) :
     twistedPolytabloid (la := la) w σ ∈
     Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
         isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
@@ -675,8 +681,13 @@ polytabloidTab ψ_σ lies in the ℂ-span of {ψ_{σ'} : σ' column-standard,
 rowInvCount'(σ') < rowInvCount'(σ)}.
 
 Proof: combine `garnir_polytabloid_identity` with `garnir_twisted_in_lower_span`.
-The identity expresses ψ_σ as a negated sum of twisted polytabloids, and
-each twisted polytabloid is in the lower span. -/
+The identity expresses ψ_σ as a negated sum of twisted polytabloids. We split
+the sum into column-preserving (Q_λ) and cross-column terms:
+- For w ∈ Q_λ: f_w(σ) = sign(w)·ψ_σ by `twistedPolytabloid_col_eq`, so
+  sign(w)·f_w(σ) = ψ_σ. These k terms contribute k·ψ_σ.
+- For w ∉ Q_λ: f_w(σ) ∈ lower span by `garnir_twisted_in_lower_span`.
+Rearranging: (1+k)·ψ_σ = -(non-Q_λ sum) ∈ lower span, and dividing by the
+nonzero scalar (1+k) yields ψ_σ ∈ lower span. -/
 private theorem garnir_straightening_step
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ) :
@@ -708,13 +719,84 @@ private theorem garnir_straightening_step
     simp [t, Equiv.Perm.sign_swap hne]
   -- Step 3: Apply the Garnir polytabloid identity
   have h_id := garnir_polytabloid_identity σ G t ht_row ht_supp ht_sign
-  rw [h_id]
-  -- Step 4: Show the negated sum is in the span
-  apply Submodule.neg_mem
-  apply Submodule.sum_mem
-  intro ⟨w, hw_supp, hw_ne⟩ _
-  apply Submodule.smul_mem
-  exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne
+  -- Abbreviations
+  set ψ := generalizedPolytabloidTab (n := n) (la := la) σ with hψ_def
+  set L := Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+      isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+    generalizedPolytabloidTab (n := n) (la := la) τ.val))
+  -- Step 4: Split sum into Q_λ-preserving and cross-column parts
+  -- For w ∈ Q_λ: sign(w) • f_w(σ) = ψ (since f_w(σ) = sign(w) • ψ by twistedPolytabloid_col_eq)
+  -- For w ∉ Q_λ: sign(w) • f_w(σ) ∈ L (by garnir_twisted_in_lower_span)
+  -- The identity gives: ψ = -(Σ_{Q_λ} ψ + Σ_{¬Q_λ} sign(w) • f_w(σ))
+  -- So: (1 + k) • ψ = -(Σ_{¬Q_λ} ...) ∈ L, hence ψ ∈ L
+  classical
+  -- Set up subtype and predicate
+  set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1}
+  set p_col : T → Prop := fun w => w.val ∈ ColumnSubgroup n la with hp_col_def
+  haveI hp_dec : DecidablePred p_col := fun w => Classical.dec (p_col w)
+  -- The summand function
+  let f : T → TabloidRepresentation n la := fun w =>
+    ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
+      twistedPolytabloid (la := la) w.val σ)
+  -- The non-Q_λ sum is in L
+  have h_ncol_mem : -(∑ w ∈ (Finset.univ : Finset T).filter (fun w => ¬p_col w),
+      f w) ∈ L := by
+    apply Submodule.neg_mem
+    apply Submodule.sum_mem
+    intro ⟨w, hw_supp, hw_ne⟩ hmem
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, hp_col_def] at hmem
+    show f ⟨w, hw_supp, hw_ne⟩ ∈ L
+    apply Submodule.smul_mem
+    exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne hmem
+  -- The Q_λ part: each term equals ψ
+  have h_col_term : ∀ w : T, p_col w → f w = ψ := by
+    intro ⟨w, hw_supp, hw_ne⟩ hw_col
+    show f ⟨w, hw_supp, hw_ne⟩ = ψ
+    simp only [f]
+    rw [twistedPolytabloid_col_eq w hw_col σ, smul_smul, ← hψ_def]
+    have : (↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) * (↑(↑(Equiv.Perm.sign w) : ℤ) : ℂ) = 1 := by
+      rcases Int.units_eq_one_or (Equiv.Perm.sign w) with h | h <;>
+        simp [show (Equiv.Perm.sign w : ℤ) = _ from congr_arg Units.val h]
+    rw [this, one_smul]
+  -- Split the total sum
+  have h_split : ∑ w : T, f w =
+    ∑ w ∈ Finset.univ.filter p_col, f w +
+    ∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w := by
+    rw [← Finset.sum_filter_add_sum_filter_not (p := p_col)]
+  -- The Q_λ sum equals k • ψ
+  have h_col_sum : ∑ w ∈ Finset.univ.filter p_col, f w =
+    ((Finset.univ.filter p_col).card : ℂ) • ψ := by
+    rw [Finset.sum_eq_card_nsmul (s := Finset.univ.filter p_col)
+      (b := ψ) (fun w hw => h_col_term w (Finset.mem_filter.mp hw).2)]
+    rw [← Nat.cast_smul_eq_nsmul ℂ]
+  -- From h_id: ψ = -(Σ_T f) = -(k • ψ + Σ_{¬Q_λ} f)
+  -- So: (1 + k) • ψ = -(Σ_{¬Q_λ} f)
+  set k := (Finset.univ.filter p_col).card
+  have h_eq : ((1 + (k : ℂ)) • ψ) =
+      -(∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w) := by
+    have h1 : ψ = -(∑ w : T, f w) := h_id
+    rw [h_split, h_col_sum] at h1
+    -- h1 : ψ = -(↑k • ψ + Σ_{¬Q_λ}). Rearrange to (1 + ↑k) • ψ = -Σ_{¬Q_λ}
+    set S := ∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w
+    -- From h1: ψ + (↑k • ψ + S) = 0
+    have h2 : ψ + ((k : ℂ) • ψ + S) = 0 := by
+      conv_lhs => lhs; rw [h1]
+      exact neg_add_cancel _
+    -- Rearrange: (ψ + ↑k • ψ) + S = 0, so ψ + ↑k • ψ = -S
+    rw [← add_assoc] at h2
+    have h3 := add_eq_zero_iff_eq_neg.mp h2
+    -- h3 : ψ + ↑k • ψ = -S. Rewrite goal to match h3.
+    rw [add_smul, one_smul]; exact h3
+  -- (1 + k : ℂ) ≠ 0 since k ∈ ℕ and ℂ has characteristic 0
+  have hk_ne : (1 + (k : ℂ)) ≠ 0 := by
+    rw [add_comm]; exact Nat.cast_add_one_ne_zero k
+  -- (1+k) • ψ ∈ L (equals the negated non-Q_λ sum which is in L)
+  have h_scaled_mem : (1 + (k : ℂ)) • ψ ∈ L := h_eq ▸ h_ncol_mem
+  -- ψ = (1+k)⁻¹ • ((1+k) • ψ) ∈ L
+  have : ψ = (1 + (k : ℂ))⁻¹ • ((1 + (k : ℂ)) • ψ) := by
+    rw [smul_smul, inv_mul_cancel₀ hk_ne, one_smul]
+  rw [this]
+  exact Submodule.smul_mem L _ h_scaled_mem
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
