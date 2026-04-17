@@ -420,6 +420,45 @@ private theorem column_row_standard_is_syt
     exact hp
   exact eq_of_rowStandard_of_toTabloid_eq σ (sytPerm n la T) hrs hσT_rs ht_eq
 
+/-! ### Garnir set
+
+The Garnir set for a row inversion pair (p₁, p₂) consists of:
+- All positions in column(p₁) at rows ≥ row(p₁)
+- All positions in column(p₂) at rows ≤ row(p₂)
+
+Since p₁ and p₂ are in the same row, the set spans two columns and
+contains enough positions to force cross-column permutations.
+
+Reference: James, "The Representation Theory of the Symmetric Groups", Chapter 7.
+-/
+
+/-- The Garnir set for positions p₁, p₂ in a Young diagram. Given positions in the same
+row with col(p₁) < col(p₂), this is the set of positions in column(p₁) at or below
+row(p₁,p₂) together with positions in column(p₂) at or above row(p₁,p₂).
+
+This cross-column set ensures that non-identity G-supported permutations include
+cross-column shuffles that are NOT in the row subgroup, which is essential for the
+dominance argument in the Garnir straightening theorem. -/
+private def garnirSet (p₁ p₂ : Fin n) : Finset (Fin n) :=
+  let parts := la.sortedParts
+  let r := rowOfPos parts p₁.val
+  let j₁ := colOfPos parts p₁.val
+  let j₂ := colOfPos parts p₂.val
+  Finset.univ.filter fun p =>
+    (colOfPos parts p.val = j₁ ∧ r ≤ rowOfPos parts p.val) ∨
+    (colOfPos parts p.val = j₂ ∧ rowOfPos parts p.val ≤ r)
+
+private theorem mem_garnirSet_left (p₁ p₂ : Fin n) :
+    p₁ ∈ garnirSet (la := la) p₁ p₂ := by
+  refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, Or.inl ⟨rfl, ?_⟩⟩
+  exact Nat.le_refl _
+
+private theorem mem_garnirSet_right (p₁ p₂ : Fin n)
+    (hrow : rowOfPos la.sortedParts p₁.val = rowOfPos la.sortedParts p₂.val) :
+    p₂ ∈ garnirSet (la := la) p₁ p₂ := by
+  refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, Or.inr ⟨rfl, ?_⟩⟩
+  exact hrow ▸ Nat.le_refl _
+
 /-! ### Garnir straightening step
 
 The key technical result: for column-standard σ with row inversions,
@@ -433,9 +472,8 @@ polytabloidTabs with strictly fewer row inversions. This uses:
 
 Given column-standard σ with rowInvCount' > 0:
 1. Find a row inversion pair (p₁, p₂): same row, col(p₁) < col(p₂), σ⁻¹(p₁) > σ⁻¹(p₂).
-2. Construct the Garnir set G for an appropriate column pair (connecting the
-   row containing the inversion to an adjacent row). G contains a row pair,
-   enabling `garnirAnnihilate_tabloid`.
+2. Construct the proper Garnir set G spanning columns col(p₁) and col(p₂).
+   G contains p₁ and p₂ (a row pair), enabling `garnirAnnihilate_tabloid`.
 3. Apply the Garnir identity to each tabloid [q⁻¹σ] in ψ_σ's expansion:
      0 = Σ_w sign(w) · [w·q⁻¹·σ]   (for each q ∈ Q_λ)
 4. Sum over q with sign(q) and exchange sum order to get:
@@ -648,9 +686,10 @@ private theorem garnir_straightening_step
         generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   -- Step 1: Find the row inversion pair
   obtain ⟨p₁, p₂, hrow_eq, hcol_lt, hinv⟩ := exists_row_inversion_pair σ hrp
-  -- Step 2: Use G = {p₁, p₂} as Garnir set, t = swap(p₁, p₂) as row transposition
+  -- Step 2: Use the proper Garnir set spanning columns col(p₁) and col(p₂),
+  -- with t = swap(p₁, p₂) as row transposition
   have hne : p₁ ≠ p₂ := by intro h; rw [h] at hcol_lt; exact Nat.lt_irrefl _ hcol_lt
-  set G := ({p₁, p₂} : Finset (Fin n))
+  set G := garnirSet (la := la) p₁ p₂
   set t := Equiv.swap p₁ p₂
   have ht_row : t ∈ RowSubgroup n la := by
     intro k; simp only [t, Equiv.swap_apply_def]
@@ -658,9 +697,13 @@ private theorem garnir_straightening_step
     · subst h1; exact hrow_eq.symm
     · subst h2; exact hrow_eq
     · rfl
+  have hp₁_mem : p₁ ∈ G := mem_garnirSet_left p₁ p₂
+  have hp₂_mem : p₂ ∈ G := mem_garnirSet_right p₁ p₂ hrow_eq
   have ht_supp : ∀ x, x ∉ G → t x = x := by
-    intro x hx; simp only [G, Finset.mem_insert, Finset.mem_singleton, not_or] at hx
-    simp [t, Equiv.swap_apply_of_ne_of_ne hx.1 hx.2]
+    intro x hx
+    have hx1 : x ≠ p₁ := fun h => hx (h ▸ hp₁_mem)
+    have hx2 : x ≠ p₂ := fun h => hx (h ▸ hp₂_mem)
+    simp [t, Equiv.swap_apply_of_ne_of_ne hx1 hx2]
   have ht_sign : Equiv.Perm.sign t = -1 := by
     simp [t, Equiv.Perm.sign_swap hne]
   -- Step 3: Apply the Garnir polytabloid identity
