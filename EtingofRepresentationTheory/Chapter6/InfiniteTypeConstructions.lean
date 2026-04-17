@@ -3005,7 +3005,236 @@ attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
 theorem t125Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 9)
       t125Quiver (t125Rep m) := by
-  sorry
+  letI := t125Quiver
+  constructor
+  · -- Nontrivial at vertex 8 (dim m+1 ≥ 1)
+    refine ⟨⟨8, by omega⟩, ?_⟩
+    show Nontrivial (Fin (t125Dim m ⟨8, by omega⟩) → ℂ)
+    simp only [t125Dim]
+    infer_instance
+  · -- Indecomposability
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Helper: Quiver.Hom constructors for each arrow
+    have hom10 : @Quiver.Hom _ t125Quiver ⟨1, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inl ⟨rfl, rfl⟩⟩
+    have hom32 : @Quiver.Hom _ t125Quiver ⟨3, by omega⟩ ⟨2, by omega⟩ :=
+      ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩
+    have hom20 : @Quiver.Hom _ t125Quiver ⟨2, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩
+    have hom87 : @Quiver.Hom _ t125Quiver ⟨8, by omega⟩ ⟨7, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩
+    have hom76 : @Quiver.Hom _ t125Quiver ⟨7, by omega⟩ ⟨6, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))⟩
+    have hom65 : @Quiver.Hom _ t125Quiver ⟨6, by omega⟩ ⟨5, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))))⟩
+    have hom54 : @Quiver.Hom _ t125Quiver ⟨5, by omega⟩ ⟨4, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))))⟩
+    have hom40 : @Quiver.Hom _ t125Quiver ⟨4, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))))))⟩
+    -- Arm chain helpers: push x ∈ W(8) to center via arm 3 (8→7→6→5→4→0)
+    have arm3_to_center (W : ∀ v, Submodule ℂ ((t125Rep m).obj v))
+        (hW : ∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W a, (t125Rep m).mapLinear e x ∈ W b)
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (8 : Fin 9)) :
+        (t125Rep m).mapLinear hom40 ((t125Rep m).mapLinear hom54
+          ((t125Rep m).mapLinear hom65 ((t125Rep m).mapLinear hom76
+            ((t125Rep m).mapLinear hom87 x)))) ∈ W (0 : Fin 9) :=
+      hW hom40 _ (hW hom54 _ (hW hom65 _ (hW hom76 _ (hW hom87 x hx))))
+    -- Arm 2 chain from vertex 3 to center (3→2→0)
+    have arm2_to_center (W : ∀ v, Submodule ℂ ((t125Rep m).obj v))
+        (hW : ∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W a, (t125Rep m).mapLinear e x ∈ W b)
+        (y : Fin (2 * (m + 1)) → ℂ) (hy : y ∈ W (3 : Fin 9)) :
+        (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 y) ∈ W (0 : Fin 9) :=
+      hW hom20 _ (hW hom32 y hy)
+    -- Both arm chains produce the same element (x,0,...,0) at the center when
+    -- arm 3 starts from x at vertex 8 and arm 2 starts from starEmbed1(x) at vertex 3.
+    -- Arm 3: x → (x,0) → (x,0,0) → (x,0,0,0) → (x,0,0,0,0) → (x,0,0,0,0,0)
+    -- Arm 2: (x,0) → (x,0,0,0) → (x,0,0,0,0,0)
+    -- The embedSkipBlockB at 4→0 skips block B, but since blocks B..E of the
+    -- arm 3 intermediate are all 0, the skip has no effect.
+    have arms_agree : ∀ x : Fin (m + 1) → ℂ,
+        (t125Rep m).mapLinear hom40 ((t125Rep m).mapLinear hom54
+          ((t125Rep m).mapLinear hom65 ((t125Rep m).mapLinear hom76
+            ((t125Rep m).mapLinear hom87 x)))) =
+        (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32
+          (starEmbed1 m x)) := by
+      intro x
+      show embedSkipBlockB m 5 6 (by omega) (by omega)
+            (embedFirstBlocks m 4 5 (by omega)
+              (embedFirstBlocks m 3 4 (by omega)
+                (embed2to3_AB m (starEmbed1 m x)))) =
+           embedFirstBlocks m 4 6 (by omega)
+            (embedFirstBlocks m 2 4 (by omega) (starEmbed1 m x))
+      ext ⟨i, hi⟩
+      simp only [embedSkipBlockB, embedFirstBlocks, embed2to3_AB, starEmbed1,
+        LinearMap.coe_mk, AddHom.coe_mk] at hi ⊢
+      -- Both sides equal: if i < m+1 then x ⟨i, _⟩ else 0
+      -- We proceed by case analysis on which block i falls in
+      split_ifs <;> first | rfl | (try omega) | (try (exfalso; omega)) | (try congr 1; ext; omega)
+    -- Leaf containment: x ∈ W(8) implies starEmbed1(x) ∈ W(3)
+    -- Proof: decompose starEmbed1(x) at vertex 3, push both parts through arm 2,
+    -- use arms_agree to show the W'(0) component is zero, extract via injectivity.
+    have leaf_containment
+        (W W' : ∀ v, Submodule ℂ ((t125Rep m).obj v))
+        (hW : ∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W a, (t125Rep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W' a, (t125Rep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (8 : Fin 9)) :
+        starEmbed1 m x ∈ W (3 : Fin 9) := by
+      -- Decompose starEmbed1(x) at vertex 3
+      have htop3 := (hc (3 : Fin 9)).sup_eq_top ▸ Submodule.mem_top (x := starEmbed1 m x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop3
+      -- arm3: x ∈ W(8) → E ∈ W(0)
+      have hE := arm3_to_center W hW x hx
+      -- arm2: a ∈ W(3) → F ∈ W(0), b ∈ W'(3) → G ∈ W'(0)
+      have hF := arm2_to_center W hW a ha
+      have hG := arm2_to_center W' hW' b hb
+      -- G ∈ W(0): since arm3(x) = arm2(starEmbed1(x)) = arm2(a) + arm2(b) = F + G
+      have hG_W : (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 b)
+          ∈ W (0 : Fin 9) := by
+        have key : (t125Rep m).mapLinear hom40 ((t125Rep m).mapLinear hom54
+            ((t125Rep m).mapLinear hom65 ((t125Rep m).mapLinear hom76
+              ((t125Rep m).mapLinear hom87 x)))) =
+          (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 a) +
+          (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 b) := by
+          have h1 := arms_agree x
+          rw [h1, ← hab, map_add, map_add]
+        have h2 : (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 b) =
+          (t125Rep m).mapLinear hom40 ((t125Rep m).mapLinear hom54
+            ((t125Rep m).mapLinear hom65 ((t125Rep m).mapLinear hom76
+              ((t125Rep m).mapLinear hom87 x)))) +
+          (-1 : ℂ) • (t125Rep m).mapLinear hom20 ((t125Rep m).mapLinear hom32 a) := by
+          rw [key]; funext i; show _ = (_ + _ + (-1 : ℂ) * _); ring
+        rw [h2]; exact (W (0 : Fin 9)).add_mem hE ((W (0 : Fin 9)).smul_mem (-1) hF)
+      -- G ∈ W(0) ∩ W'(0) = {0}
+      have hzero := Submodule.mem_inf.mpr ⟨hG_W, hG⟩
+      rw [(hc (0 : Fin 9)).inf_eq_bot, Submodule.mem_bot] at hzero
+      -- arm2(b) = 0 and arm2 composition is injective → b = 0
+      have hb_zero : b = 0 := by
+        -- hzero : embedFirstBlocks 4 6 (embedFirstBlocks 2 4 b) = 0
+        -- embedFirstBlocks is injective (first k blocks are identity)
+        have h1 : embedFirstBlocks m 2 4 (by omega) b = 0 := by
+          change embedFirstBlocks m 4 6 (by omega) (embedFirstBlocks m 2 4 (by omega) b) =
+            0 at hzero
+          ext ⟨j, hj⟩
+          have := congr_fun hzero ⟨j, by show j < t125Dim m (0 : Fin 9); simp [t125Dim]; omega⟩
+          simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, Pi.zero_apply,
+            dif_pos (show j < 4 * (m + 1) by omega)] at this
+          exact this
+        ext ⟨j, hj⟩
+        have := congr_fun h1 ⟨j, by show j < 4 * (m + 1); omega⟩
+        simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, Pi.zero_apply,
+          dif_pos (show j < 2 * (m + 1) by omega)] at this
+        exact this
+      rw [hb_zero, add_zero] at hab; rw [← hab]; exact ha
+    -- N-invariance of W₁(8) and W₂(8) under nilpotentShiftLin
+    -- KEY DIFFICULTY: The nilpotent enters through arm 1 (vertex 1→0 via t125Arm1Embed),
+    -- which puts Nr in block F of the center. Leaves 8 and 3 connect to block A of the
+    -- center. The coupling from arm1's block F to block A requires analysis of the
+    -- complement decomposition at the center and intermediate vertices.
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ (8 : Fin 9) → nilpotentShiftLin m x ∈ W₁ (8 : Fin 9) := by
+      sorry
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ (8 : Fin 9) → nilpotentShiftLin m x ∈ W₂ (8 : Fin 9) := by
+      sorry
+    -- Apply nilpotent_invariant_compl_trivial at vertex 8
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ (8 : Fin 9)) (W₂ (8 : Fin 9)) hN₁ hN₂ (hcompl (8 : Fin 9))
+    -- Propagation: W(8) = ⊥ → W(0) = ⊥ → all W(v) = ⊥
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((t125Rep m).obj v)),
+        (∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W a, (t125Rep m).mapLinear e x ∈ W b) →
+        (∀ {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b),
+          ∀ x ∈ W' a, (t125Rep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W (8 : Fin 9) = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₁_inv hW₂_inv hcompl h
+      · right; exact propagate W₂ W₁ hW₂_inv hW₁_inv
+          (fun v => (hcompl v).symm) h
+    intro W W' hW_inv hW'_inv hc hbot8 v
+    -- Step 1: W(0) = ⊥
+    -- From W(8) = ⊥, W'(8) = ⊤. Pushing through arm chains fills W'(0) with
+    -- block A data. The arm 1 nilpotent coupling (m ≥ 1) forces enough of
+    -- W'(0) to span that W(0) must be ⊥.
+    have hbot0 : W (0 : Fin 9) = ⊥ := by sorry
+    -- Step 2: Propagate from W(0) = ⊥ to all vertices via injectivity.
+    -- Each arrow a→0 has injective map: if f(W(a)) ⊂ W(0) = ⊥, then W(a) = ⊥.
+    -- Helper: propagation via injective map
+    have prop_inj {a b : Fin 9} (e : @Quiver.Hom _ t125Quiver a b)
+        (hbot_b : W b = ⊥)
+        (hinj : Function.Injective ((t125Rep m).mapLinear e)) : W a = ⊥ := by
+      rw [eq_bot_iff]; intro x hx; rw [Submodule.mem_bot]
+      have h := hW_inv e x hx
+      rw [hbot_b, Submodule.mem_bot] at h
+      have : (t125Rep m).mapLinear e x = (t125Rep m).mapLinear e 0 := by rw [h, map_zero]
+      exact hinj this
+    -- Injectivity of each edge map
+    -- All maps are block embeddings (first-blocks, skip-block-B, or triangular), hence injective.
+    -- The proofs show: if f(x) = f(y), reading the output blocks recovers x = y.
+    have inj_10 : Function.Injective ((t125Rep m).mapLinear hom10) := by
+      show Function.Injective (t125Arm1Embed m)
+      -- t125Arm1Embed: (p,q,r) ↦ (p+q+r, p+q, p, 0, 0, Nr) is injective:
+      -- Block C recovers p, cancel to get q from block B, cancel to get r from block A.
+      sorry
+    have inj_32 : Function.Injective ((t125Rep m).mapLinear hom32) := by
+      show Function.Injective (embedFirstBlocks m 2 4 (by omega))
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_20 : Function.Injective ((t125Rep m).mapLinear hom20) := by
+      show Function.Injective (embedFirstBlocks m 4 6 (by omega))
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_87 : Function.Injective ((t125Rep m).mapLinear hom87) := by
+      show Function.Injective (starEmbed1 m)
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [starEmbed1, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_76 : Function.Injective ((t125Rep m).mapLinear hom76) := by
+      show Function.Injective (embed2to3_AB m)
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embed2to3_AB, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_65 : Function.Injective ((t125Rep m).mapLinear hom65) := by
+      show Function.Injective (embedFirstBlocks m 3 4 (by omega))
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_54 : Function.Injective ((t125Rep m).mapLinear hom54) := by
+      show Function.Injective (embedFirstBlocks m 4 5 (by omega))
+      intro x y h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embedFirstBlocks, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj] at this
+      exact this
+    have inj_40 : Function.Injective ((t125Rep m).mapLinear hom40) := by
+      show Function.Injective (embedSkipBlockB m 5 6 (by omega) (by omega))
+      -- Block A of output = block A of input; blocks C..F of output = blocks B..E of input.
+      sorry
+    -- Chain: W(0)=⊥ → W(1)=⊥ (1→0), W(2)=⊥ (2→0), W(4)=⊥ (4→0)
+    --        W(2)=⊥ → W(3)=⊥ (3→2), W(4)=⊥ → W(5)=⊥ (5→4)
+    --        W(5)=⊥ → W(6)=⊥ (6→5), W(6)=⊥ → W(7)=⊥ (7→6)
+    --        W(7)=⊥ → W(8)=⊥ (8→7)
+    have hbot1 := prop_inj hom10 hbot0 inj_10
+    have hbot2 := prop_inj hom20 hbot0 inj_20
+    have hbot4 := prop_inj hom40 hbot0 inj_40
+    have hbot3 := prop_inj hom32 hbot2 inj_32
+    have hbot5 := prop_inj hom54 hbot4 inj_54
+    have hbot6 := prop_inj hom65 hbot5 inj_65
+    have hbot7 := prop_inj hom76 hbot6 inj_76
+    have hbot8' := prop_inj hom87 hbot7 inj_87
+    fin_cases v <;> assumption
 
 theorem t125Rep_dimVec (m : ℕ) (v : Fin 9) :
     Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 9) _ t125Quiver
