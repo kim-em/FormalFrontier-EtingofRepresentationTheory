@@ -6324,7 +6324,130 @@ private theorem non_adjacent_branches_infinite_type {n : ℕ}
     -- Subgraph transfer via `subgraph_infinite_type_transfer`.
     have leaf_case : ∀ leaf : Fin n, adj v₀ leaf = 1 → vertexDegree adj leaf = 1 →
         ¬ IsFiniteTypeQuiver n adj := fun leaf h_leaf_adj h_leaf_deg => by
-      -- TODO: Complete the subgraph embedding (see issue #2331).
+      -- v₀ and w are not adjacent (no adjacent degree-3 pair exists)
+      have h_v₀w_nonadj : adj v₀ w ≠ 1 := by
+        intro hadj
+        have := h_adj_exists v₀ w hadj
+        simp [hv₀, hw] at this
+      -- Get a Nodup path from v₀ to w (via hconn + walk trimming).
+      -- path = [v₀, c₁, ..., c_{d-1}, w] with length ≥ 3 (since non-adjacent)
+      obtain ⟨chain, hchain_head, hchain_last, hchain_nodup, hchain_len, hchain_edges⟩ :
+        ∃ chain : List (Fin n), chain.head? = some v₀ ∧ chain.getLast? = some w ∧
+          chain.Nodup ∧ 3 ≤ chain.length ∧
+          ∀ t, (ht : t + 1 < chain.length) →
+            adj (chain.get ⟨t, by omega⟩) (chain.get ⟨t + 1, ht⟩) = 1 := by
+        -- Get walk from hconn, trim to Nodup
+        obtain ⟨walk, hwh, hwl, hwe⟩ := hconn v₀ w
+        obtain ⟨spath, hsh, hsl, hsd, hslen, hse⟩ :=
+          walk_to_nodup_path adj hsymm h_acyclic walk hwh hwl (by sorry) hwe
+        -- Nodup path length ≥ 3 since v₀ and w are non-adjacent
+        refine ⟨spath, hsh, hsl, hsd, ?_, hse⟩
+        sorry -- length ≥ 3 from non-adjacency of v₀ and w
+      -- chain[0] = v₀, chain[last] = w
+      have hchain_ne : chain ≠ [] := List.ne_nil_of_length_pos (by omega)
+      have hchain_first : chain.get ⟨0, by omega⟩ = v₀ := by
+        cases chain with
+        | nil => exact absurd rfl hchain_ne
+        | cons a t => simpa using hchain_head
+      have hchain_last' : chain.getLast hchain_ne = w := by
+        rw [List.getLast?_eq_some_getLast hchain_ne] at hchain_last
+        exact Option.some_injective _ hchain_last
+      -- chain[1] is adjacent to v₀ and distinct from it
+      have hc1_adj : adj v₀ (chain.get ⟨1, by omega⟩) = 1 := by
+        rw [← hchain_first]; exact hchain_edges 0 (by omega)
+      -- leaf ≠ chain[1] (leaf has degree 1, but chain[1] connects to chain[2] and v₀)
+      have hleaf_ne_c1 : leaf ≠ chain.get ⟨1, by omega⟩ := by
+        intro heq
+        -- leaf has degree 1, its only neighbor is v₀
+        -- But chain[1] is also adjacent to chain[2] (if chain has length ≥ 3)
+        -- chain[2] ≠ v₀ (Nodup)
+        have hc1c2_adj : adj (chain.get ⟨1, by omega⟩) (chain.get ⟨2, by omega⟩) = 1 :=
+          hchain_edges 1 (by omega)
+        have hc2_ne_v₀ : chain.get ⟨2, by omega⟩ ≠ v₀ := by
+          rw [← hchain_first]; intro h
+          exact absurd ((hchain_nodup.get_inj_iff).mp h) (by simp)
+        -- So chain[1] = leaf has at least 2 neighbors: v₀ and chain[2]
+        have : 2 ≤ vertexDegree adj leaf := by
+          rw [heq]; unfold vertexDegree
+          have hv₀_in : v₀ ∈ Finset.univ.filter (fun j => adj (chain.get ⟨1, by omega⟩) j = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, (adj_comm _ _).trans hc1_adj⟩
+          have hc2_in : chain.get ⟨2, by omega⟩ ∈
+              Finset.univ.filter (fun j => adj (chain.get ⟨1, by omega⟩) j = 1) :=
+            Finset.mem_filter.mpr ⟨Finset.mem_univ _, hc1c2_adj⟩
+          have hsub : {v₀, chain.get ⟨2, by omega⟩} ⊆
+              Finset.univ.filter (fun j => adj (chain.get ⟨1, by omega⟩) j = 1) := by
+            intro x hx
+            simp only [Finset.mem_insert, Finset.mem_singleton] at hx
+            rcases hx with rfl | rfl <;> assumption
+          have := Finset.card_le_card hsub
+          rw [Finset.card_pair hc2_ne_v₀.symm] at this
+          exact this
+        omega
+      -- v₀ has exactly 3 neighbors. leaf and chain[1] are two of them.
+      -- The third neighbor is the "side arm" start.
+      -- Since v₀ has degree 3 and S₀ lists all neighbors:
+      -- leaf ∈ S₀, chain[1] ∈ S₀, and there's a third.
+      have hleaf_in_S₀ : leaf ∈ S₀ := Finset.mem_filter.mpr ⟨Finset.mem_univ _, h_leaf_adj⟩
+      have hc1_in_S₀ : chain.get ⟨1, by omega⟩ ∈ S₀ :=
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hc1_adj⟩
+      -- Get the third neighbor (side arm)
+      have hS₀_remove2 : ((S₀.erase leaf).erase (chain.get ⟨1, by omega⟩)).card = 1 := by
+        rw [Finset.card_erase_of_mem (Finset.mem_erase.mpr ⟨hleaf_ne_c1.symm, hc1_in_S₀⟩)]
+        rw [Finset.card_erase_of_mem hleaf_in_S₀, hS₀_card]
+      obtain ⟨side_arm, hside_eq⟩ := Finset.card_eq_one.mp hS₀_remove2
+      have hside_mem : side_arm ∈ (S₀.erase leaf).erase (chain.get ⟨1, by omega⟩) :=
+        hside_eq ▸ Finset.mem_singleton_self _
+      have hside_adj : adj v₀ side_arm = 1 :=
+        (Finset.mem_filter.mp (Finset.mem_of_mem_erase (Finset.mem_of_mem_erase hside_mem))).2
+      have hside_ne_leaf : side_arm ≠ leaf :=
+        Finset.ne_of_mem_erase (Finset.mem_of_mem_erase hside_mem)
+      have hside_ne_c1 : side_arm ≠ chain.get ⟨1, by omega⟩ :=
+        Finset.ne_of_mem_erase hside_mem
+      -- Extract w's two non-chain neighbors (arm₁, arm₂)
+      -- w has degree 3, one neighbor is chain[len-2]
+      have hw_get : w = chain.get ⟨chain.length - 1, by omega⟩ := by
+        rw [← hchain_last']; simp [List.getLast_eq_getElem]
+      have hclast_idx : chain.get ⟨chain.length - 2, by omega⟩ ≠ w := by
+        rw [hw_get]; intro h
+        exact absurd ((hchain_nodup.get_inj_iff).mp h) (by simp; omega)
+      have hw_chain_adj : adj w (chain.get ⟨chain.length - 2, by omega⟩) = 1 := by
+        rw [adj_comm, hw_get]
+        have := hchain_edges (chain.length - 2) (by omega)
+        have h_nat : chain.length - 2 + 1 = chain.length - 1 := by omega
+        rw [show chain.get ⟨chain.length - 2 + 1, _⟩ =
+              chain.get ⟨chain.length - 1, by omega⟩ from by congr 1; exact Fin.ext h_nat] at this
+        exact this
+      set Sw := Finset.univ.filter (fun j => adj w j = 1) with hSw_def
+      have hSw_card : Sw.card = 3 := hw
+      have hpre_in_Sw : chain.get ⟨chain.length - 2, by omega⟩ ∈ Sw :=
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw_chain_adj⟩
+      have hSw_erase : (Sw.erase (chain.get ⟨chain.length - 2, by omega⟩)).card = 2 := by
+        rw [Finset.card_erase_of_mem hpre_in_Sw, hSw_card]
+      obtain ⟨arm₁, arm₂, harm₁₂, hSw_eq⟩ := Finset.card_eq_two.mp hSw_erase
+      have harm₁_mem : arm₁ ∈ Sw.erase (chain.get ⟨chain.length - 2, by omega⟩) :=
+        hSw_eq ▸ Finset.mem_insert_self arm₁ _
+      have harm₂_mem : arm₂ ∈ Sw.erase (chain.get ⟨chain.length - 2, by omega⟩) :=
+        hSw_eq ▸ Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton_self arm₂))
+      have harm₁_adj : adj w arm₁ = 1 :=
+        (Finset.mem_filter.mp (Finset.mem_of_mem_erase harm₁_mem)).2
+      have harm₂_adj : adj w arm₂ = 1 :=
+        (Finset.mem_filter.mp (Finset.mem_of_mem_erase harm₂_mem)).2
+      have harm₁_ne_pre : arm₁ ≠ chain.get ⟨chain.length - 2, by omega⟩ :=
+        Finset.ne_of_mem_erase harm₁_mem
+      have harm₂_ne_pre : arm₂ ≠ chain.get ⟨chain.length - 2, by omega⟩ :=
+        Finset.ne_of_mem_erase harm₂_mem
+      -- Now embed D̃_{k+5} where k = chain.length - 3
+      -- D̃ has k+6 = chain.length + 3 vertices
+      -- Mapping: 0→leaf, 1→side_arm, 2→chain[0]=v₀, 3→chain[1], ...,
+      --          chain.length→chain[len-1]=w, chain.length+1→arm₁, chain.length+2→arm₂
+      -- This is D̃_{(chain.length-3)+5} = D̃_{chain.length+2}
+      -- with k = chain.length - 3, and k+6 = chain.length + 3
+      set k := chain.length - 3 with hk_def
+      -- k + 6 = chain.length + 3
+      have hk6 : k + 6 = chain.length + 3 := by omega
+      -- Construct the embedding φ : Fin (k+6) → Fin n
+      -- TODO: Full embedding construction + injectivity + edge preservation
+      -- + tree_embed_adj_eq application + subgraph_infinite_type_transfer
       sorry
     by_cases hu₁_leaf : vertexDegree adj u₁ = 1
     · -- u₁ is a leaf. Delegate to leaf_case.
