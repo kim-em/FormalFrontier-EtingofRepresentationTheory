@@ -2575,7 +2575,198 @@ attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
 theorem etilde7Rep_isIndecomposable (m : ℕ) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin 8)
       etilde7Quiver (etilde7Rep m) := by
-  sorry
+  letI := etilde7Quiver
+  constructor
+  · -- Nontrivial at vertex 4 (dim m+1 ≥ 1)
+    refine ⟨⟨4, by omega⟩, ?_⟩
+    show Nontrivial (Fin (etilde7Dim m ⟨4, by omega⟩) → ℂ)
+    simp only [etilde7Dim]
+    infer_instance
+  · -- Indecomposability
+    intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Helper: Quiver.Hom constructors for each arrow
+    have hom10 : @Quiver.Hom _ etilde7Quiver ⟨1, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inl ⟨rfl, rfl⟩⟩
+    have hom43 : @Quiver.Hom _ etilde7Quiver ⟨4, by omega⟩ ⟨3, by omega⟩ :=
+      ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩
+    have hom32 : @Quiver.Hom _ etilde7Quiver ⟨3, by omega⟩ ⟨2, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩
+    have hom20 : @Quiver.Hom _ etilde7Quiver ⟨2, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩
+    have hom76 : @Quiver.Hom _ etilde7Quiver ⟨7, by omega⟩ ⟨6, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))⟩
+    have hom65 : @Quiver.Hom _ etilde7Quiver ⟨6, by omega⟩ ⟨5, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))))⟩
+    have hom50 : @Quiver.Hom _ etilde7Quiver ⟨5, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))))⟩
+    -- Arm chain helpers: push x ∈ W(leaf) to center via invariance
+    have arm2_to_center (W : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (4 : Fin 8)) :
+        (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+          ((etilde7Rep m).mapLinear hom43 x)) ∈ W (0 : Fin 8) :=
+      hW hom20 _ (hW hom32 _ (hW hom43 x hx))
+    have arm3_to_center (W : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (7 : Fin 8)) :
+        (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 x)) ∈ W (0 : Fin 8) :=
+      hW hom50 _ (hW hom65 _ (hW hom76 x hx))
+    -- Both arm chains produce the same element (x,0,0,0) at the center
+    have arms_agree : ∀ x : Fin (m + 1) → ℂ,
+        (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+          ((etilde7Rep m).mapLinear hom43 x)) =
+        (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 x)) := by
+      intro x
+      show embed3to4_ABC m (embed2to3_AB m (starEmbed1 m x)) =
+           embed3to4_ACD m (embed2to3_AB m (starEmbed1 m x))
+      -- Intermediate: embed2to3_AB ∘ starEmbed1 has zero in blocks B, C
+      -- so embed3to4_ABC and embed3to4_ACD agree (only block A is nonzero)
+      have key : ∀ (j : Fin (3 * (m + 1))),
+          ¬ (j.val < m + 1) → embed2to3_AB m (starEmbed1 m x) j = 0 := by
+        intro ⟨j, hj⟩ hjlt
+        simp only [embed2to3_AB, starEmbed1, LinearMap.coe_mk, AddHom.coe_mk]
+        split_ifs with h1 h2 <;> first | rfl | (exfalso; omega)
+      ext ⟨i, hi⟩
+      simp only [embed3to4_ABC, embed3to4_ACD, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases h1 : i < m + 1
+      · -- Block A: both select the same element from the intermediate space
+        rw [dif_pos (show i < 3 * (m + 1) by omega), dif_pos h1]
+      · rw [dif_neg h1]
+        by_cases h2 : m + 1 ≤ i ∧ i < 2 * (m + 1)
+        · -- Block B: ABC gives intermediate[i] = 0, ACD gives 0
+          rw [dif_pos (show i < 3 * (m + 1) by omega), dif_pos h2]
+          exact key ⟨i, by omega⟩ h1
+        · rw [dif_neg h2]
+          by_cases h3 : i < 4 * (m + 1)
+          · -- Blocks C/D: ACD gives intermediate[i-(m+1)] = 0
+            rw [dif_pos h3]
+            have hj : ¬ (i - (m + 1) < m + 1) := by omega
+            rw [key ⟨i - (m + 1), by omega⟩ hj]
+            by_cases h4 : i < 3 * (m + 1)
+            · rw [dif_pos h4]; exact key ⟨i, by omega⟩ h1
+            · rw [dif_neg h4]
+          · omega
+    -- Leaf containment: W(4) ≤ W(7) via the center
+    -- If x ∈ W(4), arm2 gives E ∈ W(0). Decompose x at W(7): x = a+b.
+    -- arm3 gives F ∈ W(0), G ∈ W'(0). arms_agree gives E = F+G.
+    -- So G = E-F ∈ W(0), hence G ∈ W(0) ∩ W'(0) = 0, so b = 0.
+    have leaf_containment
+        (W W' : ∀ v, Submodule ℂ ((etilde7Rep m).obj v))
+        (hW : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W a, (etilde7Rep m).mapLinear e x ∈ W b)
+        (hW' : ∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W' a, (etilde7Rep m).mapLinear e x ∈ W' b)
+        (hc : ∀ v, IsCompl (W v) (W' v))
+        (x : Fin (m + 1) → ℂ) (hx : x ∈ W (4 : Fin 8)) :
+        x ∈ W (7 : Fin 8) := by
+      -- Decompose x at vertex 7
+      have htop7 := (hc (7 : Fin 8)).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop7
+      -- arm2: x ∈ W(4) → E ∈ W(0)
+      have hE := arm2_to_center W hW x hx
+      -- arm3: a ∈ W(7) → F ∈ W(0), b ∈ W'(7) → G ∈ W'(0)
+      have hF := arm3_to_center W hW a ha
+      have hG := arm3_to_center W' hW' b hb
+      -- G ∈ W(0): since E and arm3(x) agree, and x = a+b, we can extract G
+      have hG_W : (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+          ((etilde7Rep m).mapLinear hom76 b)) ∈ W (0 : Fin 8) := by
+        -- arm2(x) = arm3(x) = arm3(a) + arm3(b) = F + G
+        have key : (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+            ((etilde7Rep m).mapLinear hom43 x)) =
+          (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 a)) +
+          (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 b)) := by
+          have h1 := arms_agree x
+          rw [h1, ← hab, map_add, map_add, map_add]
+        -- arm3(b) = arm2(x) - arm3(a), and both are in W(0)
+        have hFneg := (W (0 : Fin 8)).smul_mem (-1 : ℂ) hF
+        have h := (W (0 : Fin 8)).add_mem hE hFneg
+        have h2 : (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 b)) =
+          (etilde7Rep m).mapLinear hom20 ((etilde7Rep m).mapLinear hom32
+            ((etilde7Rep m).mapLinear hom43 x)) +
+          (-1 : ℂ) • (etilde7Rep m).mapLinear hom50 ((etilde7Rep m).mapLinear hom65
+            ((etilde7Rep m).mapLinear hom76 a)) := by
+          rw [key]; funext i
+          show _ = (_ + _ + (-1 : ℂ) * _)
+          ring
+        rw [h2]; exact h
+      -- G ∈ W(0) ∩ W'(0) = {0}
+      have hzero := Submodule.mem_inf.mpr ⟨hG_W, hG⟩
+      rw [(hc (0 : Fin 8)).inf_eq_bot, Submodule.mem_bot] at hzero
+      -- From hzero, extract b = 0 via block A of the center
+      have hb_zero : b = 0 := by
+        ext ⟨j, hj⟩
+        -- Evaluate hzero at position j (block A of center)
+        have hj4 : j < 4 * (m + 1) := by omega
+        have := congr_fun hzero ⟨j, by show j < etilde7Dim m (0 : Fin 8); simp [etilde7Dim]; omega⟩
+        -- This is embed3to4_ACD(embed2to3_AB(starEmbed1(b))) at j = b_j
+        show b ⟨j, hj⟩ = 0
+        change embed3to4_ACD m (embed2to3_AB m (starEmbed1 m b))
+          ⟨j, by show j < etilde7Dim m (0 : Fin 8); simp [etilde7Dim]; omega⟩ = 0 at this
+        simp only [embed3to4_ACD, embed2to3_AB, starEmbed1,
+          LinearMap.coe_mk, AddHom.coe_mk,
+          dif_pos hj, dif_pos (show j < 2 * (m + 1) by omega)] at this
+        simpa using this
+      rw [hb_zero, add_zero] at hab; rw [← hab]; exact ha
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- W₁(4) = W₁(7) and W₂(4) = W₂(7)
+    have heq47 : W₁ (4 : Fin 8) = W₁ (7 : Fin 8) := compl_eq_of_le _ _ _ _
+      (fun x hx => leaf_containment W₁ W₂ hW₁_inv hW₂_inv hcompl x hx)
+      (fun x hx => leaf_containment W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx)
+      (hcompl (4 : Fin 8)) (hcompl (7 : Fin 8))
+    have heq47' : W₂ (4 : Fin 8) = W₂ (7 : Fin 8) := compl_eq_of_le _ _ _ _
+      (fun x hx => leaf_containment W₂ W₁ hW₂_inv hW₁_inv
+        (fun v => (hcompl v).symm) x hx)
+      (fun x hx => leaf_containment W₁ W₂ hW₁_inv hW₂_inv hcompl x hx)
+      ((hcompl (4 : Fin 8)).symm) ((hcompl (7 : Fin 8)).symm)
+    -- N-invariance of W₁(4) and W₂(4) under nilpotentShiftLin
+    -- KEY DIFFICULTY: The nilpotent enters through arm 1 (vertex 1→0),
+    -- but leaves 4 and 7 connect only to block A of the center.
+    -- The connection from arm1's block D (which carries Nq) to block A
+    -- (which carries leaf data) requires a non-trivial argument about
+    -- the complement decomposition at the center and intermediate vertices.
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ (4 : Fin 8) → nilpotentShiftLin m x ∈ W₁ (4 : Fin 8) := by
+      sorry
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ (4 : Fin 8) → nilpotentShiftLin m x ∈ W₂ (4 : Fin 8) := by
+      sorry
+    -- Apply nilpotent_invariant_compl_trivial at vertex 4
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ (4 : Fin 8)) (W₂ (4 : Fin 8)) hN₁ hN₂ (hcompl (4 : Fin 8))
+    -- Propagation: W(4) = ⊥ → W(0) = ⊥ → all W(v) = ⊥
+    -- W(4) = ⊥ → W(7) = ⊥ → W'(4) = ⊤, W'(7) = ⊤
+    -- → block A of center filled in W' → ... → W(0) = ⊥
+    -- → all arrows injective → all vertices ⊥
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((etilde7Rep m).obj v)),
+        (∀ {a b : Fin 8} (e : @Quiver.Hom _ etilde7Quiver a b),
+          ∀ x ∈ W' a, (etilde7Rep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W (4 : Fin 8) = W (7 : Fin 8) →
+        W (4 : Fin 8) = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₂_inv hcompl heq47 h
+      · right; exact propagate W₂ W₁ hW₁_inv (fun v => (hcompl v).symm) heq47' h
+    intro W W' hW'_inv hc h47 hbot v
+    sorry
 
 theorem etilde7Rep_dimVec (m : ℕ) (v : Fin 8) :
     Nonempty (@Etingof.QuiverRepresentation.obj ℂ (Fin 8) _ etilde7Quiver
