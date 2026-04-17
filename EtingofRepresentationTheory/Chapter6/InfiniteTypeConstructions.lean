@@ -1985,6 +1985,56 @@ theorem d5tilde_not_finite_type :
   exact (Set.infinite_range_of_injective hinj |>.mono
     (Set.range_subset_iff.mpr hmem)).not_finite hfin
 
+/-! ## Section 17a: Parameterized D̃_n infrastructure
+
+For parameter k ∈ ℕ, D̃_{k+5} has k+6 vertices:
+  - Vertices 0, 1: leaves of branch point 2
+  - Vertices 2, 3, ..., k+3: path (branch points at 2 and k+3)
+  - Vertices k+4, k+5: leaves of branch point k+3
+
+Null root δ = (1, 1, 2, 2, ..., 2, 1, 1) with k+2 interior 2's.
+
+For m ∈ ℕ, the representation has dimension vector m·δ + δ:
+  - Leaf vertices: dim m+1
+  - Interior path vertices: dim 2(m+1)
+
+This generalizes the D̃_5 (k=0) construction above. -/
+
+/-- Edge predicate for D̃_{k+5}: vertices i,j are adjacent iff they form
+    a leaf-branch edge or a consecutive path edge. -/
+private def dTildeEdgePred (k : ℕ) (i j : Fin (k + 6)) : Prop :=
+  -- Leaf edges at first branch point
+  (i.val = 0 ∧ j.val = 2) ∨ (i.val = 1 ∧ j.val = 2) ∨
+  -- Path edges: consecutive vertices on the path 2-3-..-(k+3)
+  (2 ≤ i.val ∧ i.val + 1 = j.val ∧ j.val ≤ k + 3) ∨
+  -- Leaf edges at second branch point
+  (i.val = k + 4 ∧ j.val = k + 3) ∨ (i.val = k + 5 ∧ j.val = k + 3)
+
+private instance (k : ℕ) (i j : Fin (k + 6)) : Decidable (dTildeEdgePred k i j) := by
+  unfold dTildeEdgePred; infer_instance
+
+private theorem dTildeEdgePred_irrefl (k : ℕ) (i : Fin (k + 6)) :
+    ¬ dTildeEdgePred k i i := by
+  simp only [dTildeEdgePred]; push_neg; exact ⟨by omega, by omega, by omega, by omega, by omega⟩
+
+/-- Adjacency matrix for D̃_{k+5}: the extended Dynkin diagram with k+6 vertices,
+    two branch points connected by a path of length k+1. -/
+def dTildeAdj (k : ℕ) : Matrix (Fin (k + 6)) (Fin (k + 6)) ℤ :=
+  fun i j => if dTildeEdgePred k i j ∨ dTildeEdgePred k j i then 1 else 0
+
+theorem dTildeAdj_symm (k : ℕ) : (dTildeAdj k).IsSymm := by
+  ext i j; simp only [dTildeAdj, Matrix.transpose_apply]
+  simp only [show dTildeEdgePred k j i ∨ dTildeEdgePred k i j ↔
+    dTildeEdgePred k i j ∨ dTildeEdgePred k j i from Or.comm]
+
+theorem dTildeAdj_diag (k : ℕ) (i : Fin (k + 6)) : dTildeAdj k i i = 0 := by
+  simp only [dTildeAdj, show ¬(dTildeEdgePred k i i ∨ dTildeEdgePred k i i) from by
+    push_neg; exact ⟨dTildeEdgePred_irrefl k i, dTildeEdgePred_irrefl k i⟩, ite_false]
+
+theorem dTildeAdj_01 (k : ℕ) (i j : Fin (k + 6)) :
+    dTildeAdj k i j = 0 ∨ dTildeAdj k i j = 1 := by
+  unfold dTildeAdj; split_ifs <;> simp
+
 /-! ## Section 17b: Ẽ₆ with mixed orientation (for indecomposability proof)
 
 The sink orientation (all arrows toward center) makes indecomposability proofs hard
