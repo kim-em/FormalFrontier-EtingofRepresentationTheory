@@ -159,6 +159,8 @@ the stronger `∀¬` statement needed here. -/
 private lemma not_posdef_not_HasFiniteRepresentationType
     (k : Type) [Field k] [IsAlgClosed k]
     (n : ℕ) [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+    [∀ a b : Fin n, Subsingleton (a ⟶ b)]
+    (hOrient : IsOrientationOf ‹Quiver (Fin n)› (quiverUndirectedAdj n))
     (_hconn : QuiverUndirectedConnected n)
     (h_not_posdef : ∃ x : Fin n → ℤ, x ≠ 0 ∧
       ¬ (0 < dotProduct x ((2 • (1 : Matrix (Fin n) (Fin n) ℤ) -
@@ -184,30 +186,74 @@ This requires:
 private lemma isDynkinDiagram_HasFiniteRepresentationType
     (k : Type) [Field k] [IsAlgClosed k]
     (n : ℕ) [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+    [∀ a b : Fin n, Subsingleton (a ⟶ b)]
+    (hOrient : IsOrientationOf ‹Quiver (Fin n)› (quiverUndirectedAdj n))
     (_hconn : QuiverUndirectedConnected n)
     (hDynkin : IsDynkinDiagram n (quiverUndirectedAdj n)) :
     HasFiniteRepresentationType k n := by
-  -- Step 1: The positive roots are finite
-  have _h_fin_roots := Theorem_6_5_2a_finiteness hDynkin
-  -- Step 2: We need to show the quiver is an orientation of quiverUndirectedAdj.
-  -- For a quiver whose underlying graph IS a Dynkin diagram, the standard textbook
-  -- assumption is that the quiver is simple (at most one arrow per pair, no self-loops,
-  -- no bidirectional arrows). This is an orientation of the underlying graph.
-  --
-  -- Step 3: For each positive root α, Theorem 6.5.2(c) gives existence and uniqueness
-  -- of an indecomposable with dimension vector α.
-  --
-  -- Step 4: Every indecomposable ρ satisfies B(dim ρ, dim ρ) = 2
-  -- (by indecomposable_bilinearForm_eq_two), making dim ρ a positive root.
-  --
-  -- Step 5: Package: the finitely many positive roots give finitely many indecomposables,
-  -- covering all indecomposables by steps 3-4.
-  --
-  -- The key technical bridge is converting between:
-  -- - QuiverRepresentation.Iso (Chapter 6) and QuiverRepresentationEquiv (Chapter 2)
-  -- - Universe 0 representations and the polymorphic Theorem_6_5_2c
-  -- - Finite set of ℤ-valued positive roots and Fin m → FinQuiverRep indexing
-  sorry
+  set adj := quiverUndirectedAdj n with hadj
+  -- Step 1: Positive roots are finite
+  have h_fin_roots := Theorem_6_5_2a_finiteness hDynkin
+  haveI : Fintype {d : Fin n → ℤ | IsPositiveRoot n adj d} := h_fin_roots.fintype
+  -- Step 2: For each positive root, 6.5.2c gives an indecomposable
+  have h_exist : ∀ (r : {d : Fin n → ℤ | IsPositiveRoot n adj d}),
+      ∃ (ρ : FinQuiverRep k n),
+        (∀ v, Module.Free k (ρ.obj v)) ∧
+        (∀ v, Module.Finite k (ρ.obj v)) ∧
+        ρ.IsIndecomposable ∧
+        (∀ v, (r.val v : ℤ) = ↑(Module.finrank k (ρ.obj v))) := by
+    intro ⟨α, hα⟩
+    obtain ⟨ρ, hFree, hFin, hIndec, hDim⟩ :=
+      (Theorem_6_5_2c_bijection hDynkin k hOrient α hα).1
+    exact ⟨ρ, hFree, hFin, hIndec, hDim⟩
+  -- Step 3: Choose representatives
+  choose rep hRep_free hRep_fin hRep_indec hRep_dim using h_exist
+  -- Step 4: Enumerate roots via Fin m
+  set m := Fintype.card {d : Fin n → ℤ | IsPositiveRoot n adj d}
+  obtain ⟨rootEnum⟩ := Fintype.truncEquivFin {d : Fin n → ℤ | IsPositiveRoot n adj d}
+  refine ⟨m, fun i => rep (rootEnum.symm i),
+    fun i => hRep_fin _, fun i => hRep_indec _, ?_⟩
+  -- Step 5: Every fd indecomposable is iso to some representative
+  intro ρ hρ_fin hρ_indec
+  -- Dim vector of ρ
+  set d_ρ := fun v => (Module.finrank k (ρ.obj v) : ℤ)
+  -- Module.Free (needed for bilinear form theorem)
+  -- QuiverRepresentation only provides AddCommMonoid; upgrade to AddCommGroup for Module.Free
+  haveI hρ_free : ∀ v, Module.Free k (ρ.obj v) := fun v =>
+    @Module.Free.of_divisionRing k (ρ.obj v) _ (addCommGroupOfRing (k := k)) _
+  -- B(d,d) = 2
+  have hBdd := indecomposable_bilinearForm_eq_two hDynkin hOrient ρ hρ_indec
+  -- d is nonneg and nonzero → positive root
+  have hd_pos : ∀ i, 0 ≤ d_ρ i := fun i => Int.natCast_nonneg _
+  have hd_nonzero : d_ρ ≠ 0 := by
+    obtain ⟨v, hv⟩ := hρ_indec.1
+    intro heq
+    have hfr := congr_fun heq v
+    simp only [d_ρ, Pi.zero_apply, Int.natCast_eq_zero] at hfr
+    haveI : Subsingleton (ρ.obj v) :=
+      @Module.finrank_zero_iff k (ρ.obj v) _ (addCommGroupOfRing (k := k)) _ _ |>.mp hfr
+    exact absurd hv (not_nontrivial (ρ.obj v))
+  have hd_root : IsPositiveRoot n adj d_ρ :=
+    ⟨⟨hd_nonzero, by rwa [cartanMatrix] at hBdd⟩, hd_pos⟩
+  -- Find the root's index
+  set root : {d : Fin n → ℤ | IsPositiveRoot n adj d} := ⟨d_ρ, hd_root⟩
+  use rootEnum root
+  -- rep (rootEnum.symm (rootEnum root)) = rep root
+  have hrw : rootEnum.symm (rootEnum root) = root := rootEnum.symm_apply_apply root
+  -- Use uniqueness from 6.5.2c: any two indecomposables with same dim vector are iso
+  have h_unique := (Theorem_6_5_2c_bijection hDynkin k hOrient d_ρ hd_root).2
+  -- Set up instances for rep root
+  haveI : ∀ v, Module.Free k ((rep root).obj v) := hRep_free root
+  haveI : ∀ v, Module.Finite k ((rep root).obj v) := hRep_fin root
+  -- Dim vector equalities
+  have hρ_dimv : ∀ v, (d_ρ v : ℤ) = ↑(Module.finrank k (ρ.obj v)) := fun _ => rfl
+  have hrep_dimv : ∀ v, (d_ρ v : ℤ) = ↑(Module.finrank k ((rep root).obj v)) :=
+    hRep_dim root
+  -- Get the Iso from uniqueness
+  obtain ⟨iso⟩ := h_unique ρ (rep root) hρ_indec (hRep_indec root) hρ_dimv hrep_dimv
+  -- Convert to QuiverRepresentationEquiv, adjusting for the rootEnum roundtrip
+  exact ⟨by change QuiverRepresentationEquiv k (Fin n) ρ (rep (rootEnum.symm (rootEnum root)))
+            rw [hrw]; exact iso.toEquiv⟩
 
 /-! ## Gabriel's Theorem -/
 
@@ -223,6 +269,8 @@ of the orientation of edges.
 (Etingof Theorem 2.1.2) -/
 theorem Theorem_2_1_2 (k : Type) [Field k] [IsAlgClosed k]
     (n : ℕ) [Quiver.{0} (Fin n)] [∀ a b : Fin n, Decidable (Nonempty (a ⟶ b))]
+    [∀ a b : Fin n, Subsingleton (a ⟶ b)]
+    (hOrient : IsOrientationOf ‹Quiver (Fin n)› (quiverUndirectedAdj n))
     (hconn : QuiverUndirectedConnected n) :
     HasFiniteRepresentationType k n ↔
       IsDynkinDiagram n (quiverUndirectedAdj n) := by
@@ -235,8 +283,8 @@ theorem Theorem_2_1_2 (k : Type) [Field k] [IsAlgClosed k]
     -- infinite type constructions give ¬HasFiniteRepresentationType
     by_contra h_not_pos
     exact absurd hfrt
-      (not_posdef_not_HasFiniteRepresentationType k n hconn ⟨x, hx, h_not_pos⟩)
+      (not_posdef_not_HasFiniteRepresentationType k n hOrient hconn ⟨x, hx, h_not_pos⟩)
   · -- Backward: Dynkin diagram → finite representation type
-    exact isDynkinDiagram_HasFiniteRepresentationType k n hconn
+    exact isDynkinDiagram_HasFiniteRepresentationType k n hOrient hconn
 
 end Etingof
