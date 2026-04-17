@@ -2157,6 +2157,61 @@ theorem dTildeRep_dimVec (k m : ℕ) (v : Fin (k + 6)) :
       (Fin (dTildeDim k m v) → ℂ)) :=
   ⟨LinearEquiv.refl ℂ _⟩
 
+/-! ## Section 17a.3: Indecomposability of D̃_n representations
+
+The proof follows the same structure as D̃_5:
+1. Core argument at each branch point: embed1/embed2 split W into leaf components
+2. Gamma coupling forces containment between leaf subspaces
+3. Identity maps along the path propagate containment from branch point 2 to k+3
+4. By complement equality, all leaf subspaces are equal
+5. Nilpotent invariance gives the final contradiction
+-/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+set_option maxHeartbeats 3200000 in
+theorem dTildeRep_isIndecomposable (k m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin (k + 6))
+      (dTildeQuiver k) (dTildeRep k m) := by
+  letI := dTildeQuiver k
+  sorry
+
+/-! ## Section 17a.4: D̃_n has infinite representation type -/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem dTilde_not_finite_type (k : ℕ) :
+    ¬ Etingof.IsFiniteTypeQuiver (k + 6) (dTildeAdj k) := by
+  intro hft
+  letI := dTildeQuiver k
+  have hfin := @hft ℂ _ inferInstance (dTildeQuiver k)
+    (fun a b => dTildeQuiver_subsingleton k a b)
+    (dTildeOrientation_isOrientationOf k)
+  have hmem : ∀ m : ℕ, (dTildeDim k m) ∈
+      {d : Fin (k + 6) → ℕ | ∃ V : Etingof.QuiverRepresentation.{0,0,0,0} ℂ (Fin (k + 6)),
+        V.IsIndecomposable ∧ ∀ v, Nonempty (V.obj v ≃ₗ[ℂ] (Fin (d v) → ℂ))} := by
+    intro m
+    exact ⟨dTildeRep k m, dTildeRep_isIndecomposable k m, dTildeRep_dimVec k m⟩
+  have hinj : Function.Injective (dTildeDim k) := by
+    intro m₁ m₂ h
+    have h0 := congr_fun h ⟨0, by omega⟩
+    have : ¬(2 ≤ (⟨0, by omega⟩ : Fin (k + 6)).val ∧
+      (⟨0, by omega⟩ : Fin (k + 6)).val ≤ k + 3) := by simp
+    simp only [dTildeDim, this, ite_false] at h0
+    omega
+  exact (Set.infinite_range_of_injective hinj |>.mono
+    (Set.range_subset_iff.mpr hmem)).not_finite hfin
+
+/-- The null root of D̃_{k+5}: δ = (1,1,2,...,2,1,1) with 2's at interior vertices.
+    Useful for downstream proofs: (2I - A)δ = 0 witnesses non-positive-definiteness. -/
+def dTildeNullRoot (k : ℕ) : Fin (k + 6) → ℤ :=
+  fun v => if 2 ≤ v.val ∧ v.val ≤ k + 3 then 2 else 1
+
+theorem dTildeNullRoot_ne_zero (k : ℕ) : dTildeNullRoot k ≠ 0 := by
+  intro h
+  have := congr_fun h ⟨0, by omega⟩
+  simp [dTildeNullRoot] at this
+
 /-! ## Section 17b: Ẽ₆ with mixed orientation (for indecomposability proof)
 
 The sink orientation (all arrows toward center) makes indecomposability proofs hard
