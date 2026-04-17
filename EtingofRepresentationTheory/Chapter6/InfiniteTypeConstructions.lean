@@ -2220,12 +2220,14 @@ because there's no coupling map between arms. We use a mixed orientation:
 This makes vertex 0 receive from arms 1 and 3, and send to arm 2,
 creating a D̃₅-like structure with a coupling map 0→3. -/
 
-/-- Ẽ₆ quiver with mixed orientation: 2→1→0, 0→3→4, 6→5→0.
-    Vertex 0 receives from inner vertices 1 and 5, sends to inner vertex 3. -/
+/-- Ẽ₆ quiver with mixed orientation: 2→1→0→3←4, 6→5→0.
+    Vertex 0 receives from inner vertices 1 and 5, sends to inner vertex 3.
+    Vertex 3 receives from both 0 (via Γ coupling) and 4 (via embedding).
+    All maps are injective, ensuring indecomposability via the D̃₅ pattern. -/
 def etilde6v2Quiver : Quiver (Fin 7) where
   Hom i j := PLift (
     (i.val = 2 ∧ j.val = 1) ∨ (i.val = 1 ∧ j.val = 0) ∨
-    (i.val = 0 ∧ j.val = 3) ∨ (i.val = 3 ∧ j.val = 4) ∨
+    (i.val = 0 ∧ j.val = 3) ∨ (i.val = 4 ∧ j.val = 3) ∨
     (i.val = 6 ∧ j.val = 5) ∨ (i.val = 5 ∧ j.val = 0))
 
 instance etilde6v2Quiver_subsingleton (a b : Fin 7) :
@@ -2275,13 +2277,9 @@ private noncomputable def etilde6v2RepMap (m : ℕ) (a b : Fin 7) :
   -- Arm 1 (toward center): 2→1→0
   | ⟨2, _⟩, ⟨1, _⟩ => starEmbed1 m      -- x ↦ (x, 0)
   | ⟨1, _⟩, ⟨0, _⟩ => embed2to3_AB m    -- (a,b) ↦ (a, b, 0)
-  -- Arm 2 (away from center): 0→3→4
+  -- Arm 2 (toward vertex 3): 0→3←4
   | ⟨0, _⟩, ⟨3, _⟩ => etilde6v2Gamma m  -- Γ(a,b,c) = (a+b, a+Nc)
-  | ⟨3, _⟩, ⟨4, _⟩ =>
-    -- First-block projection: (x,y) ↦ x
-    { toFun := fun w i => w ⟨i.val, by simp [etilde6Dim]; omega⟩
-      map_add' := fun x y => by ext; simp [Pi.add_apply]
-      map_smul' := fun c x => by ext; simp [Pi.smul_apply, smul_eq_mul] }
+  | ⟨4, _⟩, ⟨3, _⟩ => starEmbed1 m      -- x ↦ (x, 0)
   -- Arm 3 (toward center): 6→5→0
   | ⟨6, _⟩, ⟨5, _⟩ => starEmbedNilp m   -- x ↦ (x, Nx)
   | ⟨5, _⟩, ⟨0, _⟩ => embed2to3_CA m    -- (a,b) ↦ (b, 0, a)
@@ -2300,13 +2298,16 @@ noncomputable def etilde6v2Rep (m : ℕ) :
   }
 
 /-! The indecomposability proof follows the D̃₅ pattern:
-1. Core argument at center (vertex 0, dim 3(m+1)):
-   - embed2to3_AB maps from inner 1, embed2to3_CA maps from inner 5
-   - Together they cover center via blocks (A,B,0) and (b',0,a')
-2. Core argument at inner 3 (vertex 3, dim 2(m+1)):
-   - Γ maps from center, so W₁(inner 3) = Γ(W₁(center))
-3. Γ couples: γ(embedAB(x,0)) = (x, x) and γ(embedCA(a,b)) involves N
-4. These force W₁(tip 2) = W₁(tip 4) and N-invariance
+1. Vertex 0 (dim 3(m+1)) receives from arms 1 and 3:
+   - embed2to3_AB maps from inner 1: (a,b) ↦ (a,b,0), covering blocks A,B
+   - embed2to3_CA maps from inner 5: (a,b) ↦ (b,0,a), covering blocks A,C
+2. Vertex 3 (dim 2(m+1)) receives from vertex 0 (via Γ) and vertex 4 (via starEmbed1):
+   - Γ(a,b,c) = (a+b, a+Nc) couples blocks A,B,C to both blocks of vertex 3
+   - starEmbed1 embeds tip 4 into first block of vertex 3
+3. From tip 2: x ∈ W(2) → (x,0,0) ∈ W(0) → Γ(x,0,0) = (x,x) ∈ W(3)
+   So W(2) ⊆ both blocks of W(3), hence W(2) ⊆ W(4) (both in first block)
+4. From tip 6: x ∈ W(6) → (x,Nx) ∈ W(5) → (Nx,0,x) ∈ W(0) → Γ(Nx,0,x) = (Nx, Nx+Nx) ∈ W(3)
+   Combined with N-coupling: forces N-invariance of common leaf subspace
 5. nilpotent_invariant_compl_trivial concludes -/
 
 -- For now, sorry the indecomposability; we only need the infinite type theorem.
