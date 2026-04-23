@@ -82,6 +82,99 @@ theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
     (alternant_det_injective N _ _ (shiftedExps_strictAnti' N lam₁ hlam₁)
       (shiftedExps_strictAnti' N lam₂ hlam₂) h_alt)
 
+/-! ### Homogeneity of Schur polynomials
+
+`schurPoly N lam` is homogeneous of total degree `∑ i, lam i`. We derive this from
+`schurPoly_mul_vandermonde`: both the Vandermonde determinant and the shifted
+alternant are homogeneous (their degrees match), so their ratio is homogeneous too.
+-/
+
+/-- If `ψ` is homogeneous of degree `n`, the homogeneous-component operator commutes
+with right-multiplication by `ψ`. -/
+private lemma homogeneousComponent_mul_of_isHomogeneous_right
+    {σ R : Type*} [CommSemiring R]
+    (φ ψ : MvPolynomial σ R) {n : ℕ} (hψ : ψ.IsHomogeneous n) (k : ℕ) :
+    MvPolynomial.homogeneousComponent (k + n) (φ * ψ) =
+      MvPolynomial.homogeneousComponent k φ * ψ := by
+  classical
+  apply MvPolynomial.ext
+  intro d
+  rw [MvPolynomial.coeff_homogeneousComponent]
+  split_ifs with hd
+  · rw [MvPolynomial.coeff_mul, MvPolynomial.coeff_mul]
+    refine Finset.sum_congr rfl ?_
+    intro x hx
+    rw [Finset.mem_antidiagonal] at hx
+    rw [MvPolynomial.coeff_homogeneousComponent]
+    have hdeg : d.degree = x.1.degree + x.2.degree := by
+      rw [← hx]; exact map_add Finsupp.degree x.1 x.2
+    split_ifs with h1
+    · rfl
+    · have h2 : x.2.degree ≠ n := fun h => h1 (by omega)
+      rw [hψ.coeff_eq_zero h2, mul_zero, mul_zero]
+  · symm
+    rw [MvPolynomial.coeff_mul]
+    apply Finset.sum_eq_zero
+    intro x hx
+    rw [Finset.mem_antidiagonal] at hx
+    rw [MvPolynomial.coeff_homogeneousComponent]
+    have hdeg : d.degree = x.1.degree + x.2.degree := by
+      rw [← hx]; exact map_add Finsupp.degree x.1 x.2
+    split_ifs with h1
+    · have h2 : x.2.degree ≠ n := fun h => hd (by omega)
+      rw [hψ.coeff_eq_zero h2, mul_zero]
+    · exact zero_mul _
+
+/-- `d.degree = Finsupp.weight 1 d` as natural numbers — extracted from the
+AddMonoidHom equality `Finsupp.degree_eq_weight_one`. -/
+private lemma degree_eq_weight_one_apply {σ : Type*} (d : σ →₀ ℕ) :
+    Finsupp.degree d = Finsupp.weight 1 d := by
+  rw [Finsupp.degree_eq_weight_one, ← Pi.one_def]
+
+/-- The Schur polynomial `schurPoly N lam` is homogeneous of degree `∑ i, lam i`. -/
+theorem schurPoly_isHomogeneous (N : ℕ) (lam : Fin N → ℕ) :
+    (schurPoly N lam).IsHomogeneous (∑ i, lam i) := by
+  intro d hd
+  -- Goal (unfolded): Finsupp.weight 1 d = ∑ lam.
+  -- Reduce to showing d.degree = ∑ lam, then convert via degree_eq_weight_one_apply.
+  rw [← degree_eq_weight_one_apply]
+  -- Goal: d.degree = ∑ lam.
+  by_contra hne
+  have halt : (alternantMatrix N (shiftedExps N lam)).det.IsHomogeneous
+      ((∑ i, lam i) + (∑ j : Fin N, vandermondeExps N j)) := by
+    have h := alternant_isHomogeneous (shiftedExps N lam)
+    have heq : ∑ j : Fin N, shiftedExps N lam j =
+        (∑ i, lam i) + (∑ j : Fin N, vandermondeExps N j) := by
+      simp only [shiftedExps, vandermondeExps, Finset.sum_add_distrib]
+    rw [heq] at h
+    exact h
+  have hΔhom : (alternantMatrix N (vandermondeExps N)).det.IsHomogeneous
+      (∑ j : Fin N, vandermondeExps N j) :=
+    alternant_isHomogeneous (vandermondeExps N)
+  have hΔne : (alternantMatrix N (vandermondeExps N)).det ≠ 0 :=
+    alternantMatrix_vandermondeExps_det_ne_zero N
+  -- Apply the helper lemma with k = d.degree.
+  have hprod_eq := homogeneousComponent_mul_of_isHomogeneous_right
+    (schurPoly N lam) (alternantMatrix N (vandermondeExps N)).det hΔhom d.degree
+  rw [schurPoly_mul_vandermonde] at hprod_eq
+  -- The LHS is 0 (since d.degree ≠ ∑ lam, hence d.degree + dΔ ≠ ∑ lam + dΔ).
+  have hne' : d.degree + (∑ j : Fin N, vandermondeExps N j) ≠
+      (∑ i, lam i) + (∑ j : Fin N, vandermondeExps N j) := fun heq => hne (by omega)
+  have halt_zero :
+      MvPolynomial.homogeneousComponent (d.degree + (∑ j : Fin N, vandermondeExps N j))
+        (alternantMatrix N (shiftedExps N lam)).det = 0 := by
+    rw [MvPolynomial.homogeneousComponent_of_mem halt, if_neg hne']
+  rw [halt_zero] at hprod_eq
+  -- So (homogeneousComponent d.degree schurPoly) * Δ = 0; cancel the nonzero Δ.
+  have h_eq_zero : MvPolynomial.homogeneousComponent d.degree (schurPoly N lam) = 0 :=
+    (mul_eq_zero.mp hprod_eq.symm).resolve_right hΔne
+  -- But coeff d of that homogeneous component equals coeff d schurPoly (since d.degree = d.degree).
+  have h_coeff_zero :
+      MvPolynomial.coeff d (MvPolynomial.homogeneousComponent d.degree (schurPoly N lam)) = 0 := by
+    rw [h_eq_zero]; exact MvPolynomial.coeff_zero d
+  rw [MvPolynomial.coeff_homogeneousComponent, if_pos rfl] at h_coeff_zero
+  exact hd h_coeff_zero
+
 variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- The family of weight spaces of a `GL_N(k)`-representation is sup-independent.
@@ -188,6 +281,41 @@ theorem finrank_eq_of_formalCharacter_eq (N : ℕ)
   rw [h_extend M₁ (S₁ ∪ S₂) Finset.subset_union_left,
       h_extend M₂ (S₁ ∪ S₂) Finset.subset_union_right]
   exact Finset.sum_congr rfl (fun μ _ => h_ptw μ)
+
+/-- If a finite-dimensional polynomial `GL_N(k)`-representation has formal character
+equal to `schurPoly N lam` for an antitone partition `lam`, then every weight `μ`
+with nonzero weight-space dimension has the same magnitude as `lam`.
+
+This is the tensor-degree homogeneity of the representation: because the Schur
+polynomial is homogeneous of total degree `∑ lam`, its only monomials occur at
+weights of that magnitude, and formal-character equality transports this to `M`. -/
+theorem weight_magnitude_of_formalCharacter_eq_schurPoly (N : ℕ)
+    (lam : Fin N → ℕ)
+    (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+    (h : formalCharacter k N M = schurPoly N lam)
+    (μ : Fin N → ℕ) (hμ : 0 < Module.finrank k (glWeightSpace k N M μ)) :
+    ∑ i, μ i = ∑ i, lam i := by
+  set d : Fin N →₀ ℕ := Finsupp.equivFunOnFinite.symm μ with hd_def
+  -- `d` coincides with `μ` as a function, so the weight-space finranks agree
+  have hd_fun : (fun i : Fin N => (d i : ℕ)) = μ := by
+    funext i; rfl
+  -- The coefficient at `d` of the formal character is positive (= finrank of weight space)
+  have hcoeff_char : (formalCharacter k N M).coeff d > 0 := by
+    rw [formalCharacter_coeff k N M d, hd_fun]
+    exact_mod_cast hμ
+  -- Therefore the same coefficient in `schurPoly N lam` is nonzero
+  have hcoeff_schur : (schurPoly N lam).coeff d ≠ 0 := by
+    rw [← h]; exact ne_of_gt hcoeff_char
+  -- By homogeneity of `schurPoly`, `weight 1 d = ∑ lam`; convert to `d.degree`.
+  have h_weight : Finsupp.weight 1 d = ∑ i, lam i :=
+    schurPoly_isHomogeneous N lam hcoeff_schur
+  have hd_deg_lam : d.degree = ∑ i, lam i := by
+    rw [degree_eq_weight_one_apply]; exact h_weight
+  -- But `d.degree = ∑ μ` since `d` agrees pointwise with `μ`
+  have hd_deg_mu : d.degree = ∑ i, μ i := by
+    rw [Finsupp.degree_eq_sum]
+    exact Finset.sum_congr rfl (fun i _ => congrFun hd_fun i)
+  omega
 
 /-- A `GL_N(k)`-representation whose formal character equals a Schur polynomial
 `S_λ` and whose dimension matches the Schur module is isomorphic to `L_λ`.
