@@ -1,159 +1,208 @@
-# Sorry Landscape Analysis — Wave 53
+# Sorry Landscape Analysis — Wave 54
 
-Generated 2026-04-17 by summarize session (issue #2393).
+Generated 2026-04-23 by summarize session (issue #2434).
 
 ## Summary
 
-**13 sorries** across 4 files (down from 17/4 in wave 52). The sorry count
-decreased by 4, driven by 9 genuine closures (all posdef + leaf_case) offset
-by 5 additions (etilde7 expanded 1→4 sub-sorries, 2 path infrastructure
-sorries now visible after leaf_case closure).
+**14 sorries** across 4 files (up from 13/4 in wave 53). Raw count rose
+by 1, but the substantive change is qualitative: three separate
+framework-level refutations were discovered since wave 53, and the
+remaining sorries now split cleanly into "blocked on framework
+decisions" (11) and "one genuinely provable item" (1, forward Gabriel
+bridge) and "Mathlib gaps" (2).
 
 281 of 285 Lean files (98.6%) are sorry-free. 582/583 items (99.8%) sorry-free.
 
 **Definition-level sorries: 0.** All mathematical objects are constructed.
 
-### Merges since wave 52 (14 PRs, 2026-04-17):
+### Design walls discovered this wave
+
+Wave 54 is notable less for sorry movement than for **three separate
+framework refutations** that moved the remaining work off the
+worker-fillable path and onto the planner / human-decision path. See
+`progress/design-walls-wave54.md` for a one-page decision sheet.
+
+1. **Ẽ₆ / Ẽ₇ / T(1,2,5) `_isIndecomposable` refuted for all m ≥ 1.**
+   The single-nilpotent-twist framework in these three explicit
+   representations admits an explicit 1-dimensional decomposition off
+   the "missed `e_m` direction" of the N-image. All ten sub-sorries in
+   these theorems (lines 2380, 2397, 2400, 2425 in etilde6v2; 3001,
+   3004, 3038 in etilde7; 3477, 3480, 3502 in t125) are unprovable as
+   stated. Design doc: `progress/indecomposability-framework-investigation.md`
+   (merged in #2432).
+
+2. **`garnir_twisted_in_lower_span` + `garnir_straightening_step`
+   refuted** by concrete counter-example at λ=(2,2), σ=swap(0,1)
+   (session 9cfda69f on #2425, 2026-04-23). The outer Specht-basis
+   theorem `polytabloidTab_column_standard_in_span` is classically
+   true, but the Garnir-based induction currently used in
+   `SpechtModuleBasis.lean:911-942` loses essential ψ_τ terms at
+   lower-dominated tabloids. Progress: `progress/20260423T112112Z_9cfda69f.md`.
+
+3. **`dTildeRep_isIndecomposable` blocked on Lean-level vertex
+   indexing.** `dTildeDim k m v` does not reduce by `rfl`/`dsimp` at
+   k-dependent vertices, making the case-split style proof unworkable
+   without either a deep refactor of the vertex type (custom inductive
+   rather than `Fin (k + 6)`) or acceptance of `finCongr` cast bridges
+   through the proof (session 0fa9a788 on closed issue #2431).
+
+### Merges since wave 53 (18 PRs, 2026-04-17T14Z → 2026-04-23T11Z):
 
 | PR | Date | Title | Sorry Impact |
 |----|------|-------|-------------|
-| #2371 | 04-17 | doc: update sorry landscape (Wave 52, 21→17 sorries) | Docs only |
-| #2367 | 04-17 | feat: WIP etilde7Rep_isIndecomposable - structural framework | etilde7 1→4 sub-sorries (structural expansion) |
-| #2355 | 04-17 | feat: fill E₇ posdef sorry sites and delete mk_e8_distinct | −2 (T(1,4,2) and T(1,2,4) closed) |
-| #2354 | 04-17 | feat: WIP e7_tree_posdef + apply at T(1,3,2)/T(1,2,3) sorries | −2 (T(1,3,2) and T(1,2,3) closed) |
-| #2376 | 04-17 | fix: add 1≤m to etilde7/t125 indecomposability (m=0 is decomposable) | Soundness fix |
-| #2381 | 04-17 | feat: prove tree_embed_adj_eq + scaffold leaf_case D̃ embedding | Infra |
-| #2382 | 04-17 | feat: prove tree_embed_adj_eq + scaffold leaf_case for D̃ embedding | Infra |
-| #2385 | 04-17 | feat: fill tree_two_leaf_posdef sorry sites | −2 (h_bound and h_strict closed) |
-| #2386 | 04-17 | feat: fill e7_tree_posdef sorry (E₇ QF positive definite) | Infra (helper used by #2354/#2355) |
-| #2387 | 04-17 | feat: fill D-type leaf posdef sorries (closes #2383) | −2 (D-type a₃ and a₂ leaf closed) |
-| #2390 | 04-17 | feat: replace Garnir set with proper cross-column set | Structural fix (enables garnir_twisted proof) |
-| #2391 | 04-17 | fix: reverse Ẽ₆ edge 3→4 to 4→3 (injective orientation) | Soundness fix (etilde6v2 now provable) |
-| #2392 | 04-17 | Meditate wave 49: endgame strategy review | Strategic review |
-| #2396 | 04-17 | feat: fill non_adjacent_branches leaf_case sorry (D̃ subgraph embedding) | −1 (leaf_case closed) |
+| #2398 | 04-17 | feat: prove etilde7 propagation sorry (1/4 sub-sorries) | −1 (etilde7: 4→3) |
+| #2399 | 04-17 | feat: t125Rep_isIndecomposable structural framework (5 sorries) | +4 (t125: 1→5) |
+| #2402 | 04-18 | feat: prove t125Arm1Embed and embedSkipBlockB injectivity (2/5 sorries) | −2 (t125: 5→3) |
+| #2403 | 04-18 | feat: prove backward bridge of Gabriel's theorem (1/2 sorries) | −1 (Ch2: 2→1) |
+| #2405 | 04-18 | doc: report etilde7Rep decomposability bug (blocks #2394) | Docs only |
+| #2408 | 04-18 | fix: fill zero blocks in etilde7Arm1Embed and t125Arm1Embed (#2406) | Infra |
+| #2410 | 04-18 | feat: prove walk_to_nodup_path + dTilde_nodup_path_between | −2 (path infra) |
+| #2411 | 04-18 | feat: document Ẽ₆ indecomposability proof strategy | Docs only |
+| #2412 | 04-18 | fix: add w ∉ ColumnSubgroup hypothesis to garnir_twisted_in_lower_span | Soundness fix |
+| #2414 | 04-23 | feat: set up etilde6v2Rep_isIndecomposable framework (5 sub-sorries) | +4 (etilde6v2: 1→5) |
+| #2415 | 04-23 | fix: resolve circularity in garnir_twisted_in_lower_span (#2413) | Structural fix |
+| #2421 | 04-23 | Prove garnir_straightening_step k=0 case | Sub-case closed |
+| #2422 | 04-23 | feat: prove etilde6v2 hbot3 sub-sorry via Γ surjectivity (#2420) | −1 (etilde6v2: 5→4) |
+| #2423 | 04-23 | progress: counter-example refutes etilde6v2Rep_isIndecomposable | **Refutation** |
+| #2426 | 04-23 | refactor: Garnir straightening uses tabloid-dominance induction (#2424) | Structural refactor |
+| #2429 | 04-23 | chore: progress entry — analyze Ẽ₇ hN₁/hN₂ obstruction | Docs only |
+| #2432 | 04-23 | chore: design doc — affine Dynkin indecomposability framework | **Design doc** |
+| #2433 | 04-23 | chore: progress entry — refutation of garnir_twisted_in_lower_span framework (#2425) | **Refutation** |
 
 **Net:**
-- Genuine closures: 9 (ADE posdef ×4, D-type leaf ×2, tree_two_leaf ×2, leaf_case ×1)
-- Structural expansion: +3 (etilde7 1→4 sub-sorries via PR #2367)
-- Newly visible: +2 (walk_to_nodup_path, dTilde_nodup_path_between — were dependencies of leaf_case)
-- Raw count change: 17 → 13 (−4)
+- Genuine closures: 6 (etilde7 propagation, t125 injectivity ×2,
+  Gabriel backward, path infra ×2)
+- Framework expansions: +8 (etilde6v2 +4, t125 +4 — sub-sorries made
+  visible, then partially closed)
+- Raw count change: 13 → 14 (+1)
 - Files with sorries: 4 → 4 (unchanged)
 
 **Soundness fixes in this wave:**
-- PR #2376 added `1 ≤ m` hypothesis to `etilde7Rep_isIndecomposable` and
-  `t125Rep_isIndecomposable` (both false for m=0 — representation is decomposable)
-- PR #2391 reversed Ẽ₆ edge 3→4 to 4→3 (surjective map lost information, making
-  etilde6v2Rep decomposable for all m ≥ 1; injective orientation fixes this)
+- PR #2412 added `w ∉ ColumnSubgroup` hypothesis to `garnir_twisted_in_lower_span`.
+- PR #2415 resolved circular-dependency chain in Garnir straightening.
 
-**Structural fixes:**
-- PR #2390 replaced Garnir set `{p₁, p₂}` with proper cross-column set (old set
-  only supported same-row swaps, making `garnir_twisted_in_lower_span` unprovable)
+**Structural refactors:**
+- PR #2426 changed `garnir_straightening_step` induction from row-inversion
+  measure to tabloid-dominance measure (setting up the framework that
+  was then refuted by #2425 analysis).
 
 ## Chapter Breakdown
 
-| Chapter | Sorries | Files | Delta from Wave 52 |
+| Chapter | Sorries | Files | Delta from Wave 53 |
 |---------|---------|-------|---------------------|
-| Ch2 | 2 | 1 | 0 |
-| Ch5 | 2 | 2 | 0 |
-| Ch6 | 9 | 1 | −4 (net: posdef/leaf ×9 closed; etilde7 +3, path infra +2) |
+| Ch2 | 1 | 1 | −1 (backward bridge closed by #2403) |
+| Ch5 | 2 | 2 | 0 (garnir refactored in place, still 1 sorry) |
+| Ch6 | 11 | 1 | +2 (net: framework expansion −6 closed +8 visible) |
 | Ch9 | 0 | 0 | 0 |
 
 ## Per-File Sorry Detail
 
-### InfiniteTypeConstructions (Ch6) — 9 sorries
+### InfiniteTypeConstructions (Ch6) — 11 sorries
 
-**Indecomposability — dTilde (1):**
+**Indecomposability — dTilde (1): BLOCKED (Lean-level)**
 - Line 2177 — `dTildeRep_isIndecomposable` (D̃_n arbitrary path-length)
-  Issue #2384 (path infrastructure) is a prerequisite.
+  Blocked on `dTildeDim` definitional reduction. Issue #2431 closed
+  with replan. Two recommended options (see design-walls-wave54):
+  custom inductive vertex type vs. `finCongr` cast bridges.
 
-**Indecomposability — Ẽ₆ (1):**
-- Line 2332 — `etilde6v2Rep_isIndecomposable` (Ẽ₆ mixed orientation, m ≥ 1)
-  Issue #2379 claimed. Edge orientation fixed in #2391.
+**Indecomposability — Ẽ₆ (4): REFUTED**
+- Line 2380 — `leaf24_containment` (W(2) ⊆ W(4) as subspaces)
+- Line 2397 — `hN₁` (N-invariance of W₁(2) under nilpotentShiftLin)
+- Line 2400 — `hN₂` (N-invariance of W₂(2) under nilpotentShiftLin)
+- Line 2425 — `hbot0` (propagation W(2)=⊥ ⟹ W(0)=⊥)
 
-**Indecomposability — Ẽ₇ sub-sorries (4):**
-- Line 2748 — N-invariance of W₁(4) under nilpotentShiftLin
-- Line 2751 — N-invariance of W₂(4) under nilpotentShiftLin
-- Line 2785 — Center-is-bot: W(0) = ⊥ (key mathematical challenge, uses m ≥ 1)
-- Line 2792 — Propagation: W(0) = ⊥ → all W(v) = ⊥ via injectivity
+  `etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m)` is provably
+  **false** for all m ≥ 1 via the explicit 1-dim decomposition peeling
+  off the missed `e_m` direction in block D. Sub-sorries cannot be
+  closed as stated. Framework change required.
 
-  Issue #2394 claimed. Structural framework from PR #2367 merged.
-  The center-is-bot sorry (line 2785) is the hardest sub-goal.
+**Indecomposability — Ẽ₇ (3): REFUTED**
+- Line 3001 — `hN₁` (N-invariance of W₁(4))
+- Line 3004 — `hN₂` (N-invariance of W₂(4))
+- Line 3038 — `hbot0` (propagation W(4)=⊥ ⟹ W(0)=⊥)
 
-**Indecomposability — T(1,2,5) (1):**
-- Line 3008 — `t125Rep_isIndecomposable` (T(1,2,5), m ≥ 1)
-  Issue #2395 unclaimed. Same pattern as Ẽ₇ but with 9 vertices.
+  Same fatal pattern as Ẽ₆. `etilde7Rep 1` admits an explicit
+  decomposition (see `indecomposability-framework-investigation.md`).
+  Sub-sorries unprovable as stated.
 
-**Path infrastructure (2):**
-- Line 7968 — `dTilde_nodup_path_between` (explicit D̃ path construction)
-- Line 7990 — `walk_to_nodup_path` (trim walk to simple path via acyclicity)
+**Indecomposability — T(1,2,5) (3): REFUTED**
+- Line 3477 — `hN₁` (N-invariance of W₁(8))
+- Line 3480 — `hN₂` (N-invariance of W₂(8))
+- Line 3502 — `hbot0` (propagation W(8)=⊥ ⟹ W(0)=⊥)
 
-  Issue #2384 claimed. These were dependencies of leaf_case; now the remaining
-  sorries after leaf_case was closed by #2396.
+  Same pattern. `t125Rep 1` admits an explicit decomposition. Sub-sorries
+  unprovable as stated.
 
-### SpechtModuleBasis (Ch5) — 1 sorry
-- Line 670 — `garnir_twisted_in_lower_span` (combinatorial heart, difficulty 8)
-  Issue #2380 unclaimed. Cross-column Garnir set now in place (#2390).
+### SpechtModuleBasis (Ch5) — 1 sorry: REFUTED
+- Line 942 — `garnir_twisted_in_lower_span` (combinatorial heart)
+  Refuted at λ=(2,2), σ=swap(0,1). The outer theorem
+  `polytabloidTab_column_standard_in_span` is classically true, but
+  the current Garnir-based induction framework is unsound. Framework
+  change required (see design-walls-wave54: column-induction vs.
+  broader-τ set vs. maximal-tabloid corner case).
 
-### FormalCharacterIso (Ch5) — 1 sorry
-- Line 221 — `iso_of_formalCharacter_eq_schurPoly` (GL_N complete reducibility / Schur-Weyl, difficulty 8)
-  No active issue. Identified as Mathlib gap by meditate wave 49.
+### FormalCharacterIso (Ch5) — 1 sorry: MATHLIB GAP
+- Line 221 — `iso_of_formalCharacter_eq_schurPoly`
+  Requires Schur-Weyl duality / GL_N complete reducibility. Not
+  refuted — genuinely provable, but the Mathlib infrastructure does
+  not yet exist. Identified as Mathlib gap by meditate wave 49.
 
-### Theorem2_1_2 (Ch2) — 2 sorries (unchanged since wave 43)
-- Line 171 — Forward bridge: `not_posdef_not_HasFiniteRepresentationType`
-  (needs per-field ∀k∀Q quantifier refactor of InfiniteTypeConstructions)
-- Line 210 — Backward bridge: `isDynkinDiagram_HasFiniteRepresentationType`
-  (needs positive root enumeration + Iso bridge to Chapter 2 setup)
+### Theorem2_1_2 (Ch2) — 1 sorry: PROVABLE, BLOCKED ON CH6
+- Line 173 — Forward bridge: `not_posdef_not_HasFiniteRepresentationType`
+  Backward bridge proved by #2403. Forward bridge needs per-field
+  infinite type result, which requires working indecomposability
+  proofs in Ch6 (cluster B above) + a ∀k∀Q refactor of
+  InfiniteTypeConstructions. Unblocks once Cluster B is resolved.
 
 ## Open PRs
 
-None. All 3 PRs from wave 52 (#2354, #2355, #2367) have merged.
+None.
 
 ## Active Issues
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| #2379 | Prove etilde6v2Rep_isIndecomposable (Ẽ₆, m≥1) | Claimed |
-| #2384 | Prove walk_to_nodup_path + dTilde_nodup_path_between | Claimed |
-| #2393 | Update sorry landscape (Wave 53) | Claimed (this session) |
-| #2394 | Prove etilde7Rep_isIndecomposable sub-sorries | Claimed |
+| #2434 | summarize: wave-54 sorry landscape + design-walls snapshot | Claimed (this session) |
 
 ## Unclaimed Issues
 
-| Issue | Title | Impact |
-|-------|-------|--------|
-| #2255 | Prove positive definiteness in Theorem_2_1_2 forward direction | 1→0 sorry (Ch2), difficulty 8 |
-| #2256 | Prove Theorem_2_1_2 backward direction (Dynkin → finite rep type) | 1→0 sorry (Ch2), difficulty 9 |
-| #2380 | Prove garnir_twisted_in_lower_span (Ch5 straightening heart) | 1→0 sorry (Ch5), difficulty 8 |
-| #2395 | Prove t125Rep_isIndecomposable (T(1,2,5), m≥1) | 1→0 sorry (Ch6), difficulty 8 |
+None actionable at the current design-wall state. New issues must
+follow planner decisions on the three design walls.
 
 ## Dependency Clusters
 
-### Cluster A: Polytabloid/Straightening (Ch5, 2 sorries) — STALLED
+### Cluster A: Polytabloid/Straightening (Ch5, 2 sorries) — FRAMEWORK WALL
 **Files:** SpechtModuleBasis (1), FormalCharacterIso (1)
 **Key sorries:**
-- `garnir_twisted_in_lower_span` — cross-column Garnir set now available (#2390), but proof not attempted
-- `iso_of_formalCharacter_eq_schurPoly` — identified as Mathlib gap (Schur-Weyl duality)
-**Status:** Unchanged since wave 50. Both are difficulty 8. The Garnir set structural
-fix (#2390) unblocks `garnir_twisted_in_lower_span` in principle.
+- `garnir_twisted_in_lower_span` — refuted by counter-example (#2425).
+  Outer Specht-basis theorem is true, but current induction framework
+  cannot prove it. Three options on the planner's desk
+  (column-induction / broader-τ / corner-case).
+- `iso_of_formalCharacter_eq_schurPoly` — Mathlib gap (Schur-Weyl).
+**Status:** Stalled pending framework decision.
 
-### Cluster B: Infinite Type Classification (Ch6, 9 sorries) — RAPIDLY SHRINKING
-**Files:** InfiniteTypeConstructions (9)
+### Cluster B: Infinite Type Classification (Ch6, 11 sorries) — FRAMEWORK WALL
+**Files:** InfiniteTypeConstructions (11)
 **Sub-clusters:**
-- **B1: Indecomposability (6+1)**: 4 theorems with 6 sorry sites total (dTilde 1, etilde6v2 1,
-  etilde7 4, t125 1). Plus 2 path infrastructure sorries that support dTilde.
-  etilde6v2 has edge orientation fix (#2391). etilde7 has structural framework (#2367).
-  t125 follows the same pattern as etilde7.
-- **B2–B5: posdef/leaf-case: ALL CLOSED.** This is the major achievement of wave 53.
-  - ADE posdef: closed by #2354/#2355
-  - D-type leaf posdef: closed by #2387
-  - tree_two_leaf_posdef: closed by #2385
-  - non_adjacent_branches leaf_case: closed by #2396
+- **B1a (D̃_n, Lean-level blocker, 1 sorry)**: `dTildeRep_isIndecomposable`
+  blocked by `dTildeDim` definitional-reduction failure at k-dependent
+  vertices. Not a mathematical wall — a Lean-level vertex-indexing
+  strategy decision.
+- **B1b (Ẽ_n / T(p,q,r), framework refuted, 10 sorries)**:
+  `etilde6v2Rep`, `etilde7Rep`, `t125Rep` `_isIndecomposable` theorems
+  all false for m ≥ 1. Framework change required. Design doc
+  `indecomposability-framework-investigation.md` lays out the options:
+  Option A (book's Tits-form orbit-counting argument, 6+ months of
+  algebraic-geometry infrastructure) vs. Option B (stronger explicit
+  construction with multiple coupling twists or γ-style center-to-center
+  iso).
 
 ### Cluster C: Morita Theory (Ch9) — CLOSED (wave 50)
 
-### Cluster D: Gabriel's Theorem (Ch2, 2 sorries) — UNCHANGED
-**Status:** Both bridges remain. Forward bridge blocked on Cluster B completion +
-∀k∀Q refactor. Backward bridge needs positive root enumeration.
+### Cluster D: Gabriel's Theorem (Ch2, 1 sorry) — IMPROVED
+**Status:** Backward bridge closed by #2403. Forward bridge remains
+(1 sorry at line 173), blocked on cluster B completion + ∀k∀Q
+refactor.
 
 ## Trajectory
 
@@ -172,57 +221,80 @@ fix (#2390) unblocks `garnir_twisted_in_lower_span` in principle.
 | 50 | 13 | 5 | 581/583 (99.7%) | 2026-04-13 |
 | 51 | 21 | 5 | 582/583 (99.8%) | 2026-04-17 |
 | 52 | 17 | 4 | 582/583 (99.8%) | 2026-04-17 |
-| **53** | **13** | **4** | **582/583 (99.8%)** | **2026-04-17** |
+| 53 | 13 | 4 | 582/583 (99.8%) | 2026-04-17 |
+| **54** | **14** | **4** | **582/583 (99.8%)** | **2026-04-23** |
 
-**Wave 53 trend:** Second consecutive net decrease (17→13). The posdef/leaf-case
-sorry category is now **completely eliminated** — all 9 posdef and embedding sorries
-from wave 52 are closed. The remaining 13 sorries are concentrated in the hardest
-problems: indecomposability proofs (7), path infrastructure (2), Ch5 combinatorics (2),
-and Ch2 bridges (2).
+**Wave 54 trend:** Raw count inched up (13→14), but the headline is
+qualitative: three framework-level walls were discovered, moving the
+project from "execute on existing plan" to "planner needs to make
+design decisions". Genuine closures (6) are offset by framework
+expansions that made sub-sorries visible (+8). Most remaining sorries
+are now known to be **unprovable as stated**, not pending work.
 
 ## Honest Assessment
 
-The project has completed its **tractable sorry elimination phase**. All posdef,
-leaf-case, and graph embedding sorries are closed. What remains is exclusively
-hard problems (difficulty 8+).
+Wave 54 is the wave the project hit **three walls at once**, and the
+shape of the remaining work changed as a result. The raw count is
+basically flat; what changed is our understanding of what those
+sorries actually mean.
 
 **Strengths:**
-1. **All posdef/leaf-case sorries eliminated.** Wave 53 closed 9 of 13 Ch6 sorries
-   from wave 52. Sub-clusters B2–B5 are fully resolved.
-2. **Consecutive sorry decreases.** Waves 52-53 show 21→17→13, confirming the
-   decompose-then-close strategy is working.
-3. **Soundness improving.** Two more statement fixes this wave (etilde7/t125 for
-   m=0, Ẽ₆ edge orientation). Each fix prevents hours of futile proof attempts.
-4. **Structural fixes for Ch5.** The Garnir set replacement (#2390) makes
-   `garnir_twisted_in_lower_span` provable in principle for the first time.
-5. **4 issues actively claimed.** etilde6v2 (#2379), etilde7 (#2394), path infra
-   (#2384), and this summarize session (#2393).
+1. **Gabriel's theorem backward bridge closed.** PR #2403 closes one
+   of the two long-standing Ch2 bridges. The remaining forward bridge
+   is still blocked on Ch6, but one side is now done.
+2. **Path infrastructure closed.** PR #2410 closed
+   `walk_to_nodup_path` + `dTilde_nodup_path_between`, eliminating the
+   two path-infra sorries that had been visible since wave 53.
+3. **Three hard questions cleanly answered.** Rather than spending
+   more worker sessions grinding on refuted sorries, the three
+   framework walls are documented with design docs and counter-examples.
+   This is a net-positive even though the sorry count didn't drop.
+4. **Soundness improved.** `garnir_twisted_in_lower_span` got the
+   missing `w ∉ ColumnSubgroup` hypothesis (#2412); the circularity
+   chain was resolved (#2415).
 
 **Concerns:**
-1. **All remaining sorries are difficulty 8+.** The tractable work is done. Every
-   remaining sorry requires either deep algebraic reasoning (indecomposability),
-   hard combinatorics (Garnir), Mathlib gaps (Schur-Weyl), or bridging infrastructure
-   (Ch2). There are no more "easy wins."
-2. **No indecomposability proof has been completed yet.** Despite structural progress
-   (etilde7 framework, dTilde infrastructure, soundness fixes), no single
-   `*_isIndecomposable` theorem has been proved. This is the critical path.
-3. **Cluster A stalled for 5 waves.** `garnir_twisted_in_lower_span` and
-   `iso_of_formalCharacter_eq_schurPoly` have had no proof progress since wave 48,
-   though the Garnir set structural fix may now unblock the former.
-4. **Gabriel's Theorem bridges still unclaimed.** #2255 and #2256 need substantial
-   infrastructure work that is independent of Cluster B.
-5. **Etilde7 has the most sub-sorries (4).** The center-is-bot sorry is identified
-   as the key mathematical challenge, requiring m ≥ 1 nilpotent coupling argument.
+1. **Ch6 indecomposability cluster is stuck.** Ten of 11 Ch6 sorries
+   are in refuted theorems. They cannot be closed without either
+   (a) restructuring the explicit representations, or (b) switching
+   to the book's orbit-counting proof strategy (Option A in the design
+   doc, 6+ months of Lean algebraic-geometry infrastructure).
+2. **Ch5 straightening is stuck too.** The classical result is true
+   but the current framework can't prove it. Three alternative
+   framework sketches are on the planner's desk; none have been
+   committed to.
+3. **`dTildeRep` is the only non-refuted Ch6 item**, and it's blocked
+   on Lean-level vertex indexing rather than mathematics. The split
+   between "mathematical wall" (10 sorries) and "Lean-level wall"
+   (1 sorry) is worth remembering.
+4. **No worker-fillable sorries remain.** Every item on the list
+   requires either a framework decision (human input) or a Mathlib
+   gap closure (big piece of work). The agent-worker flow is at an
+   idle point until a planner acts on the three design walls.
+5. **FormalCharacterIso Mathlib gap is the only non-framework-wall
+   non-refuted remaining item.** It needs Schur-Weyl duality, which
+   is big-Mathlib work. Unchanged since wave 48.
 
 **Current priority ordering:**
-1. **Indecomposability proofs** (7 sorries across 4 theorems) — critical path for Cluster B
-2. **Path infrastructure** (2 sorries) — prerequisite for dTilde indecomposability
-3. **garnir_twisted_in_lower_span** (1 sorry) — newly unblocked by Garnir set fix
-4. **Gabriel's Theorem bridges** (2 sorries) — independent work, can proceed in parallel
-5. **iso_of_formalCharacter_eq_schurPoly** (1 sorry) — Mathlib gap, hardest remaining sorry
+1. **Planner triage of the three design walls** (see
+   `design-walls-wave54.md`). Nothing else unblocks.
+2. **Once Ẽ_n / T(p,q,r) framework decided**: either refactor the
+   Rep definitions (Option B) or begin Tits-form scaffolding (Option A).
+   10 Ch6 sorries gated on this.
+3. **Once Garnir framework decided**: restart Ch5 straightening with
+   the chosen induction measure. 1 Ch5 sorry gated on this.
+4. **Once dTildeDim strategy decided**: either inductive vertex type
+   or `finCongr` cast bridges. 1 Ch6 sorry gated on this.
+5. **Ch2 forward bridge**: blocked on Cluster B resolution, so
+   deferred to after step 2.
+6. **`iso_of_formalCharacter_eq_schurPoly`**: independent Mathlib-gap
+   work. Can be attempted in parallel, but remains the hardest
+   remaining sorry.
 
-**If all claimed issues complete:**
-- etilde6v2 (#2379): −1 sorry
-- etilde7 (#2394): −4 sorries
-- path infra (#2384): −2 sorries
-- Total: 13 → 6 (dTilde 1, t125 1, Ch5 2, Ch2 2)
+**If the three design walls are resolved**: the 10 refuted Ẽ/T
+sub-sorries either disappear (Option B refactor replaces them with
+new, well-posed sub-sorries) or move to a different proof path
+(Option A). The Ch5 sorry similarly gets a new well-posed framework.
+The remaining floor is then Ch2 forward bridge + dTildeDim +
+FormalCharacterIso = 3 sorries, all of which are genuinely provable
+given the framework decisions.
