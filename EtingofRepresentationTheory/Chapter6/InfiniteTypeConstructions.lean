@@ -2862,11 +2862,92 @@ theorem dTildeRep'_isIndecomposable (k m : ℕ) :
     | rightLeaf1 => exact h04 ▸ hbot
     | rightLeaf2 => exact h05 ▸ hbot
 
--- Transport of `dTildeRep'_isIndecomposable` to `dTildeRep` (the `Fin (k+6)`-indexed
--- version) is the final piece of Wall 2 Stage C.  The mathematical work is complete
--- (`dTildeRep'_isIndecomposable` above); what remains is a mechanical type-level
--- transport using `dTildeRep'_obj_eq_toFin` to relate submodules at matched
--- vertices.  Tracked as a follow-up to #2447.
+/-! ### Transport of `dTildeRep'_isIndecomposable` to the `Fin`-indexed version
+
+The mathematical content is complete on `dTildeRep'` (indexed by `DTildeVertex k`).
+The `Fin (k + 6)`-indexed `dTildeRep_isIndecomposable` needed by
+`dTilde_not_finite_type` is obtained by transport along `DTildeVertex.equivFin`.
+-/
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- Pointwise linear equivalence between the two object-type assignments
+for `dTildeRep'` and `dTildeRep` at matched vertices. -/
+noncomputable def dTildeTransportEquiv (k m : ℕ) (v : DTildeVertex k) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _
+        (DTildeQuiver' k) (dTildeRep' k m) v ≃ₗ[ℂ]
+      @Etingof.QuiverRepresentation.obj ℂ (Fin (k + 6)) _
+        (dTildeQuiver k) (dTildeRep k m) v.toFin := by
+  letI := DTildeQuiver' k
+  letI := dTildeQuiver k
+  show (Fin (v.dim m) → ℂ) ≃ₗ[ℂ] (Fin (dTildeDim k m v.toFin) → ℂ)
+  have hdim : dTildeDim k m v.toFin = v.dim m := by
+    rw [dTildeDim_eq_ofFin_dim, DTildeVertex.ofFin_toFin]
+  exact LinearEquiv.funCongrLeft ℂ ℂ (finCongr hdim)
+
+/-- Arrow correspondence: a `DTildeQuiver'` arrow between `DTildeVertex k` vertices
+induces a `dTildeQuiver` arrow between the corresponding `Fin (k + 6)` indices. -/
+private theorem DTildeArrowPred'_toFin {k : ℕ} {a b : DTildeVertex k}
+    (h : DTildeArrowPred' a b) : dTildeArrowPred k a.toFin b.toFin := by
+  match a, b, h with
+  | .leftLeaf1, .branchLeft, _ => exact Or.inl ⟨rfl, rfl⟩
+  | .leftLeaf2, .branchLeft, _ => exact Or.inr (Or.inl ⟨rfl, rfl⟩)
+  | .branchLeft, .pathMid i, hi =>
+    refine Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))
+    · show (2 : ℕ) ≤ 2; omega
+    · show (2 : ℕ) + 1 = i.val + 3
+      have : i.val = 0 := hi
+      omega
+    · show i.val + 3 ≤ k + 3
+      have : i.val < k := i.isLt
+      omega
+  | .branchLeft, .branchRight, hk =>
+    refine Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))
+    · show (2 : ℕ) ≤ 2; omega
+    · show (2 : ℕ) + 1 = k + 3
+      have : k = 0 := hk
+      omega
+    · show k + 3 ≤ k + 3; omega
+  | .pathMid i, .pathMid j, hij =>
+    refine Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))
+    · show 2 ≤ i.val + 3; omega
+    · show i.val + 3 + 1 = j.val + 3
+      have : j.val = i.val + 1 := hij
+      omega
+    · show j.val + 3 ≤ k + 3
+      have : j.val < k := j.isLt
+      omega
+  | .pathMid i, .branchRight, hi =>
+    refine Or.inr (Or.inr (Or.inl ⟨?_, ?_, ?_⟩))
+    · show 2 ≤ i.val + 3; omega
+    · show i.val + 3 + 1 = k + 3
+      have : i.val + 1 = k := hi
+      omega
+    · show k + 3 ≤ k + 3; omega
+  | .rightLeaf1, .branchRight, _ =>
+    exact Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))
+  | .rightLeaf2, .branchRight, _ =>
+    exact Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- Map agreement: for any `DTildeQuiver'` arrow `e'`, the map of `dTildeRep` at the
+transported arrow equals the map of `dTildeRep'` conjugated by the transport equivalences.
+
+Stated as `(dTildeRep k m).mapLinear _ ∘ dTildeTransportEquiv k m a =
+dTildeTransportEquiv k m b ∘ (dTildeRep' k m).mapLinear _`. -/
+private theorem dTildeRep_mapLinear_transport (k m : ℕ) {a b : DTildeVertex k}
+    (e' : @Quiver.Hom (DTildeVertex k) (DTildeQuiver' k) a b)
+    (x : @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) a) :
+    @Etingof.QuiverRepresentation.mapLinear ℂ (Fin (k + 6)) _ (dTildeQuiver k)
+        (dTildeRep k m) a.toFin b.toFin ⟨DTildeArrowPred'_toFin e'.down⟩
+        (dTildeTransportEquiv k m a x) =
+      dTildeTransportEquiv k m b
+        (@Etingof.QuiverRepresentation.mapLinear ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+          (dTildeRep' k m) a b e' x) := by
+  sorry
+
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 set_option maxHeartbeats 3200000 in
@@ -2874,7 +2955,59 @@ theorem dTildeRep_isIndecomposable (k m : ℕ) :
     @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (Fin (k + 6))
       (dTildeQuiver k) (dTildeRep k m) := by
   letI := dTildeQuiver k
-  sorry
+  letI := DTildeQuiver' k
+  have hind := dTildeRep'_isIndecomposable k m
+  refine ⟨?_, ?_⟩
+  · -- Nontrivial at some vertex: transport from DTildeVertex side
+    obtain ⟨v', hv'⟩ := hind.1
+    refine ⟨v'.toFin, ?_⟩
+    exact (dTildeRep'_obj_eq_toFin k m v') ▸ hv'
+  · intro W₁ W₂ hW₁ hW₂ hCompl
+    -- Pull back from Fin indexing to DTildeVertex indexing via comap.
+    let W₁' : ∀ v : DTildeVertex k, Submodule ℂ ((dTildeRep' k m).obj v) :=
+      fun v => Submodule.comap (dTildeTransportEquiv k m v).toLinearMap (W₁ v.toFin)
+    let W₂' : ∀ v : DTildeVertex k, Submodule ℂ ((dTildeRep' k m).obj v) :=
+      fun v => Submodule.comap (dTildeTransportEquiv k m v).toLinearMap (W₂ v.toFin)
+    have hW₁'_inv : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+        ∀ x ∈ W₁' a, (dTildeRep' k m).mapLinear e x ∈ W₁' b := by
+      intro a b e x hx
+      show dTildeTransportEquiv k m b ((dTildeRep' k m).mapLinear e x) ∈ W₁ b.toFin
+      rw [← dTildeRep_mapLinear_transport k m e x]
+      exact hW₁ ⟨DTildeArrowPred'_toFin e.down⟩ _ hx
+    have hW₂'_inv : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+        ∀ x ∈ W₂' a, (dTildeRep' k m).mapLinear e x ∈ W₂' b := by
+      intro a b e x hx
+      show dTildeTransportEquiv k m b ((dTildeRep' k m).mapLinear e x) ∈ W₂ b.toFin
+      rw [← dTildeRep_mapLinear_transport k m e x]
+      exact hW₂ ⟨DTildeArrowPred'_toFin e.down⟩ _ hx
+    have hCompl' : ∀ v : DTildeVertex k, IsCompl (W₁' v) (W₂' v) := by
+      intro v
+      exact OrderIso.isCompl (Submodule.orderIsoMapComap
+        (dTildeTransportEquiv k m v)).symm (hCompl v.toFin)
+    -- Key lemma: comap-of-LinearEquiv-equal-to-bot implies original is bot.
+    have comap_eq_bot_imp : ∀ (v : DTildeVertex k) (s : Submodule ℂ ((dTildeRep k m).obj v.toFin)),
+        Submodule.comap (dTildeTransportEquiv k m v).toLinearMap s = ⊥ → s = ⊥ := by
+      intro v s h
+      have step := congrArg (Submodule.orderIsoMapComap (dTildeTransportEquiv k m v))
+        (show (Submodule.orderIsoMapComap (dTildeTransportEquiv k m v)).symm s = ⊥ by
+          show Submodule.comap _ s = ⊥; exact h)
+      rw [OrderIso.apply_symm_apply, OrderIso.map_bot] at step
+      exact step
+    rcases hind.2 W₁' W₂' hW₁'_inv hW₂'_inv hCompl' with h₁ | h₂
+    · left
+      intro v'
+      have hv := h₁ (DTildeVertex.ofFin k v')
+      -- hv : W₁' (ofFin k v') = ⊥, i.e. comap ... (W₁ ((ofFin k v').toFin)) = ⊥
+      have h1 := comap_eq_bot_imp (DTildeVertex.ofFin k v') _ hv
+      -- h1 : W₁ ((ofFin k v').toFin) = ⊥
+      rw [DTildeVertex.toFin_ofFin] at h1
+      exact h1
+    · right
+      intro v'
+      have hv := h₂ (DTildeVertex.ofFin k v')
+      have h2 := comap_eq_bot_imp (DTildeVertex.ofFin k v') _ hv
+      rw [DTildeVertex.toFin_ofFin] at h2
+      exact h2
 
 /-! ## Section 17a.4: D̃_n has infinite representation type -/
 
