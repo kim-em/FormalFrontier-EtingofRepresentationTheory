@@ -312,6 +312,203 @@ private def isRowStandard' (σ : Equiv.Perm (Fin n)) : Prop :=
     colOfPos la.sortedParts p₁.val < colOfPos la.sortedParts p₂.val →
     σ.symm p₁ < σ.symm p₂
 
+/-- Swapping a row-inversion pair strictly decreases the row inversion count.
+This is the row-analogue of `columnInvCount'_swap_lt`, used in the k = 0 corner
+case of `garnir_straightening_step` where we cannot rely on a non-trivial
+Garnir identity.
+
+The construction mirrors `columnInvCount'_swap_lt`: we inject "after" inversions
+into "before" inversions minus the specific pair `(p₁, p₂)`.
+-/
+private theorem rowInvCount'_swap_lt (σ : Equiv.Perm (Fin n))
+    (p₁ p₂ : Fin n)
+    (hrow : rowOfPos la.sortedParts p₁.val = rowOfPos la.sortedParts p₂.val)
+    (hcol : colOfPos la.sortedParts p₁.val < colOfPos la.sortedParts p₂.val)
+    (hinv : σ.symm p₂ < σ.symm p₁)
+    (hne : p₁ ≠ p₂) :
+    rowInvCount' (la := la) (Equiv.swap p₁ p₂ * σ) <
+      rowInvCount' (la := la) σ := by
+  unfold rowInvCount'
+  set parts := la.sortedParts
+  have hsymm : ∀ x, (Equiv.swap p₁ p₂ * σ).symm x = σ.symm (Equiv.swap p₁ p₂ x) := by
+    intro x; change (Equiv.swap p₁ p₂ * σ)⁻¹ x = σ⁻¹ (Equiv.swap p₁ p₂ x)
+    rw [mul_inv_rev]; simp [Equiv.Perm.mul_apply]
+  let g : Fin n × Fin n → Fin n × Fin n := fun ⟨a, b⟩ =>
+    if b = p₁ ∧ σ.symm a < σ.symm p₁ then (a, p₂)
+    else if a = p₂ ∧ σ.symm p₂ < σ.symm b then (p₁, b)
+    else (a, b)
+  let isInv : Equiv.Perm (Fin n) → Fin n × Fin n → Prop := fun τ ⟨a, b⟩ =>
+    rowOfPos parts a.val = rowOfPos parts b.val ∧
+    colOfPos parts a.val < colOfPos parts b.val ∧ τ.symm b < τ.symm a
+  have hp : (p₁, p₂) ∈ Finset.univ.filter (fun pp => isInv σ pp) :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, hrow, hcol, hinv⟩
+  suffices h_le : (Finset.univ.filter (fun pp => isInv (Equiv.swap p₁ p₂ * σ) pp)).card ≤
+      ((Finset.univ.filter (fun pp => isInv σ pp)).erase (p₁, p₂)).card by
+    exact Nat.lt_of_le_of_lt h_le (Finset.card_erase_lt_of_mem hp)
+  apply Finset.card_le_card_of_injOn g
+  · -- MapsTo: g maps after-inversions into before-inversions \ {(p₁,p₂)}
+    intro ⟨a, b⟩ hmem
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hmem
+    obtain ⟨hrow_ab, hcol_ab, hinv_ab⟩ := hmem
+    rw [hsymm, hsymm] at hinv_ab
+    show g (a, b) ∈ _
+    simp only [g]
+    split_ifs with h1 h2
+    · -- Branch 1: b = p₁, σ.symm a < σ.symm p₁ → g(a,b) = (a, p₂)
+      obtain ⟨hbeq1, ha_lt⟩ := h1
+      rw [eq_comm] at hbeq1; subst hbeq1
+      have ha_ne_p1 : a ≠ p₁ := by intro h; rw [h] at ha_lt; exact absurd ha_lt (lt_irrefl _)
+      have ha_ne_p2 : a ≠ p₂ := by
+        intro h; rw [h] at hcol_ab; exact absurd (lt_trans hcol_ab hcol) (lt_irrefl _)
+      rw [Equiv.swap_apply_left,
+          Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv_ab
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · exact fun heq => ha_ne_p1 (Prod.ext_iff.mp heq).1
+      · exact ⟨hrow_ab.trans hrow, lt_trans hcol_ab hcol, hinv_ab⟩
+    · -- Branch 2: a = p₂, σ.symm p₂ < σ.symm b → g(a,b) = (p₁, b)
+      obtain ⟨haeq2, hb_gt⟩ := h2
+      rw [eq_comm] at haeq2; subst haeq2
+      have hb_ne_p2 : b ≠ p₂ := by intro h; rw [h] at hcol_ab; exact absurd hcol_ab (lt_irrefl _)
+      have hb_ne_p1 : b ≠ p₁ := by
+        intro h; rw [h] at hcol_ab; exact absurd (lt_trans hcol hcol_ab) (lt_irrefl _)
+      rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+          Equiv.swap_apply_right] at hinv_ab
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · exact fun heq => hb_ne_p2 (Prod.ext_iff.mp heq).2
+      · exact ⟨hrow.trans hrow_ab, lt_trans hcol hcol_ab, hinv_ab⟩
+    · -- Branch 3: identity → g(a,b) = (a, b)
+      push_neg at h1 h2
+      refine Finset.mem_erase.mpr ⟨?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩⟩
+      · intro heq; obtain ⟨rfl, rfl⟩ := Prod.ext_iff.mp heq
+        rw [Equiv.swap_apply_right, Equiv.swap_apply_left] at hinv_ab
+        exact absurd hinv_ab (Nat.not_lt.mpr hinv.le)
+      · refine ⟨hrow_ab, hcol_ab, ?_⟩
+        by_cases ha1 : a = p₁
+        · rw [eq_comm] at ha1; subst ha1
+          have hb_ne_p1 : b ≠ p₁ := by
+            intro h; rw [h] at hcol_ab; exact absurd hcol_ab (lt_irrefl _)
+          by_cases hb2 : b = p₂
+          · rw [eq_comm] at hb2; subst hb2
+            rw [Equiv.swap_apply_right, Equiv.swap_apply_left] at hinv_ab
+            exact absurd hinv_ab (Nat.not_lt.mpr hinv.le)
+          · rw [Equiv.swap_apply_left,
+                Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb2] at hinv_ab
+            exact lt_trans hinv_ab hinv
+        · by_cases ha2 : a = p₂
+          · rw [eq_comm] at ha2; subst ha2
+            have hb_ne_p2 : b ≠ p₂ := by
+              intro h; rw [h] at hcol_ab; exact absurd hcol_ab (lt_irrefl _)
+            have hb_ne_p1 : b ≠ p₁ := by
+              intro h; rw [h] at hcol_ab; exact absurd (lt_trans hcol hcol_ab) (lt_irrefl _)
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_right] at hinv_ab
+            exact lt_of_le_of_ne (h2 rfl) (fun h => hb_ne_p2 (σ.symm.injective h))
+          · rw [Equiv.swap_apply_of_ne_of_ne ha1 ha2] at hinv_ab
+            by_cases hb1 : b = p₁
+            · rw [eq_comm] at hb1; subst hb1
+              rw [Equiv.swap_apply_left] at hinv_ab
+              exact lt_of_le_of_ne (h1 rfl) (fun h => ha1 (σ.symm.injective h.symm))
+            · by_cases hb2 : b = p₂
+              · rw [eq_comm] at hb2; subst hb2
+                rw [Equiv.swap_apply_right] at hinv_ab
+                exact lt_trans hinv hinv_ab
+              · rwa [Equiv.swap_apply_of_ne_of_ne hb1 hb2] at hinv_ab
+  · -- InjOn: g is injective on after-inversions
+    intro ⟨a₁, b₁⟩ hmem₁ ⟨a₂, b₂⟩ hmem₂ heq
+    simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hmem₁ hmem₂
+    show (a₁, b₁) = (a₂, b₂)
+    simp only [g] at heq
+    by_cases h1a : b₁ = p₁ ∧ σ.symm a₁ < σ.symm p₁
+    · -- Pair 1 in branch 1: g(a₁,b₁) = (a₁, p₂)
+      simp only [h1a, and_self, ↓reduceIte] at heq
+      by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+      · simp only [h1b, and_self, ↓reduceIte] at heq
+        have ha : a₁ = a₂ := congr_arg Prod.fst heq
+        subst ha; exact Prod.ext rfl (h1a.1.trans h1b.1.symm)
+      · simp only [h1b, ↓reduceIte] at heq
+        by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+        · simp only [h2b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = p₁ := congr_arg Prod.fst heq
+          subst ha; exact absurd h1a.2 (lt_irrefl _)
+        · simp only [h2b, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = a₂ := congr_arg Prod.fst heq
+          have hb : p₂ = b₂ := congr_arg Prod.snd heq
+          subst ha; subst hb
+          have ha_ne_p1 : a₁ ≠ p₁ := by
+            intro h; subst h; exact absurd h1a.2 (lt_irrefl _)
+          have ha_ne_p2 : a₁ ≠ p₂ := by
+            intro h; subst h; exact absurd hmem₂.2.1 (lt_irrefl _)
+          have hinv₂ := hmem₂.2.2
+          rw [hsymm, hsymm] at hinv₂
+          rw [Equiv.swap_apply_right,
+              Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv₂
+          exact absurd (lt_trans h1a.2 hinv₂) (lt_irrefl _)
+    · simp only [h1a, ↓reduceIte] at heq
+      by_cases h2a : a₁ = p₂ ∧ σ.symm p₂ < σ.symm b₁
+      · -- Pair 1 in branch 2: g(a₁,b₁) = (p₁, b₁)
+        simp only [h2a, and_self, ↓reduceIte] at heq
+        by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+        · simp only [h1b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : p₁ = a₂ := congr_arg Prod.fst heq
+          subst ha; exact absurd h1b.2 (lt_irrefl _)
+        · simp only [h1b, ↓reduceIte] at heq
+          by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+          · simp only [h2b, and_self, ↓reduceIte] at heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            subst hb; exact Prod.ext (h2a.1.trans h2b.1.symm) rfl
+          · simp only [h2b, ↓reduceIte] at heq
+            exfalso
+            have ha : p₁ = a₂ := congr_arg Prod.fst heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            subst ha; subst hb
+            have hb_ne_p1 : b₁ ≠ p₁ := by
+              intro h; subst h; exact absurd hmem₂.2.1 (lt_irrefl _)
+            have hb_ne_p2 : b₁ ≠ p₂ := by
+              intro h; subst h; exact absurd h2a.2 (lt_irrefl _)
+            have hinv₂ := hmem₂.2.2
+            rw [hsymm, hsymm] at hinv₂
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_left] at hinv₂
+            exact absurd (lt_trans hinv₂ h2a.2) (lt_irrefl _)
+      · -- Pair 1 in branch 3: g(a₁,b₁) = (a₁, b₁)
+        simp only [h2a, ↓reduceIte] at heq
+        by_cases h1b : b₂ = p₁ ∧ σ.symm a₂ < σ.symm p₁
+        · simp only [h1b, and_self, ↓reduceIte] at heq
+          exfalso
+          have ha : a₁ = a₂ := congr_arg Prod.fst heq
+          have hb : b₁ = p₂ := congr_arg Prod.snd heq
+          subst ha; rw [eq_comm] at hb; subst hb
+          have ha_ne_p1 : a₁ ≠ p₁ := by
+            intro h; subst h; exact absurd h1b.2 (lt_irrefl _)
+          have ha_ne_p2 : a₁ ≠ p₂ := by
+            intro h; subst h; exact absurd hmem₁.2.1 (lt_irrefl _)
+          have hinv₁' := hmem₁.2.2
+          rw [hsymm, hsymm] at hinv₁'
+          rw [Equiv.swap_apply_right,
+              Equiv.swap_apply_of_ne_of_ne ha_ne_p1 ha_ne_p2] at hinv₁'
+          exact absurd (lt_trans h1b.2 hinv₁') (lt_irrefl _)
+        · simp only [h1b, ↓reduceIte] at heq
+          by_cases h2b : a₂ = p₂ ∧ σ.symm p₂ < σ.symm b₂
+          · simp only [h2b, and_self, ↓reduceIte] at heq
+            exfalso
+            have ha : a₁ = p₁ := congr_arg Prod.fst heq
+            have hb : b₁ = b₂ := congr_arg Prod.snd heq
+            rw [eq_comm] at ha; subst ha; subst hb
+            have hb_ne_p1 : b₁ ≠ p₁ := by
+              intro h; subst h; exact absurd hmem₁.2.1 (lt_irrefl _)
+            have hb_ne_p2 : b₁ ≠ p₂ := by
+              intro h; subst h; exact absurd h2b.2 (lt_irrefl _)
+            have hinv₁' := hmem₁.2.2
+            rw [hsymm, hsymm] at hinv₁'
+            rw [Equiv.swap_apply_of_ne_of_ne hb_ne_p1 hb_ne_p2,
+                Equiv.swap_apply_left] at hinv₁'
+            exact absurd (lt_trans hinv₁' h2b.2) (lt_irrefl _)
+          · simp only [h2b, ↓reduceIte] at heq
+            exact heq
+
 /-- Row inversion count is 0 iff the filling is row-standard. -/
 private theorem rowInvCount'_eq_zero_iff (σ : Equiv.Perm (Fin n)) :
     rowInvCount' (la := la) σ = 0 ↔ isRowStandard' (la := la) σ := by
@@ -714,8 +911,11 @@ disjoint parts using `T ∩ P ∩ Q = ∅` (since P ∩ Q = {1}):
 - **Neither part** (w ∉ P_λ ∪ Q_λ): `sign(w)·f_w(σ) ∈ L` by
   `garnir_twisted_in_lower_span`.
 Rearranging: `k·ψ_σ = -(neither sum) ∈ L`. If k ≥ 1, divide by k to get ψ_σ ∈ L.
-If k = 0 (which happens iff row(p₁) = 0 and col(p₁) has length 1), a separate
-swap-based argument is needed — this case is deferred as a sorry. -/
+If k = 0 (which happens iff row(p₁) = 0 and both col(p₁) and col(p₂) are single
+cells — forced by the partition sortedness), every q ∈ Q_λ fixes p₁ and p₂,
+so q commutes with t = swap(p₁, p₂) and ψ_σ = ψ_{t·σ} term-by-term. The
+permutation σ' := t·σ is column-standard and has strictly fewer row inversions
+via `rowInvCount'_swap_lt`, giving ψ_σ ∈ L directly. -/
 private theorem garnir_straightening_step
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ) :
@@ -1145,11 +1345,10 @@ private theorem garnir_straightening_step
     -- Define σ' = t * σ.
     set σ' := t * σ with hσ'_def
     -- σ'.symm applies t after σ.symm: σ'⁻¹ y = σ⁻¹ (t y).
-    have ht_symm : t.symm = t := by
-      change (Equiv.swap p₁ p₂).symm = _; exact Equiv.symm_swap p₁ p₂
+    have ht_symm : t.symm = t := Equiv.symm_swap p₁ p₂
     have hσ'_symm_apply : ∀ y, σ'.symm y = σ.symm (t y) := by
       intro y
-      show (t * σ).symm y = σ.symm (t y)
+      change (t * σ).symm y = σ.symm (t y)
       rw [Equiv.Perm.mul_def, Equiv.symm_trans_apply, ht_symm]
     -- σ'.symm p₁ = σ.symm p₂, σ'.symm p₂ = σ.symm p₁.
     have hσ'_symm_p₁ : σ'.symm p₁ = σ.symm p₂ := by
@@ -1184,11 +1383,44 @@ private theorem garnir_straightening_step
           rw [hσ'_symm_other a ha_ne_p₁ ha_ne_p₂, hσ'_symm_other b hb_ne_p₁ hb_ne_p₂]
           exact hcs a b hab_col hab_row_lt
     -- rowInvCount'(σ') < rowInvCount'(σ)
-    have hrow_lt : rowInvCount' (la := la) σ' < rowInvCount' (la := la) σ := by
-      sorry
+    have hrow_lt : rowInvCount' (la := la) σ' < rowInvCount' (la := la) σ :=
+      rowInvCount'_swap_lt σ p₁ p₂ hrow_eq hcol_lt hinv hne
+    -- Every q ∈ Q_λ commutes with t = swap(p₁, p₂) because q fixes both p₁ and p₂.
+    have h_q_comm_t : ∀ q : Equiv.Perm (Fin n), q ∈ ColumnSubgroup n la →
+        q * t = t * q := by
+      intro q hq
+      have hqp₁ : q p₁ = p₁ := h_Q_fix_p₁ q hq
+      have hqp₂ : q p₂ = p₂ := h_Q_fix_p₂ q hq
+      have ht_p₁ : t p₁ = p₂ := Equiv.swap_apply_left _ _
+      have ht_p₂ : t p₂ = p₁ := Equiv.swap_apply_right _ _
+      ext x
+      simp only [Equiv.Perm.mul_apply]
+      by_cases hx1 : x = p₁
+      · subst hx1; rw [ht_p₁, hqp₂, hqp₁, ht_p₁]
+      · by_cases hx2 : x = p₂
+        · subst hx2; rw [ht_p₂, hqp₁, hqp₂, ht_p₂]
+        · have htx : t x = x := Equiv.swap_apply_of_ne_of_ne hx1 hx2
+          rw [htx]
+          have hqx_ne_p1 : q x ≠ p₁ := by
+            intro h; rw [← hqp₁] at h; exact hx1 (q.injective h)
+          have hqx_ne_p2 : q x ≠ p₂ := by
+            intro h; rw [← hqp₂] at h; exact hx2 (q.injective h)
+          rw [Equiv.swap_apply_of_ne_of_ne hqx_ne_p1 hqx_ne_p2]
     -- ψ_σ = ψ_{σ'} via term-by-term tabloid equality.
     have hψ_eq : ψ = generalizedPolytabloidTab (n := n) (la := la) σ' := by
-      sorry
+      simp only [hψ_def, generalizedPolytabloidTab]
+      refine Finset.sum_congr rfl (fun ⟨q, hq⟩ _ => ?_)
+      congr 2
+      rw [toTabloid_eq_iff]
+      have ht_inv : t⁻¹ = t := Equiv.swap_inv p₁ p₂
+      have hqt : q * t = t * q := h_q_comm_t q hq
+      have h_compute : (q⁻¹ * σ) * (q⁻¹ * σ')⁻¹ = q⁻¹ * t⁻¹ * q := by
+        rw [hσ'_def]; group
+      rw [h_compute, ht_inv]
+      -- goal: q⁻¹ * t * q ∈ RowSubgroup
+      have : q⁻¹ * t * q = t := by
+        rw [mul_assoc, ← hqt, ← mul_assoc, inv_mul_cancel, one_mul]
+      rw [this]; exact ht_row
     -- Conclude.
     rw [hψ_eq]
     exact Submodule.subset_span ⟨⟨σ', hcs_σ', hrow_lt⟩, rfl⟩
