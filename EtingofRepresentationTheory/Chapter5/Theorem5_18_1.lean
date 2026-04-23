@@ -316,4 +316,111 @@ theorem Theorem5_18_1_decomposition
     ⟨(e.restrictScalars k).trans
       (DFinsupp.mapRange.linearEquiv (fun i => (TensorProduct.rid k ↥(S i)).symm))⟩⟩
 
+/-!
+## Helpers for the bimodule form of the double centralizer theorem
+
+For the bimodule decomposition `E ≃ ⨁ Vᵢ ⊗ Lᵢ`, we need:
+* The centralizer `B = centralizer(A)` acts on the Hom-space `V →ₗ[A] E`
+  by post-composition. Elements of `B` commute with `A`, hence are
+  `A`-linear maps `E → E`, which can be composed on the right of any
+  `A`-linear map out of `V`.
+* For a simple submodule `V` of an isotypic component `c`, every `A`-linear
+  map `V → E` lands inside `c` (by `Submodule.map_le_isotypicComponent`
+  combined with `c = isotypicComponent A E V`).
+-/
+
+/-- The ring homomorphism `B := centralizer(A) → End_A(E)`: every element of
+the centralizer (which commutes with `A`) is `A`-linear. -/
+noncomputable def centralizerToEndA
+    (A : Subalgebra k (Module.End k E)) :
+    (↥(Subalgebra.centralizer k (A : Set (Module.End k E)))) →+*
+      Module.End A E where
+  toFun b :=
+    { toFun := b.val
+      map_add' := b.val.map_add
+      map_smul' := fun a e => by
+        have hb := b.property
+        rw [Subalgebra.mem_centralizer_iff] at hb
+        have h := hb a.val a.property
+        -- h : b.val * a.val = a.val * b.val in End_k(E); apply to e
+        have happ := LinearMap.congr_fun h e
+        -- happ : (a.val * b.val) e = (b.val * a.val) e
+        -- i.e. a.val (b.val e) = b.val (a.val e)
+        -- Goal: b.val (a • e) = (RingHom.id A) a • b.val e
+        -- Since a • e = a.val e and a • b.val e = a.val (b.val e),
+        -- goal becomes b.val (a.val e) = a.val (b.val e), which is happ.symm.
+        exact happ.symm }
+  map_one' := by ext; rfl
+  map_mul' _ _ := by ext; rfl
+  map_zero' := by ext; rfl
+  map_add' _ _ := by ext; rfl
+
+set_option synthInstance.maxHeartbeats 400000 in
+/-- `V →ₗ[A] E` carries a `Module B`-structure (where `B = centralizer(A)`)
+via post-composition: `(b • f) v := b.val (f v)`. -/
+noncomputable instance centralizerModuleHom
+    {A : Subalgebra k (Module.End k E)}
+    {V : Type*} [AddCommGroup V] [Module k V]
+    [Module A V] [IsScalarTower k A V] :
+    Module (↥(Subalgebra.centralizer k (A : Set (Module.End k E))))
+      (V →ₗ[A] E) where
+  smul b f := (centralizerToEndA k E A b).comp f
+  one_smul f := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A 1) (f v) = f v
+    rw [map_one]; rfl
+  mul_smul b₁ b₂ f := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A (b₁ * b₂)) (f v) =
+      (centralizerToEndA k E A b₁)
+        ((centralizerToEndA k E A b₂) (f v))
+    rw [map_mul]; rfl
+  smul_zero b := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A b) ((0 : V →ₗ[A] E) v) = 0
+    simp
+  smul_add b f g := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A b) ((f + g) v) =
+      (centralizerToEndA k E A b) (f v) + (centralizerToEndA k E A b) (g v)
+    simp
+  add_smul b₁ b₂ f := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A (b₁ + b₂)) (f v) =
+      (centralizerToEndA k E A b₁) (f v) + (centralizerToEndA k E A b₂) (f v)
+    rw [map_add]; rfl
+  zero_smul f := by
+    refine LinearMap.ext fun v => ?_
+    change (centralizerToEndA k E A 0) (f v) = 0
+    rw [map_zero]; rfl
+
+set_option synthInstance.maxHeartbeats 400000 in
+/-- The natural bridge: every `A`-linear map from a simple submodule `V ≤ E`
+into `E` lands in the isotypic component `isotypicComponent A E V`. -/
+theorem range_le_isotypicComponent_of_simple
+    {A : Subalgebra k (Module.End k E)}
+    (V : Submodule A E) [IsSimpleModule A V]
+    (f : V →ₗ[A] E) :
+    LinearMap.range f ≤ isotypicComponent A E V := by
+  classical
+  by_cases hf : f = 0
+  · simp [hf]
+  · -- f ≠ 0 ⇒ f injective (Schur on simple V) ⇒ range f ≃[A] V ⇒ range f
+    -- lies in the isotypic component determined by V.
+    have hker : LinearMap.ker f = ⊥ := by
+      rcases eq_bot_or_eq_top (LinearMap.ker f) with h | h
+      · exact h
+      · exfalso; apply hf
+        ext v
+        have hv : v ∈ LinearMap.ker f := h ▸ Submodule.mem_top
+        simpa [LinearMap.mem_ker] using hv
+    have hinj : Function.Injective f := LinearMap.ker_eq_bot.mp hker
+    have e : V ≃ₗ[A] LinearMap.range f := LinearEquiv.ofInjective f hinj
+    have heq : isotypicComponent A E (LinearMap.range f) = isotypicComponent A E V :=
+      e.symm.isotypicComponent_eq
+    calc LinearMap.range f
+        ≤ isotypicComponent A E (LinearMap.range f) :=
+          Submodule.le_isotypicComponent _
+      _ = isotypicComponent A E V := heq
+
 end Etingof
