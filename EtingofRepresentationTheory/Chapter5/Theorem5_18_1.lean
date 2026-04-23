@@ -25,6 +25,31 @@ universe u v
 
 namespace Etingof
 
+/-!
+## Helper: isotypic direct sum decomposition
+
+For a semisimple Noetherian `R`-module `M`, its isotypic components form a
+finite independent family covering all of `M`. This gives a canonical
+decomposition `M ≃[R] ⨁ c : isotypicComponents R M, c`.
+-/
+
+/-- Decomposition of a semisimple Noetherian `R`-module into its isotypic
+components. The index set `isotypicComponents R M` groups simple submodules
+by isomorphism class. -/
+noncomputable def isotypicDirectSumEquiv
+    (R : Type*) (M : Type*) [Ring R] [AddCommGroup M] [Module R M]
+    [IsSemisimpleModule R M] [IsNoetherian R M]
+    [DecidableEq (isotypicComponents R M)] :
+    (Π₀ c : isotypicComponents R M, (c.1 : Submodule R M)) ≃ₗ[R] M :=
+  let ind : iSupIndep fun c : isotypicComponents R M =>
+      (c.1 : Submodule R M) :=
+    (sSupIndep_iff _).mp (sSupIndep_isotypicComponents R M)
+  have iSup_top :
+      (⨆ c : isotypicComponents R M, (c.1 : Submodule R M)) = ⊤ := by
+    rw [← sSup_eq_iSup']
+    exact sSup_isotypicComponents R M
+  ind.linearEquiv iSup_top
+
 variable (k : Type u) [Field k]
   (E : Type v) [AddCommGroup E] [Module k E] [Module.Finite k E]
 
