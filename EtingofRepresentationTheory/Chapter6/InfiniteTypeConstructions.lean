@@ -2292,6 +2292,114 @@ theorem dTildeRep_dimVec (k m : ℕ) (v : Fin (k + 6)) :
       (Fin (dTildeDim k m v) → ℂ)) :=
   ⟨LinearEquiv.refl ℂ _⟩
 
+/-! ## Section 17a.2b: D̃_n representation indexed by `DTildeVertex k` (Wall 2 Stage B)
+
+Mirrors `dTildeRep` but uses the custom inductive `DTildeVertex k` as the
+vertex type, so that pattern matching on constructors reduces the object
+type `Fin (v.dim m) → ℂ` definitionally. This unblocks Stage C: the
+`Fin`-based `dTildeRep_isIndecomposable` fights dependent rewrites across
+`k`-dependent indices, whereas matches on `DTildeVertex k` constructors
+reduce by `rfl`. -/
+
+/-- Arrow predicate on `DTildeVertex k`. Same orientation as `dTildeArrowPred`:
+    leaves point inward to their branch point, path goes left-to-right. -/
+def DTildeArrowPred' {k : ℕ} : DTildeVertex k → DTildeVertex k → Prop
+  | .leftLeaf1,  .branchLeft  => True
+  | .leftLeaf2,  .branchLeft  => True
+  | .branchLeft, .pathMid i   => i.val = 0
+  | .branchLeft, .branchRight => k = 0
+  | .pathMid i,  .pathMid j   => j.val = i.val + 1
+  | .pathMid i,  .branchRight => i.val + 1 = k
+  | .rightLeaf1, .branchRight => True
+  | .rightLeaf2, .branchRight => True
+  | _,           _            => False
+
+/-- Orientation quiver on `DTildeVertex k`, arrows governed by `DTildeArrowPred'`. -/
+def DTildeQuiver' (k : ℕ) : Quiver (DTildeVertex k) where
+  Hom a b := PLift (DTildeArrowPred' a b)
+
+instance DTildeQuiver'_subsingleton (k : ℕ) (a b : DTildeVertex k) :
+    Subsingleton (@Quiver.Hom (DTildeVertex k) (DTildeQuiver' k) a b) :=
+  ⟨fun ⟨_⟩ ⟨_⟩ => rfl⟩
+
+/-- Match-based rep map for `dTildeRep'`. At each arrow pair the signature
+    `(Fin (a.dim m) → ℂ) →ₗ[ℂ] (Fin (b.dim m) → ℂ)` reduces by `rfl` to the
+    type of the chosen helper (`starEmbed1`, `starEmbed2`, `d5tildeGamma`,
+    or `dTildePathId`). Non-arrow pairs return `0`; they are never invoked
+    because no `PLift (DTildeArrowPred' _ _)` inhabitant exists there. -/
+private noncomputable def dTildeRep'Map (k m : ℕ) :
+    ∀ (a b : DTildeVertex k),
+      (Fin (a.dim m) → ℂ) →ₗ[ℂ] (Fin (b.dim m) → ℂ)
+  | .leftLeaf1,  .branchLeft  => starEmbed1 m
+  | .leftLeaf2,  .branchLeft  => starEmbed2 m
+  | .branchLeft, .pathMid _   => d5tildeGamma m
+  | .branchLeft, .branchRight => d5tildeGamma m
+  | .pathMid _,  .pathMid _   => dTildePathId m
+  | .pathMid _,  .branchRight => dTildePathId m
+  | .rightLeaf1, .branchRight => starEmbed1 m
+  | .rightLeaf2, .branchRight => starEmbed2 m
+  | _,           _            => 0
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- D̃_{k+5} representation indexed by `DTildeVertex k` with object type
+    `Fin (v.dim m) → ℂ`, which reduces by `rfl` at each constructor. -/
+noncomputable def dTildeRep' (k m : ℕ) :
+    @Etingof.QuiverRepresentation ℂ (DTildeVertex k) _ (DTildeQuiver' k) := by
+  letI := DTildeQuiver' k
+  exact {
+    obj := fun v => Fin (v.dim m) → ℂ
+    instAddCommMonoid := fun _ => inferInstance
+    instModule := fun _ => inferInstance
+    mapLinear := fun {a b} _ => dTildeRep'Map k m a b
+  }
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+theorem dTildeRep'_dimVec (k m : ℕ) (v : DTildeVertex k) :
+    Nonempty (@Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _
+      (DTildeQuiver' k) (dTildeRep' k m) v ≃ₗ[ℂ]
+      (Fin (v.dim m) → ℂ)) :=
+  ⟨LinearEquiv.refl ℂ _⟩
+
+-- Sanity checks: object type at each constructor reduces to the expected
+-- `Fin _ → ℂ` by `rfl`.
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.leftLeaf1 = (Fin (m + 1) → ℂ) := rfl
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.leftLeaf2 = (Fin (m + 1) → ℂ) := rfl
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.branchLeft = (Fin (2 * (m + 1)) → ℂ) := rfl
+example (k m : ℕ) (i : Fin k) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) (DTildeVertex.pathMid i) = (Fin (2 * (m + 1)) → ℂ) := rfl
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.branchRight = (Fin (2 * (m + 1)) → ℂ) := rfl
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.rightLeaf1 = (Fin (m + 1) → ℂ) := rfl
+example (k m : ℕ) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _ (DTildeQuiver' k)
+      (dTildeRep' k m) DTildeVertex.rightLeaf2 = (Fin (m + 1) → ℂ) := rfl
+
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+/-- Bridge between the two vertex typings: the object type of `dTildeRep'`
+    at `v` agrees with that of the `Fin`-indexed `dTildeRep` at `v.toFin`.
+    Stage C can use this to port `dTildeRep'_isIndecomposable` into the
+    `Fin (k + 6)` setting required by `dTilde_not_finite_type`. -/
+theorem dTildeRep'_obj_eq_toFin (k m : ℕ) (v : DTildeVertex k) :
+    @Etingof.QuiverRepresentation.obj ℂ (DTildeVertex k) _
+        (DTildeQuiver' k) (dTildeRep' k m) v =
+      @Etingof.QuiverRepresentation.obj ℂ (Fin (k + 6)) _
+        (dTildeQuiver k) (dTildeRep k m) v.toFin := by
+  change (Fin (v.dim m) → ℂ) = (Fin (dTildeDim k m v.toFin) → ℂ)
+  rw [dTildeDim_eq_ofFin_dim, DTildeVertex.ofFin_toFin]
+
 /-! ## Section 17a.3: Indecomposability of D̃_n representations
 
 The proof follows the same structure as D̃_5:
