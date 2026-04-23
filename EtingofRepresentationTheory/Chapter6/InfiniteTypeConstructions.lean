@@ -2094,10 +2094,145 @@ Maps (under orientation 0→2, 1→2, 2→3→...→(k+3), (k+4)→(k+3), (k+5)�
 - (k+5)→(k+3): starEmbed2
 -/
 
+/-- Custom inductive indexing of the D̃_{k+5} vertex type. Each constructor
+    corresponds to a structural role (leaf / branch / path-interior),
+    mirroring the `Fin (k+6)` positions as:
+    - `leftLeaf1` ↔ 0, `leftLeaf2` ↔ 1
+    - `branchLeft` ↔ 2
+    - `pathMid i` ↔ 3, 4, …, k+2 (for i : Fin k)
+    - `branchRight` ↔ k+3
+    - `rightLeaf1` ↔ k+4, `rightLeaf2` ↔ k+5
+    Pattern matching on a `DTildeVertex k` reduces definitionally, which
+    is what makes `dim` (below) unblock the D̃_n indecomposability proof
+    at k-dependent positions. -/
+inductive DTildeVertex (k : ℕ) where
+  | leftLeaf1 : DTildeVertex k
+  | leftLeaf2 : DTildeVertex k
+  | branchLeft : DTildeVertex k
+  | pathMid (i : Fin k) : DTildeVertex k
+  | branchRight : DTildeVertex k
+  | rightLeaf1 : DTildeVertex k
+  | rightLeaf2 : DTildeVertex k
+  deriving DecidableEq
+
+/-- Dimension of vertex `v` in the D̃_{k+5} representation with parameter `m`:
+    leaves get `m + 1`, interior (branch points and path middle) get
+    `2 * (m + 1)`. Reduces by `rfl` on each constructor. -/
+def DTildeVertex.dim {k : ℕ} (v : DTildeVertex k) (m : ℕ) : ℕ :=
+  match v with
+  | .leftLeaf1 | .leftLeaf2 | .rightLeaf1 | .rightLeaf2 => m + 1
+  | .branchLeft | .branchRight | .pathMid _ => 2 * (m + 1)
+
+/-- Structural-role to `Fin (k + 6)` index map. -/
+def DTildeVertex.toFin {k : ℕ} : DTildeVertex k → Fin (k + 6)
+  | .leftLeaf1   => ⟨0, by omega⟩
+  | .leftLeaf2   => ⟨1, by omega⟩
+  | .branchLeft  => ⟨2, by omega⟩
+  | .pathMid i   => ⟨i.val + 3, by omega⟩
+  | .branchRight => ⟨k + 3, by omega⟩
+  | .rightLeaf1  => ⟨k + 4, by omega⟩
+  | .rightLeaf2  => ⟨k + 5, by omega⟩
+
+/-- Inverse of `toFin`: recover the structural constructor from a `Fin (k + 6)` index. -/
+def DTildeVertex.ofFin (k : ℕ) (v : Fin (k + 6)) : DTildeVertex k :=
+  if h0 : v.val = 0 then .leftLeaf1
+  else if h1 : v.val = 1 then .leftLeaf2
+  else if h2 : v.val = 2 then .branchLeft
+  else if hpm : v.val ≤ k + 2 then .pathMid ⟨v.val - 3, by omega⟩
+  else if hbr : v.val = k + 3 then .branchRight
+  else if hrl1 : v.val = k + 4 then .rightLeaf1
+  else .rightLeaf2
+
+theorem DTildeVertex.toFin_ofFin (k : ℕ) (v : Fin (k + 6)) :
+    (DTildeVertex.ofFin k v).toFin = v := by
+  unfold DTildeVertex.ofFin
+  split_ifs with h0 h1 h2 hpm hbr hrl1 <;>
+    apply Fin.ext <;> simp [DTildeVertex.toFin] <;> omega
+
+theorem DTildeVertex.ofFin_toFin (k : ℕ) (v : DTildeVertex k) :
+    DTildeVertex.ofFin k v.toFin = v := by
+  cases v with
+  | leftLeaf1   =>
+    show DTildeVertex.ofFin k ⟨0, by omega⟩ = .leftLeaf1
+    unfold DTildeVertex.ofFin; rw [dif_pos rfl]
+  | leftLeaf2   =>
+    show DTildeVertex.ofFin k ⟨1, by omega⟩ = .leftLeaf2
+    unfold DTildeVertex.ofFin
+    rw [dif_neg (by decide : (1 : ℕ) ≠ 0), dif_pos rfl]
+  | branchLeft  =>
+    show DTildeVertex.ofFin k ⟨2, by omega⟩ = .branchLeft
+    unfold DTildeVertex.ofFin
+    rw [dif_neg (by decide : (2 : ℕ) ≠ 0), dif_neg (by decide : (2 : ℕ) ≠ 1),
+        dif_pos rfl]
+  | pathMid i   =>
+    show DTildeVertex.ofFin k ⟨i.val + 3, by omega⟩ = .pathMid i
+    unfold DTildeVertex.ofFin
+    have hi : i.val < k := i.isLt
+    rw [dif_neg (show (⟨i.val + 3, by omega⟩ : Fin (k + 6)).val ≠ 0 by
+          show i.val + 3 ≠ 0; omega),
+        dif_neg (show (⟨i.val + 3, by omega⟩ : Fin (k + 6)).val ≠ 1 by
+          show i.val + 3 ≠ 1; omega),
+        dif_neg (show (⟨i.val + 3, by omega⟩ : Fin (k + 6)).val ≠ 2 by
+          show i.val + 3 ≠ 2; omega),
+        dif_pos (show (⟨i.val + 3, by omega⟩ : Fin (k + 6)).val ≤ k + 2 by
+          show i.val + 3 ≤ k + 2; omega)]
+    congr 1
+  | branchRight =>
+    show DTildeVertex.ofFin k ⟨k + 3, by omega⟩ = .branchRight
+    unfold DTildeVertex.ofFin
+    rw [dif_neg (show k + 3 ≠ 0 by omega),
+        dif_neg (show k + 3 ≠ 1 by omega),
+        dif_neg (show k + 3 ≠ 2 by omega),
+        dif_neg (show ¬ k + 3 ≤ k + 2 by omega),
+        dif_pos rfl]
+  | rightLeaf1  =>
+    show DTildeVertex.ofFin k ⟨k + 4, by omega⟩ = .rightLeaf1
+    unfold DTildeVertex.ofFin
+    rw [dif_neg (show k + 4 ≠ 0 by omega),
+        dif_neg (show k + 4 ≠ 1 by omega),
+        dif_neg (show k + 4 ≠ 2 by omega),
+        dif_neg (show ¬ k + 4 ≤ k + 2 by omega),
+        dif_neg (show k + 4 ≠ k + 3 by omega),
+        dif_pos rfl]
+  | rightLeaf2  =>
+    show DTildeVertex.ofFin k ⟨k + 5, by omega⟩ = .rightLeaf2
+    unfold DTildeVertex.ofFin
+    rw [dif_neg (show k + 5 ≠ 0 by omega),
+        dif_neg (show k + 5 ≠ 1 by omega),
+        dif_neg (show k + 5 ≠ 2 by omega),
+        dif_neg (show ¬ k + 5 ≤ k + 2 by omega),
+        dif_neg (show k + 5 ≠ k + 3 by omega),
+        dif_neg (show k + 5 ≠ k + 4 by omega)]
+
+/-- The equivalence between `DTildeVertex k` and `Fin (k + 6)`. -/
+def DTildeVertex.equivFin (k : ℕ) : DTildeVertex k ≃ Fin (k + 6) where
+  toFun := DTildeVertex.toFin
+  invFun := DTildeVertex.ofFin k
+  left_inv := DTildeVertex.ofFin_toFin k
+  right_inv := DTildeVertex.toFin_ofFin k
+
+instance (k : ℕ) : Fintype (DTildeVertex k) := Fintype.ofEquiv _ (DTildeVertex.equivFin k).symm
+
 /-- Dimension of vertex v in the D̃_{k+5} representation:
     vertices 0,1,k+4,k+5 get m+1; interior vertices 2,...,k+3 get 2(m+1). -/
 def dTildeDim (k m : ℕ) (v : Fin (k + 6)) : ℕ :=
   if 2 ≤ v.val ∧ v.val ≤ k + 3 then 2 * (m + 1) else m + 1
+
+/-- Bridge: `dTildeDim` computed via the `DTildeVertex` factorization. -/
+theorem dTildeDim_eq_ofFin_dim (k m : ℕ) (v : Fin (k + 6)) :
+    dTildeDim k m v = (DTildeVertex.ofFin k v).dim m := by
+  unfold dTildeDim DTildeVertex.ofFin
+  split_ifs <;> first | rfl | (exfalso; omega)
+
+-- Sanity checks: `.dim m` reduces by `rfl` on each constructor.
+example (k m : ℕ) : (DTildeVertex.leftLeaf1  : DTildeVertex k).dim m = m + 1 := rfl
+example (k m : ℕ) : (DTildeVertex.leftLeaf2  : DTildeVertex k).dim m = m + 1 := rfl
+example (k m : ℕ) : (DTildeVertex.branchLeft : DTildeVertex k).dim m = 2 * (m + 1) := rfl
+example (k m : ℕ) (i : Fin k) :
+    (DTildeVertex.pathMid i : DTildeVertex k).dim m = 2 * (m + 1) := rfl
+example (k m : ℕ) : (DTildeVertex.branchRight : DTildeVertex k).dim m = 2 * (m + 1) := rfl
+example (k m : ℕ) : (DTildeVertex.rightLeaf1 : DTildeVertex k).dim m = m + 1 := rfl
+example (k m : ℕ) : (DTildeVertex.rightLeaf2 : DTildeVertex k).dim m = m + 1 := rfl
 
 /-- The identity map between identical 2(m+1)-dimensional spaces, cast through
     the dimension function. Used for path edges i→(i+1) where both endpoints
