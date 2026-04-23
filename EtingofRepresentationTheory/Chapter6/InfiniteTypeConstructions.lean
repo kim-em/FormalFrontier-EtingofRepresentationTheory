@@ -2331,27 +2331,181 @@ theorem etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     infer_instance
   · -- Indecomposability
     intro W₁ W₂ hW₁_inv hW₂_inv hcompl
-    -- Proof strategy (following D̃₅ pattern adapted for T(2,2,2)):
+    -- Edge structure: 2→1→0→3←4, 6→5→0
+    -- Maps: 2→1: starEmbed1, 1→0: embed2to3_AB, 0→3: etilde6v2Gamma,
+    --       4→3: starEmbed1, 6→5: starEmbedNilp, 5→0: embed2to3_CA
     --
-    -- Edge structure: 2→1→0→3←4, 6→5→0  (vertex 3 is sink of arm 1)
-    -- Maps: 2→1: starEmbed1 (x↦(x,0))
-    --       1→0: embed2to3_AB ((a,b)↦(a,b,0))
-    --       0→3: etilde6v2Gamma (Γ(a,b,c)=(a+b, a+Nc))
-    --       4→3: starEmbed1 (x↦(x,0))
-    --       6→5: starEmbedNilp (x↦(x,Nx))
-    --       5→0: embed2to3_CA ((a,b)↦(b,0,a))
-    --
-    -- Key computation: Γ(x,0,0) = (x,x) (diagonal embedding)
-    -- From tip 2: x ∈ W(2) → (x,0) ∈ W(1) → (x,0,0) ∈ W(0) → (x,x) ∈ W(3)
-    -- So W(2) embeds into both blocks of W(3), coupling with tip 4.
-    --
-    -- From tip 6: y ∈ W(6) → (y,Ny) ∈ W(5) → (Ny,0,y) ∈ W(0)
-    --   → Γ(Ny,0,y) = (Ny, Ny+Ny) ∈ W(3)
-    -- Combined with the (x,x) structure: forces N-invariance of the leaf subspace.
-    --
-    -- Then nilpotent_invariant_compl_trivial gives W(2)=⊥ or W₂(2)=⊥.
-    -- Propagation: W(tip)=⊥ at all tips → W'(tip)=⊤ → push through arms → all ⊥.
-    sorry
+    -- Arrow constructors for each edge
+    have hom21 : @Quiver.Hom _ etilde6v2Quiver ⟨2, by omega⟩ ⟨1, by omega⟩ :=
+      ⟨Or.inl ⟨rfl, rfl⟩⟩
+    have hom10 : @Quiver.Hom _ etilde6v2Quiver ⟨1, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inl ⟨rfl, rfl⟩)⟩
+    have hom03 : @Quiver.Hom _ etilde6v2Quiver ⟨0, by omega⟩ ⟨3, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))⟩
+    have hom43 : @Quiver.Hom _ etilde6v2Quiver ⟨4, by omega⟩ ⟨3, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩)))⟩
+    have hom65 : @Quiver.Hom _ etilde6v2Quiver ⟨6, by omega⟩ ⟨5, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨rfl, rfl⟩))))⟩
+    have hom50 : @Quiver.Hom _ etilde6v2Quiver ⟨5, by omega⟩ ⟨0, by omega⟩ :=
+      ⟨Or.inr (Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩))))⟩
+    -- NOTE: Helper lemmas for leaf containment are pushed into `leaf24_containment`
+    -- below (sub-sorry). The key facts used there are:
+    -- * Γ(embed2to3_AB(starEmbed1(x))) = (x, x) [diagonal embedding, leaf 2 via arm 1]
+    -- * Γ(embed2to3_CA(starEmbedNilp(x))) = (Nx, 2Nx) [leaf 6 via arm 3]
+    -- * starEmbed1(y) = (y, 0) directly at vertex 3 [leaf 4]
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- KEY SORRY: W(2) ⊆ W(4) as subspaces of ℂ^{m+1}.
+    -- Proof sketch: For x ∈ W(2), (x, x) ∈ W(3). Decompose x = a + b at W(4):
+    -- a ∈ W(4), b ∈ W'(4). Then (a, 0) ∈ W(3), (b, 0) ∈ W'(3). The combined
+    -- constraints at vertex 3 combined with the leaf-6 (Nz, 2Nz) structure
+    -- force b = 0. The key extra ingredient is the m ≥ 1 nilpotent coupling
+    -- from leaf 6 making leaf 2 and leaf 4 N-interact.
+    have leaf24_containment (W W' : ∀ v, Submodule ℂ ((etilde6v2Rep m).obj v))
+        (_hW : ∀ {a b : Fin 7} (e : @Quiver.Hom _ etilde6v2Quiver a b),
+          ∀ x ∈ W a, (etilde6v2Rep m).mapLinear e x ∈ W b)
+        (_hW' : ∀ {a b : Fin 7} (e : @Quiver.Hom _ etilde6v2Quiver a b),
+          ∀ x ∈ W' a, (etilde6v2Rep m).mapLinear e x ∈ W' b)
+        (_hc : ∀ v, IsCompl (W v) (W' v)) :
+        ∀ x : Fin (m + 1) → ℂ, x ∈ W (2 : Fin 7) → x ∈ W (4 : Fin 7) := by
+      sorry
+    -- W₁(2) = W₁(4) and W₂(2) = W₂(4) via compl_eq_of_le
+    have heq24 : W₁ (2 : Fin 7) = W₁ (4 : Fin 7) := compl_eq_of_le _ _ _ _
+      (leaf24_containment W₁ W₂ hW₁_inv hW₂_inv hcompl)
+      (leaf24_containment W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm))
+      (hcompl (2 : Fin 7)) (hcompl (4 : Fin 7))
+    have heq24' : W₂ (2 : Fin 7) = W₂ (4 : Fin 7) := compl_eq_of_le _ _ _ _
+      (leaf24_containment W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm))
+      (leaf24_containment W₁ W₂ hW₁_inv hW₂_inv hcompl)
+      ((hcompl (2 : Fin 7)).symm) ((hcompl (4 : Fin 7)).symm)
+    -- KEY SORRY: N-invariance of W₁(2) and W₂(2).
+    -- Proof sketch: From leaf 6: z ∈ W(6) → (Nz, 2Nz) ∈ W(3). Combined with
+    -- the equality W(2) = W(4) and the (x, x) ∈ W(3) structure from leaf 2,
+    -- the nilpotent action propagates through the center and forces N to
+    -- preserve the common leaf subspace.
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ (2 : Fin 7) → nilpotentShiftLin m x ∈ W₁ (2 : Fin 7) := by
+      sorry
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ (2 : Fin 7) → nilpotentShiftLin m x ∈ W₂ (2 : Fin 7) := by
+      sorry
+    -- Apply nilpotent_invariant_compl_trivial at vertex 2
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ (2 : Fin 7)) (W₂ (2 : Fin 7)) hN₁ hN₂ (hcompl (2 : Fin 7))
+    -- Propagation: W(2) = ⊥ → W(0) = ⊥ → all W(v) = ⊥
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((etilde6v2Rep m).obj v)),
+        (∀ {a b : Fin 7} (e : @Quiver.Hom _ etilde6v2Quiver a b),
+          ∀ x ∈ W a, (etilde6v2Rep m).mapLinear e x ∈ W b) →
+        (∀ {a b : Fin 7} (e : @Quiver.Hom _ etilde6v2Quiver a b),
+          ∀ x ∈ W' a, (etilde6v2Rep m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W (2 : Fin 7) = W (4 : Fin 7) →
+        W (2 : Fin 7) = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₁_inv hW₂_inv hcompl heq24 h
+      · right; exact propagate W₂ W₁ hW₂_inv hW₁_inv
+          (fun v => (hcompl v).symm) heq24' h
+    intro W W' hW_inv hW'_inv hc h24 hbot v
+    -- KEY SORRY: hbot0 — Show W(0) = ⊥.
+    -- Proof sketch: W(2) = W(4) = ⊥, so W'(2) = W'(4) = ⊤.
+    -- Via arm chains: starEmbed1(ℂ^{m+1}) ⊆ W'(1), then (ℂ^{m+1}, 0) ⊆ W'(1).
+    -- By similar logic for arm 3 (using m ≥ 1 for Nilp injectivity), W(5) = ⊥
+    -- is also forced. Then the W'(0) structure fills all blocks via the two
+    -- arm embeddings, forcing W(0) = ⊥.
+    have hbot0 : W (0 : Fin 7) = ⊥ := by sorry
+    -- Propagate from W(0) = ⊥ and W(2) = ⊥ to all vertices via injectivity.
+    -- Helper: if an injective arrow e:a→b with W(b) = ⊥, then W(a) = ⊥.
+    have prop_inj {a b : Fin 7} (e : @Quiver.Hom _ etilde6v2Quiver a b)
+        (hinj : ∀ x : (etilde6v2Rep m).obj a, (etilde6v2Rep m).mapLinear e x = 0 → x = 0)
+        (htarget : W b = ⊥) : W a = ⊥ := by
+      rw [eq_bot_iff]; intro x hx; rw [Submodule.mem_bot]
+      have := hW_inv e x hx; rw [htarget, Submodule.mem_bot] at this
+      exact hinj x this
+    -- Injectivity of starEmbed1: x ↦ (x, 0)
+    have inj_starEmbed1 : ∀ x : Fin (m + 1) → ℂ, starEmbed1 m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [starEmbed1, LinearMap.coe_mk, AddHom.coe_mk, dif_pos hj, Pi.zero_apply] at this
+      exact this
+    -- Injectivity of starEmbedNilp is actually not needed: we propagate W(6)=⊥ differently.
+    -- Injectivity of embed2to3_AB: (x, y) ↦ (x, y, 0)
+    have inj_embed2to3_AB : ∀ x : Fin (2 * (m + 1)) → ℂ, embed2to3_AB m x = 0 → x = 0 := by
+      intro x h; ext ⟨j, hj⟩
+      have := congr_fun h ⟨j, by omega⟩
+      simp only [embed2to3_AB, LinearMap.coe_mk, AddHom.coe_mk,
+        dif_pos (show j < 2 * (m + 1) from hj), Pi.zero_apply] at this
+      exact this
+    -- Injectivity of embed2to3_CA: (a, b) ↦ (b, 0, a).
+    -- Input index j < m+1 (first m+1-block, "a"): output at position 2(m+1)+j (block C).
+    -- Input index j ≥ m+1 (second m+1-block, "b"): output at position j-(m+1) (block A).
+    have inj_embed2to3_CA : ∀ x : Fin (2 * (m + 1)) → ℂ, embed2to3_CA m x = 0 → x = 0 := by
+      intro x h
+      funext ⟨j, hj⟩
+      show x ⟨j, hj⟩ = 0
+      by_cases hjlt : j < m + 1
+      · -- Read output position 2(m+1)+j to extract input position j (block C)
+        have hc := congr_fun h ⟨2 * (m + 1) + j, by omega⟩
+        simp only [embed2to3_CA, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_neg (show ¬(2 * (m + 1) + j < m + 1) from by omega),
+          dif_pos (show 2 * (m + 1) ≤ 2 * (m + 1) + j from by omega),
+          dif_pos (show 2 * (m + 1) + j - 2 * (m + 1) < m + 1 from by omega),
+          Pi.zero_apply] at hc
+        have heq : (⟨2 * (m + 1) + j - 2 * (m + 1), by omega⟩ : Fin (2 * (m + 1))) =
+            ⟨j, hj⟩ := by
+          apply Fin.ext
+          show 2 * (m + 1) + j - 2 * (m + 1) = j
+          omega
+        exact heq ▸ hc
+      · -- Read output position j-(m+1) to extract input position j (block A)
+        push_neg at hjlt
+        have hc := congr_fun h ⟨j - (m + 1), by omega⟩
+        simp only [embed2to3_CA, LinearMap.coe_mk, AddHom.coe_mk,
+          dif_pos (show j - (m + 1) < m + 1 from by omega), Pi.zero_apply] at hc
+        have heq : (⟨j - (m + 1) + (m + 1), by omega⟩ : Fin (2 * (m + 1))) =
+            ⟨j, hj⟩ := by
+          apply Fin.ext
+          show j - (m + 1) + (m + 1) = j
+          omega
+        exact heq ▸ hc
+    -- Injectivity of starEmbedNilp: x ↦ (x, Nx). Injective since first block is x.
+    have inj_starEmbedNilp : ∀ x : Fin (m + 1) → ℂ, starEmbedNilp m x = 0 → x = 0 := by
+      intro x h; ext ⟨i, hi⟩
+      have := congr_fun h ⟨i, by omega⟩
+      simp only [starEmbedNilp, starEmbed1, starEmbed2, LinearMap.add_apply,
+        LinearMap.comp_apply, LinearMap.coe_mk, AddHom.coe_mk, Pi.add_apply,
+        Pi.zero_apply, dif_pos hi,
+        dif_neg (show ¬(m + 1 ≤ i) from by omega), add_zero] at this
+      exact this
+    -- Chain: W(0) = ⊥ → W(1) = ⊥, W(5) = ⊥; W(5) = ⊥ → W(6) = ⊥.
+    -- W(2) and W(4) from hypothesis and h24.
+    have hbot1 : W (1 : Fin 7) = ⊥ := prop_inj hom10 inj_embed2to3_AB hbot0
+    have hbot5 : W (5 : Fin 7) = ⊥ := prop_inj hom50 inj_embed2to3_CA hbot0
+    have hbot2 : W (2 : Fin 7) = ⊥ := hbot
+    have hbot4 : W (4 : Fin 7) = ⊥ := h24 ▸ hbot
+    have hbot6 : W (6 : Fin 7) = ⊥ := prop_inj hom65 inj_starEmbedNilp hbot5
+    -- W(3) propagation: Γ is surjective, so W'(0) = ⊤ → W'(3) = ⊤ → W(3) = ⊥.
+    -- Proof of surjectivity: given (u, v) ∈ V(3), the preimage (v, u-v, 0) ∈ V(0)
+    -- satisfies Γ(v, u-v, 0) = (v + (u-v), v + N·0) = (u, v).
+    have hbot3 : W (3 : Fin 7) = ⊥ := by
+      sorry
+    fin_cases v
+    · exact hbot0  -- v = 0
+    · exact hbot1  -- v = 1
+    · exact hbot2  -- v = 2
+    · exact hbot3  -- v = 3
+    · exact hbot4  -- v = 4
+    · exact hbot5  -- v = 5
+    · exact hbot6  -- v = 6
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
