@@ -82,6 +82,52 @@ theorem schurPoly_injective (N : ℕ) (lam₁ lam₂ : Fin N → ℕ)
     (alternant_det_injective N _ _ (shiftedExps_strictAnti' N lam₁ hlam₁)
       (shiftedExps_strictAnti' N lam₂ hlam₂) h_alt)
 
+/-- The Schur polynomials `{schurPoly N lam : lam antitone}` are linearly independent
+in `MvPolynomial (Fin N) ℚ`.
+
+The proof multiplies a hypothetical linear dependence by the Vandermonde determinant
+`Δ = det(X_i^{N-1-j})`, turning each Schur polynomial into the corresponding shifted
+alternant `det(X_i^{λ_j + N - j})` via `schurPoly_mul_vandermonde`. The shifted
+alternants are linearly independent because their `Finsupp.equivFunOnFinite.symm
+(shiftedExps N μ)` coefficient is a Kronecker delta (`alternant_coeff_kronecker`),
+isolating the `μ` term from the rest. -/
+theorem schurPoly_linearIndependent (N : ℕ) :
+    LinearIndependent ℚ (fun (lam : {lam : Fin N → ℕ // Antitone lam}) =>
+      schurPoly N lam.val) := by
+  classical
+  rw [linearIndependent_iff']
+  intro s g hsum μ hμ
+  -- Step 1: Multiply `hsum` by the Vandermonde determinant Δ to convert each
+  -- `schurPoly N lam` into `det(alternantMatrix N (shiftedExps N lam))`.
+  have hmul : ∑ lam ∈ s, g lam • (alternantMatrix N (shiftedExps N lam.val)).det = 0 := by
+    have step : (∑ lam ∈ s, g lam • schurPoly N lam.val) *
+          (alternantMatrix N (vandermondeExps N)).det = 0 := by
+      rw [hsum, zero_mul]
+    rw [Finset.sum_mul] at step
+    simp only [smul_mul_assoc, schurPoly_mul_vandermonde] at step
+    exact step
+  -- Step 2: Take the coefficient at `d := Finsupp.equivFunOnFinite.symm (shiftedExps N μ)`.
+  have hcoeff := congr_arg
+    (MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (shiftedExps N μ.val))) hmul
+  rw [MvPolynomial.coeff_zero, MvPolynomial.coeff_sum] at hcoeff
+  simp only [MvPolynomial.coeff_smul, smul_eq_mul] at hcoeff
+  -- Step 3: Kronecker property collapses the inner coefficient to
+  -- `[shiftedExps λ = shiftedExps μ]`, which by injectivity equals `[λ = μ]`.
+  have h_each : ∀ lam ∈ s,
+      g lam * MvPolynomial.coeff (Finsupp.equivFunOnFinite.symm (shiftedExps N μ.val))
+        (alternantMatrix N (shiftedExps N lam.val)).det =
+          if lam = μ then g lam else 0 := by
+    intro lam _
+    rw [alternant_coeff_kronecker (shiftedExps_strictAnti' N lam.val lam.prop)
+      (shiftedExps_strictAnti' N μ.val μ.prop)]
+    rcases eq_or_ne lam μ with heq | hne
+    · subst heq; rw [if_pos rfl, if_pos rfl, mul_one]
+    · have h_ne : shiftedExps N lam.val ≠ shiftedExps N μ.val :=
+        fun h => hne (Subtype.ext (shiftedExps_injective N h))
+      rw [if_neg h_ne, if_neg hne, mul_zero]
+  rw [Finset.sum_congr rfl h_each, Finset.sum_ite_eq' s μ g, if_pos hμ] at hcoeff
+  exact hcoeff
+
 /-! ### Homogeneity of Schur polynomials
 
 `schurPoly N lam` is homogeneous of total degree `∑ i, lam i`. We derive this from
