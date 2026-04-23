@@ -644,16 +644,33 @@ private theorem twistedPolytabloid_col_eq (w : Equiv.Perm (Fin n))
     congr 1
     group
 
+/-- When w ∈ P_λ (row-preserving), the twisted polytabloid equals ψ_σ.
+The sum is term-by-term equal: `[w * q⁻¹ * σ] = [q⁻¹ * σ]` because
+`(w * q⁻¹ * σ) * (q⁻¹ * σ)⁻¹ = w ∈ P_λ` (tabloid equivalence is left
+multiplication by P_λ). -/
+private theorem twistedPolytabloid_row_eq (w : Equiv.Perm (Fin n))
+    (hw : w ∈ RowSubgroup n la) (σ : Equiv.Perm (Fin n)) :
+    twistedPolytabloid (la := la) w σ =
+      generalizedPolytabloidTab (n := n) (la := la) σ := by
+  classical
+  simp only [twistedPolytabloid, generalizedPolytabloidTab]
+  refine Finset.sum_congr rfl (fun ⟨q, hq⟩ _ => ?_)
+  congr 2
+  rw [toTabloid_eq_iff]
+  have heq : (w * q⁻¹ * σ) * (q⁻¹ * σ)⁻¹ = w := by group
+  rw [heq]; exact hw
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
-For column-standard σ with row inversion, each cross-column Garnir permutation w
-(i.e., w ∉ Q_λ, so w moves at least one position to a different column)
-produces a "twisted polytabloid" f_w(σ) that lies in the span of
+For column-standard σ with row inversion, each Garnir permutation w that is
+**neither** column-preserving nor row-preserving produces a "twisted polytabloid"
+f_w(σ) that lies in the span of
 {ψ_τ : τ column-standard, rowInvCount'(τ) < rowInvCount'(σ)}.
 
-The hypothesis `hw_col : w ∉ ColumnSubgroup n la` is essential: for w ∈ Q_λ,
-`twistedPolytabloid_col_eq` gives f_w(σ) = sign(w) · ψ_σ, and proving ψ_σ is
-in the lower span would be circular. The algebraic splitting of Q_λ vs non-Q_λ
-terms is handled in `garnir_straightening_step`.
+Both exclusions are essential to avoid circularity:
+- For w ∈ Q_λ, `twistedPolytabloid_col_eq` gives f_w(σ) = sign(w) · ψ_σ.
+- For w ∈ P_λ, `twistedPolytabloid_row_eq` gives f_w(σ) = ψ_σ.
+Proving ψ_σ is in the lower span from either special case would be circular.
+The algebraic splitting of these cases is handled in `garnir_straightening_step`.
 
 The proof requires:
 1. Column-restandardize wσ: find q₀ ∈ Q_λ with q₀·w·σ column-standard.
@@ -668,13 +685,17 @@ private theorem garnir_twisted_in_lower_span
     (hrp : 0 < rowInvCount' (la := la) σ)
     (G : Finset (Fin n))
     (w : Equiv.Perm (Fin n)) (hw_supp : ∀ x, x ∉ G → w x = x)
-    (hw_ne : w ≠ 1) (hw_col : w ∉ ColumnSubgroup n la) :
+    (hw_ne : w ≠ 1) (hw_col : w ∉ ColumnSubgroup n la)
+    (hw_row : w ∉ RowSubgroup n la) :
     twistedPolytabloid (la := la) w σ ∈
     Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
         isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
       generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   sorry
 
+set_option maxHeartbeats 1200000 in
+-- The long proof involves many module-level rewrites over a large sum,
+-- and the three-way case split pushes Lean's default heartbeat budget.
 /-- **Garnir straightening step**:
 For column-standard σ with positive row inversion count, the generalized
 polytabloidTab ψ_σ lies in the ℂ-span of {ψ_{σ'} : σ' column-standard,
@@ -682,12 +703,19 @@ rowInvCount'(σ') < rowInvCount'(σ)}.
 
 Proof: combine `garnir_polytabloid_identity` with `garnir_twisted_in_lower_span`.
 The identity expresses ψ_σ as a negated sum of twisted polytabloids. We split
-the sum into column-preserving (Q_λ) and cross-column terms:
-- For w ∈ Q_λ: f_w(σ) = sign(w)·ψ_σ by `twistedPolytabloid_col_eq`, so
-  sign(w)·f_w(σ) = ψ_σ. These k terms contribute k·ψ_σ.
-- For w ∉ Q_λ: f_w(σ) ∈ lower span by `garnir_twisted_in_lower_span`.
-Rearranging: (1+k)·ψ_σ = -(non-Q_λ sum) ∈ lower span, and dividing by the
-nonzero scalar (1+k) yields ψ_σ ∈ lower span. -/
+the sum `∑_{w ∈ T}` (T = non-identity permutations supported on G) into three
+disjoint parts using `T ∩ P ∩ Q = ∅` (since P ∩ Q = {1}):
+- **Q part** (w ∈ Q_λ): `f_w(σ) = sign(w)·ψ_σ` by `twistedPolytabloid_col_eq`,
+  so `sign(w)·f_w(σ) = ψ_σ`. These k terms contribute k·ψ_σ.
+- **P\\Q part** (w ∈ P_λ \\ Q_λ): `f_w(σ) = ψ_σ` by `twistedPolytabloid_row_eq`
+  (tabloids are unchanged by left multiplication by P_λ). So `sign(w)·f_w(σ) =
+  sign(w)·ψ_σ`. By a sign-cancellation argument (involution w ↦ w·swap on
+  S_G ∩ P_λ), `∑_{w ∈ (S_G ∩ P_λ) \\ {1}} sign(w) = -1`, contributing `-ψ_σ`.
+- **Neither part** (w ∉ P_λ ∪ Q_λ): `sign(w)·f_w(σ) ∈ L` by
+  `garnir_twisted_in_lower_span`.
+Rearranging: `k·ψ_σ = -(neither sum) ∈ L`. If k ≥ 1, divide by k to get ψ_σ ∈ L.
+If k = 0 (which happens iff row(p₁) = 0 and col(p₁) has length 1), a separate
+swap-based argument is needed — this case is deferred as a sorry. -/
 private theorem garnir_straightening_step
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ) :
@@ -701,7 +729,7 @@ private theorem garnir_straightening_step
   -- with t = swap(p₁, p₂) as row transposition
   have hne : p₁ ≠ p₂ := by intro h; rw [h] at hcol_lt; exact Nat.lt_irrefl _ hcol_lt
   set G := garnirSet (la := la) p₁ p₂
-  set t := Equiv.swap p₁ p₂
+  set t := Equiv.swap p₁ p₂ with ht_def
   have ht_row : t ∈ RowSubgroup n la := by
     intro k; simp only [t, Equiv.swap_apply_def]
     split_ifs with h1 h2
@@ -717,6 +745,17 @@ private theorem garnir_straightening_step
     simp [t, Equiv.swap_apply_of_ne_of_ne hx1 hx2]
   have ht_sign : Equiv.Perm.sign t = -1 := by
     simp [t, Equiv.Perm.sign_swap hne]
+  have ht_ne : t ≠ 1 := by
+    intro h
+    have hsign1 := congr_arg Equiv.Perm.sign h
+    rw [ht_sign, map_one] at hsign1
+    exact absurd hsign1 (by decide)
+  -- swap is not in ColumnSubgroup since col(p₁) ≠ col(p₂)
+  have ht_not_col : t ∉ ColumnSubgroup n la := by
+    intro hmem
+    have := hmem p₁
+    simp only [t, Equiv.swap_apply_left] at this
+    exact absurd this.symm (Nat.ne_of_lt hcol_lt)
   -- Step 3: Apply the Garnir polytabloid identity
   have h_id := garnir_polytabloid_identity σ G t ht_row ht_supp ht_sign
   -- Abbreviations
@@ -724,31 +763,30 @@ private theorem garnir_straightening_step
   set L := Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
       isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
     generalizedPolytabloidTab (n := n) (la := la) τ.val))
-  -- Step 4: Split sum into Q_λ-preserving and cross-column parts
-  -- For w ∈ Q_λ: sign(w) • f_w(σ) = ψ (since f_w(σ) = sign(w) • ψ by twistedPolytabloid_col_eq)
-  -- For w ∉ Q_λ: sign(w) • f_w(σ) ∈ L (by garnir_twisted_in_lower_span)
-  -- The identity gives: ψ = -(Σ_{Q_λ} ψ + Σ_{¬Q_λ} sign(w) • f_w(σ))
-  -- So: (1 + k) • ψ = -(Σ_{¬Q_λ} ...) ∈ L, hence ψ ∈ L
   classical
-  -- Set up subtype and predicate
-  set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1}
+  -- Set up subtype and predicates
+  set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1} with hT_def
   set p_col : T → Prop := fun w => w.val ∈ ColumnSubgroup n la with hp_col_def
-  haveI hp_dec : DecidablePred p_col := fun w => Classical.dec (p_col w)
-  -- The summand function
+  set p_row : T → Prop := fun w => w.val ∈ RowSubgroup n la with hp_row_def
+  haveI hp_col_dec : DecidablePred p_col := fun w => Classical.dec (p_col w)
+  haveI hp_row_dec : DecidablePred p_row := fun w => Classical.dec (p_row w)
   let f : T → TabloidRepresentation n la := fun w =>
     ((↑(↑(Equiv.Perm.sign w.val) : ℤ) : ℂ) •
       twistedPolytabloid (la := la) w.val σ)
-  -- The non-Q_λ sum is in L
-  have h_ncol_mem : -(∑ w ∈ (Finset.univ : Finset T).filter (fun w => ¬p_col w),
-      f w) ∈ L := by
+  -- t = swap(p₁, p₂) viewed as a T-element
+  set t_elem : T := ⟨t, ht_supp, ht_ne⟩ with ht_elem_def
+  -- The "neither" sum is in L (uses fixed garnir_twisted_in_lower_span with hw_row)
+  have h_neither_mem :
+      -(∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ ¬p_row w), f w) ∈ L := by
     apply Submodule.neg_mem
     apply Submodule.sum_mem
     intro ⟨w, hw_supp, hw_ne⟩ hmem
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and, hp_col_def] at hmem
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, hp_col_def,
+      hp_row_def] at hmem
     show f ⟨w, hw_supp, hw_ne⟩ ∈ L
     apply Submodule.smul_mem
-    exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne hmem
-  -- The Q_λ part: each term equals ψ
+    exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne hmem.1 hmem.2
+  -- The Q part: each term equals ψ (since sign(w)² = 1 and twistedPolytabloid_col_eq)
   have h_col_term : ∀ w : T, p_col w → f w = ψ := by
     intro ⟨w, hw_supp, hw_ne⟩ hw_col
     show f ⟨w, hw_supp, hw_ne⟩ = ψ
@@ -758,45 +796,196 @@ private theorem garnir_straightening_step
       rcases Int.units_eq_one_or (Equiv.Perm.sign w) with h | h <;>
         simp [show (Equiv.Perm.sign w : ℤ) = _ from congr_arg Units.val h]
     rw [this, one_smul]
-  -- Split the total sum
-  have h_split : ∑ w : T, f w =
-    ∑ w ∈ Finset.univ.filter p_col, f w +
-    ∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w := by
-    rw [← Finset.sum_filter_add_sum_filter_not (p := p_col)]
-  -- The Q_λ sum equals k • ψ
   have h_col_sum : ∑ w ∈ Finset.univ.filter p_col, f w =
     ((Finset.univ.filter p_col).card : ℂ) • ψ := by
     rw [Finset.sum_eq_card_nsmul (s := Finset.univ.filter p_col)
       (b := ψ) (fun w hw => h_col_term w (Finset.mem_filter.mp hw).2)]
     rw [← Nat.cast_smul_eq_nsmul ℂ]
-  -- From h_id: ψ = -(Σ_T f) = -(k • ψ + Σ_{¬Q_λ} f)
-  -- So: (1 + k) • ψ = -(Σ_{¬Q_λ} f)
-  set k := (Finset.univ.filter p_col).card
-  have h_eq : ((1 + (k : ℂ)) • ψ) =
-      -(∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w) := by
-    have h1 : ψ = -(∑ w : T, f w) := h_id
-    rw [h_split, h_col_sum] at h1
-    -- h1 : ψ = -(↑k • ψ + Σ_{¬Q_λ}). Rearrange to (1 + ↑k) • ψ = -Σ_{¬Q_λ}
-    set S := ∑ w ∈ Finset.univ.filter (fun w => ¬p_col w), f w
-    -- From h1: ψ + (↑k • ψ + S) = 0
-    have h2 : ψ + ((k : ℂ) • ψ + S) = 0 := by
-      conv_lhs => lhs; rw [h1]
-      exact neg_add_cancel _
-    -- Rearrange: (ψ + ↑k • ψ) + S = 0, so ψ + ↑k • ψ = -S
-    rw [← add_assoc] at h2
-    have h3 := add_eq_zero_iff_eq_neg.mp h2
-    -- h3 : ψ + ↑k • ψ = -S. Rewrite goal to match h3.
-    rw [add_smul, one_smul]; exact h3
-  -- (1 + k : ℂ) ≠ 0 since k ∈ ℕ and ℂ has characteristic 0
-  have hk_ne : (1 + (k : ℂ)) ≠ 0 := by
-    rw [add_comm]; exact Nat.cast_add_one_ne_zero k
-  -- (1+k) • ψ ∈ L (equals the negated non-Q_λ sum which is in L)
-  have h_scaled_mem : (1 + (k : ℂ)) • ψ ∈ L := h_eq ▸ h_ncol_mem
-  -- ψ = (1+k)⁻¹ • ((1+k) • ψ) ∈ L
-  have : ψ = (1 + (k : ℂ))⁻¹ • ((1 + (k : ℂ)) • ψ) := by
-    rw [smul_smul, inv_mul_cancel₀ hk_ne, one_smul]
-  rw [this]
-  exact Submodule.smul_mem L _ h_scaled_mem
+  -- Structural lemma: only swap(p₁, p₂) is a row-preserving, non-identity
+  -- G-supported permutation. The proof uses:
+  -- (1) w preserves G (since supp(w) ⊂ G ⟹ w fixes Gᶜ),
+  -- (2) row r₀ := row(p₁) ∩ G = {p₁, p₂},
+  -- (3) for r ≠ r₀: row r ∩ G has at most 1 element.
+  have hsum : la.sortedParts.sum = n := sortedParts_sum_eq n la
+  have hG_row_r₀ : ∀ p ∈ G,
+      rowOfPos la.sortedParts p.val = rowOfPos la.sortedParts p₁.val →
+      p = p₁ ∨ p = p₂ := by
+    intro p hp hrow_p
+    simp only [G, garnirSet, Finset.mem_filter, Finset.mem_univ, true_and] at hp
+    rcases hp with ⟨hcol_p, _⟩ | ⟨hcol_p, _⟩
+    · left; exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts p.val p₁.val
+        (by omega) (by omega) hrow_p hcol_p)
+    · right
+      have : rowOfPos la.sortedParts p.val = rowOfPos la.sortedParts p₂.val :=
+        hrow_p.trans hrow_eq
+      exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts p.val p₂.val
+        (by omega) (by omega) this hcol_p)
+  have hG_row_other : ∀ a ∈ G, ∀ b ∈ G,
+      rowOfPos la.sortedParts a.val = rowOfPos la.sortedParts b.val →
+      rowOfPos la.sortedParts a.val ≠ rowOfPos la.sortedParts p₁.val →
+      a = b := by
+    intro a ha b hb hrow_ab hrow_ne
+    simp only [G, garnirSet, Finset.mem_filter, Finset.mem_univ, true_and] at ha hb
+    rcases ha with ⟨hcol_a, hr_a⟩ | ⟨hcol_a, hr_a⟩ <;>
+      rcases hb with ⟨hcol_b, hr_b⟩ | ⟨hcol_b, hr_b⟩
+    · exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts a.val b.val
+        (by omega) (by omega) hrow_ab (hcol_a.trans hcol_b.symm))
+    · exfalso
+      have ha_le : rowOfPos la.sortedParts a.val ≤ rowOfPos la.sortedParts p₁.val :=
+        hrow_ab.symm ▸ hr_b
+      have : rowOfPos la.sortedParts a.val = rowOfPos la.sortedParts p₁.val :=
+        Nat.le_antisymm ha_le hr_a
+      exact hrow_ne this
+    · exfalso
+      have ha_le : rowOfPos la.sortedParts a.val ≤ rowOfPos la.sortedParts p₁.val := hr_a
+      have ha_ge : rowOfPos la.sortedParts p₁.val ≤ rowOfPos la.sortedParts a.val :=
+        hrow_ab.symm ▸ hr_b
+      have : rowOfPos la.sortedParts a.val = rowOfPos la.sortedParts p₁.val :=
+        Nat.le_antisymm ha_le ha_ge
+      exact hrow_ne this
+    · exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts a.val b.val
+        (by omega) (by omega) hrow_ab (hcol_a.trans hcol_b.symm))
+  have h_w_eq_swap : ∀ w : Equiv.Perm (Fin n),
+      (∀ x, x ∉ G → w x = x) → w ≠ 1 → w ∈ RowSubgroup n la → w = t := by
+    intro w hw_supp hw_ne hw_row
+    -- w preserves G
+    have hw_preserves_G : ∀ x ∈ G, w x ∈ G := by
+      intro x hx
+      by_contra hwx_notin
+      have hy : w (w x) = w x := hw_supp (w x) hwx_notin
+      have hwx_eq : w x = x := w.injective hy
+      rw [hwx_eq] at hwx_notin
+      exact hwx_notin hx
+    -- w p₁ ∈ {p₁, p₂}
+    have hw_p₁_mem : w p₁ = p₁ ∨ w p₁ = p₂ := by
+      refine hG_row_r₀ (w p₁) (hw_preserves_G p₁ hp₁_mem) ?_
+      exact hw_row p₁
+    -- w p₂ ∈ {p₁, p₂}
+    have hw_p₂_mem : w p₂ = p₁ ∨ w p₂ = p₂ := by
+      refine hG_row_r₀ (w p₂) (hw_preserves_G p₂ hp₂_mem) ?_
+      rw [hw_row p₂]; exact hrow_eq.symm
+    -- w fixes x ∉ {p₁, p₂}
+    have hw_fixed : ∀ x : Fin n, x ≠ p₁ → x ≠ p₂ → w x = x := by
+      intro x hxp1 hxp2
+      by_cases hxG : x ∈ G
+      · by_cases hrow_x : rowOfPos la.sortedParts x.val =
+            rowOfPos la.sortedParts p₁.val
+        · rcases hG_row_r₀ x hxG hrow_x with rfl | rfl
+          · exact absurd rfl hxp1
+          · exact absurd rfl hxp2
+        · refine hG_row_other (w x) (hw_preserves_G x hxG) x hxG (hw_row x) ?_
+          rw [hw_row x]; exact hrow_x
+      · exact hw_supp x hxG
+    -- Combine: w must be the swap
+    have hw_p₁_eq : w p₁ = p₂ := by
+      rcases hw_p₁_mem with hfix | hswap
+      · -- w fixes p₁; show w = 1, contradicting hw_ne
+        exfalso; apply hw_ne
+        ext x
+        by_cases hxp1 : x = p₁
+        · subst hxp1; rw [hfix, Equiv.Perm.one_apply]
+        by_cases hxp2 : x = p₂
+        · subst hxp2
+          -- w p₂ ∈ {p₁, p₂}. If w p₂ = p₁, but w p₁ = p₁, injectivity fails.
+          rcases hw_p₂_mem with h | h
+          · exact absurd (w.injective (h.trans hfix.symm)) hne.symm
+          · rw [h, Equiv.Perm.one_apply]
+        · rw [hw_fixed x hxp1 hxp2, Equiv.Perm.one_apply]
+      · exact hswap
+    have hw_p₂_eq : w p₂ = p₁ := by
+      rcases hw_p₂_mem with hswap | hfix
+      · exact hswap
+      · -- w p₂ = p₂; combined with w p₁ = p₂, injectivity gives p₁ = p₂
+        exact absurd (w.injective (hw_p₁_eq.trans hfix.symm)) hne
+    ext x
+    by_cases hx1 : x = p₁
+    · subst hx1; rw [hw_p₁_eq, ht_def, Equiv.swap_apply_left]
+    by_cases hx2 : x = p₂
+    · subst hx2; rw [hw_p₂_eq, ht_def, Equiv.swap_apply_right]
+    · rw [hw_fixed x hx1 hx2, ht_def, Equiv.swap_apply_of_ne_of_ne hx1 hx2]
+  -- The P\Q filter is exactly the singleton {t_elem}
+  have hfilter_PmQ : Finset.univ.filter (fun w : T => ¬p_col w ∧ p_row w) = {t_elem} := by
+    apply Finset.ext
+    intro ⟨w, hw_supp, hw_ne⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton,
+      hp_col_def, hp_row_def]
+    refine ⟨fun ⟨_, hw_row⟩ => ?_, fun heq => ?_⟩
+    · exact Subtype.ext (h_w_eq_swap w hw_supp hw_ne hw_row)
+    · have hval : w = t := congr_arg Subtype.val heq
+      rw [hval]
+      exact ⟨ht_not_col, ht_row⟩
+  -- The P\Q sum equals -ψ
+  have h_p_minus_q_sum :
+      ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ p_row w), f w = -ψ := by
+    rw [hfilter_PmQ, Finset.sum_singleton]
+    show f t_elem = -ψ
+    simp only [f, t_elem]
+    rw [twistedPolytabloid_row_eq t ht_row σ, ← hψ_def, ht_sign]
+    have : ((↑(↑(-1 : ℤˣ) : ℤ) : ℂ)) = -1 := by norm_cast
+    rw [this, neg_one_smul]
+  -- Three-way split of the T-sum, via two applications of sum_filter_add_sum_filter_not
+  have h_split : ∑ w : T, f w =
+      ∑ w ∈ Finset.univ.filter p_col, f w +
+      ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ p_row w), f w +
+      ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ ¬p_row w), f w := by
+    have step1 : ∑ w : T, f w =
+        ∑ w ∈ Finset.univ.filter p_col, f w +
+          ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w), f w :=
+      (Finset.sum_filter_add_sum_filter_not Finset.univ p_col f).symm
+    have step2 : ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w), f w =
+        ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ p_row w), f w +
+        ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ ¬p_row w), f w := by
+      have h2a : (Finset.univ.filter (fun w : T => ¬p_col w)).filter p_row =
+          Finset.univ.filter (fun w : T => ¬p_col w ∧ p_row w) := by
+        ext w; simp
+      have h2b : (Finset.univ.filter (fun w : T => ¬p_col w)).filter (fun w => ¬p_row w) =
+          Finset.univ.filter (fun w : T => ¬p_col w ∧ ¬p_row w) := by
+        ext w; simp
+      rw [← h2a, ← h2b]
+      exact (Finset.sum_filter_add_sum_filter_not _ p_row f).symm
+    rw [step1, step2, add_assoc]
+  -- Set k = |Q part|
+  set k := (Finset.univ.filter p_col).card with hk_def
+  -- Key algebraic identity: k•ψ = -Σ_{neither} f ∈ L.
+  set S_neither := ∑ w ∈ Finset.univ.filter (fun w : T => ¬p_col w ∧ ¬p_row w), f w
+    with hS_neither_def
+  have h_sum_T : ∑ w : T, f w = (k : ℂ) • ψ + -ψ + S_neither := by
+    rw [h_split, h_col_sum, h_p_minus_q_sum]
+  have h_k_psi_mem_L : (k : ℂ) • ψ ∈ L := by
+    -- From h_id and h_sum_T: ψ = -(↑k•ψ + -ψ + S_neither)
+    -- Add (↑k•ψ + -ψ + S_neither) both sides: ψ + (...) = 0
+    -- Simplify (-ψ + ψ) = 0: ↑k•ψ + S_neither = 0
+    -- Hence ↑k•ψ = -S_neither ∈ L
+    have h2 : ψ + ((k : ℂ) • ψ + -ψ + S_neither) = 0 := by
+      rw [← h_sum_T]; rw [h_id]; exact neg_add_cancel _
+    -- Manual rearrangement avoiding `abel`
+    have hrearrange : ψ + ((k : ℂ) • ψ + -ψ + S_neither) = (k : ℂ) • ψ + S_neither := by
+      rw [show ((k : ℂ) • ψ + -ψ + S_neither) =
+          ((k : ℂ) • ψ + (-ψ + S_neither)) from add_assoc _ _ _]
+      rw [show ψ + ((k : ℂ) • ψ + (-ψ + S_neither)) =
+          ((k : ℂ) • ψ) + (ψ + (-ψ + S_neither)) from by
+        rw [← add_assoc ψ ((k : ℂ) • ψ) (-ψ + S_neither),
+            add_comm ψ ((k : ℂ) • ψ),
+            add_assoc]]
+      rw [show ψ + (-ψ + S_neither) = S_neither from by
+        rw [← add_assoc, add_neg_cancel, zero_add]]
+    rw [hrearrange] at h2
+    have h_kpsi_eq : (k : ℂ) • ψ = -S_neither := eq_neg_of_add_eq_zero_left h2
+    rw [h_kpsi_eq]; exact h_neither_mem
+  -- Case split: k = 0 vs k ≥ 1
+  by_cases hk_zero : k = 0
+  · -- k = 0 case: deferred to follow-up issue.
+    -- In this case, the Garnir identity only gives 0 = -(Σ_neither) ∈ L, no info about ψ.
+    -- The fix is: since k = 0 iff r₀ = row(p₁) = 0 and col(p₁) has length 1,
+    -- use σ' = swap(p₁, p₂) · σ which stays in the span (needs separate proof).
+    -- TODO: resolve via follow-up issue (k = 0 requires swap-based argument).
+    sorry
+  · -- k ≥ 1 case: divide by k.
+    have hk_ne : (k : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hk_zero
+    have : ψ = ((k : ℂ)⁻¹) • ((k : ℂ) • ψ) := by
+      rw [smul_smul, inv_mul_cancel₀ hk_ne, one_smul]
+    rw [this]
+    exact Submodule.smul_mem L _ h_k_psi_mem_L
 
 /-- For column-standard σ, the generalized polytabloidTab ψ_σ lies in the
 span of standard polytabloidTabs. This is the core of the straightening
