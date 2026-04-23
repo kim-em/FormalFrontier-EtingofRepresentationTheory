@@ -50,6 +50,102 @@ noncomputable def isotypicDirectSumEquiv
     exact sSup_isotypicComponents R M
   ind.linearEquiv iSup_top
 
+/-!
+## Helper: Schur evaluation isomorphism
+
+For a simple `A`-module `V` over an algebraically closed field `k`, an
+isotypic-of-type-`V` finite-dimensional `A`-module `M` is isomorphic to
+`V ⊗[k] (V →ₗ[A] M)` via the evaluation map `v ⊗ f ↦ f v`.
+-/
+
+/-- Over an algebraically closed field, the algebra map `k → End_A V` is a
+`k`-linear equivalence when `V` is simple and finite-dimensional — Schur's
+lemma combined with alg-closedness. -/
+noncomputable def endOfSimpleEquivAlgClosed
+    (k : Type*) [Field k] [IsAlgClosed k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    [Module.Finite k V] [IsSimpleModule A V] :
+    k ≃ₗ[k] (V →ₗ[A] V) :=
+  LinearEquiv.ofBijective (Algebra.linearMap k (V →ₗ[A] V))
+    (IsSimpleModule.algebraMap_end_bijective_of_isAlgClosed k)
+
+/-- Post-composition equivalence: an `A`-linear equivalence of the codomain
+induces a `k`-linear equivalence of hom-spaces. This works even when `A` is
+non-commutative (where `LinearEquiv.congrRight` does not apply directly). -/
+noncomputable def homCongrRightOverSubring
+    (k : Type*) [CommSemiring k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    {M N : Type*}
+    [AddCommGroup M] [Module k M] [Module A M] [IsScalarTower k A M]
+    [AddCommGroup N] [Module k N] [Module A N] [IsScalarTower k A N]
+    (e : M ≃ₗ[A] N) :
+    (V →ₗ[A] M) ≃ₗ[k] (V →ₗ[A] N) where
+  toFun f := e.toLinearMap.comp f
+  invFun f := e.symm.toLinearMap.comp f
+  left_inv f := by ext; simp
+  right_inv f := by ext; simp
+  map_add' f g := by ext; simp
+  map_smul' c f := by
+    ext v
+    simp [LinearMap.smul_apply, LinearMap.comp_apply, LinearEquiv.coe_coe]
+
+/-- The curry equivalence: a map into a product of copies of `V` is the same
+as a product of maps into `V`. This is `k`-linear since `k` acts through
+either side. -/
+noncomputable def homPiCurryEquiv
+    (k : Type*) [CommSemiring k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    (ι : Type*) :
+    (V →ₗ[A] (ι → V)) ≃ₗ[k] (ι → V →ₗ[A] V) where
+  toFun f i := (LinearMap.proj i).comp f
+  invFun g := LinearMap.pi g
+  left_inv f := by ext v i; rfl
+  right_inv g := by funext i; ext v; rfl
+  map_add' f g := by funext i; ext v; simp
+  map_smul' c f := by funext i; ext v; simp
+
+/-- Schur evaluation isomorphism: for a simple `A`-module `V` over an
+algebraically closed field `k`, an isotypic-of-type-`V` finite-dimensional
+`A`-module `M` is isomorphic to `V ⊗[k] (V →ₗ[A] M)` as `k`-modules.
+
+The isomorphism is built by composing the multiplicity decomposition
+`M ≃[A] Fin n → V` with Schur's lemma (`End_A V ≃[k] k`) and the standard
+tensor iso `V ⊗[k] (Fin n → k) ≃[k] Fin n → V`. -/
+noncomputable def schurEvaluationEquiv
+    (k : Type*) [Field k] [IsAlgClosed k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    [Module.Finite k V] [IsSimpleModule A V]
+    (M : Type*) [AddCommGroup M] [Module k M] [Module A M] [IsScalarTower k A M]
+    [Module.Finite k M] [IsSemisimpleModule A M]
+    (h : IsIsotypicOfType A M V) :
+    V ⊗[k] (V →ₗ[A] M) ≃ₗ[k] M :=
+  haveI : Module.Finite A M := Module.Finite.of_restrictScalars_finite k A M
+  haveI : Nontrivial V := IsSimpleModule.nontrivial A V
+  let n : ℕ := h.linearEquiv_fun.choose
+  let e : M ≃ₗ[A] (Fin n → V) := h.linearEquiv_fun.choose_spec.some
+  -- Chain:
+  -- V ⊗[k] (V →ₗ[A] M)
+  -- ≃[k] V ⊗[k] (V →ₗ[A] Fin n → V)         -- congrRight e
+  -- ≃[k] V ⊗[k] (Fin n → V →ₗ[A] V)         -- curry
+  -- ≃[k] V ⊗[k] (Fin n → k)                 -- Schur + alg-closed
+  -- ≃[k] Fin n → V                           -- piScalarRight
+  -- ≃[k] M                                   -- e.symm
+  let e1 : (V →ₗ[A] M) ≃ₗ[k] (V →ₗ[A] (Fin n → V)) :=
+    homCongrRightOverSubring k A V e
+  let e2 : (V →ₗ[A] (Fin n → V)) ≃ₗ[k] (Fin n → V →ₗ[A] V) :=
+    homPiCurryEquiv k A V (Fin n)
+  let e3 : (Fin n → V →ₗ[A] V) ≃ₗ[k] (Fin n → k) :=
+    LinearEquiv.piCongrRight (fun _ => (endOfSimpleEquivAlgClosed k A V).symm)
+  let e4 : V ⊗[k] (Fin n → k) ≃ₗ[k] (Fin n → V) :=
+    TensorProduct.piScalarRight k k V (Fin n)
+  let e5 : (Fin n → V) ≃ₗ[k] M := e.symm.restrictScalars k
+  (TensorProduct.congr (LinearEquiv.refl k V)
+    (e1.trans (e2.trans e3))).trans (e4.trans e5)
+
 variable (k : Type u) [Field k]
   (E : Type v) [AddCommGroup E] [Module k E] [Module.Finite k E]
 
