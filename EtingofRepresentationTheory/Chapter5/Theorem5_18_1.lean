@@ -423,4 +423,28 @@ theorem range_le_isotypicComponent_of_simple
           Submodule.le_isotypicComponent _
       _ = isotypicComponent A E V := heq
 
+set_option maxHeartbeats 1600000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Bridge equivalence: for a simple submodule `V ≤ E` and any submodule
+`c` equal to `isotypicComponent A E V`, the hom-space `V →ₗ[A] c` is
+`k`-linearly isomorphic to `V →ₗ[A] E`. The forward map post-composes
+with the inclusion `c → E`; the inverse co-restricts every `V →ₗ[A] E`
+to `c` using `range_le_isotypicComponent_of_simple`. -/
+noncomputable def homIsotypicBridge
+    (A : Subalgebra k (Module.End k E))
+    (V : Submodule A E) [IsSimpleModule A V]
+    (c : Submodule A E)
+    (hc_eq : c = isotypicComponent A E V) :
+    (V →ₗ[A] c) ≃ₗ[k] (V →ₗ[A] E) where
+  toFun f := c.subtype.comp f
+  invFun g := g.codRestrict c (fun v => by
+    have hrange : LinearMap.range g ≤ c := by
+      rw [hc_eq]
+      exact range_le_isotypicComponent_of_simple (k := k) (E := E) (V := V) g
+    exact hrange (LinearMap.mem_range_self g v))
+  left_inv f := by ext v; rfl
+  right_inv g := by ext v; rfl
+  map_add' f g := by ext v; simp
+  map_smul' r f := by ext v; rfl
+
 end Etingof
