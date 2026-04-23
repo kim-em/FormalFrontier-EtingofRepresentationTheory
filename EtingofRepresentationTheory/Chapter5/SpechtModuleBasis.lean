@@ -857,11 +857,62 @@ private theorem twistedPolytabloid_row_eq (w : Equiv.Perm (Fin n))
   have heq : (w * q⁻¹ * σ) * (q⁻¹ * σ)⁻¹ = w := by group
   rw [heq]; exact hw
 
+/-! ### Strict-dominance rank
+
+The Garnir straightening induction runs on the strict tabloid-dominance order.
+`srRank la σ` is the count of permutations whose tabloid strictly dominates σ's
+tabloid; this is a natural-number rank that strictly decreases when we replace
+σ by a strictly dominating σ'. Within a single tabloid class (srRank fixed), a
+secondary `rowInvCount'` measure handles the `k = 0` corner case of
+`garnir_straightening_step`, where the row swap keeps the tabloid fixed. -/
+
+/-- Number of permutations whose tabloid strictly dominates σ's tabloid. -/
+private noncomputable def srRank (la : Nat.Partition n) (σ : Equiv.Perm (Fin n)) : ℕ :=
+  haveI : DecidablePred (fun τ : Equiv.Perm (Fin n) => tabloidStrictDominates la τ σ) :=
+    Classical.decPred _
+  (Finset.univ.filter
+      (fun τ : Equiv.Perm (Fin n) => tabloidStrictDominates la τ σ)).card
+
+/-- `srRank` is invariant under `toTabloid`-equivalence. -/
+private theorem srRank_eq_of_toTabloid_eq {σ₁ σ₂ : Equiv.Perm (Fin n)}
+    (h : toTabloid n la σ₁ = toTabloid n la σ₂) :
+    srRank la σ₁ = srRank la σ₂ := by
+  classical
+  unfold srRank
+  congr 1
+  ext τ
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+  refine ⟨fun ⟨hdom, hne⟩ => ⟨tabloidDominates_congr rfl h hdom, ?_⟩,
+          fun ⟨hdom, hne⟩ => ⟨tabloidDominates_congr rfl h.symm hdom, ?_⟩⟩
+  · intro h'; exact hne (h'.trans h.symm)
+  · intro h'; exact hne (h'.trans h)
+
+/-- If τ strictly dominates σ, then `srRank τ < srRank σ`. -/
+private theorem srRank_lt_of_tabloidStrictDominates
+    {τ σ : Equiv.Perm (Fin n)} (h : tabloidStrictDominates la τ σ) :
+    srRank la τ < srRank la σ := by
+  classical
+  unfold srRank
+  apply Finset.card_lt_card
+  refine Finset.ssubset_iff.mpr ⟨τ, ?_, ?_⟩
+  · -- τ ∉ filter strict-dominators-of-τ (irreflexivity)
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    intro ⟨_, hne⟩; exact hne rfl
+  · -- insert τ (strict-dom-of-τ) ⊆ strict-dom-of-σ
+    intro ρ hρ
+    simp only [Finset.mem_insert, Finset.mem_filter, Finset.mem_univ, true_and] at hρ ⊢
+    rcases hρ with rfl | ⟨hdom_ρτ, hne_ρτ⟩
+    · exact h
+    · refine ⟨tabloidDominates_trans hdom_ρτ h.1, ?_⟩
+      intro heq
+      -- ρ dominates τ, τ dominates σ, toTab ρ = toTab σ ⟹ toTab τ = toTab σ
+      exact h.2 (tabloidDominates_antisymm_toTabloid hdom_ρτ h.1 heq)
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"
 f_w(σ) that lies in the span of
-{ψ_τ : τ column-standard, rowInvCount'(τ) < rowInvCount'(σ)}.
+{ψ_τ : τ column-standard, `tabloidStrictDominates la τ σ`}.
 
 Both exclusions are essential to avoid circularity:
 - For w ∈ Q_λ, `twistedPolytabloid_col_eq` gives f_w(σ) = sign(w) · ψ_σ.
@@ -872,8 +923,8 @@ The algebraic splitting of these cases is handled in `garnir_straightening_step`
 The proof requires:
 1. Column-restandardize wσ: find q₀ ∈ Q_λ with q₀·w·σ column-standard.
 2. Express f_w(σ) as a ℂ-combination of standard generalized polytabloids.
-3. Use dominance theory to show the resulting tabloids are strictly more
-   dominant, giving strictly fewer row inversions after restandardization.
+3. Use dominance theory to show the resulting tabloids strictly dominate σ's
+   tabloid (this is the classical Garnir-term dominance fact).
 
 Difficulty: 8. Combinatorial heart of the straightening theorem
 (James Ch. 7-8 / Fulton Ch. 7). -/
@@ -886,7 +937,7 @@ private theorem garnir_twisted_in_lower_span
     (hw_row : w ∉ RowSubgroup n la) :
     twistedPolytabloid (la := la) w σ ∈
     Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
-        isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+        isColumnStandard' n la τ ∧ tabloidStrictDominates la τ σ} =>
       generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   sorry
 
@@ -896,7 +947,15 @@ set_option maxHeartbeats 1200000 in
 /-- **Garnir straightening step**:
 For column-standard σ with positive row inversion count, the generalized
 polytabloidTab ψ_σ lies in the ℂ-span of {ψ_{σ'} : σ' column-standard,
-rowInvCount'(σ') < rowInvCount'(σ)}.
+(`tabloidStrictDominates la σ' σ` ∨ (`toTabloid σ' = toTabloid σ` ∧
+`rowInvCount'(σ') < rowInvCount'(σ)`))}.
+
+The disjunction combines two progress modes of the classical Garnir argument:
+- The main case (k ≥ 1) produces τ whose tabloid strictly dominates σ's tabloid.
+- The corner case k = 0 produces σ' = t·σ with the **same** tabloid as σ but
+  strictly fewer row inversions (row swap within a single row).
+Both are strictly decreasing under the lexicographic measure
+`(srRank la σ, rowInvCount' la σ)`.
 
 Proof: combine `garnir_polytabloid_identity` with `garnir_twisted_in_lower_span`.
 The identity expresses ψ_σ as a negated sum of twisted polytabloids. We split
@@ -909,19 +968,23 @@ disjoint parts using `T ∩ P ∩ Q = ∅` (since P ∩ Q = {1}):
   sign(w)·ψ_σ`. By a sign-cancellation argument (involution w ↦ w·swap on
   S_G ∩ P_λ), `∑_{w ∈ (S_G ∩ P_λ) \\ {1}} sign(w) = -1`, contributing `-ψ_σ`.
 - **Neither part** (w ∉ P_λ ∪ Q_λ): `sign(w)·f_w(σ) ∈ L` by
-  `garnir_twisted_in_lower_span`.
+  `garnir_twisted_in_lower_span` (via `Or.inl` into the disjunction).
 Rearranging: `k·ψ_σ = -(neither sum) ∈ L`. If k ≥ 1, divide by k to get ψ_σ ∈ L.
 If k = 0 (which happens iff row(p₁) = 0 and both col(p₁) and col(p₂) are single
 cells — forced by the partition sortedness), every q ∈ Q_λ fixes p₁ and p₂,
 so q commutes with t = swap(p₁, p₂) and ψ_σ = ψ_{t·σ} term-by-term. The
-permutation σ' := t·σ is column-standard and has strictly fewer row inversions
-via `rowInvCount'_swap_lt`, giving ψ_σ ∈ L directly. -/
+permutation σ' := t·σ is column-standard with the same tabloid as σ and has
+strictly fewer row inversions via `rowInvCount'_swap_lt`, giving ψ_σ ∈ L
+directly (via `Or.inr`). -/
 private theorem garnir_straightening_step
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ) :
     generalizedPolytabloidTab (n := n) (la := la) σ ∈
       Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
-          isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+          isColumnStandard' n la τ ∧
+            (tabloidStrictDominates la τ σ ∨
+              (toTabloid n la τ = toTabloid n la σ ∧
+                rowInvCount' (la := la) τ < rowInvCount' (la := la) σ))} =>
         generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
   -- Step 1: Find the row inversion pair
   obtain ⟨p₁, p₂, hrow_eq, hcol_lt, hinv⟩ := exists_row_inversion_pair σ hrp
@@ -961,8 +1024,20 @@ private theorem garnir_straightening_step
   -- Abbreviations
   set ψ := generalizedPolytabloidTab (n := n) (la := la) σ with hψ_def
   set L := Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
-      isColumnStandard' n la τ ∧ rowInvCount' (la := la) τ < rowInvCount' (la := la) σ} =>
+      isColumnStandard' n la τ ∧
+        (tabloidStrictDominates la τ σ ∨
+          (toTabloid n la τ = toTabloid n la σ ∧
+            rowInvCount' (la := la) τ < rowInvCount' (la := la) σ))} =>
     generalizedPolytabloidTab (n := n) (la := la) τ.val))
+  -- The strict-dominance span is contained in L (via `Or.inl`).
+  have h_strict_sub_L : ∀ v : TabloidRepresentation n la,
+      v ∈ Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+          isColumnStandard' n la τ ∧ tabloidStrictDominates la τ σ} =>
+        generalizedPolytabloidTab (n := n) (la := la) τ.val)) → v ∈ L := by
+    intro v hv
+    refine (Submodule.span_le (R := ℂ)).mpr ?_ hv
+    rintro _ ⟨⟨τ, hτ_cs, hdom⟩, rfl⟩
+    exact Submodule.subset_span ⟨⟨τ, hτ_cs, Or.inl hdom⟩, rfl⟩
   classical
   -- Set up subtype and predicates
   set T := {w : Equiv.Perm (Fin n) // (∀ x, x ∉ G → w x = x) ∧ w ≠ 1} with hT_def
@@ -985,7 +1060,8 @@ private theorem garnir_straightening_step
       hp_row_def] at hmem
     show f ⟨w, hw_supp, hw_ne⟩ ∈ L
     apply Submodule.smul_mem
-    exact garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne hmem.1 hmem.2
+    exact h_strict_sub_L _
+      (garnir_twisted_in_lower_span σ hcs hrp G w hw_supp hw_ne hmem.1 hmem.2)
   -- The Q part: each term equals ψ (since sign(w)² = 1 and twistedPolytabloid_col_eq)
   have h_col_term : ∀ w : T, p_col w → f w = ψ := by
     intro ⟨w, hw_supp, hw_ne⟩ hw_col
@@ -1421,9 +1497,15 @@ private theorem garnir_straightening_step
       have : q⁻¹ * t * q = t := by
         rw [mul_assoc, ← hqt, ← mul_assoc, inv_mul_cancel, one_mul]
       rw [this]; exact ht_row
-    -- Conclude.
+    -- Conclude: σ' = t·σ has the same tabloid as σ (t ∈ RowSubgroup) and
+    -- strictly fewer row inversions, so it lies in L via the `Or.inr` branch.
+    have htab_eq : toTabloid n la σ' = toTabloid n la σ := by
+      rw [toTabloid_eq_iff]
+      have : σ' * σ⁻¹ = t := by
+        rw [hσ'_def, mul_assoc, mul_inv_cancel, mul_one]
+      rw [this]; exact ht_row
     rw [hψ_eq]
-    exact Submodule.subset_span ⟨⟨σ', hcs_σ', hrow_lt⟩, rfl⟩
+    exact Submodule.subset_span ⟨⟨σ', hcs_σ', Or.inr ⟨htab_eq, hrow_lt⟩⟩, rfl⟩
   · -- k ≥ 1 case: divide by k.
     have hk_ne : (k : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hk_zero
     have : ψ = ((k : ℂ)⁻¹) • ((k : ℂ) • ψ) := by
@@ -1435,13 +1517,20 @@ private theorem garnir_straightening_step
 span of standard polytabloidTabs. This is the core of the straightening
 theorem.
 
-The proof uses strong induction on `rowInvCount'`:
-- **Base case** (rowInvCount' = 0): σ is both column- and row-standard,
+The proof uses nested strong induction on the lexicographic measure
+`(srRank la σ, rowInvCount' la σ)`:
+
+- **Outer** strong induction on `srRank la σ` — the number of tabloids
+  strictly dominating σ's tabloid. `garnir_straightening_step`'s main branch
+  (Or.inl) produces τ' with `tabloidStrictDominates la τ' τ`, decreasing
+  `srRank`.
+- **Inner** strong induction on `rowInvCount' la σ` at fixed `srRank`. The k=0
+  corner case of `garnir_straightening_step` (Or.inr) produces σ' with the
+  **same** tabloid as σ (hence equal `srRank`) but strictly fewer row
+  inversions, handled by the inner IH.
+
+- **Base case** (inner `rowInvCount' = 0`): σ is both column- and row-standard,
   hence σ = sytPerm T for some SYT T, and ψ_σ = polytabloidTab T ∈ span.
-- **Inductive case** (rowInvCount' > 0): By `garnir_straightening_step`,
-  ψ_σ is in the span of {ψ_{σ'}} where each σ' is column-standard with
-  strictly fewer row inversions. By the induction hypothesis, each
-  ψ_{σ'} ∈ span{polytabloidTab T}, so ψ_σ ∈ span{polytabloidTab T}.
 
 References: James Ch. 7-8, Fulton Ch. 7. -/
 private theorem polytabloidTab_column_standard_in_span
@@ -1449,9 +1538,9 @@ private theorem polytabloidTab_column_standard_in_span
     generalizedPolytabloidTab (n := n) (la := la) σ ∈
       Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
         polytabloidTab (n := n) (la := la) T)) := by
-  -- Strong induction on rowInvCount'
+  -- Outer strong induction on srRank.
   suffices ∀ (k : ℕ) (τ : Equiv.Perm (Fin n)),
-      k = rowInvCount' (la := la) τ →
+      k = srRank la τ →
       isColumnStandard' n la τ →
       generalizedPolytabloidTab (n := n) (la := la) τ ∈
         Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
@@ -1459,33 +1548,54 @@ private theorem polytabloidTab_column_standard_in_span
     this _ σ rfl hcs
   intro k
   induction k using Nat.strongRecOn with
-  | _ k ih =>
+  | _ k ih_outer =>
   intro τ hk hcs_τ
-  by_cases hrz : k = 0
-  · -- Base case: rowInvCount' = 0 means row-standard, hence SYT
+  -- Inner strong induction on rowInvCount' at fixed srRank = k.
+  suffices ∀ (m : ℕ) (τ' : Equiv.Perm (Fin n)),
+      m = rowInvCount' (la := la) τ' →
+      k = srRank la τ' →
+      isColumnStandard' n la τ' →
+      generalizedPolytabloidTab (n := n) (la := la) τ' ∈
+        Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+          polytabloidTab (n := n) (la := la) T)) from
+    this _ τ rfl hk hcs_τ
+  intro m
+  induction m using Nat.strongRecOn with
+  | _ m ih_inner =>
+  intro τ' hm hk_τ' hcs_τ'
+  by_cases hrz : m = 0
+  · -- Base case: rowInvCount' = 0 means row-standard, hence SYT.
     subst hrz
-    have hrs := (rowInvCount'_eq_zero_iff (la := la) τ).mp (by omega)
-    obtain ⟨T, rfl⟩ := column_row_standard_is_syt τ hcs_τ hrs
+    have hrs := (rowInvCount'_eq_zero_iff (la := la) τ').mp (by omega)
+    obtain ⟨T, rfl⟩ := column_row_standard_is_syt τ' hcs_τ' hrs
     have : generalizedPolytabloidTab (sytPerm n la T) = polytabloidTab T :=
       generalizedPolytabloidTab_eq_polytabloidTab T
     rw [this]
     exact Submodule.subset_span ⟨T, rfl⟩
-  · -- Inductive case: use Garnir straightening step
-    have hrp : 0 < rowInvCount' (la := la) τ := by omega
-    have h_step := garnir_straightening_step τ hcs_τ hrp
-    -- ψ_τ ∈ span{ψ_{τ'} : τ' column-standard, rowInvCount'(τ') < k}
-    -- Each ψ_{τ'} ∈ span{e_T} by induction hypothesis
-    -- Therefore ψ_τ ∈ span{e_T}
+  · -- Inductive case: use Garnir straightening step.
+    have hrp : 0 < rowInvCount' (la := la) τ' := by omega
+    have h_step := garnir_straightening_step τ' hcs_τ' hrp
     set S_syt := Set.range (fun T : StandardYoungTableau n la =>
       polytabloidTab (n := n) (la := la) T)
-    -- Show the Garnir span is contained in the SYT span
-    have h_sub : Set.range (fun τ' : {τ' : Equiv.Perm (Fin n) //
-        isColumnStandard' n la τ' ∧ rowInvCount' (la := la) τ' <
-          rowInvCount' (la := la) τ} =>
-      generalizedPolytabloidTab (n := n) (la := la) τ'.val) ⊆
+    -- Show the Garnir span is contained in the SYT span.
+    have h_sub : Set.range (fun τ'' : {τ'' : Equiv.Perm (Fin n) //
+        isColumnStandard' n la τ'' ∧
+          (tabloidStrictDominates la τ'' τ' ∨
+            (toTabloid n la τ'' = toTabloid n la τ' ∧
+              rowInvCount' (la := la) τ'' < rowInvCount' (la := la) τ'))} =>
+      generalizedPolytabloidTab (n := n) (la := la) τ''.val) ⊆
         ↑(Submodule.span ℂ S_syt) := by
-      rintro _ ⟨⟨τ', hτ'_cs, hτ'_lt⟩, rfl⟩
-      exact ih (rowInvCount' (la := la) τ') (hk ▸ hτ'_lt) τ' rfl hτ'_cs
+      rintro _ ⟨⟨τ'', hτ''_cs, hor⟩, rfl⟩
+      rcases hor with hdom | ⟨htab_eq, hrow_lt⟩
+      · -- Or.inl: τ'' strictly dominates τ' ⟹ srRank τ'' < srRank τ' = k.
+        have h_lt : srRank la τ'' < k := by
+          rw [hk_τ']; exact srRank_lt_of_tabloidStrictDominates hdom
+        exact ih_outer (srRank la τ'') h_lt τ'' rfl hτ''_cs
+      · -- Or.inr: same tabloid + smaller rowInvCount' ⟹ inner IH.
+        have h_sr_eq : k = srRank la τ'' := by
+          rw [hk_τ']; exact (srRank_eq_of_toTabloid_eq htab_eq).symm
+        have h_rc_lt : rowInvCount' (la := la) τ'' < m := by omega
+        exact ih_inner (rowInvCount' (la := la) τ'') h_rc_lt τ'' rfl h_sr_eq hτ''_cs
     exact (Submodule.span_le.mpr h_sub) h_step
 
 /-- The tabloid-level straightening theorem: for any permutation σ, the
