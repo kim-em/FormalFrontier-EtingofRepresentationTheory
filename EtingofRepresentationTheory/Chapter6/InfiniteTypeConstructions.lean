@@ -2946,6 +2946,15 @@ private theorem dTildeRep_mapLinear_transport (k m : ℕ) {a b : DTildeVertex k}
       dTildeTransportEquiv k m b
         (@Etingof.QuiverRepresentation.mapLinear ℂ (DTildeVertex k) _ (DTildeQuiver' k)
           (dTildeRep' k m) a b e' x) := by
+  -- Case analysis on the 8 arrow patterns.  Four cases reduce by `rfl`
+  -- (after concretising abstract indices via `subst`); the remaining
+  -- four cases (`pathMid → pathMid`, `pathMid → branchRight`,
+  -- `rightLeaf1 → branchRight`, `rightLeaf2 → branchRight`) require
+  -- explicit pointwise analysis to commute the `ha ▸ hb ▸` dimension
+  -- casts of `dTildeRepMap` with the `LinearEquiv.funCongrLeft`
+  -- reindexing of `dTildeTransportEquiv`, which is tracked as a
+  -- follow-up.  This single residual sorry is the final obstruction
+  -- to closing Wall 2 Stage C.
   sorry
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
