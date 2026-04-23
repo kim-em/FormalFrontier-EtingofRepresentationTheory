@@ -2497,7 +2497,84 @@ theorem etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m) :
     -- Proof of surjectivity: given (u, v) ∈ V(3), the preimage (v, u-v, 0) ∈ V(0)
     -- satisfies Γ(v, u-v, 0) = (v + (u-v), v + N·0) = (u, v).
     have hbot3 : W (3 : Fin 7) = ⊥ := by
-      sorry
+      -- Step 1: W'(0) = ⊤ from W(0) = ⊥ and the complement structure.
+      have hWtop0 : W' (0 : Fin 7) = ⊤ := by
+        have := (hc (0 : Fin 7)).sup_eq_top
+        rwa [hbot0, bot_sup_eq] at this
+      -- Step 2a: surjectivity of Γ on the explicit type.
+      -- Preimage of (u, v) (where u = first half of y, v = second half) is (v, u - v, 0).
+      have hΓ_surj : ∀ y : Fin (2 * (m + 1)) → ℂ,
+          ∃ z : Fin (3 * (m + 1)) → ℂ, etilde6v2Gamma m z = y := by
+        intro y
+        let z : Fin (3 * (m + 1)) → ℂ := fun i =>
+          if h1 : i.val < m + 1 then y ⟨m + 1 + i.val, by omega⟩
+          else if h2 : i.val < 2 * (m + 1) then
+            y ⟨i.val - (m + 1), by omega⟩ - y ⟨i.val, by omega⟩
+          else 0
+        -- Three accessors for the three blocks of z.
+        have z_a : ∀ (k : ℕ) (hk_bound : k < 3 * (m + 1)) (hk : k < m + 1),
+            z ⟨k, hk_bound⟩ = y ⟨m + 1 + k, by omega⟩ := by
+          intros k _ hk
+          show (if h1 : k < m + 1 then y ⟨m + 1 + k, by omega⟩
+              else if h2 : k < 2 * (m + 1) then
+                y ⟨k - (m + 1), by omega⟩ - y ⟨k, by omega⟩
+              else 0) = y ⟨m + 1 + k, by omega⟩
+          rw [dif_pos hk]
+        have z_b : ∀ (k : ℕ) (hk_bound : k < 3 * (m + 1))
+            (hk1 : ¬ k < m + 1) (hk2 : k < 2 * (m + 1)),
+            z ⟨k, hk_bound⟩ = y ⟨k - (m + 1), by omega⟩ - y ⟨k, by omega⟩ := by
+          intros k _ hk1 hk2
+          show (if h1 : k < m + 1 then y ⟨m + 1 + k, by omega⟩
+              else if h2 : k < 2 * (m + 1) then
+                y ⟨k - (m + 1), by omega⟩ - y ⟨k, by omega⟩
+              else 0) = y ⟨k - (m + 1), by omega⟩ - y ⟨k, by omega⟩
+          rw [dif_neg hk1, dif_pos hk2]
+        have z_c : ∀ (k : ℕ) (hk_bound : k < 3 * (m + 1))
+            (hk1 : ¬ k < m + 1) (hk2 : ¬ k < 2 * (m + 1)),
+            z ⟨k, hk_bound⟩ = 0 := by
+          intros k _ hk1 hk2
+          show (if h1 : k < m + 1 then y ⟨m + 1 + k, by omega⟩
+              else if h2 : k < 2 * (m + 1) then
+                y ⟨k - (m + 1), by omega⟩ - y ⟨k, by omega⟩
+              else 0) = 0
+          rw [dif_neg hk1, dif_neg hk2]
+        refine ⟨z, ?_⟩
+        ext ⟨i, hi⟩
+        simp only [etilde6v2Gamma, LinearMap.coe_mk, AddHom.coe_mk]
+        by_cases hilt : i < m + 1
+        · -- First block of Γ output at index i: z ⟨i⟩ + z ⟨m+1+i⟩.
+          rw [dif_pos hilt,
+            z_a i (by omega) hilt,
+            z_b (m + 1 + i) (by omega) (by omega) (by omega)]
+          have h_idx : (⟨m + 1 + i - (m + 1), by omega⟩ : Fin (2 * (m + 1))) =
+              ⟨i, hi⟩ := by apply Fin.ext; change m + 1 + i - (m + 1) = i; omega
+          rw [h_idx]; ring
+        · -- Second block of Γ output at index i (i ≥ m+1).
+          push_neg at hilt
+          rw [dif_neg (show ¬(i < m + 1) from by omega),
+            z_a (i - (m + 1)) (by omega) (by omega)]
+          have h_idx : (⟨m + 1 + (i - (m + 1)), by omega⟩ : Fin (2 * (m + 1))) =
+              ⟨i, hi⟩ := by
+            apply Fin.ext; change m + 1 + (i - (m + 1)) = i; omega
+          rw [h_idx]
+          split_ifs with h2
+          · -- z at index 2(m+1) + (i-(m+1)) + 1 is in c-block, so equals 0.
+            rw [z_c (2 * (m + 1) + (i - (m + 1)) + 1) (by omega) (by omega) (by omega)]
+            ring
+          · ring
+      -- Step 2b: W'(3) = ⊤.
+      have hWtop3 : W' (3 : Fin 7) = ⊤ := by
+        rw [Submodule.eq_top_iff']
+        intro y
+        obtain ⟨z, hz⟩ := hΓ_surj y
+        have hz0 : z ∈ W' (0 : Fin 7) := hWtop0 ▸ Submodule.mem_top
+        have hgz : (etilde6v2Rep m).mapLinear hom03 z ∈ W' (3 : Fin 7) :=
+          hW'_inv hom03 z hz0
+        have heq : (etilde6v2Rep m).mapLinear hom03 z = y := hz
+        rw [← heq]; exact hgz
+      -- Step 3: W(3) ⊓ W'(3) = ⊥, W'(3) = ⊤ ⇒ W(3) = ⊥.
+      have h_inf := (hc (3 : Fin 7)).inf_eq_bot
+      rwa [hWtop3, inf_top_eq] at h_inf
     fin_cases v
     · exact hbot0  -- v = 0
     · exact hbot1  -- v = 1
