@@ -974,12 +974,224 @@ private theorem garnir_straightening_step
     rw [h_kpsi_eq]; exact h_neither_mem
   -- Case split: k = 0 vs k ≥ 1
   by_cases hk_zero : k = 0
-  · -- k = 0 case: deferred to follow-up issue.
-    -- In this case, the Garnir identity only gives 0 = -(Σ_neither) ∈ L, no info about ψ.
-    -- The fix is: since k = 0 iff r₀ = row(p₁) = 0 and col(p₁) has length 1,
-    -- use σ' = swap(p₁, p₂) · σ which stays in the span (needs separate proof).
-    -- TODO: resolve via follow-up issue (k = 0 requires swap-based argument).
-    sorry
+  · -- k = 0 case: swap-based argument.
+    -- The Garnir identity is tautological here. We prove ψ_σ = ψ_{σ'} where
+    -- σ' := t * σ is column-standard with fewer row inversions.
+    --
+    -- From k = 0 and partition sortedness, row(p₁) = 0 and both columns col(p₁),
+    -- col(p₂) are single cells. Hence every q ∈ Q_λ fixes p₁ and p₂, which makes
+    -- q commute with t = swap(p₁, p₂) and therefore ψ_σ = ψ_{σ'} term-by-term.
+    classical
+    have h_empty : Finset.univ.filter p_col = ∅ := Finset.card_eq_zero.mp hk_zero
+    -- No non-identity Q_λ-permutation is G-supported.
+    have h_no_Q_in_G : ∀ w : Equiv.Perm (Fin n), (∀ x, x ∉ G → w x = x) → w ≠ 1 →
+        w ∉ ColumnSubgroup n la := by
+      intro w hw_supp hw_ne hw_col
+      have hmem : (⟨w, hw_supp, hw_ne⟩ : T) ∈ Finset.univ.filter p_col :=
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, hw_col⟩
+      rw [h_empty] at hmem
+      exact absurd hmem (Finset.notMem_empty _)
+    -- Partition sortedness (parts are non-increasing).
+    have h_sorted : la.sortedParts.Pairwise (· ≥ ·) :=
+      la.parts.pairwise_sort (· ≥ ·)
+    -- Valid positions.
+    have hp₁_lt : p₁.val < la.sortedParts.sum := by rw [hsum]; exact p₁.isLt
+    have hp₂_lt : p₂.val < la.sortedParts.sum := by rw [hsum]; exact p₂.isLt
+    -- Helper: rowOfPos is bounded by list length for valid positions.
+    have h_rowOfPos_lt_length : ∀ (parts : List ℕ) (j : ℕ), j < parts.sum →
+        rowOfPos parts j < parts.length := by
+      intro parts
+      induction parts with
+      | nil => intro j hj; simp at hj
+      | cons p ps ih =>
+        intro j hj
+        simp only [rowOfPos, List.length_cons]
+        split_ifs with h
+        · omega
+        · have hj' : j - p < ps.sum := by simp [List.sum_cons] at hj; omega
+          have := ih (j - p) hj'; omega
+    -- Helper: for non-increasing parts, getD at 0 is ≥ getD at i.
+    have h_sorted_getD : ∀ (i : ℕ), la.sortedParts.getD i 0 ≤ la.sortedParts.getD 0 0 := by
+      intro i
+      by_cases hlen : 0 < la.sortedParts.length
+      · by_cases hi : i < la.sortedParts.length
+        · rw [la.sortedParts.getD_eq_getElem 0 hlen, la.sortedParts.getD_eq_getElem 0 hi]
+          rcases Nat.eq_zero_or_pos i with hi0 | hi0
+          · subst hi0; exact le_refl _
+          · exact List.pairwise_iff_getElem.mp h_sorted 0 i hlen hi hi0
+        · rw [List.getD_eq_default _ _ (not_lt.mp hi)]; exact Nat.zero_le _
+      · push_neg at hlen
+        have : la.sortedParts = [] :=
+          List.length_eq_zero_iff.mp (Nat.le_zero.mp hlen)
+        rw [this]; simp
+    -- Helper: for non-increasing parts, getD at i ≤ getD at j when j ≤ i.
+    have h_sorted_getD_le : ∀ (i j : ℕ), j ≤ i →
+        la.sortedParts.getD i 0 ≤ la.sortedParts.getD j 0 := by
+      intro i j hji
+      by_cases hi : i < la.sortedParts.length
+      · have hj : j < la.sortedParts.length := lt_of_le_of_lt hji hi
+        rw [la.sortedParts.getD_eq_getElem 0 hj, la.sortedParts.getD_eq_getElem 0 hi]
+        rcases eq_or_lt_of_le hji with heq | hlt
+        · subst heq; exact le_refl _
+        · exact List.pairwise_iff_getElem.mp h_sorted j i hj hi hlt
+      · rw [List.getD_eq_default _ _ (not_lt.mp hi)]; exact Nat.zero_le _
+    -- r = rowOfPos p₁ = rowOfPos p₂
+    set r := rowOfPos la.sortedParts p₁.val with hr_def
+    have hrow_p₂ : rowOfPos la.sortedParts p₂.val = r := hrow_eq.symm
+    -- Step A: r = 0.
+    have hr_zero : r = 0 := by
+      by_contra hrz
+      have hr_pos : 0 < r := Nat.pos_of_ne_zero hrz
+      -- colOfPos p₂.val < parts.getD r 0
+      have hc₂_lt_r : colOfPos la.sortedParts p₂.val < la.sortedParts.getD r 0 := by
+        have := Etingof.colOfPos_lt_getD la.sortedParts p₂.val hp₂_lt
+        rwa [hrow_p₂] at this
+      -- By sortedness: getD at 0 ≥ getD at r
+      have hc₂_lt_0 : colOfPos la.sortedParts p₂.val < la.sortedParts.getD 0 0 :=
+        lt_of_lt_of_le hc₂_lt_r (h_sorted_getD r)
+      -- Find a position at (0, col p₂)
+      obtain ⟨k₀, hk₀_lt, hk₀_row, hk₀_col⟩ :=
+        Etingof.exists_pos_of_cell la.sortedParts 0 (colOfPos la.sortedParts p₂.val) hc₂_lt_0
+      have hk₀_n : k₀ < n := by rw [← hsum]; exact hk₀_lt
+      set p' : Fin n := ⟨k₀, hk₀_n⟩
+      have hp'_row : rowOfPos la.sortedParts p'.val = 0 := hk₀_row
+      have hp'_col : colOfPos la.sortedParts p'.val = colOfPos la.sortedParts p₂.val :=
+        hk₀_col
+      have hp'_ne : p' ≠ p₂ := by
+        intro h
+        have : rowOfPos la.sortedParts p'.val = rowOfPos la.sortedParts p₂.val := by rw [h]
+        rw [hp'_row, hrow_p₂] at this; omega
+      -- swap(p', p₂) is in ColumnSubgroup
+      have hswap_col : Equiv.swap p' p₂ ∈ ColumnSubgroup n la :=
+        swap_mem_columnSubgroup p' p₂ hp'_col
+      have hswap_ne : Equiv.swap p' p₂ ≠ 1 := by
+        intro h
+        have := congr_arg Equiv.Perm.sign h
+        rw [Equiv.Perm.sign_swap hp'_ne, map_one] at this
+        exact absurd this (by decide)
+      -- swap(p', p₂) is G-supported (p' is in col(p₂) ∩ rows ≤ r since row p' = 0 ≤ r)
+      have hp'_mem_G : p' ∈ G := by
+        refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, Or.inr ⟨hp'_col, ?_⟩⟩
+        rw [hp'_row]; exact Nat.zero_le _
+      have hswap_supp : ∀ x, x ∉ G → (Equiv.swap p' p₂) x = x := by
+        intro x hx
+        have hx_ne_p' : x ≠ p' := fun h => hx (h ▸ hp'_mem_G)
+        have hx_ne_p₂ : x ≠ p₂ := fun h => hx (h ▸ hp₂_mem)
+        exact Equiv.swap_apply_of_ne_of_ne hx_ne_p' hx_ne_p₂
+      exact h_no_Q_in_G _ hswap_supp hswap_ne hswap_col
+    -- Step B: col(p₁) = {p₁} using r = 0 + k = 0.
+    have h_col_p₁_single : ∀ x : Fin n,
+        colOfPos la.sortedParts x.val = colOfPos la.sortedParts p₁.val → x = p₁ := by
+      intro x hx_col
+      by_contra hx_ne
+      -- swap(x, p₁) ∈ ColumnSubgroup (same col), non-id, G-supported.
+      have hswap_col : Equiv.swap x p₁ ∈ ColumnSubgroup n la :=
+        swap_mem_columnSubgroup x p₁ hx_col
+      have hswap_ne : Equiv.swap x p₁ ≠ 1 := by
+        intro h
+        have := congr_arg Equiv.Perm.sign h
+        rw [Equiv.Perm.sign_swap hx_ne, map_one] at this
+        exact absurd this (by decide)
+      have hrow_p₁_zero : rowOfPos la.sortedParts p₁.val = 0 := hr_zero
+      have hx_mem_G : x ∈ G := by
+        refine Finset.mem_filter.mpr ⟨Finset.mem_univ _, Or.inl ⟨hx_col, ?_⟩⟩
+        rw [hrow_p₁_zero]; exact Nat.zero_le _
+      have hswap_supp : ∀ y, y ∉ G → (Equiv.swap x p₁) y = y := by
+        intro y hy
+        have hy_ne_x : y ≠ x := fun h => hy (h ▸ hx_mem_G)
+        have hy_ne_p₁ : y ≠ p₁ := fun h => hy (h ▸ hp₁_mem)
+        exact Equiv.swap_apply_of_ne_of_ne hy_ne_x hy_ne_p₁
+      exact h_no_Q_in_G _ hswap_supp hswap_ne hswap_col
+    -- Step C: col(p₂) = {p₂} using col(p₁) = {p₁} + partition sortedness.
+    have h_col_p₂_single : ∀ x : Fin n,
+        colOfPos la.sortedParts x.val = colOfPos la.sortedParts p₂.val → x = p₂ := by
+      intro x hx_col
+      have hx_lt : x.val < la.sortedParts.sum := by rw [hsum]; exact x.isLt
+      have hrow_p₂_zero : rowOfPos la.sortedParts p₂.val = 0 := hrow_p₂.trans hr_zero
+      -- Show row(x) = 0, then use rowOfPos_colOfPos_injective.
+      have hx_row_zero : rowOfPos la.sortedParts x.val = 0 := by
+        by_contra hr_ne
+        set r' := rowOfPos la.sortedParts x.val with hr'_def
+        have hr' : 1 ≤ r' := Nat.one_le_iff_ne_zero.mpr hr_ne
+        have hc₂_lt_r' : colOfPos la.sortedParts p₂.val < la.sortedParts.getD r' 0 := by
+          rw [← hx_col]; exact Etingof.colOfPos_lt_getD la.sortedParts x.val hx_lt
+        -- parts.getD r' 0 ≤ parts.getD 1 0 by sortedness
+        have h_parts_1 : la.sortedParts.getD r' 0 ≤ la.sortedParts.getD 1 0 :=
+          h_sorted_getD_le r' 1 hr'
+        have hc₂_lt_1 : colOfPos la.sortedParts p₂.val < la.sortedParts.getD 1 0 :=
+          lt_of_lt_of_le hc₂_lt_r' h_parts_1
+        -- Then cell (1, col p₁) also exists since col p₁ < col p₂ < parts[1]
+        have hc₁_lt_1 : colOfPos la.sortedParts p₁.val < la.sortedParts.getD 1 0 :=
+          lt_trans hcol_lt hc₂_lt_1
+        obtain ⟨k₁, hk₁_lt, hk₁_row, hk₁_col⟩ :=
+          Etingof.exists_pos_of_cell la.sortedParts 1 _ hc₁_lt_1
+        have hk₁_n : k₁ < n := by rw [← hsum]; exact hk₁_lt
+        set x' : Fin n := ⟨k₁, hk₁_n⟩
+        have hx'_col : colOfPos la.sortedParts x'.val = colOfPos la.sortedParts p₁.val :=
+          hk₁_col
+        -- By h_col_p₁_single, x' = p₁. But row x' = 1, row p₁ = 0. Contradiction.
+        have hx'_eq_p₁ : x' = p₁ := h_col_p₁_single x' hx'_col
+        have : rowOfPos la.sortedParts x'.val = rowOfPos la.sortedParts p₁.val := by
+          rw [hx'_eq_p₁]
+        rw [show x'.val = k₁ from rfl, hk₁_row] at this
+        omega
+      exact Fin.ext (rowOfPos_colOfPos_injective la.sortedParts x.val p₂.val
+        hx_lt hp₂_lt (hx_row_zero.trans hrow_p₂_zero.symm) hx_col)
+    -- Q_λ fixes p₁ and p₂.
+    have h_Q_fix_p₁ : ∀ q : Equiv.Perm (Fin n), q ∈ ColumnSubgroup n la → q p₁ = p₁ :=
+      fun q hq => h_col_p₁_single (q p₁) (hq p₁)
+    have h_Q_fix_p₂ : ∀ q : Equiv.Perm (Fin n), q ∈ ColumnSubgroup n la → q p₂ = p₂ :=
+      fun q hq => h_col_p₂_single (q p₂) (hq p₂)
+    -- Define σ' = t * σ.
+    set σ' := t * σ with hσ'_def
+    -- σ'.symm applies t after σ.symm: σ'⁻¹ y = σ⁻¹ (t y).
+    have ht_symm : t.symm = t := by
+      change (Equiv.swap p₁ p₂).symm = _; exact Equiv.symm_swap p₁ p₂
+    have hσ'_symm_apply : ∀ y, σ'.symm y = σ.symm (t y) := by
+      intro y
+      show (t * σ).symm y = σ.symm (t y)
+      rw [Equiv.Perm.mul_def, Equiv.symm_trans_apply, ht_symm]
+    -- σ'.symm p₁ = σ.symm p₂, σ'.symm p₂ = σ.symm p₁.
+    have hσ'_symm_p₁ : σ'.symm p₁ = σ.symm p₂ := by
+      rw [hσ'_symm_apply]; simp [t, Equiv.swap_apply_left]
+    have hσ'_symm_p₂ : σ'.symm p₂ = σ.symm p₁ := by
+      rw [hσ'_symm_apply]; simp [t, Equiv.swap_apply_right]
+    have hσ'_symm_other : ∀ y, y ≠ p₁ → y ≠ p₂ → σ'.symm y = σ.symm y := by
+      intro y hy₁ hy₂
+      rw [hσ'_symm_apply]; simp [t, Equiv.swap_apply_of_ne_of_ne hy₁ hy₂]
+    -- σ' is column-standard.
+    have hcs_σ' : isColumnStandard' n la σ' := by
+      intro a b hab_col hab_row_lt
+      -- If col(a) = col(p₁), then a = p₁ = b (since col(b) = col(a) = col(p₁)),
+      -- contradicting row-lt. Similarly for col(p₂).
+      by_cases ha_p₁ : colOfPos la.sortedParts a.val = colOfPos la.sortedParts p₁.val
+      · have ha_eq : a = p₁ := h_col_p₁_single a ha_p₁
+        have hb_p₁ : colOfPos la.sortedParts b.val = colOfPos la.sortedParts p₁.val :=
+          hab_col.symm.trans ha_p₁
+        have hb_eq : b = p₁ := h_col_p₁_single b hb_p₁
+        rw [ha_eq, hb_eq] at hab_row_lt; exact absurd hab_row_lt (lt_irrefl _)
+      · by_cases ha_p₂ : colOfPos la.sortedParts a.val = colOfPos la.sortedParts p₂.val
+        · have ha_eq : a = p₂ := h_col_p₂_single a ha_p₂
+          have hb_p₂ : colOfPos la.sortedParts b.val = colOfPos la.sortedParts p₂.val :=
+            hab_col.symm.trans ha_p₂
+          have hb_eq : b = p₂ := h_col_p₂_single b hb_p₂
+          rw [ha_eq, hb_eq] at hab_row_lt; exact absurd hab_row_lt (lt_irrefl _)
+        · -- a, b are in columns other than col(p₁), col(p₂)
+          have ha_ne_p₁ : a ≠ p₁ := fun h => ha_p₁ (by rw [h])
+          have ha_ne_p₂ : a ≠ p₂ := fun h => ha_p₂ (by rw [h])
+          have hb_ne_p₁ : b ≠ p₁ := fun h => ha_p₁ (by rw [hab_col, h])
+          have hb_ne_p₂ : b ≠ p₂ := fun h => ha_p₂ (by rw [hab_col, h])
+          rw [hσ'_symm_other a ha_ne_p₁ ha_ne_p₂, hσ'_symm_other b hb_ne_p₁ hb_ne_p₂]
+          exact hcs a b hab_col hab_row_lt
+    -- rowInvCount'(σ') < rowInvCount'(σ)
+    have hrow_lt : rowInvCount' (la := la) σ' < rowInvCount' (la := la) σ := by
+      sorry
+    -- ψ_σ = ψ_{σ'} via term-by-term tabloid equality.
+    have hψ_eq : ψ = generalizedPolytabloidTab (n := n) (la := la) σ' := by
+      sorry
+    -- Conclude.
+    rw [hψ_eq]
+    exact Submodule.subset_span ⟨⟨σ', hcs_σ', hrow_lt⟩, rfl⟩
   · -- k ≥ 1 case: divide by k.
     have hk_ne : (k : ℂ) ≠ 0 := Nat.cast_ne_zero.mpr hk_zero
     have : ψ = ((k : ℂ)⁻¹) • ((k : ℂ) • ψ) := by
