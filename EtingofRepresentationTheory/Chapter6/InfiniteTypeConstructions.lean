@@ -2408,8 +2408,465 @@ The proof follows the same structure as D̃_5:
 3. Identity maps along the path propagate containment from branch point 2 to k+3
 4. By complement equality, all leaf subspaces are equal
 5. Nilpotent invariance gives the final contradiction
+
+Stage C works entirely in the `DTildeVertex k` indexing (where object types
+reduce by `rfl` on each constructor), then transports to the `Fin (k + 6)`
+version needed by `dTilde_not_finite_type`.
 -/
 
+attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
+  CategoryTheory.ReflQuiver.toQuiver in
+set_option maxHeartbeats 3200000 in
+theorem dTildeRep'_isIndecomposable (k m : ℕ) :
+    @Etingof.QuiverRepresentation.IsIndecomposable ℂ _ (DTildeVertex k)
+      (DTildeQuiver' k) (dTildeRep' k m) := by
+  letI := DTildeQuiver' k
+  constructor
+  · -- Nontrivial at `leftLeaf1` (dim m+1 ≥ 1)
+    refine ⟨(.leftLeaf1 : DTildeVertex k), ?_⟩
+    change Nontrivial (Fin (m + 1) → ℂ)
+    infer_instance
+  · intro W₁ W₂ hW₁_inv hW₂_inv hcompl
+    -- Disjointness of embed1/embed2 images
+    have embed_sum_zero : ∀ x y : Fin (m + 1) → ℂ,
+        starEmbed1 m x + starEmbed2 m y = 0 → x = 0 ∧ y = 0 := by
+      intro x y h
+      have heval : ∀ j : Fin (2 * (m + 1)),
+          starEmbed1 m x j + starEmbed2 m y j = 0 :=
+        fun j => by have := congr_fun h j; simpa using this
+      refine ⟨?_, ?_⟩ <;> ext ⟨i, hi⟩ <;> simp only [Pi.zero_apply]
+      · have := heval ⟨i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1
+        · omega
+        · simpa using this
+      · have := heval ⟨m + 1 + i, by omega⟩
+        simp only [starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk] at this
+        split_ifs at this with h1 h2
+        · omega
+        · omega
+        · simp only [zero_add] at this
+          have key : (⟨m + 1 + i - (m + 1), by omega⟩ : Fin (m + 1)) = ⟨i, hi⟩ := by
+            simp only [Fin.mk.injEq]; omega
+          rwa [key] at this
+        · omega
+    -- Core decomposition at `branchLeft`: if `embed1(x) + embed2(z)` ∈ W(branchLeft),
+    -- then x ∈ W(leftLeaf1) and z ∈ W(leftLeaf2).
+    have core_left :
+        ∀ (W W' : ∀ v, Submodule ℂ ((dTildeRep' k m).obj v))
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W a, (dTildeRep' k m).mapLinear e x ∈ W b)
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W' a, (dTildeRep' k m).mapLinear e x ∈ W' b)
+          (_ : ∀ v, IsCompl (W v) (W' v))
+          (x z : Fin (m + 1) → ℂ)
+          (_ : starEmbed1 m x + starEmbed2 m z ∈ W .branchLeft),
+          x ∈ W .leftLeaf1 ∧ z ∈ W .leftLeaf2 := by
+      intro W W' hW hW' hc x z hmem
+      have htop0 := (hc .leftLeaf1).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop0
+      have htop1 := (hc .leftLeaf2).sup_eq_top ▸ Submodule.mem_top (x := z)
+      obtain ⟨c, hc1, d, hd, hcd⟩ := Submodule.mem_sup.mp htop1
+      have eL1 : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf1 .branchLeft := ⟨trivial⟩
+      have eL2 : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf2 .branchLeft := ⟨trivial⟩
+      have ha2 : starEmbed1 m a ∈ W .branchLeft := hW eL1 a ha
+      have hc2 : starEmbed2 m c ∈ W .branchLeft := hW eL2 c hc1
+      have hb2 : starEmbed1 m b ∈ W' .branchLeft := hW' eL1 b hb
+      have hd2 : starEmbed2 m d ∈ W' .branchLeft := hW' eL2 d hd
+      have hsum : starEmbed1 m x + starEmbed2 m z =
+          (starEmbed1 m a + starEmbed2 m c) + (starEmbed1 m b + starEmbed2 m d) := by
+        rw [← hab, ← hcd]; simp [map_add]; abel
+      rw [hsum] at hmem
+      have hadd : starEmbed1 m a + starEmbed2 m c ∈ W .branchLeft :=
+        (W .branchLeft).add_mem ha2 hc2
+      have hw'_in_W : starEmbed1 m b + starEmbed2 m d ∈ W .branchLeft := by
+        have hsmul := (W .branchLeft).smul_mem (-1 : ℂ) hadd
+        have hadd2 := (W .branchLeft).add_mem hmem hsmul
+        have key : starEmbed1 m a + starEmbed2 m c + (starEmbed1 m b + starEmbed2 m d) +
+            (-1 : ℂ) • (starEmbed1 m a + starEmbed2 m c) = starEmbed1 m b + starEmbed2 m d := by
+          ext i; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+        rwa [key] at hadd2
+      have hzero : starEmbed1 m b + starEmbed2 m d = 0 := by
+        have := Submodule.mem_inf.mpr ⟨hw'_in_W,
+          (W' .branchLeft).add_mem hb2 hd2⟩
+        rwa [(hc .branchLeft).inf_eq_bot, Submodule.mem_bot] at this
+      obtain ⟨hb0, hd0⟩ := embed_sum_zero b d hzero
+      exact ⟨hab ▸ by rw [hb0, add_zero]; exact ha,
+             hcd ▸ by rw [hd0, add_zero]; exact hc1⟩
+    -- Same core at `branchRight`: embed1(x) + embed2(z) ∈ W(branchRight) →
+    -- x ∈ W(rightLeaf1) and z ∈ W(rightLeaf2).
+    have core_right :
+        ∀ (W W' : ∀ v, Submodule ℂ ((dTildeRep' k m).obj v))
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W a, (dTildeRep' k m).mapLinear e x ∈ W b)
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W' a, (dTildeRep' k m).mapLinear e x ∈ W' b)
+          (_ : ∀ v, IsCompl (W v) (W' v))
+          (x z : Fin (m + 1) → ℂ)
+          (_ : starEmbed1 m x + starEmbed2 m z ∈ W .branchRight),
+          x ∈ W .rightLeaf1 ∧ z ∈ W .rightLeaf2 := by
+      intro W W' hW hW' hc x z hmem
+      have htop0 := (hc .rightLeaf1).sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, b, hb, hab⟩ := Submodule.mem_sup.mp htop0
+      have htop1 := (hc .rightLeaf2).sup_eq_top ▸ Submodule.mem_top (x := z)
+      obtain ⟨c, hc1, d, hd, hcd⟩ := Submodule.mem_sup.mp htop1
+      have eR1 : @Quiver.Hom _ (DTildeQuiver' k) .rightLeaf1 .branchRight := ⟨trivial⟩
+      have eR2 : @Quiver.Hom _ (DTildeQuiver' k) .rightLeaf2 .branchRight := ⟨trivial⟩
+      have ha2 : starEmbed1 m a ∈ W .branchRight := hW eR1 a ha
+      have hc2 : starEmbed2 m c ∈ W .branchRight := hW eR2 c hc1
+      have hb2 : starEmbed1 m b ∈ W' .branchRight := hW' eR1 b hb
+      have hd2 : starEmbed2 m d ∈ W' .branchRight := hW' eR2 d hd
+      have hsum : starEmbed1 m x + starEmbed2 m z =
+          (starEmbed1 m a + starEmbed2 m c) + (starEmbed1 m b + starEmbed2 m d) := by
+        rw [← hab, ← hcd]; simp [map_add]; abel
+      rw [hsum] at hmem
+      have hadd : starEmbed1 m a + starEmbed2 m c ∈ W .branchRight :=
+        (W .branchRight).add_mem ha2 hc2
+      have hw'_in_W : starEmbed1 m b + starEmbed2 m d ∈ W .branchRight := by
+        have hsmul := (W .branchRight).smul_mem (-1 : ℂ) hadd
+        have hadd2 := (W .branchRight).add_mem hmem hsmul
+        have key : starEmbed1 m a + starEmbed2 m c + (starEmbed1 m b + starEmbed2 m d) +
+            (-1 : ℂ) • (starEmbed1 m a + starEmbed2 m c) = starEmbed1 m b + starEmbed2 m d := by
+          ext i; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+        rwa [key] at hadd2
+      have hzero : starEmbed1 m b + starEmbed2 m d = 0 := by
+        have := Submodule.mem_inf.mpr ⟨hw'_in_W,
+          (W' .branchRight).add_mem hb2 hd2⟩
+        rwa [(hc .branchRight).inf_eq_bot, Submodule.mem_bot] at this
+      obtain ⟨hb0, hd0⟩ := embed_sum_zero b d hzero
+      exact ⟨hab ▸ by rw [hb0, add_zero]; exact ha,
+             hcd ▸ by rw [hd0, add_zero]; exact hc1⟩
+    -- γ-action on embed1/embed2 (unchanged from d5tilde).
+    have gamma_from_embed1 : ∀ (x : Fin (m + 1) → ℂ),
+        d5tildeGamma m (starEmbed1 m x) = starEmbed1 m x + starEmbed2 m x := by
+      intro x; ext i
+      show (d5tildeGamma m (starEmbed1 m x)) i =
+        (starEmbed1 m x) i + (starEmbed2 m x) i
+      simp only [d5tildeGamma, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases h : i.val < m + 1
+      · simp only [dif_pos h, dif_neg (show ¬(m + 1 ≤ i.val) by omega),
+            dif_neg (show ¬(m + 1 + i.val < m + 1) by omega), add_zero]
+      · push_neg at h
+        simp only [dif_neg (show ¬(i.val < m + 1) by omega),
+            dif_pos (show m + 1 ≤ i.val by omega),
+            dif_pos (show i.val - (m + 1) < m + 1 by omega),
+            dif_neg (show ¬(m + 1 ≤ i.val - (m + 1)) by omega), zero_add]
+        by_cases h2 : i.val - (m + 1) + 1 < m + 1
+        · simp only [dif_pos h2,
+            dif_neg (show ¬(m + 1 + (i.val - (m + 1)) + 1 < m + 1) by omega),
+            add_zero]
+        · simp only [dif_neg h2, add_zero]
+    have gamma_from_embed2 : ∀ (y : Fin (m + 1) → ℂ),
+        d5tildeGamma m (starEmbed2 m y) =
+          starEmbed1 m y + starEmbed2 m (nilpotentShiftLin m y) := by
+      intro y
+      have aux : ∀ j : Fin (m + 1), nilpotentShiftLin m y j =
+          if h : j.val + 1 < m + 1 then y ⟨j.val + 1, h⟩ else 0 :=
+        nilpotentShiftLin_apply m y
+      ext i
+      simp only [d5tildeGamma, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk,
+        Pi.add_apply, aux]
+      by_cases h : i.val < m + 1
+      · simp only [dif_pos h,
+            dif_neg (show ¬(m + 1 ≤ i.val) by omega),
+            dif_pos (show m + 1 ≤ m + 1 + i.val by omega),
+            zero_add, add_zero]
+        exact congr_arg y (Fin.ext (by simp))
+      · push_neg at h
+        simp only [dif_neg (show ¬(i.val < m + 1) by omega),
+            dif_pos (show m + 1 ≤ i.val by omega),
+            dif_neg (show ¬(m + 1 ≤ i.val - (m + 1)) by omega),
+            zero_add]
+        by_cases h2 : i.val - (m + 1) + 1 < m + 1
+        · simp only [dif_pos h2,
+              dif_pos (show m + 1 ≤ m + 1 + (i.val - (m + 1)) + 1 by omega)]
+          exact congr_arg y (Fin.ext (by simp; omega))
+        · simp only [dif_neg h2]
+    -- Spine propagation: for any invariant system W, anything in W(branchLeft)
+    -- maps via γ to W(branchRight). Chains γ : branchLeft → (pathMid 0 | branchRight)
+    -- with identity arrows along the spine when k > 0.
+    have gamma_to_branchRight : ∀ (W : ∀ v, Submodule ℂ ((dTildeRep' k m).obj v))
+        (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+          ∀ x ∈ W a, (dTildeRep' k m).mapLinear e x ∈ W b),
+        ∀ v ∈ W .branchLeft, d5tildeGamma m v ∈ W .branchRight := by
+      intro W hW v hv
+      rcases Nat.eq_zero_or_pos k with hk | hk
+      · -- k = 0: direct arrow branchLeft → branchRight carrying γ
+        subst hk
+        have e : @Quiver.Hom _ (DTildeQuiver' 0) .branchLeft .branchRight := ⟨rfl⟩
+        exact hW e v hv
+      · -- k > 0: γ : branchLeft → pathMid 0, then identities through the spine
+        have e_γ : @Quiver.Hom _ (DTildeQuiver' k) .branchLeft
+            (.pathMid ⟨0, hk⟩) := ⟨rfl⟩
+        have hγ : d5tildeGamma m v ∈ W (.pathMid ⟨0, hk⟩) := hW e_γ v hv
+        -- Propagate forward along `pathMid i → pathMid (i+1)` (all identities).
+        have propagate_pathMid : ∀ (i : ℕ) (hi : i < k)
+            (w : Fin (2 * (m + 1)) → ℂ),
+            w ∈ W (.pathMid ⟨0, hk⟩) → w ∈ W (.pathMid ⟨i, hi⟩) := by
+          intro i
+          induction i with
+          | zero => intro _ w hw; exact hw
+          | succ n ih =>
+            intro hi w hw
+            have hnk : n < k := Nat.lt_of_succ_lt hi
+            have hw' : w ∈ W (.pathMid ⟨n, hnk⟩) := ih hnk w hw
+            have e : @Quiver.Hom _ (DTildeQuiver' k) (.pathMid ⟨n, hnk⟩)
+                (.pathMid ⟨n + 1, hi⟩) := ⟨rfl⟩
+            exact hW e w hw'
+        have hklast : k - 1 < k := Nat.sub_lt hk Nat.one_pos
+        have hpathLast : d5tildeGamma m v ∈ W (.pathMid ⟨k - 1, hklast⟩) :=
+          propagate_pathMid (k - 1) hklast _ hγ
+        have e_end : @Quiver.Hom _ (DTildeQuiver' k) (.pathMid ⟨k - 1, hklast⟩)
+            .branchRight := ⟨by change k - 1 + 1 = k; omega⟩
+        exact hW e_end _ hpathLast
+    -- Gamma containments for W₁ (and symmetrically W₂) — combines γ propagation
+    -- with `core_right` to conclude leaf containments.
+    have gamma_containment :
+        ∀ (W W' : ∀ v, Submodule ℂ ((dTildeRep' k m).obj v))
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W a, (dTildeRep' k m).mapLinear e x ∈ W b)
+          (_ : ∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+            ∀ x ∈ W' a, (dTildeRep' k m).mapLinear e x ∈ W' b)
+          (_ : ∀ v, IsCompl (W v) (W' v)),
+          (∀ x : Fin (m + 1) → ℂ, x ∈ W .leftLeaf1 → x ∈ W .rightLeaf1) ∧
+          (∀ x : Fin (m + 1) → ℂ, x ∈ W .leftLeaf1 → x ∈ W .rightLeaf2) ∧
+          (∀ x : Fin (m + 1) → ℂ, x ∈ W .leftLeaf2 → x ∈ W .rightLeaf1) ∧
+          (∀ x : Fin (m + 1) → ℂ, x ∈ W .leftLeaf2 →
+            nilpotentShiftLin m x ∈ W .rightLeaf2) := by
+      intro W W' hW hW' hc
+      refine ⟨fun x hx => ?_, fun x hx => ?_, fun y hy => ?_, fun y hy => ?_⟩
+      all_goals (try
+        (have eL1 : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf1 .branchLeft := ⟨trivial⟩
+         have eL2 : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf2 .branchLeft := ⟨trivial⟩
+         skip))
+      · have he1 : starEmbed1 m x ∈ W .branchLeft :=
+          hW (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf1 .branchLeft) x hx
+        have hgamma : d5tildeGamma m (starEmbed1 m x) ∈ W .branchRight :=
+          gamma_to_branchRight W hW _ he1
+        rw [gamma_from_embed1] at hgamma
+        exact (core_right W W' hW hW' hc x x hgamma).1
+      · have he1 : starEmbed1 m x ∈ W .branchLeft :=
+          hW (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf1 .branchLeft) x hx
+        have hgamma : d5tildeGamma m (starEmbed1 m x) ∈ W .branchRight :=
+          gamma_to_branchRight W hW _ he1
+        rw [gamma_from_embed1] at hgamma
+        exact (core_right W W' hW hW' hc x x hgamma).2
+      · have he2 : starEmbed2 m y ∈ W .branchLeft :=
+          hW (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf2 .branchLeft) y hy
+        have hgamma : d5tildeGamma m (starEmbed2 m y) ∈ W .branchRight :=
+          gamma_to_branchRight W hW _ he2
+        rw [gamma_from_embed2] at hgamma
+        exact (core_right W W' hW hW' hc y (nilpotentShiftLin m y) hgamma).1
+      · have he2 : starEmbed2 m y ∈ W .branchLeft :=
+          hW (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf2 .branchLeft) y hy
+        have hgamma : d5tildeGamma m (starEmbed2 m y) ∈ W .branchRight :=
+          gamma_to_branchRight W hW _ he2
+        rw [gamma_from_embed2] at hgamma
+        exact (core_right W W' hW hW' hc y (nilpotentShiftLin m y) hgamma).2
+    -- Helper: if A ≤ B, A' ≤ B', IsCompl A A', IsCompl B B', then A = B
+    have compl_eq_of_le (A B A' B' : Submodule ℂ (Fin (m + 1) → ℂ))
+        (hAB : A ≤ B) (hA'B' : A' ≤ B')
+        (hcA : IsCompl A A') (hcB : IsCompl B B') : A = B := by
+      apply le_antisymm hAB; intro x hx
+      have hx_top := hcA.sup_eq_top ▸ Submodule.mem_top (x := x)
+      obtain ⟨a, ha, a', ha', rfl⟩ := Submodule.mem_sup.mp hx_top
+      have ha'_B : a' ∈ B := by
+        have h := B.sub_mem hx (hAB ha); rwa [show a + a' - a = a' from by abel] at h
+      have : a' ∈ B ⊓ B' := Submodule.mem_inf.mpr ⟨ha'_B, hA'B' ha'⟩
+      rw [hcB.inf_eq_bot, Submodule.mem_bot] at this; rwa [this, add_zero]
+    -- All leaf subspaces of W₁ are equal (via γ containments in both directions).
+    obtain ⟨h04, h05, h14, hN15⟩ := gamma_containment W₁ W₂ hW₁_inv hW₂_inv hcompl
+    obtain ⟨h04', h05', h14', hN15'⟩ := gamma_containment W₂ W₁ hW₂_inv hW₁_inv
+      (fun v => (hcompl v).symm)
+    have heq04 := compl_eq_of_le _ _ _ _ h04 h04' (hcompl .leftLeaf1) (hcompl .rightLeaf1)
+    have heq05 := compl_eq_of_le _ _ _ _ h05 h05' (hcompl .leftLeaf1) (hcompl .rightLeaf2)
+    have heq14 := compl_eq_of_le _ _ _ _ h14 h14' (hcompl .leftLeaf2) (hcompl .rightLeaf1)
+    have heq01 : W₁ .leftLeaf1 = W₁ .leftLeaf2 := heq04.trans heq14.symm
+    -- Same for W₂
+    have heq04' := compl_eq_of_le _ _ _ _ h04' h04
+      ((hcompl .leftLeaf1).symm) ((hcompl .rightLeaf1).symm)
+    have heq05' := compl_eq_of_le _ _ _ _ h05' h05
+      ((hcompl .leftLeaf1).symm) ((hcompl .rightLeaf2).symm)
+    have heq14' := compl_eq_of_le _ _ _ _ h14' h14
+      ((hcompl .leftLeaf2).symm) ((hcompl .rightLeaf1).symm)
+    have heq01' : W₂ .leftLeaf1 = W₂ .leftLeaf2 := heq04'.trans heq14'.symm
+    -- N = nilpotentShiftLin preserves W₁(leftLeaf1) and W₂(leftLeaf1).
+    have hN₁ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₁ .leftLeaf1 → nilpotentShiftLin m x ∈ W₁ .leftLeaf1 := by
+      intro x hx
+      have hx1 : x ∈ W₁ .leftLeaf2 := heq01 ▸ hx
+      exact heq05 ▸ hN15 x hx1
+    have hN₂ : ∀ (x : Fin (m + 1) → ℂ),
+        x ∈ W₂ .leftLeaf1 → nilpotentShiftLin m x ∈ W₂ .leftLeaf1 := by
+      intro x hx
+      have hx1 : x ∈ W₂ .leftLeaf2 := heq01' ▸ hx
+      exact heq05' ▸ hN15' x hx1
+    -- Nilpotent-invariant compl forces one of W₁(leftLeaf1), W₂(leftLeaf1) to be ⊥.
+    have hresult := nilpotent_invariant_compl_trivial
+      (nilpotentShiftLin m) (nilpotentShiftLin_nilpotent m) (nilpotentShiftLin_ker_finrank m)
+      (W₁ .leftLeaf1) (W₂ .leftLeaf1) hN₁ hN₂ (hcompl .leftLeaf1)
+    -- Decomposition of any 2(m+1)-vector into its two (m+1)-blocks.
+    have center_decomp : ∀ w : Fin (2 * (m + 1)) → ℂ,
+        w = starEmbed1 m (fun i => w ⟨i.val, by omega⟩) +
+            starEmbed2 m (fun i => w ⟨m + 1 + i.val, by omega⟩) := by
+      intro w; ext ⟨j, hj⟩
+      simp only [Pi.add_apply, starEmbed1, starEmbed2, LinearMap.coe_mk, AddHom.coe_mk]
+      by_cases hjlt : j < m + 1
+      · simp only [dif_pos hjlt, show ¬(m + 1 ≤ j) from by omega, dite_false, add_zero]
+      · simp only [dif_neg hjlt, show m + 1 ≤ j from by omega, dite_true, zero_add]
+        congr 1; ext; simp; omega
+    -- Propagation: W(leftLeaf1) = ⊥ ⟹ ∀ v, W(v) = ⊥.
+    suffices propagate : ∀ (W W' : ∀ v, Submodule ℂ ((dTildeRep' k m).obj v)),
+        (∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+          ∀ x ∈ W a, (dTildeRep' k m).mapLinear e x ∈ W b) →
+        (∀ {a b : DTildeVertex k} (e : @Quiver.Hom _ (DTildeQuiver' k) a b),
+          ∀ x ∈ W' a, (dTildeRep' k m).mapLinear e x ∈ W' b) →
+        (∀ v, IsCompl (W v) (W' v)) →
+        W .leftLeaf1 = W .leftLeaf2 →
+        W .leftLeaf1 = W .rightLeaf1 →
+        W .leftLeaf1 = W .rightLeaf2 →
+        W .leftLeaf1 = ⊥ → ∀ v, W v = ⊥ by
+      rcases hresult with h | h
+      · left; exact propagate W₁ W₂ hW₁_inv hW₂_inv hcompl heq01 heq04 heq05 h
+      · right; exact propagate W₂ W₁ hW₂_inv hW₁_inv (fun v => (hcompl v).symm)
+          heq01' heq04' heq05' h
+    intro W W' hW_inv hW'_inv hc h01 h04 h05 hbot v
+    -- First prove: for any i, W(pathMid i) = ⊥.
+    -- And similarly for branchRight via propagation of ⊥ along the spine from γ-image.
+    -- Strategy: reduce each case to `center_decomp` at the relevant branch, using
+    -- that the two relevant leaves are both ⊆ W' (top).
+    -- Observation: W'(leftLeaf1) = ⊤, W'(leftLeaf2) = ⊤ (from hbot + h01), so
+    -- W'(branchLeft) contains all `embed1(a) + embed2(b)` = ⊤.  Then W(branchLeft) ≤
+    -- ⊥ via compl.  Similarly for W(branchRight) via h04/h05.
+    -- For pathMid i, use compl + chain-through-γ + identity maps.
+    have hW'_leftLeaf1_top : W' .leftLeaf1 = ⊤ := by
+      have := (hc .leftLeaf1).sup_eq_top; rwa [hbot, bot_sup_eq] at this
+    have hW'_leftLeaf2_top : W' .leftLeaf2 = ⊤ := by
+      have := (hc .leftLeaf2).sup_eq_top; rwa [← h01, hbot, bot_sup_eq] at this
+    have hW'_rightLeaf1_top : W' .rightLeaf1 = ⊤ := by
+      have := (hc .rightLeaf1).sup_eq_top; rwa [← h04, hbot, bot_sup_eq] at this
+    have hW'_rightLeaf2_top : W' .rightLeaf2 = ⊤ := by
+      have := (hc .rightLeaf2).sup_eq_top; rwa [← h05, hbot, bot_sup_eq] at this
+    -- W'(branchLeft) = ⊤ via embed1/embed2 invariance.
+    have h_emb_left1 : ∀ (x : Fin (m + 1) → ℂ), starEmbed1 m x ∈ W' .branchLeft :=
+      fun x => hW'_inv (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf1 .branchLeft)
+        x (hW'_leftLeaf1_top ▸ Submodule.mem_top)
+    have h_emb_left2 : ∀ (x : Fin (m + 1) → ℂ), starEmbed2 m x ∈ W' .branchLeft :=
+      fun x => hW'_inv (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .leftLeaf2 .branchLeft)
+        x (hW'_leftLeaf2_top ▸ Submodule.mem_top)
+    have hW'_branchLeft_top : W' .branchLeft = ⊤ := by
+      rw [eq_top_iff]; intro (w : Fin (2 * (m + 1)) → ℂ) _
+      exact center_decomp w ▸
+        (W' .branchLeft).add_mem (h_emb_left1 _) (h_emb_left2 _)
+    have h_emb_right1 : ∀ (x : Fin (m + 1) → ℂ), starEmbed1 m x ∈ W' .branchRight :=
+      fun x => hW'_inv (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .rightLeaf1 .branchRight)
+        x (hW'_rightLeaf1_top ▸ Submodule.mem_top)
+    have h_emb_right2 : ∀ (x : Fin (m + 1) → ℂ), starEmbed2 m x ∈ W' .branchRight :=
+      fun x => hW'_inv (⟨trivial⟩ : @Quiver.Hom _ (DTildeQuiver' k) .rightLeaf2 .branchRight)
+        x (hW'_rightLeaf2_top ▸ Submodule.mem_top)
+    have hW'_branchRight_top : W' .branchRight = ⊤ := by
+      rw [eq_top_iff]; intro (w : Fin (2 * (m + 1)) → ℂ) _
+      exact center_decomp w ▸
+        (W' .branchRight).add_mem (h_emb_right1 _) (h_emb_right2 _)
+    -- W'(pathMid i) = ⊤ for every i : Fin k, by backward induction along the spine
+    -- from branchRight using identity arrows (W' is invariant, `dTildePathId` = id,
+    -- and if `id(x) ∈ W'(b)` then `x ∈ W'(a)` using the same arrow in the opposite
+    -- direction — but DTildeQuiver' is one-directional, so we use forward identity
+    -- from W'(pathMid i) to W'(pathMid (i+1)) to show W'(pathMid i) ⊇ W'(pathMid 0),
+    -- combined with complementarity.  Simpler: show W(pathMid i) = ⊥ directly by
+    -- using `center_decomp` plus W'(leftLeaf1) = ⊤ (for γ's range).
+    --
+    -- Actually, we bypass pathMid's complement-⊤ and prove W(v) = ⊥ directly for
+    -- each vertex using the complement relation.
+    -- We'll dispatch on v's constructor.
+    have compl_bot_of_top : ∀ (v : DTildeVertex k), W' v = ⊤ → W v = ⊥ := by
+      intro v htop
+      have := (hc v).inf_eq_bot
+      rw [htop, inf_top_eq] at this; exact this
+    -- For pathMid i, show W'(pathMid i) = ⊤.  Forward induction from pathMid 0:
+    -- W'(branchLeft) = ⊤ and the γ arrow branchLeft → pathMid 0 maps W'(branchLeft) ⊆ W'(pathMid 0).
+    -- Since W'(branchLeft) = ⊤, W'(pathMid 0) contains every image of γ.
+    -- But we actually need equality.  Cleaner: use compl directly on pathMid.
+    -- Show W'(pathMid i) = ⊤ by showing its complement W(pathMid i) ≤ ⊥ via
+    -- the γ arrow: any v ∈ W(pathMid i) can be "pulled back" through γ identities.
+    --
+    -- Simpler approach: show W(pathMid i) = ⊥ by showing any w ∈ W(pathMid i)
+    -- lies in W'(pathMid i) too.  But that requires showing W'(pathMid i) = ⊤.
+    -- Show W'(pathMid 0) = ⊤ by γ: every w ∈ ⊤ can be written as γ(v) + (w - γ(v)) for
+    -- some v; this doesn't directly work.  Instead: the γ arrow sends W'(branchLeft) ⊆ W'(pathMid 0).
+    -- But γ's image is not all of Fin (2(m+1)) → ℂ.
+    --
+    -- Different strategy: propagate W(pathMid i) via identity chain back to pathMid 0,
+    -- then further back by showing W(pathMid 0) = ⊥ via γ-preimage argument.
+    --
+    -- Since γ ∈ End (Fin (2(m+1)) → ℂ) is bijective (it has determinant ±1 / is
+    -- invertible; not proved here), we can't quite use it as a bijection.  But we
+    -- don't need that strong statement: we just need `W(pathMid 0) ⊆ W(branchRight)`
+    -- (the forward identity-chain), and similarly `W(pathMid i) ⊆ W(pathMid 0)`
+    -- by backward identities... but arrows only go forward.
+    --
+    -- Instead: use complementarity and W'(pathMid i) = ⊤.  Show W'(pathMid i) = ⊤
+    -- by forward induction from W'(branchLeft) = ⊤ through the γ arrow — but W'
+    -- only contains γ's range, not the full space.
+    --
+    -- Key realization: we can use W'(branchRight) = ⊤ and backwards-propagate.
+    -- But DTildeQuiver' is one-directional from branchLeft to branchRight.
+    -- However, we also have W'(rightLeaf1) = ⊤, W'(rightLeaf2) = ⊤, and the arrows
+    -- rightLeaf → branchRight give W'(branchRight) ⊇ starEmbed1(⊤) + starEmbed2(⊤) = ⊤.
+    -- That's already done above.
+    --
+    -- For pathMid, I'll use the "backward" argument: W(pathMid i) = ⊥ because its
+    -- elements chain forward along identities to W(branchRight), and W(branchRight) = ⊥
+    -- (which we prove first).  Actually that's exactly the argument.
+    have hW_branchLeft_bot : W .branchLeft = ⊥ := compl_bot_of_top _ hW'_branchLeft_top
+    have hW_branchRight_bot : W .branchRight = ⊥ := compl_bot_of_top _ hW'_branchRight_top
+    -- For pathMid i, chain backward: W(pathMid i) sits above W(branchLeft) via γ and
+    -- above W(branchRight) below.  We use the forward chain to show
+    -- `w ∈ W(pathMid i) → w ∈ W(branchRight)` by taking the identity maps forward
+    -- from pathMid i to branchRight.  Then `W(branchRight) = ⊥` gives `w = 0`.
+    have hW_pathMid_bot : ∀ (i : Fin k), W (.pathMid i) = ⊥ := by
+      intro ⟨i, hi⟩
+      rw [eq_bot_iff]; intro w hw
+      -- Forward-propagate along identity chain pathMid i → pathMid (i+1) → ... → branchRight.
+      -- Let j = k - i; prove by induction on j.
+      suffices h : ∀ (j : ℕ) (i : ℕ) (hi : i < k) (hij : i + j = k) (w : Fin (2 * (m + 1)) → ℂ),
+          w ∈ W (.pathMid ⟨i, hi⟩) → w ∈ W .branchRight by
+        have hb := h (k - i) i hi (by omega) w hw
+        rw [hW_branchRight_bot] at hb; exact hb
+      intro j
+      induction j with
+      | zero =>
+        intro i hi hij _ _
+        -- i + 0 = k contradicts i < k
+        omega
+      | succ n ih =>
+        intro i hi hij w hw
+        rcases Nat.eq_or_lt_of_le (show i + 1 ≤ k from by omega) with heq | hlt
+        · -- i + 1 = k: direct arrow pathMid i → branchRight via identity
+          have e : @Quiver.Hom _ (DTildeQuiver' k) (.pathMid ⟨i, hi⟩) .branchRight :=
+            ⟨heq⟩
+          exact hW_inv e w hw
+        · -- i + 1 < k: step to pathMid (i+1) via identity, then recurse
+          have hip : i + 1 < k := hlt
+          have e : @Quiver.Hom _ (DTildeQuiver' k) (.pathMid ⟨i, hi⟩)
+              (.pathMid ⟨i + 1, hip⟩) := ⟨rfl⟩
+          have hw' : w ∈ W (.pathMid ⟨i + 1, hip⟩) := hW_inv e w hw
+          exact ih (i + 1) hip (by omega) w hw'
+    -- Case split on v.
+    cases v with
+    | leftLeaf1 => exact hbot
+    | leftLeaf2 => exact h01 ▸ hbot
+    | branchLeft => exact hW_branchLeft_bot
+    | pathMid i => exact hW_pathMid_bot i
+    | branchRight => exact hW_branchRight_bot
+    | rightLeaf1 => exact h04 ▸ hbot
+    | rightLeaf2 => exact h05 ▸ hbot
+
+-- Transport of `dTildeRep'_isIndecomposable` to `dTildeRep` (the `Fin (k+6)`-indexed
+-- version) is the final piece of Wall 2 Stage C.  The mathematical work is complete
+-- (`dTildeRep'_isIndecomposable` above); what remains is a mechanical type-level
+-- transport using `dTildeRep'_obj_eq_toFin` to relate submodules at matched
+-- vertices.  Tracked as a follow-up to #2447.
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 set_option maxHeartbeats 3200000 in
