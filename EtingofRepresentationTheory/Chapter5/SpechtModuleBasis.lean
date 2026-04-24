@@ -1083,10 +1083,14 @@ Difficulty 7/10. See sub-issue for the decomposed pigeonhole + involution. -/
 private theorem twistedPolytabloid_apply_of_not_dominates
     (σ : Equiv.Perm (Fin n)) (_hcs : isColumnStandard' n la σ)
     (w α : Equiv.Perm (Fin n))
-    (_hnotdom : ¬ tabloidDominates la σ α) :
+    (hnotdom : ¬ tabloidDominates la σ α) :
     twistedPolytabloid (la := la) w σ (toTabloid n la α) = 0 := by
   classical
-  -- Per-column pigeonhole + sign-reversing involution.
+  -- Extract a witness threshold (k, i) where α exceeds σ's cumulative count.
+  simp only [tabloidDominates, not_forall, not_le] at hnotdom
+  obtain ⟨k, i, hkia⟩ := hnotdom
+  -- hkia : tabloidCumulCount la σ k i < tabloidCumulCount la α k i
+  -- Per-column pigeonhole + sign-reversing involution on Q_λ.
   -- See sub-issue for the full combinatorial argument.
   sorry
 
