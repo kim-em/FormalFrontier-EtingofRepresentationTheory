@@ -1063,6 +1063,316 @@ private theorem garnir_pigeonhole_collapse
         rw [hsign_zero]
     _ = 0 := zero_smul _ _
 
+/-- **Column pigeonhole for cumulative-count excess**.
+For column-standard σ and any q₀ ∈ Q_λ, if
+`tabloidCumulCount la σ k i < tabloidCumulCount la (w * q₀⁻¹ * σ) k i`
+then there exist two distinct positions in the same column whose
+`w`-images lie in the same row.
+
+This is the combinatorial core of the Support Bound (sub-issue #2543 of
+parent #2535). The pair produced here is intended to be used to build a
+sign-reversing involution on `Q_λ` via `Equiv.swap a₁ a₂`, completing the
+fibre-coefficient-zero argument for
+`twistedPolytabloid_apply_of_not_dominates`.
+
+Proof strategy: by contradiction. Suppose `(colOfPos, rowOfPos ∘ w)` is
+injective on `Fin n`. Partition the cumulative-count sets by the column of
+`σ e`. For each column `c`, denote
+`K_c := |{e ≤ k : col(σ e) = c}|`.
+
+1. The contributions of `tabloidCumulCount la (w * q₀⁻¹ * σ)` in column
+   `c` are bounded by `i` (injectivity of `rowOfPos ∘ w` on the column)
+   and by `K_c` (since `q₀⁻¹` preserves columns), hence by
+   `min(K_c, i)`.
+2. For column-standard σ, the preimages `σ.symm` of column `c`'s
+   top-to-bottom position sequence form a strictly increasing sequence.
+   Hence `σ(E_c)` occupies the *top* `K_c` rows of column `c`, so the
+   column-`c` contribution of `tabloidCumulCount la σ` is exactly
+   `min(K_c, i)`.
+
+Summing over columns, the tabloid-count of `w * q₀⁻¹ * σ` is at most
+that of `σ`, contradicting the hypothesis. -/
+private theorem twistedPolytabloid_pigeonhole_pair
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (w q₀ : Equiv.Perm (Fin n)) (hq₀_col : q₀ ∈ ColumnSubgroup n la)
+    (k : Fin n) (i : ℕ)
+    (hcount : tabloidCumulCount la σ k i <
+      tabloidCumulCount la (w * q₀⁻¹ * σ) k i) :
+    ∃ a₁ a₂ : Fin n, a₁ ≠ a₂ ∧
+      colOfPos la.sortedParts a₁.val = colOfPos la.sortedParts a₂.val ∧
+      rowOfPos la.sortedParts (w a₁).val = rowOfPos la.sortedParts (w a₂).val := by
+  classical
+  set parts := la.sortedParts with hparts_def
+  have hpsum : parts.sum = n := sortedParts_sum_eq n la
+  -- Prove by contradiction.
+  by_contra hne
+  push_neg at hne
+  -- `hne` says: for all distinct `a₁, a₂` in the same column, their w-images
+  -- are in different rows. Equivalently, `(col, row ∘ w)` is injective on `Fin n`.
+  have h_inj_col : ∀ a₁ a₂ : Fin n,
+      colOfPos parts a₁.val = colOfPos parts a₂.val →
+      rowOfPos parts (w a₁).val = rowOfPos parts (w a₂).val → a₁ = a₂ := by
+    intro a₁ a₂ hcol hrow
+    by_contra hab
+    exact hne a₁ a₂ hab hcol hrow
+  -- Unfold `tabloidCumulCount` into filters on `Finset.univ`.
+  -- A = preimage set for σ; B = preimage set for (w * q₀⁻¹ * σ).
+  set A : Finset (Fin n) := Finset.univ.filter
+      (fun e : Fin n => e ≤ k ∧ rowOfPos parts (σ e).val < i) with hA_def
+  set B : Finset (Fin n) := Finset.univ.filter
+      (fun e : Fin n => e ≤ k ∧ rowOfPos parts ((w * q₀⁻¹ * σ) e).val < i) with hB_def
+  have hcA : A.card = tabloidCumulCount la σ k i := rfl
+  have hcB : B.card = tabloidCumulCount la (w * q₀⁻¹ * σ) k i := rfl
+  -- Derive `B.card ≤ A.card` via column-wise decomposition.
+  have hBA : B.card ≤ A.card := by
+    -- Fiber function: column index of σ e.
+    set colσ : Fin n → ℕ := fun e => colOfPos parts (σ e).val with hcolσ_def
+    -- Both A and B are subsets of `univ`, so we take the image of `univ`.
+    have hA_sum :
+        A.card = ∑ c ∈ (Finset.univ : Finset (Fin n)).image colσ,
+          (A.filter (fun e => colσ e = c)).card := by
+      have hmaps : ((A : Set (Fin n))).MapsTo colσ
+          ↑((Finset.univ : Finset (Fin n)).image colσ) := by
+        intro e _
+        exact Finset.mem_image.mpr ⟨e, Finset.mem_univ _, rfl⟩
+      exact Finset.card_eq_sum_card_fiberwise hmaps
+    have hB_sum :
+        B.card = ∑ c ∈ (Finset.univ : Finset (Fin n)).image colσ,
+          (B.filter (fun e => colσ e = c)).card := by
+      have hmaps : ((B : Set (Fin n))).MapsTo colσ
+          ↑((Finset.univ : Finset (Fin n)).image colσ) := by
+        intro e _
+        exact Finset.mem_image.mpr ⟨e, Finset.mem_univ _, rfl⟩
+      exact Finset.card_eq_sum_card_fiberwise hmaps
+    rw [hA_sum, hB_sum]
+    refine Finset.sum_le_sum (fun c _ => ?_)
+    -- Now show per-column inequality: |B_c| ≤ |A_c|.
+    set A_c : Finset (Fin n) := A.filter (fun e => colσ e = c) with hAc_def
+    set B_c : Finset (Fin n) := B.filter (fun e => colσ e = c) with hBc_def
+    change B_c.card ≤ A_c.card
+    -- Let `E_c` be the "column-c slice" of `{e ≤ k}`.
+    set E_c : Finset (Fin n) := Finset.univ.filter
+      (fun e : Fin n => e ≤ k ∧ colσ e = c) with hEc_def
+    have hA_sub_E : A_c ⊆ E_c := by
+      intro e he
+      simp only [hAc_def, hA_def, Finset.mem_filter, Finset.mem_univ, true_and,
+        hEc_def] at he ⊢
+      exact ⟨he.1.1, he.2⟩
+    have hB_sub_E : B_c ⊆ E_c := by
+      intro e he
+      simp only [hBc_def, hB_def, Finset.mem_filter, Finset.mem_univ, true_and,
+        hEc_def] at he ⊢
+      exact ⟨he.1.1, he.2⟩
+    -- Step 1: bound |B_c| ≤ i via injectivity of `row ∘ w ∘ q₀⁻¹ ∘ σ`.
+    -- The map `e ↦ row (w (q₀⁻¹ (σ e)))` is injective on B_c because:
+    --   for e ∈ B_c, `a := q₀⁻¹ (σ e)` has column = c (q₀ preserves columns),
+    --   and `h_inj_col` says `(col, row ∘ w)` is injective, so distinct a's
+    --   give distinct row(w a)'s.
+    have h_Bc_inj : Set.InjOn (fun e : Fin n => rowOfPos parts ((w * q₀⁻¹ * σ) e).val)
+        ↑B_c := by
+      intro e₁ he₁ e₂ he₂ hrow
+      simp only [Finset.mem_coe, hBc_def, hB_def, Finset.mem_filter, Finset.mem_univ,
+        true_and] at he₁ he₂
+      -- Unfold the triple-product application: (w * q₀⁻¹ * σ) e = w (q₀⁻¹ (σ e))
+      simp only [Equiv.Perm.coe_mul, Function.comp_apply] at hrow
+      -- a_j := q₀⁻¹ (σ e_j) share column `c`.
+      set a₁ := q₀⁻¹ (σ e₁)
+      set a₂ := q₀⁻¹ (σ e₂)
+      have hq_inv : q₀⁻¹ ∈ ColumnSubgroup n la := (ColumnSubgroup n la).inv_mem hq₀_col
+      have hcol₁ : colOfPos parts a₁.val = c := by
+        have hq := hq_inv (σ e₁)
+        -- hq : col (q₀⁻¹ (σ e₁)) = col (σ e₁)
+        change colOfPos parts a₁.val = c
+        rw [hq]; exact he₁.2
+      have hcol₂ : colOfPos parts a₂.val = c := by
+        have hq := hq_inv (σ e₂)
+        change colOfPos parts a₂.val = c
+        rw [hq]; exact he₂.2
+      have ha_eq : a₁ = a₂ := h_inj_col a₁ a₂ (hcol₁.trans hcol₂.symm) hrow
+      -- a₁ = a₂ ⇒ σ e₁ = σ e₂ ⇒ e₁ = e₂.
+      have : σ e₁ = σ e₂ := by
+        have : q₀⁻¹ (σ e₁) = q₀⁻¹ (σ e₂) := ha_eq
+        exact q₀⁻¹.injective this
+      exact σ.injective this
+    have h_Bc_image : B_c.image (fun e => rowOfPos parts ((w * q₀⁻¹ * σ) e).val)
+        ⊆ Finset.range i := by
+      intro r hr
+      rw [Finset.mem_image] at hr
+      obtain ⟨e, he, hr_eq⟩ := hr
+      simp only [hBc_def, hB_def, Finset.mem_filter, Finset.mem_univ, true_and] at he
+      rw [Finset.mem_range, ← hr_eq]
+      exact he.1.2
+    have h_Bc_le_i : B_c.card ≤ i := by
+      calc B_c.card
+          = (B_c.image (fun e => rowOfPos parts ((w * q₀⁻¹ * σ) e).val)).card := by
+            exact (Finset.card_image_of_injOn h_Bc_inj).symm
+        _ ≤ (Finset.range i).card := Finset.card_le_card h_Bc_image
+        _ = i := Finset.card_range i
+    -- Step 2: |B_c| ≤ |E_c| (since B_c ⊆ E_c).
+    have h_Bc_le_Ec : B_c.card ≤ E_c.card := Finset.card_le_card hB_sub_E
+    -- Step 3: |A_c| = min(|E_c|, i) via col-std "top rows" characterization.
+    -- The key is: for σ column-standard, `E_c.image (row ∘ σ) = Finset.range E_c.card`,
+    -- i.e., σ maps E_c bijectively onto the top `E_c.card` rows of column c.
+    have h_Ac_ge : A_c.card ≥ min E_c.card i := by
+      -- The map `rowFn e := rowOfPos parts (σ e).val`.
+      set rowFn : Fin n → ℕ := fun e => rowOfPos parts (σ e).val with hrowFn_def
+      -- Positions in Fin n are bounded by parts.sum = n.
+      have hval_lt : ∀ p : Fin n, p.val < parts.sum := fun p => by rw [hpsum]; exact p.isLt
+      -- Partition sortedness (parts are non-increasing).
+      have h_sorted : parts.Pairwise (· ≥ ·) := la.parts.pairwise_sort (· ≥ ·)
+      -- (*) For `e ∈ E_c`, `σ e` is a valid cell in column `c`.
+      have h_cell_in_Ec : ∀ e ∈ E_c,
+          rowFn e < parts.length ∧ c < parts.getD (rowFn e) 0 := by
+        intro e he
+        simp only [hEc_def, Finset.mem_filter, Finset.mem_univ, true_and] at he
+        refine ⟨?_, ?_⟩
+        · exact rowOfPos_lt_length parts (σ e).val (hval_lt _)
+        · have hcol_eq : colOfPos parts (σ e).val = c := he.2
+          have := colOfPos_lt_getD parts (σ e).val (hval_lt _)
+          rw [hcol_eq] at this; exact this
+      -- **Injectivity of rowFn on E_c**: distinct e's give distinct rows because
+      -- their σ-images share column c (hence `rowOfPos_colOfPos_injective` forces
+      -- distinct rows ⇒ distinct positions ⇒ distinct e's).
+      have h_rowFn_inj_on_Ec : Set.InjOn rowFn ↑E_c := by
+        intro e₁ he₁ e₂ he₂ hrows
+        simp only [Finset.mem_coe, hEc_def, Finset.mem_filter, Finset.mem_univ,
+          true_and] at he₁ he₂
+        -- he₁.2 : colσ e₁ = c, he₂.2 : colσ e₂ = c (displayed unfolded)
+        have h1 : colOfPos parts (σ e₁).val = c := he₁.2
+        have h2 : colOfPos parts (σ e₂).val = c := he₂.2
+        have hcol_eq : colOfPos parts (σ e₁).val = colOfPos parts (σ e₂).val := by
+          rw [h1, h2]
+        have hpos_eq : (σ e₁).val = (σ e₂).val :=
+          rowOfPos_colOfPos_injective parts _ _ (hval_lt _) (hval_lt _) hrows hcol_eq
+        exact σ.injective (Fin.ext hpos_eq)
+      -- **Downward closure** of E_c.image rowFn (via col-std):
+      -- for `r ∈ image` and `r' < r`, `r' ∈ image`.
+      have h_downward : ∀ e ∈ E_c, ∀ r', r' ≤ rowFn e →
+          ∃ e' ∈ E_c, rowFn e' = r' := by
+        intro e he r' hr'
+        have h_cell_e := h_cell_in_Ec e he
+        have h_r'_lt_len : r' < parts.length := lt_of_le_of_lt hr' h_cell_e.1
+        -- Apply col_exists_earlier_row for sortedness.
+        have h_getD_ge : parts.getD r' 0 ≥ parts.getD (rowFn e) 0 := by
+          rcases eq_or_lt_of_le hr' with heq | hlt
+          · rw [heq]
+          · -- Use pairwise_iff_getElem on sorted parts.
+            have := List.pairwise_iff_getElem.mp h_sorted r' (rowFn e) h_r'_lt_len
+              h_cell_e.1 hlt
+            -- `this : parts[r'] ≥ parts[rowFn e]`
+            rw [List.getD_eq_getElem _ _ h_r'_lt_len,
+                List.getD_eq_getElem _ _ h_cell_e.1]
+            exact this
+        have h_c_lt : c < parts.getD r' 0 := lt_of_lt_of_le h_cell_e.2 h_getD_ge
+        -- Position P' at (r', c).
+        obtain ⟨p', hp'_lt, hrow_p', hcol_p'⟩ :=
+          exists_pos_of_cell parts r' c h_c_lt
+        have hp'_bound : p' < n := by rw [← hpsum]; exact hp'_lt
+        let P' : Fin n := ⟨p', hp'_bound⟩
+        have hrow_P' : rowOfPos parts P'.val = r' := hrow_p'
+        have hcol_P' : colOfPos parts P'.val = c := hcol_p'
+        -- Unfold `he` once.
+        simp only [hEc_def, Finset.mem_filter, Finset.mem_univ, true_and] at he
+        have he_le : e ≤ k := he.1
+        have he_col : colOfPos parts (σ e).val = c := he.2
+        -- Let e' := σ.symm P'. Show e' ∈ E_c and rowFn e' = r'.
+        refine ⟨σ.symm P', ?_, ?_⟩
+        · simp only [hEc_def, Finset.mem_filter, Finset.mem_univ, true_and]
+          refine ⟨?_, ?_⟩
+          · rcases eq_or_lt_of_le hr' with heq | hlt
+            · -- r' = rowFn e ⇒ by injectivity of (row, col) on column c, P' = σ e,
+              -- so σ.symm P' = e ≤ k.
+              have hrow_eq : rowOfPos parts P'.val = rowOfPos parts (σ e).val := by
+                rw [hrow_P']; exact heq
+              have hcol_eq : colOfPos parts P'.val = colOfPos parts (σ e).val := by
+                rw [hcol_P']; exact he_col.symm
+              have hposeq : P'.val = (σ e).val :=
+                rowOfPos_colOfPos_injective parts _ _ (hval_lt _) (hval_lt _)
+                  hrow_eq hcol_eq
+              have hP'_eq_σe : P' = σ e := Fin.ext hposeq
+              have hsymm_eq : σ.symm P' = e := by
+                rw [hP'_eq_σe]; exact Equiv.symm_apply_apply σ e
+              rw [hsymm_eq]
+              exact he_le
+            · -- r' < rowFn e ⇒ by col-std, σ.symm P' < σ.symm (σ e) = e ≤ k.
+              have hlt_sym : σ.symm P' < σ.symm (σ e) := by
+                apply hcs P' (σ e)
+                · -- col(P') = col(σ e)
+                  rw [hcol_P']; exact he_col.symm
+                · -- row(P') < row(σ e)
+                  rw [hrow_P']; exact hlt
+              rw [Equiv.symm_apply_apply] at hlt_sym
+              exact le_of_lt (lt_of_lt_of_le hlt_sym he_le)
+          · -- (b) colOfPos parts (σ (σ.symm P')).val = c
+            change colOfPos parts (σ (σ.symm P')).val = c
+            rw [Equiv.apply_symm_apply]; exact hcol_P'
+        · -- rowFn (σ.symm P') = r'
+          change rowOfPos parts (σ (σ.symm P')).val = r'
+          rw [Equiv.apply_symm_apply]; exact hrow_P'
+      -- Cardinality of E_c.image rowFn: by injectivity, |image| = E_c.card.
+      have h_image_card : (E_c.image rowFn).card = E_c.card :=
+        Finset.card_image_of_injOn h_rowFn_inj_on_Ec
+      -- Every element of E_c.image rowFn is < E_c.card (via downward closure).
+      have h_image_lt : ∀ r ∈ E_c.image rowFn, r < E_c.card := by
+        intro r hr
+        rw [Finset.mem_image] at hr
+        obtain ⟨e, he, he_eq⟩ := hr
+        subst he_eq
+        -- Suppose rowFn e ≥ E_c.card. Then all r' ≤ rowFn e yield distinct
+        -- elements of image, giving image.card ≥ rowFn e + 1 > E_c.card.
+        by_contra hle
+        push_neg at hle
+        -- hle : rowFn e ≥ E_c.card, i.e., E_c.card ≤ rowFn e
+        -- Build an injection Finset.range (rowFn e + 1) → image.
+        -- Using h_downward: every r' ≤ rowFn e is in image.
+        have h_range_sub : Finset.range (rowFn e + 1) ⊆ E_c.image rowFn := by
+          intro r' hr'
+          rw [Finset.mem_range] at hr'
+          obtain ⟨e', he'_mem, he'_eq⟩ := h_downward e he r' (by omega)
+          exact Finset.mem_image.mpr ⟨e', he'_mem, he'_eq⟩
+        have h_range_card := Finset.card_le_card h_range_sub
+        rw [Finset.card_range, h_image_card] at h_range_card
+        omega
+      have h_image_eq : E_c.image rowFn = Finset.range E_c.card := by
+        apply Finset.eq_of_subset_of_card_le
+        · intro r hr
+          rw [Finset.mem_range]
+          exact h_image_lt r hr
+        · rw [Finset.card_range, h_image_card]
+      -- Compute A_c = E_c.filter (rowFn < i) and its image under rowFn.
+      have h_Ac_eq : A_c = E_c.filter (fun e => rowFn e < i) := by
+        ext e
+        simp only [hAc_def, hA_def, hEc_def, Finset.mem_filter, Finset.mem_univ,
+          true_and, hrowFn_def]
+        constructor
+        · rintro ⟨⟨hle, hrow⟩, hcol⟩; exact ⟨⟨hle, hcol⟩, hrow⟩
+        · rintro ⟨⟨hle, hcol⟩, hrow⟩; exact ⟨⟨hle, hrow⟩, hcol⟩
+      have h_Ac_image_card : A_c.card = (A_c.image rowFn).card :=
+        (Finset.card_image_of_injOn
+          (Set.InjOn.mono (by
+            rw [h_Ac_eq]
+            intro e he; simp only [Finset.coe_filter] at he
+            exact he.1)
+            h_rowFn_inj_on_Ec)).symm
+      have h_Ac_image_eq : A_c.image rowFn = Finset.range (min E_c.card i) := by
+        rw [h_Ac_eq]
+        ext r
+        simp only [Finset.mem_image, Finset.mem_filter, Finset.mem_range,
+          lt_min_iff]
+        constructor
+        · rintro ⟨e, ⟨he_mem, he_lt⟩, he_eq⟩
+          subst he_eq
+          exact ⟨h_image_lt _ (Finset.mem_image.mpr ⟨e, he_mem, rfl⟩), he_lt⟩
+        · rintro ⟨hrK, hri⟩
+          -- r < E_c.card, so r ∈ E_c.image rowFn; extract the witness.
+          have : r ∈ E_c.image rowFn := by rw [h_image_eq]; exact Finset.mem_range.mpr hrK
+          rw [Finset.mem_image] at this
+          obtain ⟨e, he_mem, he_eq⟩ := this
+          exact ⟨e, ⟨he_mem, he_eq ▸ hri⟩, he_eq⟩
+      rw [h_Ac_image_card, h_Ac_image_eq, Finset.card_range]
+    omega
+  omega
+
 /-- **Fibre coefficient vanishes for non-dominators** (helper for support bound).
 For column-standard σ, if α does not dominate σ in the tabloid order, then the
 coefficient of `δ_{[α]}` in `twistedPolytabloid w σ` is zero.
