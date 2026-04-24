@@ -1063,6 +1063,70 @@ private theorem garnir_pigeonhole_collapse
         rw [hsign_zero]
     _ = 0 := zero_smul _ _
 
+/-- **Fibre coefficient vanishes for non-dominators** (helper for support bound).
+For column-standard σ, if α does not dominate σ in the tabloid order, then the
+coefficient of `δ_{[α]}` in `twistedPolytabloid w σ` is zero.
+
+This is the combinatorial core of the Support Bound. Proof strategy (avenue 1
+of meditate note `bd928e67`): pick the lex-smallest witness `(k, i)` with
+`cumulCount(α, k, i) > cumulCount(σ, k, i)`. Decomposing the count by columns
+of the diagram, some column `C*` has an excess: its σ-entries ≤ k are routed
+by `w ∘ q⁻¹` into too many top-i-row positions. Concretely `K_{C*} > i` and the
+α-induced image of σ's column-C* entries ≤ k lands in more than `i` of the
+`i` top rows, so two of them collide in some row `r < i`. The transposition
+of their preimages in `C*` is an element of `ColumnSubgroup`, its action on q
+by right multiplication preserves the tabloid class `[α]` (since the two
+collided entries swap column-C* preimages but land on same-row positions
+under w), and it reverses sign — a sign-reversing involution.
+
+Difficulty 7/10. See sub-issue for the decomposed pigeonhole + involution. -/
+private theorem twistedPolytabloid_apply_of_not_dominates
+    (σ : Equiv.Perm (Fin n)) (_hcs : isColumnStandard' n la σ)
+    (w α : Equiv.Perm (Fin n))
+    (hnotdom : ¬ tabloidDominates la σ α) :
+    twistedPolytabloid (la := la) w σ (toTabloid n la α) = 0 := by
+  classical
+  -- Extract a witness threshold (k, i) where α exceeds σ's cumulative count.
+  simp only [tabloidDominates, not_forall, not_le] at hnotdom
+  obtain ⟨k, i, hkia⟩ := hnotdom
+  -- hkia : tabloidCumulCount la σ k i < tabloidCumulCount la α k i
+  -- Per-column pigeonhole + sign-reversing involution on Q_λ.
+  -- See sub-issue for the full combinatorial argument.
+  sorry
+
+/-- **Support Bound for twistedPolytabloid** (Wall 3 C.1.a).
+For any column-standard σ and any w ∈ S_n, every tabloid [α] appearing with
+nonzero net coefficient in the tabloid-basis expansion of
+`twistedPolytabloid w σ = Σ_{q ∈ Q_λ} sign(q) · δ_{[w q⁻¹ σ]}`
+is weakly dominated by [σ] in the tabloid-dominance order.
+
+This is the combinatorial heart of the Garnir straightening argument. Unlike
+the analogous statement for ordinary polytabloids (`polytabloidTab_coeff_dominance`,
+which uses per-term dominance via `column_perm_dominance`), here the bound
+relies on cross-q sign-cancellation: individual terms [w q⁻¹ σ] may strictly
+dominate [σ], but such terms always cancel in pairs within the signed sum
+over Q_λ.
+
+Illustrative cancellation: λ=(3,2), σ=[1,0,4,2,3], w=σ⁻¹. Then
+`w q⁻¹ σ = id` for q ∈ {1, (1,4)} with signs +1 and -1, and equals
+[{0,2,4}|{1,3}]-tabloid for q ∈ {(0,3), (0,3)(1,4)} with signs -1 and +1
+respectively. Each "violating" tabloid gets a zero net coefficient.
+
+See `progress/20260424T064759Z_bd928e67.md` for the full meditation note and
+the counter-example-validated proof strategy (avenue 1: direct combinatorial
+cross-q cancellation via a per-column pigeonhole involution).
+
+Proof: reduce to `twistedPolytabloid_fibre_sign_sum_zero` by the contrapositive
+and the Finsupp unfolding of the coefficient `twistedPolytabloid w σ` at the
+tabloid `[α]`. -/
+private theorem twistedPolytabloid_support_bound
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (w : Equiv.Perm (Fin n)) (α : Equiv.Perm (Fin n))
+    (hα_supp : twistedPolytabloid (la := la) w σ (toTabloid n la α) ≠ 0) :
+    tabloidDominates la σ α := by
+  by_contra hnotdom
+  exact hα_supp (twistedPolytabloid_apply_of_not_dominates σ hcs w α hnotdom)
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"
