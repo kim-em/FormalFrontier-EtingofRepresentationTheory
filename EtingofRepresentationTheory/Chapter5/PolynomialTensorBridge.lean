@@ -82,6 +82,17 @@ This depends only on the multiset of `f` (see `symTensor_comp_perm`). -/
 noncomputable def symTensor (f : Fin n → Fin N × Fin N) : PolyTensorTgt k N n :=
   (n.factorial : k)⁻¹ • ∑ σ : Equiv.Perm (Fin n), seqTensor k N n (f ∘ σ)
 
+/-- The symmetrized tensor depends only on the multiset of `f`:
+precomposing with a permutation `τ` leaves it invariant. -/
+lemma symTensor_comp_perm (f : Fin n → Fin N × Fin N) (τ : Equiv.Perm (Fin n)) :
+    symTensor k N n (f ∘ τ) = symTensor k N n f := by
+  unfold symTensor
+  congr 1
+  refine Fintype.sum_equiv (Equiv.mulLeft τ) _ _ ?_
+  intro σ
+  simp only [Equiv.coe_mulLeft]
+  rfl
+
 /-- Canonical sequence of index-pairs realizing a multiset `s`, provided
 `s.sum id = n`. Uses `Multiset.toList` (noncomputable). -/
 noncomputable def canonicalSeq (s : (Fin N × Fin N) →₀ ℕ)
@@ -107,6 +118,102 @@ noncomputable def homogeneousPolyToTensor :
     MvPolynomial.homogeneousSubmodule (Fin N × Fin N) k n →ₗ[k] PolyTensorTgt k N n :=
   (polyToTensor k N n).comp
     (MvPolynomial.homogeneousSubmodule (Fin N × Fin N) k n).subtype
+
+/-! ## Left inverse and injectivity -/
+
+/-- Tensor-product basis of `V^⊗n ⊗ (V^*)^⊗n` indexed by pairs of functions
+`(i, j) : (Fin n → Fin N) × (Fin n → Fin N)`, where `(i, j)` corresponds to
+`(⨂_k e_{i k}) ⊗ (⨂_k e_{j k}*)`. -/
+noncomputable def tensorBasis :
+    Module.Basis ((Fin n → Fin N) × (Fin n → Fin N)) k (PolyTensorTgt k N n) :=
+  (Basis.piTensorProduct (fun _ : Fin n => stdBasis k N)).tensorProduct
+    (Basis.piTensorProduct (fun _ : Fin n => stdDualBasis k N))
+
+/-- Left inverse to `polyToTensor`: sends a tensor basis element
+`(⨂_k e_{i k}) ⊗ (⨂_k e_{j k}*)` to the monomial `∏_l X_{j l, i l}`. -/
+noncomputable def tensorToPoly :
+    PolyTensorTgt k N n →ₗ[k] MvPolynomial (Fin N × Fin N) k :=
+  (tensorBasis k N n).constr k fun ij =>
+    ∏ l : Fin n, MvPolynomial.X (R := k) (ij.2 l, ij.1 l)
+
+@[simp]
+lemma tensorBasis_apply (ij : (Fin n → Fin N) × (Fin n → Fin N)) :
+    tensorBasis k N n ij =
+      (PiTensorProduct.tprod k (fun l => stdBasis k N (ij.1 l))) ⊗ₜ[k]
+        (PiTensorProduct.tprod k (fun l => stdDualBasis k N (ij.2 l))) := by
+  simp [tensorBasis, Module.Basis.tensorProduct_apply']
+
+/-- `seqTensor f` equals the tensor basis element at `(Prod.snd ∘ f, Prod.fst ∘ f)`. -/
+lemma seqTensor_eq_tensorBasis (f : Fin n → Fin N × Fin N) :
+    seqTensor k N n f = tensorBasis k N n (fun l => (f l).2, fun l => (f l).1) := by
+  simp [seqTensor, tensorBasis_apply]
+
+/-- Applying `tensorToPoly` to a `seqTensor f` gives the product `∏_l X_{f(l)}`. -/
+lemma tensorToPoly_seqTensor (f : Fin n → Fin N × Fin N) :
+    tensorToPoly k N n (seqTensor k N n f) = ∏ l : Fin n, MvPolynomial.X (R := k) (f l) := by
+  rw [show seqTensor k N n f =
+        tensorBasis k N n (fun l => (f l).2, fun l => (f l).1) from
+      by simp [seqTensor, tensorBasis_apply]]
+  unfold tensorToPoly
+  rw [Module.Basis.constr_basis]
+
+variable [CharZero k]
+
+/-- Applying `tensorToPoly` to `symTensor f` gives the product `∏_l X_{f(l)}`.
+The symmetrization is absorbed by reindexing within the commutative product. -/
+lemma tensorToPoly_symTensor (f : Fin n → Fin N × Fin N) :
+    tensorToPoly k N n (symTensor k N n f) = ∏ l : Fin n, MvPolynomial.X (R := k) (f l) := by
+  unfold symTensor
+  rw [LinearMap.map_smul, map_sum]
+  have hterm : ∀ σ : Equiv.Perm (Fin n),
+      tensorToPoly k N n (seqTensor k N n (f ∘ σ)) =
+        ∏ l : Fin n, MvPolynomial.X (R := k) (f l) := by
+    intro σ
+    rw [tensorToPoly_seqTensor]
+    -- ∏ l, X ((f ∘ σ) l) = ∏ l, X (f l) by reindexing σ
+    exact Fintype.prod_equiv σ _ _ (fun _ => rfl)
+  simp_rw [hterm]
+  rw [Finset.sum_const, Finset.card_univ, Fintype.card_perm, Fintype.card_fin,
+    ← Nat.cast_smul_eq_nsmul k, smul_smul,
+    inv_mul_cancel₀ (Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)), one_smul]
+
+/-- The product `∏_l X (canonicalSeq l)` equals the monomial `monomial s 1`.
+This uses that `canonicalSeq` traces through `(Finsupp.toMultiset s).toList`,
+whose image multiset equals `Finsupp.toMultiset s` — so the product is
+`∏ p, X p ^ s p = monomial s 1` by `prod_X_pow_eq_monomial`. -/
+lemma prod_X_canonicalSeq (s : (Fin N × Fin N) →₀ ℕ) (hs : s.sum (fun _ => id) = n) :
+    (∏ l : Fin n, MvPolynomial.X (R := k) (canonicalSeq N n s hs l)) =
+      MvPolynomial.monomial s (1 : k) := by
+  classical
+  -- Convert the `Fin n`-indexed product to a `Multiset`-indexed product.
+  -- Step 1: rewrite via `List.prod_ofFn` to a list product.
+  rw [← List.prod_ofFn (f := fun l : Fin n => MvPolynomial.X (R := k)
+        (canonicalSeq N n s hs l))]
+  -- Step 2: `List.ofFn (canonicalSeq s)` is, up to a Fin.cast, exactly
+  -- `(Finsupp.toMultiset s).toList`. We rewrite using a multiset identity.
+  have hcard : Multiset.card (Finsupp.toMultiset s) = n := by
+    rw [Finsupp.card_toMultiset]; exact hs
+  -- The key: List.ofFn reconstructs the underlying list, so
+  -- `(List.ofFn fun l => X (canonicalSeq s hs l)).prod` equals
+  -- `((toMultiset s).toList.map X).prod`
+  have hmap : (List.ofFn fun l : Fin n =>
+      MvPolynomial.X (R := k) (canonicalSeq N n s hs l)) =
+    (Finsupp.toMultiset s).toList.map (MvPolynomial.X (R := k)) := by
+    apply List.ext_getElem
+    · simp [Multiset.length_toList, hcard]
+    · intro i h1 h2
+      simp [canonicalSeq, List.getElem_ofFn, List.getElem_map]
+  rw [hmap]
+  -- Convert the list-map-prod to a multiset prod via toList/coe
+  rw [show ((Finsupp.toMultiset s).toList.map (MvPolynomial.X (R := k))).prod =
+         ((Finsupp.toMultiset s).map (MvPolynomial.X (R := k))).prod from by
+    conv_rhs => rw [← Multiset.coe_toList (Finsupp.toMultiset s)]
+    rw [Multiset.map_coe, Multiset.prod_coe]]
+  -- Move the map inside: (toMultiset s).map X = toMultiset (mapDomain X s)
+  rw [Finsupp.toMultiset_map, Finsupp.prod_toMultiset,
+    Finsupp.prod_mapDomain_index_inj MvPolynomial.X_injective]
+  -- Now goal is `s.prod (fun a n => (X a) ^ n) = monomial s 1`
+  exact MvPolynomial.prod_X_pow_eq_monomial
 
 end PolynomialTensorBridge
 
