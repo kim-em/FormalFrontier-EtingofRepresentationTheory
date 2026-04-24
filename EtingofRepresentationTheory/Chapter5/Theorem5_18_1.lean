@@ -70,6 +70,29 @@ noncomputable def endOfSimpleEquivAlgClosed
   LinearEquiv.ofBijective (Algebra.linearMap k (V →ₗ[A] V))
     (IsSimpleModule.algebraMap_end_bijective_of_isAlgClosed k)
 
+/-- Extracting a scalar from a simple-module endomorphism gives the action
+of the scalar on any vector: for an alg-closed-simple `A`-module `V` and an
+`A`-linear endomorphism `φ`, the unique scalar `c ∈ k` with `φ = c • id`
+satisfies `c • v = φ v` for every `v`. -/
+lemma endOfSimpleEquivAlgClosed_symm_smul_apply
+    (k : Type*) [Field k] [IsAlgClosed k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    [Module.Finite k V] [IsSimpleModule A V]
+    (φ : V →ₗ[A] V) (v : V) :
+    (endOfSimpleEquivAlgClosed k A V).symm φ • v = φ v := by
+  have hφ : endOfSimpleEquivAlgClosed k A V
+      ((endOfSimpleEquivAlgClosed k A V).symm φ) = φ :=
+    (endOfSimpleEquivAlgClosed k A V).apply_symm_apply φ
+  -- Unfold: `endOfSimpleEquivAlgClosed k A V c = algebraMap k _ c = c • (1 : V →ₗ[A] V)`.
+  have hφ' : (endOfSimpleEquivAlgClosed k A V).symm φ • (1 : V →ₗ[A] V) = φ := by
+    have hrw : Algebra.linearMap k (V →ₗ[A] V)
+        ((endOfSimpleEquivAlgClosed k A V).symm φ) = φ := hφ
+    rw [Algebra.linearMap_apply, Algebra.algebraMap_eq_smul_one] at hrw
+    exact hrw
+  have := LinearMap.congr_fun hφ' v
+  simpa [LinearMap.smul_apply, Module.End.one_apply] using this
+
 /-- Post-composition equivalence: an `A`-linear equivalence of the codomain
 induces a `k`-linear equivalence of hom-spaces. This works even when `A` is
 non-commutative (where `LinearEquiv.congrRight` does not apply directly). -/
@@ -145,6 +168,49 @@ noncomputable def schurEvaluationEquiv
   let e5 : (Fin n → V) ≃ₗ[k] M := e.symm.restrictScalars k
   (TensorProduct.congr (LinearEquiv.refl k V)
     (e1.trans (e2.trans e3))).trans (e4.trans e5)
+
+/-- The Schur evaluation isomorphism sends a pure tensor `v ⊗ f` to `f v`.
+
+Despite being constructed via an arbitrary choice of decomposition
+`M ≃[A] Fin n → V`, the resulting map is canonical: on pure tensors it is
+the evaluation `v ⊗ f ↦ f v`. This is the identity that makes the
+decomposition `B`-equivariant — the hom-space `V →ₗ[A] M` carries a
+natural right action by `End_A M ⊇ B`, and evaluation transports it. -/
+lemma schurEvaluationEquiv_apply_tmul
+    (k : Type*) [Field k] [IsAlgClosed k]
+    (A : Type*) [Ring A] [Algebra k A]
+    (V : Type*) [AddCommGroup V] [Module k V] [Module A V] [IsScalarTower k A V]
+    [Module.Finite k V] [IsSimpleModule A V]
+    (M : Type*) [AddCommGroup M] [Module k M] [Module A M] [IsScalarTower k A M]
+    [Module.Finite k M] [IsSemisimpleModule A M]
+    (h : IsIsotypicOfType A M V) (v : V) (f : V →ₗ[A] M) :
+    schurEvaluationEquiv k A V M h (v ⊗ₜ[k] f) = f v := by
+  haveI : Module.Finite A M := Module.Finite.of_restrictScalars_finite k A M
+  haveI : Nontrivial V := IsSimpleModule.nontrivial A V
+  -- Mirror the `let` bindings from `schurEvaluationEquiv` so we can reason
+  -- about each step of the chain.
+  set n : ℕ := h.linearEquiv_fun.choose
+  set e : M ≃ₗ[A] (Fin n → V) := h.linearEquiv_fun.choose_spec.some
+  -- The underlying map on pure tensors reduces (by definition) to
+  -- `e.symm (fun j => (endOfSimpleEquivAlgClosed k A V).symm φⱼ • v)` where
+  -- `φⱼ = (LinearMap.proj j).comp (e.toLinearMap.comp f)`.
+  have step1 : schurEvaluationEquiv k A V M h (v ⊗ₜ[k] f)
+      = e.symm (fun j =>
+          (endOfSimpleEquivAlgClosed k A V).symm
+            ((LinearMap.proj j).comp (e.toLinearMap.comp f)) • v) := by
+    rfl
+  rw [step1]
+  -- Use the helper: `(endOfSimpleEquivAlgClosed).symm φ • v = φ v`.
+  have hv : ∀ j, (endOfSimpleEquivAlgClosed k A V).symm
+      ((LinearMap.proj j).comp (e.toLinearMap.comp f)) • v = (e (f v)) j := by
+    intro j
+    rw [endOfSimpleEquivAlgClosed_symm_smul_apply]
+    rfl
+  have hfun : (fun j => (endOfSimpleEquivAlgClosed k A V).symm
+      ((LinearMap.proj j).comp (e.toLinearMap.comp f)) • v) = e (f v) := by
+    funext j; exact hv j
+  rw [hfun]
+  exact e.symm_apply_apply (f v)
 
 variable (k : Type u) [Field k]
   (E : Type v) [AddCommGroup E] [Module k E] [Module.Finite k E]
