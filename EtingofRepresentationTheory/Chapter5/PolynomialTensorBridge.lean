@@ -286,6 +286,59 @@ theorem homogeneousPolyToTensor_injective :
   rw [hp, hq] at heq
   exact heq
 
+/-! ## GL_N-equivariance
+
+The bridge `polyToTensor` intertwines the right-translation action on
+polynomials (sending `X_{ij}` to `Σ_l X_{il} · g_{l,j}`) with the
+`g ↦ g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. -/
+
+/-- Right-translation as an algebra hom on `MvPolynomial (Fin N × Fin N) k`.
+On generators: `X_{ij} ↦ Σ_l X_{il} · C(g_{l,j})`. This is the action coming
+from `(g · P)(X) = P(X · g)`. -/
+noncomputable def polyRightTransl (g : Matrix (Fin N) (Fin N) k) :
+    MvPolynomial (Fin N × Fin N) k →ₐ[k] MvPolynomial (Fin N × Fin N) k :=
+  MvPolynomial.aeval fun ij : Fin N × Fin N =>
+    ∑ l : Fin N, MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2)
+
+/-- The `g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. The matrix `g` acts on the
+first `V^⊗n` factor by tensor power; the second `(V^*)^⊗n` factor is left
+unchanged. -/
+noncomputable def tgtGLAction (g : Matrix (Fin N) (Fin N) k) :
+    PolyTensorTgt k N n →ₗ[k] PolyTensorTgt k N n :=
+  TensorProduct.map (PiTensorProduct.map fun _ : Fin n => g.toLin') LinearMap.id
+
+/-- Expansion of `g.toLin'` on a standard basis vector. -/
+lemma toLin'_stdBasis (g : Matrix (Fin N) (Fin N) k) (j : Fin N) :
+    Matrix.toLin' g (stdBasis k N j) = ∑ b : Fin N, g b j • stdBasis k N b := by
+  classical
+  ext i
+  rw [stdBasis, Pi.basisFun_apply, Matrix.toLin'_apply, Matrix.mulVec_single,
+    MulOpposite.op_one, one_smul]
+  simp only [Matrix.col_apply, Finset.sum_apply, Pi.smul_apply, Pi.basisFun_apply,
+    Pi.single_apply, smul_eq_mul, mul_ite, mul_one, mul_zero,
+    Finset.sum_ite_eq, Finset.mem_univ, if_true]
+
+/-- Expansion of `tgtGLAction g` on a `seqTensor`. -/
+lemma tgtGLAction_seqTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
+    tgtGLAction k N n g (seqTensor k N n f) =
+      ∑ b : Fin n → Fin N, (∏ l, g (b l) (f l).2) •
+        seqTensor k N n (fun l => ((f l).1, b l)) := by
+  classical
+  unfold tgtGLAction seqTensor
+  rw [TensorProduct.map_tmul, LinearMap.id_apply, PiTensorProduct.map_tprod]
+  -- LHS first factor: tprod (fun l => g.toLin' (stdBasis (f l).2))
+  simp_rw [toLin'_stdBasis]
+  -- Expand the multilinear sum via MultilinearMap.map_sum on `tprod`.
+  rw [MultilinearMap.map_sum (PiTensorProduct.tprod k)
+        (g := fun (l : Fin n) (b : Fin N) => g b (f l).2 • stdBasis k N b)]
+  -- Each summand factors a scalar product out of `tprod` via `map_smul_univ`.
+  simp_rw [MultilinearMap.map_smul_univ (PiTensorProduct.tprod k)]
+  -- Distribute the smul through the tensor product.
+  rw [TensorProduct.sum_tmul]
+  refine Finset.sum_congr rfl ?_
+  intro b _
+  rw [TensorProduct.smul_tmul']
+
 end PolynomialTensorBridge
 
 end Etingof
