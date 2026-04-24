@@ -569,3 +569,211 @@ theorem polynomialRep_embeds_in_tensorPower
 end PolynomialRepEmbedding
 
 end Etingof
+
+/-! ## Polynomial-identity-from-GL-evaluation
+
+The hypothesis `hP_mul` of `polynomialRep_embeds_in_tensorPower` is a
+*polynomial-level* identity in `MvPolynomial (Fin N × Fin N) k`. It holds at
+the evaluation level for every `g ∈ GL_N` (by `ρ.map_mul` and the
+matrix-coefficient setup). Over an infinite field — in particular when
+`[CharZero k]` — polynomial equality follows from equality on evaluations
+at every invertible matrix: the set of invertible matrices is Zariski-dense
+in `Matrix (Fin N) (Fin N) k` since the generic determinant polynomial is
+nonzero. We record that density argument here and then derive `hP_mul` from
+`ρ.map_mul`. -/
+
+namespace MvPolynomial
+
+/-- **Polynomial-identity-from-GL-evaluation.** Two polynomials in
+`MvPolynomial (Fin N × Fin N) k` over an infinite field agree as polynomials
+whenever their evaluations agree at every invertible matrix.
+
+Proof: consider `(p - q) * det(X)` where `det(X)` is the generic determinant
+polynomial. At every square matrix `s : Fin N × Fin N → k`: if `det s ≠ 0`,
+then `s` comes from a `GL_N`-element, so `eval s p = eval s q` by hypothesis;
+if `det s = 0`, then `eval s (det X) = 0`. In either case the product
+vanishes, so by `MvPolynomial.funext` the product is zero as a polynomial.
+The determinant polynomial is nonzero by `Matrix.det_mvPolynomialX_ne_zero`,
+and `MvPolynomial σ k` is an integral domain, so `p - q = 0`. -/
+lemma eq_of_eval_eq_on_gl
+    {k : Type*} [Field k] [Infinite k] {N : ℕ}
+    {p q : MvPolynomial (Fin N × Fin N) k}
+    (h : ∀ g : Matrix.GeneralLinearGroup (Fin N) k,
+           MvPolynomial.eval
+             (fun ij : Fin N × Fin N => (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2) p =
+           MvPolynomial.eval
+             (fun ij : Fin N × Fin N => (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2) q) :
+    p = q := by
+  classical
+  have hdet_ne : Matrix.det (Matrix.mvPolynomialX (Fin N) (Fin N) k) ≠ 0 :=
+    Matrix.det_mvPolynomialX_ne_zero (Fin N) k
+  have hprod :
+      (p - q) * Matrix.det (Matrix.mvPolynomialX (Fin N) (Fin N) k) = 0 := by
+    apply MvPolynomial.funext
+    intro s
+    rw [map_mul, map_sub, map_zero]
+    have hdet_eval :
+        MvPolynomial.eval s (Matrix.det (Matrix.mvPolynomialX (Fin N) (Fin N) k)) =
+          Matrix.det (Matrix.of fun i j : Fin N => s (i, j)) := by
+      rw [(MvPolynomial.eval s).map_det]
+      congr 1
+      ext i j
+      simp [Matrix.mvPolynomialX]
+    rw [hdet_eval]
+    by_cases hdet_s :
+        Matrix.det (Matrix.of fun i j : Fin N => s (i, j)) = 0
+    · rw [hdet_s, mul_zero]
+    · have hh := h (Matrix.GeneralLinearGroup.mkOfDetNeZero
+        (Matrix.of fun i j : Fin N => s (i, j)) hdet_s)
+      have hs_eq :
+          (fun ij : Fin N × Fin N =>
+              (Matrix.GeneralLinearGroup.mkOfDetNeZero
+                  (Matrix.of fun i j : Fin N => s (i, j)) hdet_s :
+                Matrix (Fin N) (Fin N) k) ij.1 ij.2) = s := by
+        funext ij
+        rfl
+      rw [hs_eq] at hh
+      rw [hh, sub_self, zero_mul]
+  have hpq_zero : p - q = 0 :=
+    (mul_eq_zero.mp hprod).resolve_right hdet_ne
+  exact sub_eq_zero.mp hpq_zero
+
+end MvPolynomial
+
+namespace Etingof.PolynomialRepEmbedding
+
+open PolynomialTensorBridge
+
+variable (k : Type u) [Field k] (N : ℕ)
+
+/-- Evaluating `polyRightTransl g p` at `h` coincides with evaluating `p` at
+the product matrix `h * g`. The algebra homs `eval_h ∘ polyRightTransl_g` and
+`eval_{h·g}` agree on generators `X_{ij}` (both give `(h*g)_{ij}`). -/
+lemma eval_polyRightTransl [CharZero k]
+    (g h : Matrix (Fin N) (Fin N) k) (p : MvPolynomial (Fin N × Fin N) k) :
+    MvPolynomial.eval (fun ij : Fin N × Fin N => h ij.1 ij.2)
+        (PolynomialTensorBridge.polyRightTransl k N g p) =
+      MvPolynomial.eval (fun ij : Fin N × Fin N => (h * g) ij.1 ij.2) p := by
+  classical
+  suffices halgs :
+      (MvPolynomial.aeval (fun ij : Fin N × Fin N => h ij.1 ij.2)).comp
+        (PolynomialTensorBridge.polyRightTransl k N g) =
+      (MvPolynomial.aeval (fun ij : Fin N × Fin N => (h * g) ij.1 ij.2) :
+        MvPolynomial (Fin N × Fin N) k →ₐ[k] k) by
+    have := AlgHom.congr_fun halgs p
+    simpa [AlgHom.comp_apply, MvPolynomial.aeval_eq_eval] using this
+  apply MvPolynomial.algHom_ext
+  intro ij
+  rw [AlgHom.comp_apply, PolynomialTensorBridge.polyRightTransl_X, map_sum,
+    MvPolynomial.aeval_X, Matrix.mul_apply]
+  refine Finset.sum_congr rfl fun l _ => ?_
+  rw [map_mul, MvPolynomial.aeval_X, MvPolynomial.aeval_C,
+    Algebra.algebraMap_self_apply]
+
+variable {M : Type*} [AddCommGroup M] [Module k M]
+
+/-- **Derivation of `hP_mul` from `hP`.** Given the matrix-coefficient
+evaluation identity `hP`, the polynomial-level multiplicativity identity
+`hP_mul` follows from `ρ.map_mul`: both sides of `hP_mul` agree under
+evaluation at every `h ∈ GL_N` (via `MvPolynomial.eq_of_eval_eq_on_gl`),
+because `h · g ∈ GL_N` and `ρ.map_mul` gives `ρ(h·g) = ρ h ∘ ρ g`. -/
+lemma hP_mul_of_hP [CharZero k] {d : ℕ}
+    (b : Module.Basis (Fin d) k M)
+    (P : Fin d → Fin d → MvPolynomial (Fin N × Fin N) k)
+    (ρ : Matrix.GeneralLinearGroup (Fin N) k →* (M →ₗ[k] M))
+    (hP : ∀ (g : Matrix.GeneralLinearGroup (Fin N) k) a c,
+           b.repr (ρ g (b c)) a =
+             MvPolynomial.eval
+               (fun ij : Fin N × Fin N =>
+                 (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+               (P a c))
+    (g : Matrix.GeneralLinearGroup (Fin N) k) (a c' : Fin d) :
+    PolynomialTensorBridge.polyRightTransl k N
+        (g : Matrix (Fin N) (Fin N) k) (P a c') =
+      ∑ c, MvPolynomial.eval
+             (fun ij : Fin N × Fin N =>
+               (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+             (P c c') • P a c := by
+  classical
+  apply MvPolynomial.eq_of_eval_eq_on_gl
+  intro h
+  rw [eval_polyRightTransl k N (g : Matrix (Fin N) (Fin N) k)
+       (h : Matrix (Fin N) (Fin N) k) (P a c'), map_sum]
+  simp only [MvPolynomial.smul_eval]
+  have hcoe : ((h * g : Matrix.GeneralLinearGroup (Fin N) k) :
+                Matrix (Fin N) (Fin N) k) =
+              (h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k) := by
+    rfl
+  have hLHS : MvPolynomial.eval
+                (fun ij : Fin N × Fin N =>
+                  ((h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k))
+                    ij.1 ij.2) (P a c') =
+              b.coord a (ρ h (ρ g (b c'))) := by
+    have hfun :
+        (fun ij : Fin N × Fin N =>
+            ((h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k)) ij.1 ij.2)
+        = (fun ij : Fin N × Fin N =>
+            ((h * g : Matrix.GeneralLinearGroup (Fin N) k) :
+                Matrix (Fin N) (Fin N) k) ij.1 ij.2) := by
+      funext ij; rw [hcoe]
+    rw [hfun]
+    have hPhg := hP (h * g) a c'
+    rw [ρ.map_mul, Module.End.mul_apply] at hPhg
+    rw [← hPhg, Module.Basis.coord_apply]
+  rw [hLHS]
+  have h_g : ∀ c : Fin d,
+      MvPolynomial.eval
+        (fun ij : Fin N × Fin N => (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+        (P c c') = b.coord c (ρ g (b c')) := by
+    intro c
+    rw [← hP g c c', Module.Basis.coord_apply]
+  have h_h : ∀ c : Fin d,
+      MvPolynomial.eval
+        (fun ij : Fin N × Fin N => (h : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+        (P a c) = b.coord a (ρ h (b c)) := by
+    intro c
+    rw [← hP h a c, Module.Basis.coord_apply]
+  simp_rw [h_g, h_h]
+  have hexpand : ρ g (b c') = ∑ c : Fin d, b.coord c (ρ g (b c')) • b c := by
+    conv_lhs => rw [← b.sum_repr (ρ g (b c'))]
+    refine Finset.sum_congr rfl fun c _ => ?_
+    rw [Module.Basis.coord_apply]
+  conv_lhs => rw [hexpand]
+  rw [map_sum, map_sum]
+  refine Finset.sum_congr rfl fun c _ => ?_
+  rw [(ρ h).map_smul, (b.coord a).map_smul, smul_eq_mul]
+
+/-- **Polynomial GL_N-rep embeds equivariantly into a tensor power (primed
+form).** The polynomial-level matrix-coefficient multiplicativity hypothesis
+`hP_mul` of `polynomialRep_embeds_in_tensorPower` is supplied internally via
+`hP_mul_of_hP` (using `ρ.map_mul` and the polynomial-identity-from-GL-
+evaluation lemma). Callers need only provide the homogeneity and
+matrix-coefficient evaluation witnesses `(hhom, hP)`.
+
+Downstream consumers (Schur-Weyl #5, issue #2482) should cite this form. -/
+theorem polynomialRep_embeds_in_tensorPower' (n : ℕ)
+    [CharZero k]
+    [Module.Finite k M]
+    (ρ : Matrix.GeneralLinearGroup (Fin N) k →* (M →ₗ[k] M))
+    (halg : IsAlgebraicRepresentation N (ρ : _ → _))
+    (hpoly' : ∃ (d : ℕ) (b : Module.Basis (Fin d) k M)
+       (P : Fin d → Fin d → MvPolynomial (Fin N × Fin N) k),
+         (∀ a c, (P a c).IsHomogeneous n) ∧
+         (∀ (g : Matrix.GeneralLinearGroup (Fin N) k) a c,
+           b.repr (ρ g (b c)) a =
+             MvPolynomial.eval
+               (fun ij : Fin N × Fin N =>
+                 (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+               (P a c))) :
+    ∃ (m : ℕ) (φ : M →ₗ[k] (Fin m → TensorPower k (StdV k N) n)),
+      Function.Injective φ ∧
+      (∀ (g : Matrix.GeneralLinearGroup (Fin N) k) (x : M) (i : Fin m),
+        φ (ρ g x) i =
+          PiTensorProduct.map
+            (fun _ : Fin n => Matrix.toLin' (g : Matrix (Fin N) (Fin N) k))
+            (φ x i)) := by
+  obtain ⟨d, b, P, hhom, hP⟩ := hpoly'
+  exact polynomialRep_embeds_in_tensorPower k N n ρ halg
+    ⟨d, b, P, hhom, hP, fun g a c' => hP_mul_of_hP k N b P ρ hP g a c'⟩
+
+end Etingof.PolynomialRepEmbedding
