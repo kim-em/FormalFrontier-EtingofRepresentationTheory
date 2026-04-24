@@ -1,158 +1,142 @@
-# Sorry Landscape Analysis — Wave 54
+# Sorry Landscape Analysis — Wave 55
 
-Generated 2026-04-23 by summarize session (issue #2434).
+Generated 2026-04-24 by summarize session (issue #2469).
 
 ## Summary
 
-**14 sorries** across 4 files (up from 13/4 in wave 53). Raw count rose
-by 1, but the substantive change is qualitative: three separate
-framework-level refutations were discovered since wave 53, and the
-remaining sorries now split cleanly into "blocked on framework
-decisions" (11) and "one genuinely provable item" (1, forward Gabriel
-bridge) and "Mathlib gaps" (2).
+**7 sorries** across 4 files (down from 14/4 in wave 54). The headline
+movement is the **Ẽ/T scaffolding collapse** (PR #2441 collapsed ten
+refuted sub-sorries into three top-level placeholder sorries) plus
+**Wall 2 (D̃_n) moving off the framework wall** into a single mechanical
+residual.
 
-281 of 285 Lean files (98.6%) are sorry-free. 582/583 items (99.8%) sorry-free.
+282 of 286 Lean files (98.6%) are sorry-free. 582/583 items (99.8%) sorry-free.
 
 **Definition-level sorries: 0.** All mathematical objects are constructed.
 
-### Design walls discovered this wave
+### Key story for wave 55
 
-Wave 54 is notable less for sorry movement than for **three separate
-framework refutations** that moved the remaining work off the
-worker-fillable path and onto the planner / human-decision path. See
-`progress/design-walls-wave54.md` for a one-page decision sheet.
+- **Wall 1 (Ẽ/T framework, Kim's decision):** unchanged mathematically.
+  10 refuted sub-sorries collapsed into 3 top-level `sorry`s (one per
+  representation) so that downstream code is no longer cluttered with
+  sub-sorry scaffolding everyone knows is unprovable as stated. The
+  framework decision (Option A vs. B vs. A+C / B+C) still gates these.
+- **Wall 2 (D̃_n indecomposability):** **resolved as a wall.** The
+  `DTildeVertex k` custom inductive (Wall 2 Option a) was implemented
+  in stages — PRs #2448 (Stage A vertex type), #2449 (Stage B
+  migration), #2460 (Stage C main math `dTildeRep'_isIndecomposable`),
+  #2475 (Stage C transport skeleton, partial). What remains is **one
+  Fin-transport lemma** (`dTildeRep_mapLinear_transport`) that is
+  Lean-mechanical, not framework-blocked. Now claimed by issue #2479.
+- **Wall 3 (Garnir straightening):** unchanged framework status. Wave
+  55 added the soundness fix #2443 (flipped dominance direction) and
+  refuted a follow-on attempt #2454 (`garnir_term_sametab_rowInv_lt`
+  counter-example). One sorry at `SpechtModuleBasis.lean:964`. Issue
+  #2450 unclaimed.
+- **`iso_of_formalCharacter_eq_schurPoly` (the Mathlib-gap sorry):**
+  no longer treated as a Mathlib gap. Wave-55 worked it as an
+  in-project formalization, scoped into a 6-issue Schur-Weyl chain
+  (`progress/schur-weyl-scoping.md` filed via PR #2442). Wave-55
+  landed sub-issues #1 (#2461) and #4 (#2462), and most of the
+  bimodule-foundation chain culminating in
+  `Theorem5_18_1_bimodule_decomposition` (PRs #2467, #2473, #2476).
 
-1. **Ẽ₆ / Ẽ₇ / T(1,2,5) `_isIndecomposable` refuted for all m ≥ 1.**
-   The single-nilpotent-twist framework in these three explicit
-   representations admits an explicit 1-dimensional decomposition off
-   the "missed `e_m` direction" of the N-image. All ten sub-sorries in
-   these theorems (lines 2380, 2397, 2400, 2425 in etilde6v2; 3001,
-   3004, 3038 in etilde7; 3477, 3480, 3502 in t125) are unprovable as
-   stated. Design doc: `progress/indecomposability-framework-investigation.md`
-   (merged in #2432).
-
-2. **`garnir_twisted_in_lower_span` + `garnir_straightening_step`
-   refuted** by concrete counter-example at λ=(2,2), σ=swap(0,1)
-   (session 9cfda69f on #2425, 2026-04-23). The outer Specht-basis
-   theorem `polytabloidTab_column_standard_in_span` is classically
-   true, but the Garnir-based induction currently used in
-   `SpechtModuleBasis.lean:911-942` loses essential ψ_τ terms at
-   lower-dominated tabloids. Progress: `progress/20260423T112112Z_9cfda69f.md`.
-
-3. **`dTildeRep_isIndecomposable` blocked on Lean-level vertex
-   indexing.** `dTildeDim k m v` does not reduce by `rfl`/`dsimp` at
-   k-dependent vertices, making the case-split style proof unworkable
-   without either a deep refactor of the vertex type (custom inductive
-   rather than `Fin (k + 6)`) or acceptance of `finCongr` cast bridges
-   through the proof (session 0fa9a788 on closed issue #2431).
-
-### Merges since wave 53 (18 PRs, 2026-04-17T14Z → 2026-04-23T11Z):
+### Merges since wave 54 (16 PRs, 2026-04-23T11:44Z → 2026-04-24T00:14Z):
 
 | PR | Date | Title | Sorry Impact |
-|----|------|-------|-------------|
-| #2398 | 04-17 | feat: prove etilde7 propagation sorry (1/4 sub-sorries) | −1 (etilde7: 4→3) |
-| #2399 | 04-17 | feat: t125Rep_isIndecomposable structural framework (5 sorries) | +4 (t125: 1→5) |
-| #2402 | 04-18 | feat: prove t125Arm1Embed and embedSkipBlockB injectivity (2/5 sorries) | −2 (t125: 5→3) |
-| #2403 | 04-18 | feat: prove backward bridge of Gabriel's theorem (1/2 sorries) | −1 (Ch2: 2→1) |
-| #2405 | 04-18 | doc: report etilde7Rep decomposability bug (blocks #2394) | Docs only |
-| #2408 | 04-18 | fix: fill zero blocks in etilde7Arm1Embed and t125Arm1Embed (#2406) | Infra |
-| #2410 | 04-18 | feat: prove walk_to_nodup_path + dTilde_nodup_path_between | −2 (path infra) |
-| #2411 | 04-18 | feat: document Ẽ₆ indecomposability proof strategy | Docs only |
-| #2412 | 04-18 | fix: add w ∉ ColumnSubgroup hypothesis to garnir_twisted_in_lower_span | Soundness fix |
-| #2414 | 04-23 | feat: set up etilde6v2Rep_isIndecomposable framework (5 sub-sorries) | +4 (etilde6v2: 1→5) |
-| #2415 | 04-23 | fix: resolve circularity in garnir_twisted_in_lower_span (#2413) | Structural fix |
-| #2421 | 04-23 | Prove garnir_straightening_step k=0 case | Sub-case closed |
-| #2422 | 04-23 | feat: prove etilde6v2 hbot3 sub-sorry via Γ surjectivity (#2420) | −1 (etilde6v2: 5→4) |
-| #2423 | 04-23 | progress: counter-example refutes etilde6v2Rep_isIndecomposable | **Refutation** |
-| #2426 | 04-23 | refactor: Garnir straightening uses tabloid-dominance induction (#2424) | Structural refactor |
-| #2429 | 04-23 | chore: progress entry — analyze Ẽ₇ hN₁/hN₂ obstruction | Docs only |
-| #2432 | 04-23 | chore: design doc — affine Dynkin indecomposability framework | **Design doc** |
-| #2433 | 04-23 | chore: progress entry — refutation of garnir_twisted_in_lower_span framework (#2425) | **Refutation** |
+|----|------|-------|--------------|
+| #2435 | 04-23 | doc: wave-54 sorry landscape + design-walls snapshot (#2434) | Docs only |
+| #2442 | 04-23 | doc: scope Schur-Weyl / FormalCharacterIso sorry (#2440) | Docs only |
+| #2443 | 04-23 | fix: flip dominance direction in Garnir straightening (Wall 3) | Soundness fix |
+| #2448 | 04-24 | feat: add DTildeVertex k inductive + dim function (Wall 2 Stage A) | Infra |
+| #2441 | 04-24 | refactor(Ch6): collapse refuted Ẽ/T sub-sorry scaffolding (#2437) | **−7** (cosmetic) |
+| #2455 | 04-24 | progress: counter-example refutes garnir_term_sametab_rowInv_lt (#2454) | Docs only |
+| #2449 | 04-24 | Migrate dTildeRep to DTildeVertex k (Wall 2 Option a, Stage B) | Infra |
+| #2460 | 04-24 | feat(Ch6): Wall 2 Stage C main math (dTildeRep'_isIndecomposable) | Wall 2 closure |
+| #2461 | 04-24 | feat(Ch5): tensor-degree homogeneity from formalCharacter = schurPoly (Schur-Weyl #1) | Schur-Weyl ✓ |
+| #2462 | 04-24 | feat(Ch5): schurPoly_linearIndependent (Schur-Weyl #4) | Schur-Weyl ✓ |
+| #2464 | 04-24 | progress: Schur-Weyl #3 blocked on bimodule foundation | Docs only |
+| #2467 | 04-24 | feat(Ch5): Theorem5_18_1 bimodule — isotypic decomp + Schur evaluation iso foundations | Infra |
+| #2470 | 04-24 | progress: planner triage cycle — close 3 replan, file Schur-Weyl #2 + wave-55 summarize | Docs only |
+| #2473 | 04-24 | feat(Ch5): bimodule helpers — centralizerToEndA, B-module on V →[A] E, range lemma | Infra |
+| #2475 | 04-24 | feat(Ch6): Wall 2 Stage C transport skeleton (#2459 partial) — 4/8 arrow cases + #2474 residual | Wall 2 progress |
+| #2476 | 04-24 | feat(Ch5): assemble Theorem5_18_1_bimodule_decomposition from committed helpers | Infra |
 
-**Net:**
-- Genuine closures: 6 (etilde7 propagation, t125 injectivity ×2,
-  Gabriel backward, path infra ×2)
-- Framework expansions: +8 (etilde6v2 +4, t125 +4 — sub-sorries made
-  visible, then partially closed)
-- Raw count change: 13 → 14 (+1)
-- Files with sorries: 4 → 4 (unchanged)
-
-**Soundness fixes in this wave:**
-- PR #2412 added `w ∉ ColumnSubgroup` hypothesis to `garnir_twisted_in_lower_span`.
-- PR #2415 resolved circular-dependency chain in Garnir straightening.
-
-**Structural refactors:**
-- PR #2426 changed `garnir_straightening_step` induction from row-inversion
-  measure to tabloid-dominance measure (setting up the framework that
-  was then refuted by #2425 analysis).
+**Net counts:**
+- Wall 1 cosmetic collapse: −7 (10 → 3 sorries; same framework wall)
+- Wall 2 main math closed: 0 (already opaque to the count; new sorry
+  `dTildeRep_mapLinear_transport` introduced as the single Stage C
+  residual, balancing the closure)
+- Schur-Weyl chain: 0 visible sorry change (chain operates entirely on
+  unblocking the lone `iso_of_formalCharacter_eq_schurPoly` sorry; new
+  theorems landed are sorry-free supporting infrastructure)
+- Raw count: 14 → 7 (−7, all from the Ẽ/T scaffolding collapse)
+- Files: 4 → 4 (unchanged)
 
 ## Chapter Breakdown
 
-| Chapter | Sorries | Files | Delta from Wave 53 |
-|---------|---------|-------|---------------------|
-| Ch2 | 1 | 1 | −1 (backward bridge closed by #2403) |
-| Ch5 | 2 | 2 | 0 (garnir refactored in place, still 1 sorry) |
-| Ch6 | 11 | 1 | +2 (net: framework expansion −6 closed +8 visible) |
-| Ch9 | 0 | 0 | 0 |
+| Chapter | Sorries | Files | Delta from Wave 54 |
+|---------|---------|-------|--------------------|
+| Ch2     | 1       | 1     | 0                  |
+| Ch5     | 2       | 2     | 0                  |
+| Ch6     | 4       | 1     | −7 (Ẽ/T collapse)  |
+| Ch9     | 0       | 0     | 0                  |
 
 ## Per-File Sorry Detail
 
-### InfiniteTypeConstructions (Ch6) — 11 sorries
+### InfiniteTypeConstructions (Ch6) — 4 sorries
 
-**Indecomposability — dTilde (1): BLOCKED (Lean-level)**
-- Line 2177 — `dTildeRep_isIndecomposable` (D̃_n arbitrary path-length)
-  Blocked on `dTildeDim` definitional reduction. Issue #2431 closed
-  with replan. Two recommended options (see design-walls-wave54):
-  custom inductive vertex type vs. `finCongr` cast bridges.
+**dTilde transport residual (1): mechanical, claimed**
+- Line 2958 — `dTildeRep_mapLinear_transport` (Wall 2 Stage C residual)
+  Map-agreement transport between the `Fin (k + 6)`-indexed
+  `dTildeRep` and the `DTildeVertex k`-indexed `dTildeRep'`. Four of
+  eight arrow cases close by `rfl`; the four remaining cases
+  (`pathMid → pathMid`, `pathMid → branchRight`, `rightLeaf1 →
+  branchRight`, `rightLeaf2 → branchRight`) need explicit pointwise
+  analysis to commute `▸`-casts on `dTildeRepMap`'s dimension equation
+  with `LinearEquiv.funCongrLeft` reindexing. Issue #2479 active.
 
-**Indecomposability — Ẽ₆ (4): REFUTED**
-- Line 2380 — `leaf24_containment` (W(2) ⊆ W(4) as subspaces)
-- Line 2397 — `hN₁` (N-invariance of W₁(2) under nilpotentShiftLin)
-- Line 2400 — `hN₂` (N-invariance of W₂(2) under nilpotentShiftLin)
-- Line 2425 — `hbot0` (propagation W(2)=⊥ ⟹ W(0)=⊥)
+**Ẽ/T framework wall (3): refuted, awaits Kim's decision**
+- Line 3178 — `etilde6v2Rep_isIndecomposable (m hm)`
+- Line 3433 — `etilde7Rep_isIndecomposable (m hm)`
+- Line 3660 — `t125Rep_isIndecomposable (m hm)`
 
-  `etilde6v2Rep_isIndecomposable (m : ℕ) (hm : 1 ≤ m)` is provably
-  **false** for all m ≥ 1 via the explicit 1-dim decomposition peeling
-  off the missed `e_m` direction in block D. Sub-sorries cannot be
-  closed as stated. Framework change required.
+  All three theorems are provably **false** for every m ≥ 1 in their
+  current single-nilpotent-twist construction (the `e_m` direction
+  peels off as a 1-dim summand at the center). Sub-sorry scaffolding
+  was collapsed in PR #2441 — the underlying refutation, design doc
+  (`progress/indecomposability-framework-investigation.md`), and
+  framework decision (Wall 1) are unchanged. The remaining single
+  sorry per theorem is a pointer to the framework wall, not work to
+  be done.
 
-**Indecomposability — Ẽ₇ (3): REFUTED**
-- Line 3001 — `hN₁` (N-invariance of W₁(4))
-- Line 3004 — `hN₂` (N-invariance of W₂(4))
-- Line 3038 — `hbot0` (propagation W(4)=⊥ ⟹ W(0)=⊥)
+### SpechtModuleBasis (Ch5) — 1 sorry: REFUTED FRAMEWORK
+- Line 964 — `garnir_twisted_in_lower_span` (combinatorial heart)
+  Refuted at λ=(2,2), σ=swap(0,1). PR #2443 flipped the dominance
+  direction in the statement (a soundness fix); the body remains
+  open. Wave-55 also closed the follow-on `garnir_term_sametab_rowInv_lt`
+  approach via counter-example (#2454). Issue #2450 unclaimed; the
+  whole-sum cancellation strategy referenced in its body has not yet
+  been attempted.
 
-  Same fatal pattern as Ẽ₆. `etilde7Rep 1` admits an explicit
-  decomposition (see `indecomposability-framework-investigation.md`).
-  Sub-sorries unprovable as stated.
+### FormalCharacterIso (Ch5) — 1 sorry: SCHUR-WEYL CHAIN ACTIVE
+- Line 395 — `iso_of_formalCharacter_eq_schurPoly`
+  Re-scoped from "Mathlib gap" to "6-issue in-project chain" by
+  `progress/schur-weyl-scoping.md` (PR #2442). Sub-issues landed:
+  #1 (#2461 tensor-degree homogeneity), #4 (#2462 schurPoly linear
+  independence), and the bimodule foundations
+  (#2467, #2473, #2476: `isotypicDirectSumEquiv`,
+  `schurEvaluationEquiv`, `centralizerToEndA`,
+  `homIsotypicBridge`, `Theorem5_18_1_bimodule_decomposition`).
+  Active now: #2472 (Theorem5_18_4 bimodule upgrade), #2477
+  (Schur-Weyl #2a polynomial-to-tensor bridge); blocked: #2478, #2458
+  pending these.
 
-**Indecomposability — T(1,2,5) (3): REFUTED**
-- Line 3477 — `hN₁` (N-invariance of W₁(8))
-- Line 3480 — `hN₂` (N-invariance of W₂(8))
-- Line 3502 — `hbot0` (propagation W(8)=⊥ ⟹ W(0)=⊥)
-
-  Same pattern. `t125Rep 1` admits an explicit decomposition. Sub-sorries
-  unprovable as stated.
-
-### SpechtModuleBasis (Ch5) — 1 sorry: REFUTED
-- Line 942 — `garnir_twisted_in_lower_span` (combinatorial heart)
-  Refuted at λ=(2,2), σ=swap(0,1). The outer theorem
-  `polytabloidTab_column_standard_in_span` is classically true, but
-  the current Garnir-based induction framework is unsound. Framework
-  change required (see design-walls-wave54: column-induction vs.
-  broader-τ set vs. maximal-tabloid corner case).
-
-### FormalCharacterIso (Ch5) — 1 sorry: MATHLIB GAP
-- Line 221 — `iso_of_formalCharacter_eq_schurPoly`
-  Requires Schur-Weyl duality / GL_N complete reducibility. Not
-  refuted — genuinely provable, but the Mathlib infrastructure does
-  not yet exist. Identified as Mathlib gap by meditate wave 49.
-
-### Theorem2_1_2 (Ch2) — 1 sorry: PROVABLE, BLOCKED ON CH6
+### Theorem2_1_2 (Ch2) — 1 sorry: blocked on Wall 1
 - Line 173 — Forward bridge: `not_posdef_not_HasFiniteRepresentationType`
-  Backward bridge proved by #2403. Forward bridge needs per-field
-  infinite type result, which requires working indecomposability
-  proofs in Ch6 (cluster B above) + a ∀k∀Q refactor of
-  InfiniteTypeConstructions. Unblocks once Cluster B is resolved.
+  Backward bridge proved by #2403 (wave 54). Forward bridge needs
+  per-field infinite-type results from the Ẽ/T constructions, gated on
+  Wall 1's framework decision. Issue #2401 carries this dependency.
 
 ## Open PRs
 
@@ -162,139 +146,153 @@ None.
 
 | Issue | Title | Status |
 |-------|-------|--------|
-| #2434 | summarize: wave-54 sorry landscape + design-walls snapshot | Claimed (this session) |
+| #2469 | summarize: wave-55 sorry landscape + design-walls refresh | Claimed (this session) |
+| #2479 | feat(Ch6): close dTildeRep_mapLinear_transport (Wall 2 Stage C residual) | Claimed |
+| #2477 | feat(Ch5): bridge hom deg-n polys ↪ V^⊗n ⊗ (V^*)^⊗n (Schur-Weyl #2a) | Claimed |
+| #2472 | feat(Ch5): upgrade Theorem5_18_4_decomposition using bimodule form | Claimed |
 
 ## Unclaimed Issues
 
-None actionable at the current design-wall state. New issues must
-follow planner decisions on the three design walls.
+| Issue | Title | Status |
+|-------|-------|--------|
+| #2450 | Prove garnir_twisted_in_lower_span (Wall 3 residual) | Awaits Wall 3 framework |
+| #2436 | Framework decision: affine Dynkin infinite type (Ẽ_n / T(p,q,r)) | replan, awaits Kim |
+
+## Blocked Issues
+
+| Issue | Blocked on |
+|-------|-----------|
+| #2478 | #2477 (Schur-Weyl #2b consumes #2a output) |
+| #2458 | #2472 (Schur-Weyl #3 consumes Theorem5_18_4 bimodule upgrade) |
+| #2401 | #2436 (Theorem2_1_2 forward needs Ẽ/T framework) |
 
 ## Dependency Clusters
 
-### Cluster A: Polytabloid/Straightening (Ch5, 2 sorries) — FRAMEWORK WALL
-**Files:** SpechtModuleBasis (1), FormalCharacterIso (1)
-**Key sorries:**
-- `garnir_twisted_in_lower_span` — refuted by counter-example (#2425).
-  Outer Specht-basis theorem is true, but current induction framework
-  cannot prove it. Three options on the planner's desk
-  (column-induction / broader-τ / corner-case).
-- `iso_of_formalCharacter_eq_schurPoly` — Mathlib gap (Schur-Weyl).
-**Status:** Stalled pending framework decision.
+### Cluster A: Polytabloid/Straightening (Ch5, 2 sorries)
+**Files:** SpechtModuleBasis (1, framework wall), FormalCharacterIso (1, active chain)
 
-### Cluster B: Infinite Type Classification (Ch6, 11 sorries) — FRAMEWORK WALL
-**Files:** InfiniteTypeConstructions (11)
-**Sub-clusters:**
-- **B1a (D̃_n, Lean-level blocker, 1 sorry)**: `dTildeRep_isIndecomposable`
-  blocked by `dTildeDim` definitional-reduction failure at k-dependent
-  vertices. Not a mathematical wall — a Lean-level vertex-indexing
-  strategy decision.
-- **B1b (Ẽ_n / T(p,q,r), framework refuted, 10 sorries)**:
-  `etilde6v2Rep`, `etilde7Rep`, `t125Rep` `_isIndecomposable` theorems
-  all false for m ≥ 1. Framework change required. Design doc
-  `indecomposability-framework-investigation.md` lays out the options:
-  Option A (book's Tits-form orbit-counting argument, 6+ months of
-  algebraic-geometry infrastructure) vs. Option B (stronger explicit
-  construction with multiple coupling twists or γ-style center-to-center
-  iso).
+- `garnir_twisted_in_lower_span` — Wall 3 framework wall. Two prior
+  approaches refuted (per-term dominance #2425, per-term classification
+  #2451–#2454). Issue #2450 unclaimed. Awaits commitment to Option 1
+  (column-induction), Option 2 (broader-τ set), or Option 3
+  (maximal-tabloid corner case).
+- `iso_of_formalCharacter_eq_schurPoly` — Schur-Weyl chain in active
+  flight. 6 sub-issues; sub-issues #1 and #4 done, foundations done,
+  #2/#2a/#2b and #3 in progress, then #5/#6 not yet filed. Estimate
+  3–5 worker-sessions remaining.
+
+### Cluster B: Infinite Type Classification (Ch6, 4 sorries) — FRAMEWORK WALL + 1 RESIDUAL
+**Files:** InfiniteTypeConstructions (4)
+
+- **B1 (Ẽ/T framework, 3 sorries)**: Wall 1. Same status as wave 54;
+  awaits Kim's option choice.
+- **B2 (dTilde Wall 2 residual, 1 sorry)**: `dTildeRep_mapLinear_transport`.
+  Mechanical Lean-level transport between `Fin (k + 6)` and
+  `DTildeVertex k` indexings. Issue #2479 claimed; expected to close
+  Wall 2 entirely once landed.
 
 ### Cluster C: Morita Theory (Ch9) — CLOSED (wave 50)
 
-### Cluster D: Gabriel's Theorem (Ch2, 1 sorry) — IMPROVED
-**Status:** Backward bridge closed by #2403. Forward bridge remains
-(1 sorry at line 173), blocked on cluster B completion + ∀k∀Q
-refactor.
+### Cluster D: Gabriel's Theorem (Ch2, 1 sorry) — UNCHANGED
+**Status:** Forward bridge still blocked on Cluster B1 framework
+decision via #2436 → #2401 chain.
 
 ## Trajectory
 
-| Wave | Sorries | Files | Items sorry-free | Date |
-|------|---------|-------|------------------|------|
-| 28 | 66 | 27 | 560/583 (96.1%) | 2026-03-22 |
-| 33 | 43 | 22 | 566/583 (97.1%) | 2026-03-24 |
-| 38 | 27 | 19 | 570/583 (97.8%) | 2026-03-27 |
-| 43 | 13 | 10 | 579/583 (99.3%) | 2026-04-04 |
-| 44 | 10 | 8 | 580/583 (99.5%) | 2026-04-05 |
-| 45 | 15 | 8 | 580/583 (99.5%) | 2026-04-06 |
-| 46 | 15 | 8 | 580/583 (99.5%) | 2026-04-08 |
-| 47 | 9 | 6 | 581/583 (99.7%) | 2026-04-11 |
-| 48 | 8 | 6 | 581/583 (99.7%) | 2026-04-11 |
-| 49 | 10 | 6 | 581/583 (99.7%) | 2026-04-12 |
-| 50 | 13 | 5 | 581/583 (99.7%) | 2026-04-13 |
-| 51 | 21 | 5 | 582/583 (99.8%) | 2026-04-17 |
-| 52 | 17 | 4 | 582/583 (99.8%) | 2026-04-17 |
-| 53 | 13 | 4 | 582/583 (99.8%) | 2026-04-17 |
-| **54** | **14** | **4** | **582/583 (99.8%)** | **2026-04-23** |
+| Wave | Sorries | Files | Items sorry-free | Date       |
+|------|---------|-------|------------------|------------|
+| 28   | 66      | 27    | 560/583 (96.1%)  | 2026-03-22 |
+| 33   | 43      | 22    | 566/583 (97.1%)  | 2026-03-24 |
+| 38   | 27      | 19    | 570/583 (97.8%)  | 2026-03-27 |
+| 43   | 13      | 10    | 579/583 (99.3%)  | 2026-04-04 |
+| 44   | 10      | 8     | 580/583 (99.5%)  | 2026-04-05 |
+| 45   | 15      | 8     | 580/583 (99.5%)  | 2026-04-06 |
+| 46   | 15      | 8     | 580/583 (99.5%)  | 2026-04-08 |
+| 47   | 9       | 6     | 581/583 (99.7%)  | 2026-04-11 |
+| 48   | 8       | 6     | 581/583 (99.7%)  | 2026-04-11 |
+| 49   | 10      | 6     | 581/583 (99.7%)  | 2026-04-12 |
+| 50   | 13      | 5     | 581/583 (99.7%)  | 2026-04-13 |
+| 51   | 21      | 5     | 582/583 (99.8%)  | 2026-04-17 |
+| 52   | 17      | 4     | 582/583 (99.8%)  | 2026-04-17 |
+| 53   | 13      | 4     | 582/583 (99.8%)  | 2026-04-17 |
+| 54   | 14      | 4     | 582/583 (99.8%)  | 2026-04-23 |
+| **55** | **7** | **4** | **582/583 (99.8%)** | **2026-04-24** |
 
-**Wave 54 trend:** Raw count inched up (13→14), but the headline is
-qualitative: three framework-level walls were discovered, moving the
-project from "execute on existing plan" to "planner needs to make
-design decisions". Genuine closures (6) are offset by framework
-expansions that made sub-sorries visible (+8). Most remaining sorries
-are now known to be **unprovable as stated**, not pending work.
+**Wave 55 trend:** Raw count halved (14 → 7). The drop is partly
+cosmetic (Ẽ/T scaffolding collapse, −7) and partly real (Wall 2
+core math landed, leaving only a mechanical residual). Three of the
+remaining 7 sorries are framework-wall stubs. Two are framework-wall
+items (Garnir #2450, Wall 3) plus framework-blocked downstream
+(Theorem 2.1.2 forward). Two are actively-worked items (the dTilde
+residual #2479; the Schur-Weyl chain ending at FormalCharacterIso).
 
 ## Honest Assessment
 
-Wave 54 is the wave the project hit **three walls at once**, and the
-shape of the remaining work changed as a result. The raw count is
-basically flat; what changed is our understanding of what those
-sorries actually mean.
+Wave 55 is the wave where **the wall map shrank**. Three observations:
 
 **Strengths:**
-1. **Gabriel's theorem backward bridge closed.** PR #2403 closes one
-   of the two long-standing Ch2 bridges. The remaining forward bridge
-   is still blocked on Ch6, but one side is now done.
-2. **Path infrastructure closed.** PR #2410 closed
-   `walk_to_nodup_path` + `dTilde_nodup_path_between`, eliminating the
-   two path-infra sorries that had been visible since wave 53.
-3. **Three hard questions cleanly answered.** Rather than spending
-   more worker sessions grinding on refuted sorries, the three
-   framework walls are documented with design docs and counter-examples.
-   This is a net-positive even though the sorry count didn't drop.
-4. **Soundness improved.** `garnir_twisted_in_lower_span` got the
-   missing `w ∉ ColumnSubgroup` hypothesis (#2412); the circularity
-   chain was resolved (#2415).
+1. **Wall 2 is materially closed.** The `DTildeVertex k` Option-a
+   refactor (#2448 → #2449 → #2460 → #2475) replaced the
+   definitional-reduction blocker with a working inductive vertex
+   type, and the main indecomposability proof landed
+   (`dTildeRep'_isIndecomposable` in #2460). What remains is one
+   Fin-transport lemma — Lean mechanics, not mathematics.
+2. **Schur-Weyl chain is a real plan in flight.** What was previously
+   a "Mathlib gap" sorry-of-the-month was scoped (PR #2442) into six
+   sub-issues, and four of them landed in wave 55 (foundations:
+   `isotypicDirectSumEquiv`, `schurEvaluationEquiv`,
+   `centralizerToEndA`, `homIsotypicBridge`,
+   `Theorem5_18_1_bimodule_decomposition` plus sub-issues #1 and #4).
+   Two more (#2 and #3) are claimed and in progress.
+3. **Ẽ/T scaffolding cleanup.** PR #2441 collapsed 10 refuted
+   sub-sorries into 3 single sorries that mark the framework wall
+   without polluting the file with sub-sorry detail nobody plans to
+   close as stated. Cosmetic, but improves signal in the file.
+4. **Soundness improved on Wall 3.** PR #2443 corrected the dominance
+   direction in `garnir_twisted_in_lower_span`'s statement; PR #2454
+   ruled out one tempting follow-on lemma by counter-example. The
+   framework wall is unchanged but the available paths are narrower
+   and better understood.
 
 **Concerns:**
-1. **Ch6 indecomposability cluster is stuck.** Ten of 11 Ch6 sorries
-   are in refuted theorems. They cannot be closed without either
-   (a) restructuring the explicit representations, or (b) switching
-   to the book's orbit-counting proof strategy (Option A in the design
-   doc, 6+ months of Lean algebraic-geometry infrastructure).
-2. **Ch5 straightening is stuck too.** The classical result is true
-   but the current framework can't prove it. Three alternative
-   framework sketches are on the planner's desk; none have been
-   committed to.
-3. **`dTildeRep` is the only non-refuted Ch6 item**, and it's blocked
-   on Lean-level vertex indexing rather than mathematics. The split
-   between "mathematical wall" (10 sorries) and "Lean-level wall"
-   (1 sorry) is worth remembering.
-4. **No worker-fillable sorries remain.** Every item on the list
-   requires either a framework decision (human input) or a Mathlib
-   gap closure (big piece of work). The agent-worker flow is at an
-   idle point until a planner acts on the three design walls.
-5. **FormalCharacterIso Mathlib gap is the only non-framework-wall
-   non-refuted remaining item.** It needs Schur-Weyl duality, which
-   is big-Mathlib work. Unchanged since wave 48.
+1. **Ẽ/T framework decision (Wall 1) is now the longest-running open
+   item in the project.** Issue #2436 is `human-oversight`; two
+   worker agents have skipped it asking for Kim's option choice (3rd
+   skip blocked by coordination). Until Kim picks A / B / A+C / B+C,
+   these 3 sorries cannot be addressed and Theorem 2.1.2 forward
+   cannot be unblocked.
+2. **Wall 3 (Garnir) is still a framework wall.** The classical result
+   is true, but no in-project worker has committed to one of the
+   three approach options (column-induction, broader-τ, corner-case).
+   Issue #2450 has been unclaimed for ~24 hours.
+3. **Schur-Weyl chain success is provisional.** The main risk noted in
+   `progress/schur-weyl-scoping.md` was that abstract `L_i` from
+   `Theorem5_18_4_decomposition` may force the identification step
+   to be rebuilt from `5_18_1` directly. The bimodule track (#2466 →
+   #2471 → #2472) is precisely that rebuild, and it's well underway,
+   but the Schur-module identification (#2458) is still blocked on
+   #2472 landing. The chain is short of "done", just on a clear path.
+4. **`dTildeRep_mapLinear_transport` (Wall 2 residual) is non-trivial.**
+   Issue #2479 documents that the previous worker tried multiple
+   strategies (`generalize_proofs`, HEq casting, `dif_*` simp) and
+   the `▸`-cast obstruction is real. May need a refactor of
+   `dTildeRepMap` rather than a direct proof.
 
 **Current priority ordering:**
-1. **Planner triage of the three design walls** (see
-   `design-walls-wave54.md`). Nothing else unblocks.
-2. **Once Ẽ_n / T(p,q,r) framework decided**: either refactor the
-   Rep definitions (Option B) or begin Tits-form scaffolding (Option A).
-   10 Ch6 sorries gated on this.
-3. **Once Garnir framework decided**: restart Ch5 straightening with
-   the chosen induction measure. 1 Ch5 sorry gated on this.
-4. **Once dTildeDim strategy decided**: either inductive vertex type
-   or `finCongr` cast bridges. 1 Ch6 sorry gated on this.
-5. **Ch2 forward bridge**: blocked on Cluster B resolution, so
-   deferred to after step 2.
-6. **`iso_of_formalCharacter_eq_schurPoly`**: independent Mathlib-gap
-   work. Can be attempted in parallel, but remains the hardest
-   remaining sorry.
+1. **Kim's framework decision on Wall 1 (#2436).** Unblocks 3 sorries
+   directly + 1 downstream (Theorem 2.1.2 forward).
+2. **#2479** (dTilde transport residual) — closes Wall 2 entirely.
+3. **#2477 → #2478 → #2458** (Schur-Weyl #2a → #2b → #3) — chips at
+   `iso_of_formalCharacter_eq_schurPoly`. #2472 in parallel for #3.
+4. **#2450** (Wall 3 Garnir) — needs framework choice; unclaimed.
+5. **Theorem 2.1.2 forward** — gated on (1).
 
-**If the three design walls are resolved**: the 10 refuted Ẽ/T
-sub-sorries either disappear (Option B refactor replaces them with
-new, well-posed sub-sorries) or move to a different proof path
-(Option A). The Ch5 sorry similarly gets a new well-posed framework.
-The remaining floor is then Ch2 forward bridge + dTildeDim +
-FormalCharacterIso = 3 sorries, all of which are genuinely provable
-given the framework decisions.
+**If Wall 1 is resolved**: 3 sorries either disappear (Option B
+refactor replaces them with new well-posed sub-sorries) or move to a
+different proof path (Option A). Combined with successful execution
+of the Schur-Weyl chain (≈ 3–5 more worker sessions) and the dTilde
+residual (1 more session), the project floor would be Wall 3 (1
+sorry) + Theorem 2.1.2 forward (1 sorry, then easily provable once
+the per-field infrastructure exists). That is a one-decision-plus-a-week
+path to single-digit sorries with a clear shape, rather than the
+multi-month estimate that wave 54 reported.
