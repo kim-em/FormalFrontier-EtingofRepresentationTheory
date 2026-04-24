@@ -287,6 +287,153 @@ theorem homogeneousPolyToTensor_injective :
   rw [hp, hq] at heq
   exact heq
 
+/-! ## GL_N-equivariance
+
+The bridge `polyToTensor` intertwines the right-translation action on
+polynomials (sending `X_{ij}` to `Σ_l X_{il} · g_{l,j}`) with the
+`g ↦ g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. -/
+
+/-- Right-translation as an algebra hom on `MvPolynomial (Fin N × Fin N) k`.
+On generators: `X_{ij} ↦ Σ_l X_{il} · C(g_{l,j})`. This is the action coming
+from `(g · P)(X) = P(X · g)`. -/
+noncomputable def polyRightTransl (g : Matrix (Fin N) (Fin N) k) :
+    MvPolynomial (Fin N × Fin N) k →ₐ[k] MvPolynomial (Fin N × Fin N) k :=
+  MvPolynomial.aeval fun ij : Fin N × Fin N =>
+    ∑ l : Fin N, MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2)
+
+/-- The `g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. The matrix `g` acts on the
+first `V^⊗n` factor by tensor power; the second `(V^*)^⊗n` factor is left
+unchanged. -/
+noncomputable def tgtGLAction (g : Matrix (Fin N) (Fin N) k) :
+    PolyTensorTgt k N n →ₗ[k] PolyTensorTgt k N n :=
+  TensorProduct.map (PiTensorProduct.map fun _ : Fin n => g.toLin') LinearMap.id
+
+/-- Expansion of `g.toLin'` on a standard basis vector. -/
+lemma toLin'_stdBasis (g : Matrix (Fin N) (Fin N) k) (j : Fin N) :
+    Matrix.toLin' g (stdBasis k N j) = ∑ b : Fin N, g b j • stdBasis k N b := by
+  classical
+  ext i
+  rw [stdBasis, Pi.basisFun_apply, Matrix.toLin'_apply, Matrix.mulVec_single,
+    MulOpposite.op_one, one_smul]
+  simp only [Matrix.col_apply, Finset.sum_apply, Pi.smul_apply, Pi.basisFun_apply,
+    Pi.single_apply, smul_eq_mul, mul_ite, mul_one, mul_zero,
+    Finset.sum_ite_eq, Finset.mem_univ, if_true]
+
+/-- Expansion of `tgtGLAction g` on a `seqTensor`. -/
+lemma tgtGLAction_seqTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
+    tgtGLAction k N n g (seqTensor k N n f) =
+      ∑ b : Fin n → Fin N, (∏ l, g (b l) (f l).2) •
+        seqTensor k N n (fun l => ((f l).1, b l)) := by
+  classical
+  unfold tgtGLAction seqTensor
+  rw [TensorProduct.map_tmul, LinearMap.id_apply, PiTensorProduct.map_tprod]
+  -- LHS first factor: tprod (fun l => g.toLin' (stdBasis (f l).2))
+  simp_rw [toLin'_stdBasis]
+  -- Expand the multilinear sum via MultilinearMap.map_sum on `tprod`.
+  rw [MultilinearMap.map_sum (PiTensorProduct.tprod k)
+        (g := fun (l : Fin n) (b : Fin N) => g b (f l).2 • stdBasis k N b)]
+  -- Each summand factors a scalar product out of `tprod` via `map_smul_univ`.
+  simp_rw [MultilinearMap.map_smul_univ (PiTensorProduct.tprod k)]
+  -- Distribute the smul through the tensor product.
+  rw [TensorProduct.sum_tmul]
+  refine Finset.sum_congr rfl ?_
+  intro b _
+  rw [TensorProduct.smul_tmul']
+
+/-- Expansion of `tgtGLAction g` on a `symTensor`. The bijection
+`(σ, b) ↔ (σ, b ∘ σ⁻¹)` matches the inner sum on the LHS with the
+inner sum coming from `symTensor`'s expansion on the RHS. -/
+lemma tgtGLAction_symTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
+    tgtGLAction k N n g (symTensor k N n f) =
+      ∑ c : Fin n → Fin N, (∏ l, g (c l) (f l).2) •
+        symTensor k N n (fun l => ((f l).1, c l)) := by
+  classical
+  -- Expand LHS: tgtGLAction is linear, push it inside the symmetric sum.
+  -- Unfold every `symTensor` (both LHS and the per-c RHS) to a `(n!)⁻¹ • Σ_τ` form.
+  unfold symTensor
+  rw [LinearMap.map_smul, map_sum]
+  simp_rw [tgtGLAction_seqTensor]
+  -- LHS shape: (n!)⁻¹ • ∑ τ ∑ b, X τ b. RHS shape: ∑ c, scalar • (n!)⁻¹ • ∑ τ, ...
+  -- Pull the (n!)⁻¹ out of the c-sum on the RHS.
+  simp_rw [smul_comm _ ((n.factorial : k)⁻¹), ← Finset.smul_sum]
+  congr 1
+  -- ∑ τ, ∑ b, X τ b = ∑ c, (scalar c) • ∑ τ, T σ c. Push scalar inside, then swap.
+  simp_rw [Finset.smul_sum (s := (Finset.univ : Finset (Equiv.Perm (Fin n))))]
+  rw [Finset.sum_comm (s := (Finset.univ : Finset (Fin n → Fin N)))]
+  refine Finset.sum_congr rfl fun τ _ => ?_
+  -- Inner identity at fixed τ. Bijection on functions: e b := b ∘ τ.symm,
+  -- equivalently c ↦ c ∘ τ via the inverse.
+  refine Fintype.sum_equiv (Equiv.arrowCongr τ (Equiv.refl (Fin N))) _ _ ?_
+  intro b
+  simp only [Function.comp_apply]
+  congr 1
+  · -- product equality via reindex by τ
+    refine Fintype.prod_equiv τ _ _ ?_
+    intro l
+    simp [Equiv.arrowCongr_apply]
+  · -- seqTensor equality: (b ∘ τ.symm) (τ l) = b l
+    congr 1
+    funext l
+    simp [Equiv.arrowCongr_apply]
+
+/-! ### Polynomial side: `polyRightTransl` on products of `X`s -/
+
+/-- A product of `X`s equals the monomial whose Finsupp records each pair's
+multiplicity. The proof is a straight Finset induction using
+`MvPolynomial.X = monomial (single _ 1) 1`. -/
+private lemma prod_X_eq_monomial_fn (f : Fin n → Fin N × Fin N) :
+    (∏ l : Fin n, MvPolynomial.X (R := k) (f l)) =
+      MvPolynomial.monomial (∑ l : Fin n, Finsupp.single (f l) 1) (1 : k) := by
+  classical
+  have key : ∀ s : Finset (Fin n),
+      (∏ l ∈ s, MvPolynomial.X (R := k) (f l)) =
+        MvPolynomial.monomial (∑ l ∈ s, Finsupp.single (f l) 1) (1 : k) := by
+    intro s
+    induction s using Finset.induction_on with
+    | empty => simp
+    | insert a s has ih =>
+      rw [Finset.prod_insert has, Finset.sum_insert has, ih,
+        show MvPolynomial.X (R := k) (f a) =
+            MvPolynomial.monomial (Finsupp.single (f a) 1) (1 : k) from rfl,
+        MvPolynomial.monomial_mul, mul_one]
+  exact key _
+
+/-- `polyRightTransl g` evaluated on a single `X`-generator. -/
+@[simp]
+lemma polyRightTransl_X (g : Matrix (Fin N) (Fin N) k) (ij : Fin N × Fin N) :
+    polyRightTransl k N g (MvPolynomial.X ij) =
+      ∑ l : Fin N,
+        MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2) := by
+  unfold polyRightTransl
+  rw [MvPolynomial.aeval_X]
+
+/-- Expansion of `polyRightTransl g` on a product `∏_l X (f l)`. The result
+is a sum over choice functions `c : Fin n → Fin N`, with constant
+multiplier `C(∏_l g (c l) (f l).2)` on the substituted monomial
+`∏_l X((f l).1, c l)`. -/
+lemma polyRightTransl_prod (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
+    polyRightTransl k N g (∏ l : Fin n, MvPolynomial.X (R := k) (f l)) =
+      ∑ c : Fin n → Fin N,
+        MvPolynomial.C (∏ l : Fin n, g (c l) (f l).2) *
+          (∏ l : Fin n, MvPolynomial.X (R := k) ((f l).1, c l)) := by
+  classical
+  rw [map_prod]
+  simp_rw [polyRightTransl_X]
+  -- Distribute the prod over the sum via prod_univ_sum.
+  rw [Finset.prod_univ_sum
+    (t := fun (_ : Fin n) => (Finset.univ : Finset (Fin N)))
+    (f := fun l j => MvPolynomial.X (R := k) ((f l).1, j) *
+                     MvPolynomial.C (g j (f l).2))]
+  rw [show (Fintype.piFinset fun (_ : Fin n) => (Finset.univ : Finset (Fin N))) =
+        (Finset.univ : Finset (Fin n → Fin N)) from Fintype.piFinset_univ]
+  refine Finset.sum_congr rfl fun c _ => ?_
+  -- Per c: ∏_l (X * C) = (∏ X) * (∏ C) = C(∏ g) * (∏ X)
+  rw [Finset.prod_mul_distrib]
+  rw [show (∏ l : Fin n, MvPolynomial.C (R := k) (g (c l) (f l).2)) =
+      MvPolynomial.C (∏ l : Fin n, g (c l) (f l).2) from
+    (map_prod (MvPolynomial.C (R := k)) _ _).symm]
+  ring
+
 end PolynomialTensorBridge
 
 end Etingof
