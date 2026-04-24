@@ -184,6 +184,7 @@ lemma tensorToPoly_symTensor (f : Fin n → Fin N × Fin N) :
     ← Nat.cast_smul_eq_nsmul k, smul_smul,
     inv_mul_cancel₀ (Nat.cast_ne_zero.mpr (Nat.factorial_ne_zero n)), one_smul]
 
+omit [CharZero k] in
 /-- The product `∏_l X (canonicalSeq l)` equals the monomial `monomial s 1`.
 This uses that `canonicalSeq` traces through `(Finsupp.toMultiset s).toList`,
 whose image multiset equals `Finsupp.toMultiset s` — so the product is
