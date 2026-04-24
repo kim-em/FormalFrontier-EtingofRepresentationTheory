@@ -975,6 +975,94 @@ private theorem garnirColReindex_polytabloid_eq
     rcases Int.units_eq_one_or γ.sign with h | h <;> simp [h]
   rw [hcol, smul_smul, hsign_sq, one_smul]
 
+/-! ### Pigeonhole collapse for the whole-sum Garnir strategy
+
+`garnir_pigeonhole_collapse` (issue #2498, sibling B of the #2450
+decomposition) handles the "collapsing" terms in the whole-sum Garnir
+strategy: those Garnir permutations `w` for which `toTabloid (w · q⁻¹ · σ)`
+does not depend on the column permutation `q ∈ Q_λ`. For such `w`, the
+alternating sum `Σ_q sign(q) · [w · q⁻¹ · σ]` factors as
+`(Σ_q sign(q)) · [const tabloid] = 0`, where the second factor vanishes
+provided `Q_λ` contains an element of sign `-1`.
+
+The constancy hypothesis is the **Form 1 (direct)** version mentioned in
+the issue. The "structural" Form 2 (existence of an overflowing row)
+implies Form 1 and is the natural way callers verify it; encoding the
+structural form here would over-specialize.
+
+Validated on the counter-example λ=(2,2), σ=swap(0,1) for `w ∈ {swap(1,2),
+(0,1,2)}` in `progress/20260424T034536Z_2a4d9cc5.md`: every product
+`w · q⁻¹ · σ` (q ∈ Q_λ) yields the tabloid `[{1,2}|{0,3}]`, so
+`Σ_q sign(q) · [{1,2}|{0,3}] = 0` since
+`Σ_{q ∈ Q_{(2,2)}} sign(q) = 0`. -/
+
+/-- **Pigeonhole collapse**. Suppose the tabloid `[w · q⁻¹ · σ]` does not
+depend on `q ∈ Q_λ` (constancy hypothesis `hcollapse`), and `Q_λ` contains
+an element `t₀` of sign `-1`. Then the alternating sum
+`Σ_{q ∈ Q_λ} sign(q) · [w · q⁻¹ · σ]` vanishes in `M^λ`.
+
+Proof. Use `hcollapse` to replace each `[w · q⁻¹ · σ]` by `[w · σ]`, then
+factor out the constant tabloid. The remaining scalar `Σ_{q ∈ Q_λ} sign(q)`
+vanishes via the involution `q ↦ t₀ · q`, which sends each summand
+`sign(q)` to `sign(t₀)·sign(q) = -sign(q)`. -/
+private theorem garnir_pigeonhole_collapse
+    (w σ : Equiv.Perm (Fin n))
+    (t₀ : Equiv.Perm (Fin n)) (ht₀_mem : t₀ ∈ ColumnSubgroup n la)
+    (ht₀_sign : Equiv.Perm.sign t₀ = -1)
+    (hcollapse : ∀ q ∈ ColumnSubgroup n la,
+      toTabloid n la (w * q⁻¹ * σ) = toTabloid n la (w * σ)) :
+    haveI : DecidablePred (· ∈ ColumnSubgroup n la) := Classical.decPred _
+    (∑ q : ↥(ColumnSubgroup n la),
+        ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+          Finsupp.single (toTabloid n la (w * q.val⁻¹ * σ)) (1 : ℂ))
+      : TabloidRepresentation n la) = 0 := by
+  classical
+  -- Step 1: Show `Σ_q sign(q) = 0` via the involution `q ↦ t₀ · q`.
+  have hsign_zero : (∑ q : ↥(ColumnSubgroup n la),
+      ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) = 0 := by
+    set H := ColumnSubgroup n la
+    -- Involution φ : H ≃ H, q ↦ t₀ * q
+    let φ : ↥H ≃ ↥H :=
+      ⟨fun q => ⟨t₀ * q.val, H.mul_mem ht₀_mem q.property⟩,
+       fun q => ⟨t₀⁻¹ * q.val, H.mul_mem (H.inv_mem ht₀_mem) q.property⟩,
+       fun ⟨q, _⟩ => Subtype.ext (show t₀⁻¹ * (t₀ * q) = q by group),
+       fun ⟨q, _⟩ => Subtype.ext (show t₀ * (t₀⁻¹ * q) = q by group)⟩
+    have h_neg : ∀ q : ↥H,
+        ((↑(↑(Equiv.Perm.sign (φ q).val) : ℤ) : ℂ)) =
+        -((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ)) := by
+      intro ⟨q, _⟩
+      change ((↑(↑(Equiv.Perm.sign (t₀ * q)) : ℤ) : ℂ)) = -_
+      rw [map_mul, ht₀_sign, Units.val_mul, Int.cast_mul]
+      simp
+    have hsum_neg : (∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) =
+        -(∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) := by
+      conv_lhs => rw [← Equiv.sum_comp φ]
+      simp_rw [h_neg]
+      rw [Finset.sum_neg_distrib]
+    have hadd : (∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) +
+        (∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) = 0 := by
+      nth_rw 1 [hsum_neg]; exact neg_add_cancel _
+    have h2 : (2 : ℂ) * (∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) = 0 := by
+      rw [two_mul]; exact hadd
+    exact (mul_eq_zero.mp h2).resolve_left two_ne_zero
+  -- Step 2: The whole sum is `(Σ_q sign(q)) • [w · σ] = 0 • [w · σ] = 0`.
+  calc (∑ q : ↥(ColumnSubgroup n la),
+          ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+            Finsupp.single (toTabloid n la (w * q.val⁻¹ * σ)) (1 : ℂ))
+        : TabloidRepresentation n la)
+      = ∑ q : ↥(ColumnSubgroup n la),
+          ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) •
+            Finsupp.single (toTabloid n la (w * σ)) (1 : ℂ)) := by
+        refine Finset.sum_congr rfl (fun q _ => ?_)
+        rw [hcollapse q.val q.property]
+    _ = (∑ q : ↥(ColumnSubgroup n la),
+            ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ))) •
+          Finsupp.single (toTabloid n la (w * σ)) (1 : ℂ) := by
+        rw [← Finset.sum_smul]
+    _ = (0 : ℂ) • (Finsupp.single (toTabloid n la (w * σ)) (1 : ℂ)) := by
+        rw [hsign_zero]
+    _ = 0 := zero_smul _ _
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"
