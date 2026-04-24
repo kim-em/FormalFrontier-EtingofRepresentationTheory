@@ -1250,6 +1250,100 @@ private theorem generalizedPolytabloidTab_leading_tabloid
   intro β hne_tabloid hne_coeff
   exact ⟨generalizedPolytabloidTab_coeff_dominance α hcs β hne_coeff, hne_tabloid.symm⟩
 
+/-- **Algorithm A (Leading-tabloid elimination).** Any element `v ∈ V^λ` whose
+tabloid-basis support is bounded by `[σ]` in dominance order can be written as
+a ℂ-linear combination of polytabloids `e_T` for SYTs `T` with `[T] ≼ [σ]`.
+
+This is the main Algorithm A correctness statement for C.1.b: it takes a
+tabloid-support bound (from C.1.a) and produces a span-membership statement
+used in the C.1.c glue to discharge `garnir_twisted_in_lower_span`. -/
+private theorem tabloidSupport_straightening
+    (σ : Equiv.Perm (Fin n)) (_hcs : isColumnStandard' n la σ)
+    (v : TabloidRepresentation n la)
+    (hv_in_V : v ∈ Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+      polytabloidTab (n := n) (la := la) T)))
+    (hv_supp : ∀ α : Equiv.Perm (Fin n),
+        v (toTabloid n la α) ≠ 0 → tabloidDominates la σ α) :
+    v ∈ Submodule.span ℂ (Set.range (fun T : {T : StandardYoungTableau n la //
+        tabloidDominates la σ (sytPerm n la T)} =>
+      polytabloidTab (n := n) (la := la) T.val)) := by
+  classical
+  rw [Submodule.mem_span_range_iff_exists_fun] at hv_in_V
+  obtain ⟨c, hv_eq⟩ := hv_in_V
+  -- Main claim: for every T, c T ≠ 0 → [T] ≼ [σ]
+  have hclaim : ∀ T : StandardYoungTableau n la, c T ≠ 0 →
+      tabloidDominates la σ (sytPerm n la T) := by
+    by_contra hnot
+    push_neg at hnot
+    obtain ⟨Tbad, hcTbad, h_nd⟩ := hnot
+    -- Apply exists_dominance_maximal within S_bad = {T : c T ≠ 0 ∧ ¬ ≼}
+    set S_bad : Finset (StandardYoungTableau n la) :=
+      Finset.univ.filter (fun T' =>
+        c T' ≠ 0 ∧ ¬ tabloidDominates la σ (sytPerm n la T'))
+    have hTbad_mem : Tbad ∈ S_bad := by
+      simp only [S_bad, Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨hcTbad, h_nd⟩
+    -- On S_bad, c T' ≠ 0 is automatic
+    obtain ⟨Tmax, hTmaxS, hTmax_c, hmax⟩ := exists_dominance_maximal
+      (la := la) S_bad c Tbad hTbad_mem hcTbad
+    have hTmax_nd : ¬ tabloidDominates la σ (sytPerm n la Tmax) := by
+      have hm := Finset.mem_filter.mp hTmaxS
+      exact hm.2.2
+    -- Evaluate v at toTabloid (sytPerm Tmax) = sytToTabloid Tmax.
+    -- Show it equals c Tmax ≠ 0.
+    have hv_eval : v (toTabloid n la (sytPerm n la Tmax)) = c Tmax := by
+      rw [← hv_eq]
+      rw [Finsupp.finset_sum_apply]
+      -- Split off the Tmax term: ∑_T c_T · ψ_T(t_max) = c_Tmax · 1 + rest
+      rw [← Finset.add_sum_erase _ _ (Finset.mem_univ Tmax)]
+      have hself : polytabloidTab (n := n) (la := la) Tmax
+          (toTabloid n la (sytPerm n la Tmax)) = 1 := by
+        exact polytabloidTab_coeff_self Tmax
+      simp only [Finsupp.smul_apply, smul_eq_mul]
+      rw [hself, mul_one]
+      -- The rest-sum is 0: for each T ≠ Tmax, c T * ψ_T(t_max) = 0
+      have hrest : ∀ T ∈ Finset.univ.erase Tmax,
+          c T * polytabloidTab (n := n) (la := la) T
+              (toTabloid n la (sytPerm n la Tmax)) = 0 := by
+        intro T hT
+        have hTne : T ≠ Tmax := Finset.ne_of_mem_erase hT
+        by_cases hcT : c T = 0
+        · rw [hcT, zero_mul]
+        by_cases hcoeff : polytabloidTab (n := n) (la := la) T
+            (toTabloid n la (sytPerm n la Tmax)) = 0
+        · rw [hcoeff, mul_zero]
+        exfalso
+        -- ψ_T(t_max) ≠ 0 ⟹ [T] ≽ [Tmax]
+        have hdom : tabloidDominates la (sytPerm n la T) (sytPerm n la Tmax) :=
+          polytabloidTab_coeff_dominance T (sytPerm n la Tmax) hcoeff
+        -- Case on whether T ∈ S_bad
+        by_cases hTS : T ∈ S_bad
+        · -- T ∈ S_bad: max property forces same tabloid, hence T = Tmax
+          have htab_eq := hmax T hTS hcT hdom
+          exact hTne (sytToTabloid_injective n la htab_eq)
+        · -- T ∉ S_bad and c T ≠ 0: must have [T] ≼ [σ]
+          simp only [S_bad, Finset.mem_filter, Finset.mem_univ, true_and,
+            not_and, not_not] at hTS
+          have h_leq := hTS hcT
+          -- By transitivity: [Tmax] ≼ [T] ≼ [σ] gives [Tmax] ≼ [σ]
+          exact hTmax_nd (tabloidDominates_trans h_leq hdom)
+      rw [Finset.sum_eq_zero hrest, add_zero]
+    -- Now contradiction: v (toTabloid Tmax) = c Tmax ≠ 0, but hv_supp forces [Tmax] ≼ σ
+    have hne_v : v (toTabloid n la (sytPerm n la Tmax)) ≠ 0 := by
+      rw [hv_eval]; exact hTmax_c
+    exact hTmax_nd (hv_supp (sytPerm n la Tmax) hne_v)
+  -- Use the claim to express v as a sum over the restricted subtype
+  rw [← hv_eq]
+  apply Submodule.sum_mem
+  intro T _
+  by_cases hcT : c T = 0
+  · rw [hcT, zero_smul]
+    exact Submodule.zero_mem _
+  · have h_dom : tabloidDominates la σ (sytPerm n la T) := hclaim T hcT
+    apply Submodule.smul_mem
+    apply Submodule.subset_span
+    exact ⟨⟨T, h_dom⟩, rfl⟩
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"

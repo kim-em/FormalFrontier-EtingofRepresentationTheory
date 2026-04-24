@@ -852,7 +852,7 @@ the correct coefficient extraction argument.
 
 /-- In any finset with a dominance-like relation, a nonempty subset has a maximal
 element. We use a Nat-valued measure and strong induction. -/
-private lemma exists_dominance_maximal
+lemma exists_dominance_maximal
     (S : Finset (StandardYoungTableau n la))
     (f : StandardYoungTableau n la → ℂ) (T₀ : StandardYoungTableau n la)
     (hT₀ : T₀ ∈ S) (hfT₀ : f T₀ ≠ 0) :
