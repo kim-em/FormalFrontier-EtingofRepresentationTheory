@@ -1063,6 +1063,41 @@ private theorem garnir_pigeonhole_collapse
         rw [hsign_zero]
     _ = 0 := zero_smul _ _
 
+/-- **Support Bound for twistedPolytabloid** (Wall 3 C.1.a).
+For any column-standard σ and any w ∈ S_n, every tabloid [α] appearing with
+nonzero net coefficient in the tabloid-basis expansion of
+`twistedPolytabloid w σ = Σ_{q ∈ Q_λ} sign(q) · δ_{[w q⁻¹ σ]}`
+is weakly dominated by [σ] in the tabloid-dominance order.
+
+This is the combinatorial heart of the Garnir straightening argument. Unlike
+the analogous statement for ordinary polytabloids (`polytabloidTab_coeff_dominance`,
+which uses per-term dominance via `column_perm_dominance`), here the bound
+relies on cross-q sign-cancellation: individual terms [w q⁻¹ σ] may strictly
+dominate [σ], but such terms always cancel in pairs within the signed sum
+over Q_λ.
+
+Illustrative cancellation: λ=(3,2), σ=[1,0,4,2,3], w=σ⁻¹. Then
+`w q⁻¹ σ = id` for q ∈ {1, (1,4)} with signs +1 and -1, and equals
+[{0,2,4}|{1,3}]-tabloid for q ∈ {(0,3), (0,3)(1,4)} with signs -1 and +1
+respectively. Each "violating" tabloid gets a zero net coefficient.
+
+See `progress/20260424T064759Z_bd928e67.md` for the full meditation note and
+the counter-example-validated proof strategy (avenue 1: direct combinatorial
+cross-q cancellation via a per-column pigeonhole involution). -/
+private theorem twistedPolytabloid_support_bound
+    (σ : Equiv.Perm (Fin n)) (_hcs : isColumnStandard' n la σ)
+    (w : Equiv.Perm (Fin n)) (α : Equiv.Perm (Fin n))
+    (hα_supp : twistedPolytabloid (la := la) w σ (toTabloid n la α) ≠ 0) :
+    tabloidDominates la σ α := by
+  -- Proof strategy (avenue 1 from the meditate note):
+  -- Contrapositive. Suppose α does not dominate σ at some threshold (k, i).
+  -- Then find a column C whose σ-entries ≤ k land under w∘q⁻¹ in top i rows
+  -- in numbers exceeding σ's; by pigeonhole there are two positions in C
+  -- that both fall into top i rows for every such q; swapping them in q
+  -- gives an involution on the fibre over [α] that reverses sign.
+  -- Ergo Σ_{q : toTabloid(wq⁻¹σ) = toTabloid α} sign(q) = 0.
+  sorry
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"
