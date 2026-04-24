@@ -630,4 +630,210 @@ theorem Theorem5_18_1_bimodule_decomposition
       DirectSum.lequivCongrLeft k φ
     exact ⟨e2.trans (e3.trans e4)⟩
 
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1200000 in
+/-- Double centralizer theorem, part (iii), bimodule form with explicit
+evaluation.
+
+Strengthens `Theorem5_18_1_bimodule_decomposition` by:
+
+* concretizing the summand types as `Vᵢ : Submodule A E` and
+  `Lᵢ := ↥(V i) →ₗ[A] E`;
+* producing an explicit iso `e` whose inverse on pure-tensor basis
+  elements is the evaluation map `l v`:
+  `e.symm (of i (v ⊗ₜ l)) = l v`.
+
+The evaluation formula implies the iso is `B`-equivariant for the natural
+post-composition action of `B = centralizer(A)` on each `Lᵢ`: for any
+`b ∈ B`,
+`e.symm (of i (v ⊗ₜ (b • l))) = (b • l) v = b.val (l v)
+    = b.val (e.symm (of i (v ⊗ₜ l)))`.
+
+This is the form required by character-additivity arguments (Schur-Weyl
+#3, #5, #6): together with the tensor-factorization of traces it yields
+`tr_E(b) = Σᵢ dim(Vᵢ) · tr_{Lᵢ}(b)`. -/
+theorem Theorem5_18_1_bimodule_decomposition_explicit
+    [IsAlgClosed k]
+    (A : Subalgebra k (Module.End k E))
+    [IsSemisimpleRing A]
+    [FaithfulSMul A E] :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (V : ι → Submodule A E) (_ : ∀ i, IsSimpleModule A (V i))
+      (_ : ∀ i j, Nonempty (↥(V i) ≃ₗ[A] ↥(V j)) → i = j),
+      ∃ (e : E ≃ₗ[k] DirectSum ι
+          (fun i => ↥(V i) ⊗[k] (↥(V i) →ₗ[A] E))),
+        ∀ (i : ι) (v : ↥(V i)) (l : ↥(V i) →ₗ[A] E),
+          e.symm (DirectSum.of _ i (v ⊗ₜ[k] l)) = l v := by
+  classical
+  haveI : IsSemisimpleModule A E := IsSemisimpleRing.isSemisimpleModule
+  haveI : Module.Finite A E := Module.Finite.of_restrictScalars_finite k A E
+  haveI : IsNoetherian A E := inferInstance
+  haveI : Finite (isotypicComponents A E) := inferInstance
+  haveI : Fintype (isotypicComponents A E) := Fintype.ofFinite _
+  haveI : IsNoetherian k E := inferInstance
+  set m := Fintype.card (isotypicComponents A E) with hm
+  let φ : isotypicComponents A E ≃ Fin m := Fintype.equivFin _
+  let V' : isotypicComponents A E → Submodule A E := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose
+  have V'_le : ∀ c, V' c ≤ c.1 := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose_spec.1
+  have V'_simple : ∀ c, IsSimpleModule A (V' c) := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose_spec.2
+  have V'_spec : ∀ c, (c.1 : Submodule A E) = isotypicComponent A E (V' c) := by
+    intro c
+    haveI := V'_simple c
+    exact eq_isotypicComponent_of_le c.2 (V'_le c)
+  -- Per-component k-linear iso: ↥c.1 ≃[k] V' c ⊗[k] (V' c →ₗ[A] E)
+  let perComp : ∀ c : isotypicComponents A E,
+      (↥c.1 : Type v) ≃ₗ[k]
+        ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E) := fun c => by
+    haveI := V'_simple c
+    haveI : Module.Finite k (↥(V' c) : Type v) :=
+      Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
+        Subtype.val_injective
+    haveI : Module.Finite k (↥c.1 : Type v) :=
+      Module.Finite.of_injective (c.1.subtype.restrictScalars k)
+        Subtype.val_injective
+    have e_submod : (↥c.1 : Type v) ≃ₗ[A] ↥(isotypicComponent A E (V' c)) :=
+      LinearEquiv.ofEq _ _ (V'_spec c)
+    haveI h_iso' : IsIsotypicOfType A ↥(isotypicComponent A E (V' c)) ↥(V' c) :=
+      IsIsotypicOfType.isotypicComponent A E _
+    haveI h_iso : IsIsotypicOfType A (↥c.1) ↥(V' c) :=
+      e_submod.isIsotypicOfType_iff.mpr h_iso'
+    let sE := schurEvaluationEquiv k A (↥(V' c)) (↥c.1) h_iso
+    let br := homIsotypicBridge k E A (V' c) c.1 (V'_spec c)
+    exact sE.symm.trans (TensorProduct.congr (LinearEquiv.refl k _) br)
+  -- Key lemma: on pure tensors, the inverse of perComp evaluates:
+  -- (perComp c).symm (v ⊗ₜ l) is the element of ↥c.1 whose .val is l v.
+  have perComp_symm_tmul : ∀ (c : isotypicComponents A E)
+      (v : ↥(V' c)) (l : ↥(V' c) →ₗ[A] E),
+      (((perComp c).symm (v ⊗ₜ[k] l) : ↥c.1) : E) = l v := by
+    intro c v l
+    haveI := V'_simple c
+    haveI : Module.Finite k (↥(V' c) : Type v) :=
+      Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
+        Subtype.val_injective
+    haveI : Module.Finite k (↥c.1 : Type v) :=
+      Module.Finite.of_injective (c.1.subtype.restrictScalars k)
+        Subtype.val_injective
+    have e_submod : (↥c.1 : Type v) ≃ₗ[A] ↥(isotypicComponent A E (V' c)) :=
+      LinearEquiv.ofEq _ _ (V'_spec c)
+    haveI h_iso' : IsIsotypicOfType A ↥(isotypicComponent A E (V' c)) ↥(V' c) :=
+      IsIsotypicOfType.isotypicComponent A E _
+    haveI h_iso : IsIsotypicOfType A (↥c.1) ↥(V' c) :=
+      e_submod.isIsotypicOfType_iff.mpr h_iso'
+    -- perComp c = sE.symm.trans (TensorProduct.congr refl br), hence
+    -- (perComp c).symm = (TensorProduct.congr refl br).symm.trans sE
+    change ((((schurEvaluationEquiv k A (↥(V' c)) (↥c.1) h_iso).symm).trans
+            (TensorProduct.congr (LinearEquiv.refl k _)
+              (homIsotypicBridge k E A (V' c) c.1 (V'_spec c)))).symm
+          (v ⊗ₜ[k] l) : ↥c.1).val = l v
+    rw [LinearEquiv.trans_symm, LinearEquiv.symm_symm, LinearEquiv.trans_apply,
+        TensorProduct.congr_symm, LinearEquiv.refl_symm, TensorProduct.congr_tmul,
+        LinearEquiv.refl_apply, schurEvaluationEquiv_apply_tmul]
+    -- After simp: goal is ((homIsotypicBridge k E A (V' c) c.1 (V'_spec c)).symm l v : E) = l v.
+    -- `homIsotypicBridge.symm l = l.codRestrict c.1 _`, so applying at v gives `⟨l v, _⟩ ∈ c.1`,
+    -- whose .val = l v.
+    rfl
+  -- Total iso
+  let e2 : E ≃ₗ[k] (Π₀ c : isotypicComponents A E, (c.1 : Submodule A E)) :=
+    (isotypicDirectSumEquiv A E).symm.restrictScalars k
+  let e3 : (Π₀ c : isotypicComponents A E, (c.1 : Submodule A E)) ≃ₗ[k]
+           (Π₀ c : isotypicComponents A E,
+             ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E)) :=
+    DFinsupp.mapRange.linearEquiv perComp
+  let e4 : (Π₀ c : isotypicComponents A E,
+            ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E)) ≃ₗ[k]
+           DirectSum (Fin m) (fun i =>
+             ↥(V' (φ.symm i)) ⊗[k] (↥(V' (φ.symm i)) →ₗ[A] E)) :=
+    DirectSum.lequivCongrLeft k φ
+  let etotal : E ≃ₗ[k] DirectSum (Fin m)
+    (fun i => ↥(V' (φ.symm i)) ⊗[k] (↥(V' (φ.symm i)) →ₗ[A] E)) :=
+    e2.trans (e3.trans e4)
+  refine ⟨Fin m, inferInstance, inferInstance,
+    fun i => V' (φ.symm i),
+    fun i => V'_simple (φ.symm i),
+    ?_, etotal, ?_⟩
+  · -- Distinctness
+    intro i j ⟨eqv⟩
+    have h_eq : isotypicComponent A E (V' (φ.symm i)) =
+                isotypicComponent A E (V' (φ.symm j)) :=
+      eqv.isotypicComponent_eq
+    have h_c_eq : (φ.symm i).1 = (φ.symm j).1 := by
+      rw [V'_spec (φ.symm i), V'_spec (φ.symm j)]; exact h_eq
+    exact φ.symm.injective (Subtype.ext h_c_eq)
+  · -- Evaluation formula.
+    intro i
+    -- Beta-reduce the types of `v` and `l` so they mention `V' (φ.symm i)` directly.
+    change ∀ (v : ↥(V' (φ.symm i))) (l : ↥(V' (φ.symm i)) →ₗ[A] E),
+      etotal.symm (DirectSum.of
+        (fun j : Fin m => ↥(V' (φ.symm j)) ⊗[k] (↥(V' (φ.symm j)) →ₗ[A] E))
+        i (v ⊗ₜ[k] l)) = l v
+    intro v l
+    -- Strategy: apply etotal to both sides so we work forward through the chain.
+    rw [LinearEquiv.symm_apply_eq]
+    -- Goal: DirectSum.of _ i (v ⊗ₜ l) = etotal (l v).
+    -- Make the simple-module instance visible so `range_le_isotypicComponent_of_simple` applies.
+    haveI := V'_simple (φ.symm i)
+    -- Step 1: l v lies in the isotypic component (φ.symm i).1.
+    have hrange : l v ∈ ((φ.symm i).1 : Submodule A E) := by
+      have hr := range_le_isotypicComponent_of_simple (k := k) (E := E)
+        (V := V' (φ.symm i)) (A := A) l (LinearMap.mem_range_self l v)
+      rw [← V'_spec (φ.symm i)] at hr
+      exact hr
+    -- Step 2: (isotypicDirectSumEquiv A E).symm (l v) = DFinsupp.single (φ.symm i) ⟨l v, _⟩.
+    have step_fwd_1 : (isotypicDirectSumEquiv A E).symm (l v) =
+        DFinsupp.single (φ.symm i) (⟨l v, hrange⟩ : ↥((φ.symm i).1)) :=
+      iSupIndep.linearEquiv_symm_apply
+        (ind := (sSupIndep_iff _).mp (sSupIndep_isotypicComponents A E))
+        (iSup_top := by
+          rw [← sSup_eq_iSup']
+          exact sSup_isotypicComponents A E) (i := φ.symm i)
+        (x := l v) hrange
+    -- Step 3: perComp (φ.symm i) applied to ⟨l v, hrange⟩ gives v ⊗ₜ l.
+    -- This is the content of `perComp_symm_tmul` applied in reverse.
+    have step_fwd_2 : (perComp (φ.symm i)) ⟨l v, hrange⟩ =
+        (v ⊗ₜ[k] l : ↥(V' (φ.symm i)) ⊗[k] (↥(V' (φ.symm i)) →ₗ[A] E)) := by
+      apply (perComp (φ.symm i)).symm.injective
+      rw [(perComp (φ.symm i)).symm_apply_apply]
+      apply Subtype.ext
+      symm
+      exact perComp_symm_tmul (φ.symm i) v l
+    -- Step 4: put it together. We compute etotal (l v) by unfolding the chain.
+    change (DirectSum.of
+        (fun i : Fin m => ↥(V' (φ.symm i)) ⊗[k] (↥(V' (φ.symm i)) →ₗ[A] E))
+        i (v ⊗ₜ[k] l)) =
+      e4 (e3 (e2 (l v)))
+    -- e2 (l v) = (isotypicDirectSumEquiv).symm (l v) (wrapped in restrictScalars)
+    have he2 : e2 (l v) = DFinsupp.single (φ.symm i)
+        (⟨l v, hrange⟩ : ↥((φ.symm i).1)) := step_fwd_1
+    rw [he2]
+    -- e3 applied to a single.
+    have he3 : e3 (DFinsupp.single (φ.symm i)
+        (⟨l v, hrange⟩ : ↥((φ.symm i).1))) =
+        DFinsupp.single (φ.symm i) ((perComp (φ.symm i)) ⟨l v, hrange⟩) :=
+      DFinsupp.mapRange_single (hf := fun c => (perComp c).map_zero)
+    rw [he3, step_fwd_2]
+    -- Now we must show: of _ i (v ⊗ₜ l) = e4 (DFinsupp.single (φ.symm i) (v ⊗ₜ l)).
+    refine DFinsupp.ext (fun k' => ?_)
+    change (DirectSum.of
+          (fun j : Fin m => ↥(V' (φ.symm j)) ⊗[k] (↥(V' (φ.symm j)) →ₗ[A] E))
+          i (v ⊗ₜ[k] l)) k' =
+      ((DirectSum.lequivCongrLeft k φ)
+        (DFinsupp.single
+          (β := fun c : isotypicComponents A E =>
+            ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E))
+          (φ.symm i)
+          (v ⊗ₜ[k] l))) k'
+    rw [DirectSum.lequivCongrLeft_apply]
+    by_cases hk : k' = i
+    · subst hk
+      rw [DirectSum.of_eq_same, DFinsupp.single_eq_same]
+    · rw [DirectSum.of_eq_of_ne _ _ _ hk]
+      have hne : φ.symm k' ≠ φ.symm i := fun h => hk (φ.symm.injective h)
+      rw [DFinsupp.single_eq_of_ne hne]
+
 end Etingof
