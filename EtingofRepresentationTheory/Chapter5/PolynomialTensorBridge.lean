@@ -434,6 +434,161 @@ lemma polyRightTransl_prod (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N �
     (map_prod (MvPolynomial.C (R := k)) _ _).symm]
   ring
 
+/-! ### Multiset-invariance of `symTensor`
+
+`symTensor f` only depends on the underlying multiset image of `f`. The proof
+goes via constructing an explicit permutation `σ` matching two sequences with
+the same multiset image, then applying `symTensor_comp_perm`. -/
+
+/-- Given two functions `f g : Fin n → α` with the same multiset image, produce
+an explicit permutation `σ : Equiv.Perm (Fin n)` with `g = f ∘ σ`. The
+construction is by induction on `n`, peeling off the head `g 0` and matching
+it against an element `l₀` of `f`'s domain. -/
+private noncomputable def matchingPerm {α : Type*} [DecidableEq α] :
+    ∀ {n : ℕ} (f g : Fin n → α),
+      Multiset.map f (Finset.univ : Finset (Fin n)).val =
+        Multiset.map g (Finset.univ : Finset (Fin n)).val →
+      {σ : Equiv.Perm (Fin n) // g = f ∘ σ}
+  | 0, _, g, _ => ⟨Equiv.refl _, funext fun i => i.elim0⟩
+  | n + 1, f, g, h =>
+      let hg0_mem : g 0 ∈ Multiset.map f (Finset.univ : Finset (Fin (n+1))).val := by
+        rw [h]; exact Multiset.mem_map.mpr ⟨0, Finset.mem_univ _, rfl⟩
+      let l₀ : Fin (n+1) := Classical.choose (Multiset.mem_map.mp hg0_mem)
+      let l₀_spec :
+        l₀ ∈ (Finset.univ : Finset (Fin (n+1))).val ∧ f l₀ = g 0 :=
+        Classical.choose_spec (Multiset.mem_map.mp hg0_mem)
+      let hl₀ : f l₀ = g 0 := l₀_spec.2
+      let f' : Fin n → α := f ∘ l₀.succAbove
+      let g' : Fin n → α := g ∘ Fin.succ
+      let hpeel_f : Multiset.map f (Finset.univ : Finset (Fin (n+1))).val =
+          f l₀ ::ₘ Multiset.map f' (Finset.univ : Finset (Fin n)).val := by
+        conv_lhs => rw [Fin.univ_succAbove n l₀]
+        simp only [Finset.cons_val, Multiset.map_cons, Finset.map_val,
+          Multiset.map_map, Fin.coe_succAboveEmb]
+        rfl
+      let hpeel_g : Multiset.map g (Finset.univ : Finset (Fin (n+1))).val =
+          g 0 ::ₘ Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+        conv_lhs => rw [Fin.univ_succAbove n 0]
+        simp only [Finset.cons_val, Multiset.map_cons, Finset.map_val,
+          Multiset.map_map, Fin.coe_succAboveEmb, Fin.succAbove_zero]
+        rfl
+      let hms : Multiset.map f' (Finset.univ : Finset (Fin n)).val =
+          Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+        have hh : f l₀ ::ₘ Multiset.map f' (Finset.univ : Finset (Fin n)).val =
+            f l₀ ::ₘ Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+          rw [← hpeel_f, h, hpeel_g, hl₀]
+        exact (Multiset.cons_inj_right _).mp hh
+      let σ'_pkg := matchingPerm f' g' hms
+      let σ' : Equiv.Perm (Fin n) := σ'_pkg.1
+      let hσ' : g' = f' ∘ σ' := σ'_pkg.2
+      let σ_fn : Fin (n+1) → Fin (n+1) :=
+        Fin.cases l₀ (fun j => l₀.succAbove (σ' j))
+      let hinj : Function.Injective σ_fn := by
+        intro i j hij
+        induction i using Fin.cases with
+        | zero =>
+          induction j using Fin.cases with
+          | zero => rfl
+          | succ b =>
+            exfalso
+            change l₀ = l₀.succAbove (σ' b) at hij
+            exact (Fin.succAbove_ne l₀ (σ' b)) hij.symm
+        | succ a =>
+          induction j using Fin.cases with
+          | zero =>
+            exfalso
+            change l₀.succAbove (σ' a) = l₀ at hij
+            exact (Fin.succAbove_ne l₀ (σ' a)) hij
+          | succ b =>
+            change l₀.succAbove (σ' a) = l₀.succAbove (σ' b) at hij
+            have h1 : σ' a = σ' b := l₀.succAbove_right_injective hij
+            have h2 : a = b := σ'.injective h1
+            exact congrArg Fin.succ h2
+      let hbij : Function.Bijective σ_fn :=
+        Finite.injective_iff_bijective.mp hinj
+      ⟨Equiv.ofBijective σ_fn hbij, by
+        funext i
+        induction i using Fin.cases with
+        | zero =>
+          show g 0 = f (σ_fn 0)
+          change g 0 = f l₀
+          exact hl₀.symm
+        | succ j =>
+          show g (Fin.succ j) = f (σ_fn (Fin.succ j))
+          change g (Fin.succ j) = f (l₀.succAbove (σ' j))
+          have := congrFun hσ' j
+          show g' j = f' (σ' j)
+          exact this⟩
+
+omit [CharZero k] in
+/-- `symTensor` only depends on the underlying multiset of the sequence. -/
+lemma symTensor_eq_of_multiset_eq (f g : Fin n → Fin N × Fin N)
+    (h : Multiset.map f (Finset.univ : Finset (Fin n)).val =
+         Multiset.map g (Finset.univ : Finset (Fin n)).val) :
+    symTensor k N n f = symTensor k N n g := by
+  classical
+  obtain ⟨σ, hσ⟩ := matchingPerm f g h
+  rw [hσ, symTensor_comp_perm]
+
+omit [CharZero k] in
+/-- For any sequence `g : Fin n → α`, the multiset of values `{g 0, …, g (n-1)}`
+equals `Finsupp.toMultiset (∑ l, single (g l) 1)`. -/
+private lemma toMultiset_sum_single_fn {α : Type*} [DecidableEq α] (g : Fin n → α) :
+    Finsupp.toMultiset (∑ l : Fin n, Finsupp.single (g l) (1 : ℕ)) =
+      Multiset.map g (Finset.univ : Finset (Fin n)).val := by
+  classical
+  rw [Finsupp.toMultiset_sum]
+  simp only [Finsupp.toMultiset_single, one_smul]
+  -- ∑ l ∈ univ, ({g l} : Multiset α) = univ.val.map g via Finset induction.
+  induction (Finset.univ : Finset (Fin n)) using Finset.induction_on with
+  | empty => simp
+  | insert a s ha ih =>
+    rw [Finset.sum_insert ha, ih, Finset.insert_val, Multiset.ndinsert_of_notMem ha,
+      Multiset.map_cons, Multiset.singleton_add]
+
+/-- The bridge `polyToTensor` sends a product `∏_l X(f l)` of degree-1
+generators to the symmetric tensor `symTensor f`. -/
+lemma polyToTensor_prod_X (f : Fin n → Fin N × Fin N) :
+    polyToTensor k N n (∏ l : Fin n, MvPolynomial.X (R := k) (f l)) =
+      symTensor k N n f := by
+  classical
+  rw [prod_X_eq_monomial_fn]
+  set s : (Fin N × Fin N) →₀ ℕ := ∑ l : Fin n, Finsupp.single (f l) 1 with hs_def
+  -- polyToTensor on a basis monomial = multisetToTensor.
+  have hpt : polyToTensor k N n (MvPolynomial.monomial s 1) = multisetToTensor k N n s := by
+    unfold polyToTensor
+    rw [show (MvPolynomial.monomial s 1 : MvPolynomial (Fin N × Fin N) k) =
+         MvPolynomial.basisMonomials (Fin N × Fin N) k s from rfl,
+       Module.Basis.constr_basis]
+  rw [hpt]
+  -- toMultiset s = multiset of f.
+  have hf_multi : Finsupp.toMultiset s = Multiset.map f (Finset.univ : Finset (Fin n)).val := by
+    rw [hs_def]; exact toMultiset_sum_single_fn n f
+  -- |s| = n via card of toMultiset.
+  have hsn : s.sum (fun _ => id) = n := by
+    have hcard := congrArg Multiset.card hf_multi
+    rw [Finsupp.card_toMultiset] at hcard
+    rw [hcard]; simp
+  unfold multisetToTensor
+  rw [dif_pos hsn]
+  -- symTensor (canonicalSeq s _) = symTensor f via multiset-invariance.
+  refine symTensor_eq_of_multiset_eq k N n _ _ ?_
+  -- multiset of canonicalSeq s = toMultiset s = multiset of f
+  have hcard : Multiset.card (Finsupp.toMultiset s) = n := by
+    rw [Finsupp.card_toMultiset]; exact hsn
+  have hofFn : List.ofFn (canonicalSeq N n s hsn) = (Finsupp.toMultiset s).toList := by
+    apply List.ext_getElem
+    · simp [Multiset.length_toList, hcard]
+    · intro i h1 h2
+      simp [canonicalSeq]
+  have huniv_map : Multiset.map (canonicalSeq N n s hsn)
+      (Finset.univ : Finset (Fin n)).val =
+      ((List.ofFn (canonicalSeq N n s hsn) : List _) : Multiset _) := by
+    rw [show (Finset.univ : Finset (Fin n)).val = ((List.finRange n : List _) : Multiset _) from by
+      simp [List.finRange]; rfl]
+    rw [Multiset.map_coe, ← List.ofFn_eq_map]
+  rw [huniv_map, hofFn, Multiset.coe_toList, hf_multi]
+
 end PolynomialTensorBridge
 
 end Etingof
