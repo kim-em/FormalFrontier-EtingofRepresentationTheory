@@ -589,6 +589,89 @@ lemma polyToTensor_prod_X (f : Fin n → Fin N × Fin N) :
     rw [Multiset.map_coe, ← List.ofFn_eq_map]
   rw [huniv_map, hofFn, Multiset.coe_toList, hf_multi]
 
+/-! ### Main equivariance theorem -/
+
+omit [CharZero k] in
+/-- `polyRightTransl g` preserves the homogeneous submodule of degree `m`. Each
+generator `X_{ij}` (degree 1) maps to a sum of degree-1 monomials. -/
+lemma polyRightTransl_isHomogeneous (g : Matrix (Fin N) (Fin N) k) {m : ℕ}
+    {p : MvPolynomial (Fin N × Fin N) k} (hp : p.IsHomogeneous m) :
+    (polyRightTransl k N g p).IsHomogeneous m := by
+  have hgens : ∀ ij : Fin N × Fin N,
+      (∑ l : Fin N,
+          MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2)).IsHomogeneous 1 := by
+    intro ij
+    refine MvPolynomial.IsHomogeneous.sum _ _ _ ?_
+    intro l _
+    have := MvPolynomial.IsHomogeneous.mul (MvPolynomial.isHomogeneous_X (R := k) (ij.1, l))
+      (MvPolynomial.isHomogeneous_C (σ := Fin N × Fin N) (g l ij.2))
+    simpa using this
+  have h := hp.aeval (fun ij => ∑ l : Fin N, MvPolynomial.X (R := k) (ij.1, l) *
+    MvPolynomial.C (g l ij.2)) hgens
+  simpa [polyRightTransl, one_mul] using h
+
+/-- The bridge `polyToTensor` intertwines the right-translation action on
+polynomials with the `g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`, on
+homogeneous degree-`n` polynomials. -/
+theorem polyToTensor_rightTransl_of_isHomogeneous (g : Matrix (Fin N) (Fin N) k)
+    {p : MvPolynomial (Fin N × Fin N) k} (hp : p.IsHomogeneous n) :
+    polyToTensor k N n (polyRightTransl k N g p) =
+      tgtGLAction k N n g (polyToTensor k N n p) := by
+  classical
+  -- Expand p as a sum of monomials and distribute through both sides.
+  conv_lhs => rw [p.as_sum, map_sum (polyRightTransl k N g), map_sum (polyToTensor k N n)]
+  conv_rhs => rw [p.as_sum, map_sum (polyToTensor k N n), map_sum (tgtGLAction k N n g)]
+  apply Finset.sum_congr rfl
+  intro s hs
+  -- |s| = n by homogeneity.
+  have hsn : s.sum (fun _ => id) = n := by
+    have hcoeff : MvPolynomial.coeff s p ≠ 0 := MvPolynomial.mem_support_iff.mp hs
+    have hw := hp hcoeff
+    rw [Finsupp.weight_apply] at hw
+    simpa using hw
+  -- Pull out the scalar c := coeff s p (monomial s c = c • monomial s 1).
+  rw [show MvPolynomial.monomial s (MvPolynomial.coeff s p) =
+        (MvPolynomial.coeff s p) • MvPolynomial.monomial s (1 : k) from by
+    rw [MvPolynomial.smul_monomial, smul_eq_mul, mul_one]]
+  rw [map_smul (polyRightTransl k N g), map_smul (polyToTensor k N n),
+      map_smul (polyToTensor k N n), map_smul (tgtGLAction k N n g)]
+  congr 1
+  -- Goal: polyToTensor (polyRightTransl g (monomial s 1)) =
+  --       tgtGLAction g (polyToTensor (monomial s 1))
+  -- Express monomial s 1 = ∏_l X(canonicalSeq s _ l).
+  rw [show MvPolynomial.monomial s (1 : k) =
+        ∏ l : Fin n, MvPolynomial.X (R := k) (canonicalSeq N n s hsn l) from
+      (prod_X_canonicalSeq (k := k) (N := N) (n := n) s hsn).symm]
+  set f := canonicalSeq N n s hsn with hf_def
+  rw [polyRightTransl_prod, map_sum]
+  -- For each c, polyToTensor (C(scalar) * ∏ X(...)) = scalar • symTensor (...).
+  have step : ∀ c : Fin n → Fin N,
+      polyToTensor k N n (MvPolynomial.C (R := k) (∏ l, g (c l) (f l).2) *
+          (∏ l, MvPolynomial.X (R := k) ((f l).1, c l))) =
+        (∏ l, g (c l) (f l).2) • symTensor k N n (fun l => ((f l).1, c l)) := by
+    intro c
+    rw [show MvPolynomial.C (R := k) (∏ l, g (c l) (f l).2) *
+          (∏ l, MvPolynomial.X (R := k) ((f l).1, c l)) =
+        (∏ l, g (c l) (f l).2) • (∏ l, MvPolynomial.X (R := k) ((f l).1, c l)) from
+      (MvPolynomial.smul_eq_C_mul _ _).symm]
+    rw [LinearMap.map_smul, polyToTensor_prod_X]
+  simp_rw [step]
+  -- RHS: tgtGLAction g (polyToTensor (∏ X(f l))) = tgtGLAction g (symTensor f).
+  rw [polyToTensor_prod_X, tgtGLAction_symTensor]
+
+/-- The bridge `homogeneousPolyToTensor` is GL_N-equivariant: it intertwines the
+right-translation action on homogeneous polynomials with the `g^⊗n ⊗ id`
+action on `V^⊗n ⊗ (V^*)^⊗n`. -/
+theorem homogeneousPolyToTensor_equivariant (g : Matrix (Fin N) (Fin N) k)
+    (p : MvPolynomial.homogeneousSubmodule (Fin N × Fin N) k n) :
+    homogeneousPolyToTensor k N n
+        ⟨polyRightTransl k N g p.val,
+          polyRightTransl_isHomogeneous (k := k) (N := N) (m := n) g p.property⟩ =
+      tgtGLAction k N n g (homogeneousPolyToTensor k N n p) := by
+  unfold homogeneousPolyToTensor
+  simp only [LinearMap.comp_apply, Submodule.subtype_apply]
+  exact polyToTensor_rightTransl_of_isHomogeneous (k := k) (N := N) (n := n) g p.property
+
 end PolynomialTensorBridge
 
 end Etingof
