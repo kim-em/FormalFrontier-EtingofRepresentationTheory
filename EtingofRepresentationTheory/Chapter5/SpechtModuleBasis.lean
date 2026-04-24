@@ -912,6 +912,69 @@ private theorem srRank_lt_of_tabloidStrictDominates
       -- σ dom τ, τ dom ρ, toTab σ = toTab ρ ⟹ toTab τ = toTab ρ
       exact hne_τρ (tabloidDominates_antisymm_toTabloid h.1 hdom_τρ heq)
 
+/-! ### Column-restandardizer API for the whole-sum Garnir strategy
+
+The `garnirColReindex σ w q` packages the existence statement
+`exists_column_standard_mul (w * q⁻¹ * σ)` as a `Classical.choose`-defined
+function, with accompanying `mem_columnSubgroup`, `colStandard`, and a
+sign-tracking lemma `garnirColReindex_polytabloid_eq`. The latter expresses
+each twisted-polytabloid term `ψ_{w q⁻¹ σ}` in terms of its column-standard
+representative, ready for whole-sum reindexing in siblings C and D of the
+#2450 decomposition (#2498, #2499, #2500). -/
+
+/-- Canonical column-restandardizer for `w · q⁻¹ · σ`: an element of
+`ColumnSubgroup n la` whose left-multiplication by `w · q⁻¹ · σ` yields a
+column-standard permutation. Defined via `Classical.choose` on
+`exists_column_standard_mul (w * q⁻¹ * σ)`. -/
+private noncomputable def garnirColReindex
+    (σ w q : Equiv.Perm (Fin n)) : Equiv.Perm (Fin n) :=
+  Classical.choose
+    (exists_column_standard_mul (la := la) (w * q⁻¹ * σ))
+
+/-- `garnirColReindex σ w q` lies in the column subgroup. -/
+private theorem garnirColReindex_mem_columnSubgroup
+    (σ w q : Equiv.Perm (Fin n)) :
+    garnirColReindex (la := la) σ w q ∈ ColumnSubgroup n la :=
+  (Classical.choose_spec
+    (exists_column_standard_mul (la := la) (w * q⁻¹ * σ))).1
+
+/-- `garnirColReindex σ w q` left-multiplies `w · q⁻¹ · σ` to a
+column-standard permutation. -/
+private theorem garnirColReindex_colStandard
+    (σ w q : Equiv.Perm (Fin n)) :
+    isColumnStandard' n la
+      (garnirColReindex (la := la) σ w q * (w * q⁻¹ * σ)) :=
+  (Classical.choose_spec
+    (exists_column_standard_mul (la := la) (w * q⁻¹ * σ))).2
+
+/-- Sign-tracking corollary: the generalized polytabloid of `w · q⁻¹ · σ`
+equals `sign(γ)` times that of `γ · (w · q⁻¹ · σ)` where
+`γ = garnirColReindex σ w q ∈ Q_λ`.
+
+This is the consumer-facing form of `generalizedPolytabloidTab_col_mul`
+specialized for use in the whole-sum strategy: it lets siblings C and D
+group residual terms after column-restandardization by relating each
+twisted-polytabloid term `ψ_{w q⁻¹ σ}` to its column-standard
+representative `ψ_{γ · w q⁻¹ σ}`. -/
+private theorem garnirColReindex_polytabloid_eq
+    (σ w q : Equiv.Perm (Fin n)) :
+    generalizedPolytabloidTab (n := n) (la := la) (w * q⁻¹ * σ) =
+      ((↑(Equiv.Perm.sign (garnirColReindex (la := la) σ w q)) : ℤ) : ℂ) •
+        generalizedPolytabloidTab (n := n) (la := la)
+          (garnirColReindex (la := la) σ w q * (w * q⁻¹ * σ)) := by
+  set γ := garnirColReindex (la := la) σ w q
+  set τ := w * q⁻¹ * σ
+  have hγ_mem : γ ∈ ColumnSubgroup n la :=
+    garnirColReindex_mem_columnSubgroup (la := la) σ w q
+  have hcol := generalizedPolytabloidTab_col_mul (la := la) γ hγ_mem τ
+  -- hcol : gPT (γ * τ) = ((sign γ : ℤ) : ℂ) • gPT τ
+  -- Goal:  gPT τ      = ((sign γ : ℤ) : ℂ) • gPT (γ * τ)
+  -- Rewrite the RHS via hcol then collapse using sign² = 1.
+  have hsign_sq : ((↑(Equiv.Perm.sign γ) : ℤ) : ℂ) *
+      ((↑(Equiv.Perm.sign γ) : ℤ) : ℂ) = 1 := by
+    rcases Int.units_eq_one_or γ.sign with h | h <;> simp [h]
+  rw [hcol, smul_smul, hsign_sq, one_smul]
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"
