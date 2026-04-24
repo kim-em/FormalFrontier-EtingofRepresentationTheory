@@ -442,4 +442,40 @@ theorem Theorem5_18_4_bimodule_decomposition
   refine ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp, hS'_dist,
     L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
 
+-- Heartbeat bumps match `Theorem5_18_1_bimodule_decomposition_explicit`.
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1200000 in
+/-- Schur-Weyl duality, part (iii), bimodule form with explicit evaluation.
+
+Strengthens `Theorem5_18_4_bimodule_decomposition` by concretizing the
+summand types as `Sᵢ : Submodule (symGroupImage k V n) (V^⊗n)` and
+`Lᵢ := ↥(Sᵢ) →ₗ[symGroupImage k V n] V^⊗n`, and producing an explicit
+iso whose inverse on pure-tensor basis elements is the evaluation map:
+  `e.symm (of i (v ⊗ₜ l)) = l v`.
+
+This is the form required by character-additivity arguments (Schur-Weyl
+#3 in #2458): together with the tensor-factorization of traces it yields
+`tr(b on V^⊗n) = Σᵢ dim(Sᵢ) · tr(b on Lᵢ)` for every `b` in the
+`diagonalActionImage` (since the evaluation formula implies `B`-equivariance
+of the iso with respect to the centralizer-post-composition action).
+
+(Etingof Theorem 5.18.4, part iii, bimodule form, explicit version.) -/
+theorem Theorem5_18_4_bimodule_decomposition_explicit
+    [IsAlgClosed k] [CharZero k]
+    (hN : n ≤ Module.finrank k V) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Submodule (symGroupImage k V n) (TensorPower k V n))
+      (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
+      (_ : ∀ i j, Nonempty (↥(S i) ≃ₗ[symGroupImage k V n] ↥(S j)) → i = j),
+      ∃ (e : TensorPower k V n ≃ₗ[k]
+          DirectSum ι
+            (fun i => ↥(S i) ⊗[k] (↥(S i) →ₗ[symGroupImage k V n] TensorPower k V n))),
+        ∀ (i : ι) (v : ↥(S i))
+          (l : ↥(S i) →ₗ[symGroupImage k V n] TensorPower k V n),
+          e.symm (DirectSum.of _ i (v ⊗ₜ[k] l)) = l v := by
+  haveI := symGroupImage_isSemisimpleRing k V n
+  haveI := symGroupImage_faithfulSMul k V n hN
+  exact Theorem5_18_1_bimodule_decomposition_explicit k (TensorPower k V n)
+    (symGroupImage k V n)
+
 end Etingof
