@@ -423,4 +423,145 @@ theorem range_le_isotypicComponent_of_simple
           Submodule.le_isotypicComponent _
       _ = isotypicComponent A E V := heq
 
+set_option maxHeartbeats 1600000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Bridge equivalence: for a simple submodule `V ≤ E` and any submodule
+`c` equal to `isotypicComponent A E V`, the hom-space `V →ₗ[A] c` is
+`k`-linearly isomorphic to `V →ₗ[A] E`. The forward map post-composes
+with the inclusion `c → E`; the inverse co-restricts every `V →ₗ[A] E`
+to `c` using `range_le_isotypicComponent_of_simple`. -/
+noncomputable def homIsotypicBridge
+    (A : Subalgebra k (Module.End k E))
+    (V : Submodule A E) [IsSimpleModule A V]
+    (c : Submodule A E)
+    (hc_eq : c = isotypicComponent A E V) :
+    (V →ₗ[A] c) ≃ₗ[k] (V →ₗ[A] E) where
+  toFun f := c.subtype.comp f
+  invFun g := g.codRestrict c (fun v => by
+    have hrange : LinearMap.range g ≤ c := by
+      rw [hc_eq]
+      exact range_le_isotypicComponent_of_simple (k := k) (E := E) (V := V) g
+    exact hrange (LinearMap.mem_range_self g v))
+  left_inv f := by ext v; rfl
+  right_inv g := by ext v; rfl
+  map_add' f g := by ext v; simp
+  map_smul' r f := by ext v; rfl
+
+set_option maxHeartbeats 1600000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Double centralizer theorem, part (iii), bimodule form.
+
+If `A` is a semisimple subalgebra of `End_k(E)` with `E` faithful and
+`k` algebraically closed, then as a module over `A ⊗[k] B` (with
+`B = centralizer(A)`), `E` decomposes as
+  `E ≅ ⨁ᵢ Vᵢ ⊗[k] Lᵢ`
+where `Vᵢ` are pairwise non-isomorphic simple `A`-modules, and
+`Lᵢ = Vᵢ →ₗ[A] E` carries a natural `B`-module structure via
+post-composition. This is the bimodule-enhanced version of
+`Theorem5_18_1_decomposition`: the `Lᵢ` are genuine `B`-modules (not
+just `k`-vector spaces) and the `Vᵢ` are pairwise non-isomorphic.
+
+(Etingof Theorem 5.18.1, part iii, bimodule form.) -/
+theorem Theorem5_18_1_bimodule_decomposition
+    [IsAlgClosed k]
+    (A : Subalgebra k (Module.End k E))
+    [IsSemisimpleRing A]
+    [FaithfulSMul A E] :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (V : ι → Type v) (_ : ∀ i, AddCommGroup (V i))
+      (_ : ∀ i, Module k (V i)) (_ : ∀ i, Module A (V i))
+      (_ : ∀ i, IsSimpleModule A (V i))
+      (_ : ∀ i j, Nonempty (V i ≃ₗ[A] V j) → i = j)
+      (L : ι → Type v) (_ : ∀ i, AddCommGroup (L i))
+      (_ : ∀ i, Module k (L i))
+      (_ : ∀ i, Module
+            (↥(Subalgebra.centralizer k (A : Set (Module.End k E))))
+            (L i)),
+      Nonempty (E ≃ₗ[k] DirectSum ι (fun i => V i ⊗[k] L i)) := by
+  classical
+  haveI : IsSemisimpleModule A E := IsSemisimpleRing.isSemisimpleModule
+  haveI : Module.Finite A E := Module.Finite.of_restrictScalars_finite k A E
+  haveI : IsNoetherian A E := inferInstance
+  haveI : Finite (isotypicComponents A E) := inferInstance
+  haveI : Fintype (isotypicComponents A E) := Fintype.ofFinite _
+  set m := Fintype.card (isotypicComponents A E) with hm
+  let φ : isotypicComponents A E ≃ Fin m := Fintype.equivFin _
+  -- For each c, choose a simple submodule `V' c ≤ c.1` witnessing
+  -- `c.1 = isotypicComponent A E (V' c)`.
+  let V' : isotypicComponents A E → Submodule A E := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose
+  have V'_le : ∀ c, V' c ≤ c.1 := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose_spec.1
+  have V'_simple : ∀ c, IsSimpleModule A (V' c) := fun c =>
+    ((IsSemisimpleModule.eq_bot_or_exists_simple_le (c.1 : Submodule A E)).resolve_left
+      (bot_lt_isotypicComponents c.2).ne').choose_spec.2
+  have V'_spec : ∀ c, (c.1 : Submodule A E) = isotypicComponent A E (V' c) := by
+    intro c
+    haveI := V'_simple c
+    exact eq_isotypicComponent_of_le c.2 (V'_le c)
+  refine ⟨Fin m, inferInstance, inferInstance,
+    fun i => ↥(V' (φ.symm i)),
+    fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
+    fun i => V'_simple (φ.symm i),
+    ?_,
+    fun i => (↥(V' (φ.symm i)) →ₗ[A] E),
+    fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
+    ?_⟩
+  · -- Distinctness: V i ≃[A] V j → i = j
+    intro i j ⟨e⟩
+    have h_eq : isotypicComponent A E (V' (φ.symm i)) =
+                isotypicComponent A E (V' (φ.symm j)) :=
+      e.isotypicComponent_eq
+    have h_c_eq : (φ.symm i).1 = (φ.symm j).1 := by
+      rw [V'_spec (φ.symm i), V'_spec (φ.symm j)]; exact h_eq
+    exact φ.symm.injective (Subtype.ext h_c_eq)
+  · -- Main iso chain
+    -- Step 1: E ≃[A] ⨁ c, ↥c.1 via isotypicDirectSumEquiv (symm)
+    let e1 : E ≃ₗ[A] (Π₀ c : isotypicComponents A E, (c.1 : Submodule A E)) :=
+      (isotypicDirectSumEquiv A E).symm
+    -- Step 2: restrict scalars to k
+    let e2 : E ≃ₗ[k] (Π₀ c : isotypicComponents A E, (c.1 : Submodule A E)) :=
+      e1.restrictScalars k
+    -- Step 3: per-component Schur evaluation + bridge
+    -- For each c: ↥c.1 ≃[k] V' c ⊗[k] (V' c →ₗ[A] E)
+    haveI : IsNoetherian k E := inferInstance
+    let perComp : ∀ c : isotypicComponents A E,
+        (↥c.1 : Type v) ≃ₗ[k]
+          ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E) := fun c => by
+      haveI := V'_simple c
+      -- Provide Module.Finite k for the submodule types (via injection into E).
+      haveI : Module.Finite k (↥(V' c) : Type v) :=
+        Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
+          Subtype.val_injective
+      haveI : Module.Finite k (↥c.1 : Type v) :=
+        Module.Finite.of_injective (c.1.subtype.restrictScalars k)
+          Subtype.val_injective
+      -- isotypic transport: ↥c.1 ≃[A] ↥(isotypicComponent A E (V' c))
+      have e_submod : (↥c.1 : Type v) ≃ₗ[A] ↥(isotypicComponent A E (V' c)) :=
+        LinearEquiv.ofEq _ _ (V'_spec c)
+      haveI h_iso' : IsIsotypicOfType A ↥(isotypicComponent A E (V' c)) ↥(V' c) :=
+        IsIsotypicOfType.isotypicComponent A E _
+      haveI h_iso : IsIsotypicOfType A (↥c.1) ↥(V' c) :=
+        e_submod.isIsotypicOfType_iff.mpr h_iso'
+      -- Schur eval: V' c ⊗[k] (V' c →ₗ[A] ↥c.1) ≃[k] ↥c.1
+      let sE := schurEvaluationEquiv k A (↥(V' c)) (↥c.1) h_iso
+      -- Bridge: (V' c →ₗ[A] ↥c.1) ≃[k] (V' c →ₗ[A] E)
+      let br := homIsotypicBridge k E A (V' c) c.1 (V'_spec c)
+      -- Chain
+      exact sE.symm.trans (TensorProduct.congr (LinearEquiv.refl k _) br)
+    -- Step 4: map per-component across the direct sum
+    let e3 : (Π₀ c : isotypicComponents A E, (c.1 : Submodule A E)) ≃ₗ[k]
+             (Π₀ c : isotypicComponents A E,
+               ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E)) :=
+      DFinsupp.mapRange.linearEquiv perComp
+    -- Step 5: reindex via φ
+    let e4 : (Π₀ c : isotypicComponents A E,
+              ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E)) ≃ₗ[k]
+             DirectSum (Fin m) (fun i =>
+               ↥(V' (φ.symm i)) ⊗[k] (↥(V' (φ.symm i)) →ₗ[A] E)) :=
+      DirectSum.lequivCongrLeft k φ
+    exact ⟨e2.trans (e3.trans e4)⟩
+
 end Etingof
