@@ -434,6 +434,244 @@ lemma polyRightTransl_prod (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N �
     (map_prod (MvPolynomial.C (R := k)) _ _).symm]
   ring
 
+/-! ### Multiset-invariance of `symTensor`
+
+`symTensor f` only depends on the underlying multiset image of `f`. The proof
+goes via constructing an explicit permutation `σ` matching two sequences with
+the same multiset image, then applying `symTensor_comp_perm`. -/
+
+/-- Given two functions `f g : Fin n → α` with the same multiset image, produce
+an explicit permutation `σ : Equiv.Perm (Fin n)` with `g = f ∘ σ`. The
+construction is by induction on `n`, peeling off the head `g 0` and matching
+it against an element `l₀` of `f`'s domain. -/
+private noncomputable def matchingPerm {α : Type*} [DecidableEq α] :
+    ∀ {n : ℕ} (f g : Fin n → α),
+      Multiset.map f (Finset.univ : Finset (Fin n)).val =
+        Multiset.map g (Finset.univ : Finset (Fin n)).val →
+      {σ : Equiv.Perm (Fin n) // g = f ∘ σ}
+  | 0, _, g, _ => ⟨Equiv.refl _, funext fun i => i.elim0⟩
+  | n + 1, f, g, h =>
+      let hg0_mem : g 0 ∈ Multiset.map f (Finset.univ : Finset (Fin (n+1))).val := by
+        rw [h]; exact Multiset.mem_map.mpr ⟨0, Finset.mem_univ _, rfl⟩
+      let l₀ : Fin (n+1) := Classical.choose (Multiset.mem_map.mp hg0_mem)
+      let l₀_spec :
+        l₀ ∈ (Finset.univ : Finset (Fin (n+1))).val ∧ f l₀ = g 0 :=
+        Classical.choose_spec (Multiset.mem_map.mp hg0_mem)
+      let hl₀ : f l₀ = g 0 := l₀_spec.2
+      let f' : Fin n → α := f ∘ l₀.succAbove
+      let g' : Fin n → α := g ∘ Fin.succ
+      let hpeel_f : Multiset.map f (Finset.univ : Finset (Fin (n+1))).val =
+          f l₀ ::ₘ Multiset.map f' (Finset.univ : Finset (Fin n)).val := by
+        conv_lhs => rw [Fin.univ_succAbove n l₀]
+        simp only [Finset.cons_val, Multiset.map_cons, Finset.map_val,
+          Multiset.map_map, Fin.coe_succAboveEmb]
+        rfl
+      let hpeel_g : Multiset.map g (Finset.univ : Finset (Fin (n+1))).val =
+          g 0 ::ₘ Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+        conv_lhs => rw [Fin.univ_succAbove n 0]
+        simp only [Finset.cons_val, Multiset.map_cons, Finset.map_val,
+          Multiset.map_map, Fin.coe_succAboveEmb, Fin.succAbove_zero]
+        rfl
+      let hms : Multiset.map f' (Finset.univ : Finset (Fin n)).val =
+          Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+        have hh : f l₀ ::ₘ Multiset.map f' (Finset.univ : Finset (Fin n)).val =
+            f l₀ ::ₘ Multiset.map g' (Finset.univ : Finset (Fin n)).val := by
+          rw [← hpeel_f, h, hpeel_g, hl₀]
+        exact (Multiset.cons_inj_right _).mp hh
+      let σ'_pkg := matchingPerm f' g' hms
+      let σ' : Equiv.Perm (Fin n) := σ'_pkg.1
+      let hσ' : g' = f' ∘ σ' := σ'_pkg.2
+      let σ_fn : Fin (n+1) → Fin (n+1) :=
+        Fin.cases l₀ (fun j => l₀.succAbove (σ' j))
+      let hinj : Function.Injective σ_fn := by
+        intro i j hij
+        induction i using Fin.cases with
+        | zero =>
+          induction j using Fin.cases with
+          | zero => rfl
+          | succ b =>
+            exfalso
+            change l₀ = l₀.succAbove (σ' b) at hij
+            exact (Fin.succAbove_ne l₀ (σ' b)) hij.symm
+        | succ a =>
+          induction j using Fin.cases with
+          | zero =>
+            exfalso
+            change l₀.succAbove (σ' a) = l₀ at hij
+            exact (Fin.succAbove_ne l₀ (σ' a)) hij
+          | succ b =>
+            change l₀.succAbove (σ' a) = l₀.succAbove (σ' b) at hij
+            have h1 : σ' a = σ' b := l₀.succAbove_right_injective hij
+            have h2 : a = b := σ'.injective h1
+            exact congrArg Fin.succ h2
+      let hbij : Function.Bijective σ_fn :=
+        Finite.injective_iff_bijective.mp hinj
+      ⟨Equiv.ofBijective σ_fn hbij, by
+        funext i
+        induction i using Fin.cases with
+        | zero =>
+          show g 0 = f (σ_fn 0)
+          change g 0 = f l₀
+          exact hl₀.symm
+        | succ j =>
+          show g (Fin.succ j) = f (σ_fn (Fin.succ j))
+          change g (Fin.succ j) = f (l₀.succAbove (σ' j))
+          have := congrFun hσ' j
+          show g' j = f' (σ' j)
+          exact this⟩
+
+omit [CharZero k] in
+/-- `symTensor` only depends on the underlying multiset of the sequence. -/
+lemma symTensor_eq_of_multiset_eq (f g : Fin n → Fin N × Fin N)
+    (h : Multiset.map f (Finset.univ : Finset (Fin n)).val =
+         Multiset.map g (Finset.univ : Finset (Fin n)).val) :
+    symTensor k N n f = symTensor k N n g := by
+  classical
+  obtain ⟨σ, hσ⟩ := matchingPerm f g h
+  rw [hσ, symTensor_comp_perm]
+
+omit [CharZero k] in
+/-- For any sequence `g : Fin n → α`, the multiset of values `{g 0, …, g (n-1)}`
+equals `Finsupp.toMultiset (∑ l, single (g l) 1)`. -/
+private lemma toMultiset_sum_single_fn {α : Type*} [DecidableEq α] (g : Fin n → α) :
+    Finsupp.toMultiset (∑ l : Fin n, Finsupp.single (g l) (1 : ℕ)) =
+      Multiset.map g (Finset.univ : Finset (Fin n)).val := by
+  classical
+  rw [Finsupp.toMultiset_sum]
+  simp only [Finsupp.toMultiset_single, one_smul]
+  -- ∑ l ∈ univ, ({g l} : Multiset α) = univ.val.map g via Finset induction.
+  induction (Finset.univ : Finset (Fin n)) using Finset.induction_on with
+  | empty => simp
+  | insert a s ha ih =>
+    rw [Finset.sum_insert ha, ih, Finset.insert_val, Multiset.ndinsert_of_notMem ha,
+      Multiset.map_cons, Multiset.singleton_add]
+
+/-- The bridge `polyToTensor` sends a product `∏_l X(f l)` of degree-1
+generators to the symmetric tensor `symTensor f`. -/
+lemma polyToTensor_prod_X (f : Fin n → Fin N × Fin N) :
+    polyToTensor k N n (∏ l : Fin n, MvPolynomial.X (R := k) (f l)) =
+      symTensor k N n f := by
+  classical
+  rw [prod_X_eq_monomial_fn]
+  set s : (Fin N × Fin N) →₀ ℕ := ∑ l : Fin n, Finsupp.single (f l) 1 with hs_def
+  -- polyToTensor on a basis monomial = multisetToTensor.
+  have hpt : polyToTensor k N n (MvPolynomial.monomial s 1) = multisetToTensor k N n s := by
+    unfold polyToTensor
+    rw [show (MvPolynomial.monomial s 1 : MvPolynomial (Fin N × Fin N) k) =
+         MvPolynomial.basisMonomials (Fin N × Fin N) k s from rfl,
+       Module.Basis.constr_basis]
+  rw [hpt]
+  -- toMultiset s = multiset of f.
+  have hf_multi : Finsupp.toMultiset s = Multiset.map f (Finset.univ : Finset (Fin n)).val := by
+    rw [hs_def]; exact toMultiset_sum_single_fn n f
+  -- |s| = n via card of toMultiset.
+  have hsn : s.sum (fun _ => id) = n := by
+    have hcard := congrArg Multiset.card hf_multi
+    rw [Finsupp.card_toMultiset] at hcard
+    rw [hcard]; simp
+  unfold multisetToTensor
+  rw [dif_pos hsn]
+  -- symTensor (canonicalSeq s _) = symTensor f via multiset-invariance.
+  refine symTensor_eq_of_multiset_eq k N n _ _ ?_
+  -- multiset of canonicalSeq s = toMultiset s = multiset of f
+  have hcard : Multiset.card (Finsupp.toMultiset s) = n := by
+    rw [Finsupp.card_toMultiset]; exact hsn
+  have hofFn : List.ofFn (canonicalSeq N n s hsn) = (Finsupp.toMultiset s).toList := by
+    apply List.ext_getElem
+    · simp [Multiset.length_toList, hcard]
+    · intro i h1 h2
+      simp [canonicalSeq]
+  have huniv_map : Multiset.map (canonicalSeq N n s hsn)
+      (Finset.univ : Finset (Fin n)).val =
+      ((List.ofFn (canonicalSeq N n s hsn) : List _) : Multiset _) := by
+    rw [show (Finset.univ : Finset (Fin n)).val = ((List.finRange n : List _) : Multiset _) from by
+      simp [List.finRange]; rfl]
+    rw [Multiset.map_coe, ← List.ofFn_eq_map]
+  rw [huniv_map, hofFn, Multiset.coe_toList, hf_multi]
+
+/-! ### Main equivariance theorem -/
+
+omit [CharZero k] in
+/-- `polyRightTransl g` preserves the homogeneous submodule of degree `m`. Each
+generator `X_{ij}` (degree 1) maps to a sum of degree-1 monomials. -/
+lemma polyRightTransl_isHomogeneous (g : Matrix (Fin N) (Fin N) k) {m : ℕ}
+    {p : MvPolynomial (Fin N × Fin N) k} (hp : p.IsHomogeneous m) :
+    (polyRightTransl k N g p).IsHomogeneous m := by
+  have hgens : ∀ ij : Fin N × Fin N,
+      (∑ l : Fin N,
+          MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2)).IsHomogeneous 1 := by
+    intro ij
+    refine MvPolynomial.IsHomogeneous.sum _ _ _ ?_
+    intro l _
+    have := MvPolynomial.IsHomogeneous.mul (MvPolynomial.isHomogeneous_X (R := k) (ij.1, l))
+      (MvPolynomial.isHomogeneous_C (σ := Fin N × Fin N) (g l ij.2))
+    simpa using this
+  have h := hp.aeval (fun ij => ∑ l : Fin N, MvPolynomial.X (R := k) (ij.1, l) *
+    MvPolynomial.C (g l ij.2)) hgens
+  simpa [polyRightTransl, one_mul] using h
+
+/-- The bridge `polyToTensor` intertwines the right-translation action on
+polynomials with the `g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`, on
+homogeneous degree-`n` polynomials. -/
+theorem polyToTensor_rightTransl_of_isHomogeneous (g : Matrix (Fin N) (Fin N) k)
+    {p : MvPolynomial (Fin N × Fin N) k} (hp : p.IsHomogeneous n) :
+    polyToTensor k N n (polyRightTransl k N g p) =
+      tgtGLAction k N n g (polyToTensor k N n p) := by
+  classical
+  -- Expand p as a sum of monomials and distribute through both sides.
+  conv_lhs => rw [p.as_sum, map_sum (polyRightTransl k N g), map_sum (polyToTensor k N n)]
+  conv_rhs => rw [p.as_sum, map_sum (polyToTensor k N n), map_sum (tgtGLAction k N n g)]
+  apply Finset.sum_congr rfl
+  intro s hs
+  -- |s| = n by homogeneity.
+  have hsn : s.sum (fun _ => id) = n := by
+    have hcoeff : MvPolynomial.coeff s p ≠ 0 := MvPolynomial.mem_support_iff.mp hs
+    have hw := hp hcoeff
+    rw [Finsupp.weight_apply] at hw
+    simpa using hw
+  -- Pull out the scalar c := coeff s p (monomial s c = c • monomial s 1).
+  rw [show MvPolynomial.monomial s (MvPolynomial.coeff s p) =
+        (MvPolynomial.coeff s p) • MvPolynomial.monomial s (1 : k) from by
+    rw [MvPolynomial.smul_monomial, smul_eq_mul, mul_one]]
+  rw [map_smul (polyRightTransl k N g), map_smul (polyToTensor k N n),
+      map_smul (polyToTensor k N n), map_smul (tgtGLAction k N n g)]
+  congr 1
+  -- Goal: polyToTensor (polyRightTransl g (monomial s 1)) =
+  --       tgtGLAction g (polyToTensor (monomial s 1))
+  -- Express monomial s 1 = ∏_l X(canonicalSeq s _ l).
+  rw [show MvPolynomial.monomial s (1 : k) =
+        ∏ l : Fin n, MvPolynomial.X (R := k) (canonicalSeq N n s hsn l) from
+      (prod_X_canonicalSeq (k := k) (N := N) (n := n) s hsn).symm]
+  set f := canonicalSeq N n s hsn with hf_def
+  rw [polyRightTransl_prod, map_sum]
+  -- For each c, polyToTensor (C(scalar) * ∏ X(...)) = scalar • symTensor (...).
+  have step : ∀ c : Fin n → Fin N,
+      polyToTensor k N n (MvPolynomial.C (R := k) (∏ l, g (c l) (f l).2) *
+          (∏ l, MvPolynomial.X (R := k) ((f l).1, c l))) =
+        (∏ l, g (c l) (f l).2) • symTensor k N n (fun l => ((f l).1, c l)) := by
+    intro c
+    rw [show MvPolynomial.C (R := k) (∏ l, g (c l) (f l).2) *
+          (∏ l, MvPolynomial.X (R := k) ((f l).1, c l)) =
+        (∏ l, g (c l) (f l).2) • (∏ l, MvPolynomial.X (R := k) ((f l).1, c l)) from
+      (MvPolynomial.smul_eq_C_mul _ _).symm]
+    rw [LinearMap.map_smul, polyToTensor_prod_X]
+  simp_rw [step]
+  -- RHS: tgtGLAction g (polyToTensor (∏ X(f l))) = tgtGLAction g (symTensor f).
+  rw [polyToTensor_prod_X, tgtGLAction_symTensor]
+
+/-- The bridge `homogeneousPolyToTensor` is GL_N-equivariant: it intertwines the
+right-translation action on homogeneous polynomials with the `g^⊗n ⊗ id`
+action on `V^⊗n ⊗ (V^*)^⊗n`. -/
+theorem homogeneousPolyToTensor_equivariant (g : Matrix (Fin N) (Fin N) k)
+    (p : MvPolynomial.homogeneousSubmodule (Fin N × Fin N) k n) :
+    homogeneousPolyToTensor k N n
+        ⟨polyRightTransl k N g p.val,
+          polyRightTransl_isHomogeneous (k := k) (N := N) (m := n) g p.property⟩ =
+      tgtGLAction k N n g (homogeneousPolyToTensor k N n p) := by
+  unfold homogeneousPolyToTensor
+  simp only [LinearMap.comp_apply, Submodule.subtype_apply]
+  exact polyToTensor_rightTransl_of_isHomogeneous (k := k) (N := N) (n := n) g p.property
+
 end PolynomialTensorBridge
 
 end Etingof
