@@ -695,50 +695,32 @@ lemma hP_mul_of_hP [CharZero k] {d : ℕ}
                (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
              (P c c') • P a c := by
   classical
+  -- Convenience rewrite from `hP`: each evaluation coincides with a basis coord.
+  have hP_coord : ∀ (e : Matrix.GeneralLinearGroup (Fin N) k) (a c : Fin d),
+      MvPolynomial.eval
+          (fun ij : Fin N × Fin N => (e : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
+          (P a c) = b.coord a (ρ e (b c)) :=
+    fun e a c => by rw [← hP e a c, Module.Basis.coord_apply]
   apply MvPolynomial.eq_of_eval_eq_on_gl
   intro h
   rw [eval_polyRightTransl k N (g : Matrix (Fin N) (Fin N) k)
        (h : Matrix (Fin N) (Fin N) k) (P a c'), map_sum]
   simp only [MvPolynomial.smul_eval]
-  have hcoe : ((h * g : Matrix.GeneralLinearGroup (Fin N) k) :
-                Matrix (Fin N) (Fin N) k) =
-              (h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k) := by
-    rfl
+  -- `eval_{h·g}(P a c') = b.coord a (ρ(h·g)(b c')) = b.coord a (ρ h (ρ g (b c')))`.
+  -- `((h·g : GL_N) : Matrix) = h · g` is `Units.val_mul`, definitionally rfl.
   have hLHS : MvPolynomial.eval
                 (fun ij : Fin N × Fin N =>
                   ((h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k))
                     ij.1 ij.2) (P a c') =
               b.coord a (ρ h (ρ g (b c'))) := by
-    have hfun :
-        (fun ij : Fin N × Fin N =>
-            ((h : Matrix (Fin N) (Fin N) k) * (g : Matrix (Fin N) (Fin N) k)) ij.1 ij.2)
-        = (fun ij : Fin N × Fin N =>
-            ((h * g : Matrix.GeneralLinearGroup (Fin N) k) :
-                Matrix (Fin N) (Fin N) k) ij.1 ij.2) := by
-      funext ij; rw [hcoe]
-    rw [hfun]
-    have hPhg := hP (h * g) a c'
-    rw [ρ.map_mul, Module.End.mul_apply] at hPhg
-    rw [← hPhg, Module.Basis.coord_apply]
+    have hPhg := hP_coord (h * g) a c'
+    rwa [ρ.map_mul, Module.End.mul_apply] at hPhg
   rw [hLHS]
-  have h_g : ∀ c : Fin d,
-      MvPolynomial.eval
-        (fun ij : Fin N × Fin N => (g : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
-        (P c c') = b.coord c (ρ g (b c')) := by
-    intro c
-    rw [← hP g c c', Module.Basis.coord_apply]
-  have h_h : ∀ c : Fin d,
-      MvPolynomial.eval
-        (fun ij : Fin N × Fin N => (h : Matrix (Fin N) (Fin N) k) ij.1 ij.2)
-        (P a c) = b.coord a (ρ h (b c)) := by
-    intro c
-    rw [← hP h a c, Module.Basis.coord_apply]
-  simp_rw [h_g, h_h]
-  have hexpand : ρ g (b c') = ∑ c : Fin d, b.coord c (ρ g (b c')) • b c := by
-    conv_lhs => rw [← b.sum_repr (ρ g (b c'))]
-    refine Finset.sum_congr rfl fun c _ => ?_
-    rw [Module.Basis.coord_apply]
-  conv_lhs => rw [hexpand]
+  simp_rw [hP_coord]
+  -- Expand `ρ g (b c')` in the basis, then push `ρ h` and `b.coord a` through the sum.
+  conv_lhs =>
+    rw [show ρ g (b c') = ∑ c : Fin d, b.coord c (ρ g (b c')) • b c from by
+      simp_rw [Module.Basis.coord_apply]; exact (b.sum_repr _).symm]
   rw [map_sum, map_sum]
   refine Finset.sum_congr rfl fun c _ => ?_
   rw [(ρ h).map_smul, (b.coord a).map_smul, smul_eq_mul]
