@@ -3066,60 +3066,60 @@ private theorem dTildeRep_mapLinear_transport (k m : ℕ) {a b : DTildeVertex k}
   -- branch of the `dTildeRepMap` `if`-chain (via the helper lemmas above).
   match a, b, e' with
   | .leftLeaf1, .branchLeft, _ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     rw [dTildeRepMap_starEmbed1_zero_two k m _ _ rfl rfl]
     rfl
   | .leftLeaf2, .branchLeft, _ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     rw [dTildeRepMap_starEmbed2_one_two k m _ _ rfl rfl]
     rfl
   | .branchLeft, .pathMid j, ⟨hj0⟩ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     have : j.val = 0 := hj0
     rw [dTildeRepMap_gamma_two_three k m _ _ rfl
           (show (DTildeVertex.pathMid j : DTildeVertex k).toFin.val = 3 by
-             show j.val + 3 = 3; omega)]
+             change j.val + 3 = 3; omega)]
     rfl
   | .branchLeft, .branchRight, ⟨hk0⟩ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     have : k = 0 := hk0
     rw [dTildeRepMap_gamma_two_three k m _ _ rfl
           (show (DTildeVertex.branchRight : DTildeVertex k).toFin.val = 3 by
-             show k + 3 = 3; omega)]
+             change k + 3 = 3; omega)]
     rfl
   | .pathMid i, .pathMid j, ⟨hij⟩ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     have hij' : j.val = i.val + 1 := hij
     have hi : i.val < k := i.isLt
     have hj : j.val < k := j.isLt
     rw [dTildeRepMap_path_id k m _ _
           (show 3 ≤ (DTildeVertex.pathMid i : DTildeVertex k).toFin.val by
-             show 3 ≤ i.val + 3; omega)
+             change 3 ≤ i.val + 3; omega)
           (show (DTildeVertex.pathMid i : DTildeVertex k).toFin.val + 1 =
                   (DTildeVertex.pathMid j : DTildeVertex k).toFin.val by
-             show i.val + 3 + 1 = j.val + 3; omega)
+             change i.val + 3 + 1 = j.val + 3; omega)
           (show (DTildeVertex.pathMid j : DTildeVertex k).toFin.val ≤ k + 3 by
-             show j.val + 3 ≤ k + 3; omega)]
+             change j.val + 3 ≤ k + 3; omega)]
     rfl
   | .pathMid i, .branchRight, ⟨hik⟩ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     have hik' : i.val + 1 = k := hik
     have hi : i.val < k := i.isLt
     rw [dTildeRepMap_path_id k m _ _
           (show 3 ≤ (DTildeVertex.pathMid i : DTildeVertex k).toFin.val by
-             show 3 ≤ i.val + 3; omega)
+             change 3 ≤ i.val + 3; omega)
           (show (DTildeVertex.pathMid i : DTildeVertex k).toFin.val + 1 =
                   (DTildeVertex.branchRight : DTildeVertex k).toFin.val by
-             show i.val + 3 + 1 = k + 3; omega)
+             change i.val + 3 + 1 = k + 3; omega)
           (show (DTildeVertex.branchRight : DTildeVertex k).toFin.val ≤ k + 3 by
-             show k + 3 ≤ k + 3; omega)]
+             change k + 3 ≤ k + 3; omega)]
     rfl
   | .rightLeaf1, .branchRight, _ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     rw [dTildeRepMap_starEmbed1_right k m _ _ rfl rfl]
     rfl
   | .rightLeaf2, .branchRight, _ =>
-    show dTildeRepMap k m _ _ _ = _
+    change dTildeRepMap k m _ _ _ = _
     rw [dTildeRepMap_starEmbed2_right k m _ _ rfl rfl]
     rfl
 
