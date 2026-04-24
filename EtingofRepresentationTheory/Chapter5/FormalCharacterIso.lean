@@ -442,4 +442,150 @@ theorem formalCharacter_shift_of_weightSpace_finrank (N : ℕ)
       exact h fun i => by rw [onesFinsupp_apply]; exact Nat.one_le_iff_ne_zero.mpr (hall i)
     exact_mod_cast h_vanish (⇑μ) hexists
 
+/-! ### Character additivity and multiplicativity
+
+Two foundational identities for the formal character:
+* **Direct-sum additivity**: `formalCharacter (⨁ i, M_i) = ∑ i, formalCharacter M_i`.
+* **Trivial-tensor multiplicativity**: `formalCharacter (S ⊗ L) = (dim S) • formalCharacter L`
+  when `S` carries the trivial `GL_N`-action.
+
+Both follow from the analogous statements on weight-space finranks, combined with
+`formalCharacter_coeff`. -/
+
+open scoped DirectSum in
+open Representation in
+/-- Componentwise formula for the direct-sum representation: for `x : DirectSum ι V`,
+the `j`-th coordinate of applying `Representation.directSum ρ g` to `x` is
+`ρ j g (x j)`. -/
+private lemma directSum_rep_coord (N : ℕ)
+    {ι : Type} [Fintype ι] [DecidableEq ι]
+    (V : ι → Type _) [∀ i, AddCommGroup (V i)] [∀ i, Module k (V i)]
+    (ρ : ∀ i, Representation k (Matrix.GeneralLinearGroup (Fin N) k) (V i))
+    (g : Matrix.GeneralLinearGroup (Fin N) k) (x : DirectSum ι V) (j : ι) :
+    (Representation.directSum ρ g x) j = ρ j g (x j) := by
+  change (DirectSum.lmap (fun m => ρ m g)) x j = ρ j g (x j)
+  rw [DirectSum.lmap_apply]
+
+open scoped DirectSum in
+open Representation in
+/-- The weight space of a direct-sum representation splits coordinate-wise: a
+vector `x` lies in the weight space iff each coordinate `x j` lies in the
+corresponding weight space of `ρ j`. -/
+private lemma mem_glWeightSpace_directSum_iff (N : ℕ)
+    {ι : Type} [Fintype ι] [DecidableEq ι]
+    (V : ι → Type _) [∀ i, AddCommGroup (V i)] [∀ i, Module k (V i)]
+    [∀ i, Module.Finite k (V i)]
+    (ρ : ∀ i, Representation k (Matrix.GeneralLinearGroup (Fin N) k) (V i))
+    (μ : Fin N → ℕ) (x : DirectSum ι V) :
+    x ∈ glWeightSpace k N (FDRep.of (Representation.directSum ρ)) μ ↔
+      ∀ j : ι, x j ∈ glWeightSpace k N (FDRep.of (ρ j)) μ := by
+  simp only [glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker, FDRep.of_ρ',
+    LinearMap.sub_apply, LinearMap.smul_apply]
+  -- Note: `LinearMap.id_apply` is rfl, so we rely on definitional equality via `change`.
+  constructor
+  · intro h j i t
+    -- h : ∀ i t, Rep.directSum ρ (diag i t) x - t^μi • LinearMap.id x = 0
+    -- LinearMap.id x ≡ x definitionally
+    have hit : Representation.directSum ρ (diagUnit k N i t) x -
+        (↑t : k) ^ μ i • x = 0 := h i t
+    -- Take the j-th component
+    have h_comp : (Representation.directSum ρ (diagUnit k N i t) x -
+        (↑t : k) ^ μ i • x) j = (0 : DirectSum ι V) j := by rw [hit]
+    rw [DFinsupp.sub_apply, DFinsupp.smul_apply, directSum_rep_coord,
+      DFinsupp.zero_apply] at h_comp
+    -- Goal: ρ j (diag) (x j) - t^μi • LinearMap.id (x j) = 0
+    -- Same definitional step
+    exact h_comp
+  · intro h i t
+    -- Goal: Rep.directSum ρ (diag) x - t^μi • LinearMap.id x = 0
+    refine DFinsupp.ext fun j => ?_
+    show (Representation.directSum ρ (diagUnit k N i t) x -
+        (↑t : k) ^ μ i • x) j = (0 : DirectSum ι V) j
+    rw [DFinsupp.sub_apply, DFinsupp.smul_apply, directSum_rep_coord,
+      DFinsupp.zero_apply]
+    have := h j i t
+    exact this
+
+open scoped DirectSum in
+open Representation in
+/-- Linear equivalence between the direct sum of weight spaces and the weight
+space of a direct-sum representation. -/
+noncomputable def glWeightSpace_directSum_equiv (N : ℕ)
+    {ι : Type} [Fintype ι] [DecidableEq ι]
+    (V : ι → Type _) [∀ i, AddCommGroup (V i)] [∀ i, Module k (V i)]
+    [∀ i, Module.Finite k (V i)]
+    (ρ : ∀ i, Representation k (Matrix.GeneralLinearGroup (Fin N) k) (V i))
+    (μ : Fin N → ℕ) :
+    DirectSum ι (fun j => ↥(glWeightSpace k N (FDRep.of (ρ j)) μ)) ≃ₗ[k]
+      ↥(glWeightSpace k N (FDRep.of (Representation.directSum ρ)) μ) := by
+  -- Build the equivalence via `LinearMap.range`, starting with an unrestricted map
+  let fwd₀ : DirectSum ι (fun j => ↥(glWeightSpace k N (FDRep.of (ρ j)) μ)) →ₗ[k]
+      DirectSum ι V :=
+    DirectSum.lmap (fun j => (glWeightSpace k N (FDRep.of (ρ j)) μ).subtype)
+  have h_inj : Function.Injective fwd₀ :=
+    (DirectSum.lmap_injective _).mpr (fun _ => Subtype.val_injective)
+  have h_range : LinearMap.range fwd₀ =
+      (glWeightSpace k N (FDRep.of (Representation.directSum ρ)) μ) := by
+    ext z
+    simp only [LinearMap.mem_range]
+    constructor
+    · rintro ⟨x, rfl⟩
+      rw [mem_glWeightSpace_directSum_iff]
+      intro j
+      -- Goal: (fwd₀ x) j ∈ glWeightSpace ρ_j μ
+      -- fwd₀ x = DirectSum.lmap subtypes x, so (fwd₀ x) j = (x j).val by lmap_apply (rfl)
+      show (x j).val ∈ glWeightSpace k N (FDRep.of (ρ j)) μ
+      exact (x j).2
+    · intro hz
+      rw [mem_glWeightSpace_directSum_iff] at hz
+      -- Construct preimage as a sum of single-indexed elements
+      refine ⟨∑ j : ι, DirectSum.of
+        (fun j' => ↥(glWeightSpace k N (FDRep.of (ρ j')) μ)) j ⟨z j, hz j⟩, ?_⟩
+      -- fwd₀ is linear, so distributes across the sum; each summand becomes
+      -- DirectSum.of V j (z j) via lmap_lof, and the total sum reconstructs z.
+      rw [map_sum]
+      simp only [fwd₀, DirectSum.lmap_lof, Submodule.subtype_apply]
+      -- Now goal: ∑ j, DirectSum.of V j (z j) = z
+      -- This is DirectSum.sum_univ_of for Fintype
+      ext j
+      rw [DFinsupp.finset_sum_apply]
+      simp [DirectSum.of_apply]
+  -- Assemble the equiv
+  exact (LinearEquiv.ofInjective fwd₀ h_inj).trans
+    (LinearEquiv.ofEq _ _ h_range)
+
+open scoped DirectSum in
+open Representation in
+/-- The finrank of the weight space of a direct-sum representation is the sum of
+finranks of the individual weight spaces. -/
+private lemma finrank_glWeightSpace_directSum (N : ℕ)
+    {ι : Type} [Fintype ι] [DecidableEq ι]
+    (V : ι → Type _) [∀ i, AddCommGroup (V i)] [∀ i, Module k (V i)]
+    [∀ i, Module.Finite k (V i)]
+    (ρ : ∀ i, Representation k (Matrix.GeneralLinearGroup (Fin N) k) (V i))
+    (μ : Fin N → ℕ) :
+    Module.finrank k
+        (glWeightSpace k N (FDRep.of (Representation.directSum ρ)) μ) =
+      ∑ j : ι, Module.finrank k (glWeightSpace k N (FDRep.of (ρ j)) μ) := by
+  rw [← LinearEquiv.finrank_eq (glWeightSpace_directSum_equiv k N V ρ μ),
+    Module.finrank_directSum]
+
+open scoped DirectSum in
+open Representation in
+/-- **Direct-sum additivity of formal character.**
+For a finite family of representations `ρ i` on finite-dimensional `k`-modules,
+the formal character of the direct-sum representation equals the sum of the
+individual formal characters. -/
+theorem formalCharacter_directSum (N : ℕ)
+    {ι : Type} [Fintype ι] [DecidableEq ι]
+    (V : ι → Type _) [∀ i, AddCommGroup (V i)] [∀ i, Module k (V i)]
+    [∀ i, Module.Finite k (V i)]
+    (ρ : ∀ i, Representation k (Matrix.GeneralLinearGroup (Fin N) k) (V i)) :
+    formalCharacter k N (FDRep.of (Representation.directSum ρ)) =
+      ∑ j : ι, formalCharacter k N (FDRep.of (ρ j)) := by
+  ext μ
+  rw [formalCharacter_coeff, MvPolynomial.coeff_sum]
+  simp_rw [formalCharacter_coeff]
+  exact_mod_cast finrank_glWeightSpace_directSum k N V ρ μ
+
 end Etingof
