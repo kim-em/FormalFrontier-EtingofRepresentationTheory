@@ -588,4 +588,144 @@ theorem formalCharacter_directSum (N : ℕ)
   simp_rw [formalCharacter_coeff]
   exact_mod_cast finrank_glWeightSpace_directSum k N V ρ μ
 
+omit [CharZero k] in
+/-- Under a GL_N-equivariant k-linear equivalence `e : V ≃ W`, the weight space
+`glWeightSpace (FDRep.of ρV) μ` maps onto `glWeightSpace (FDRep.of ρW) μ`. -/
+private theorem glWeightSpace_map_eq_of_rep_iso (N : ℕ)
+    {V W : Type _} [AddCommGroup V] [Module k V] [Module.Finite k V]
+    [AddCommGroup W] [Module k W] [Module.Finite k W]
+    (ρV : Representation k (Matrix.GeneralLinearGroup (Fin N) k) V)
+    (ρW : Representation k (Matrix.GeneralLinearGroup (Fin N) k) W)
+    (e : V ≃ₗ[k] W)
+    (hequiv : ∀ g : Matrix.GeneralLinearGroup (Fin N) k, ∀ v : V,
+      e (ρV g v) = ρW g (e v))
+    (μ : Fin N → ℕ) :
+    (glWeightSpace k N (FDRep.of ρV) μ).map (e : V →ₗ[k] W) =
+      glWeightSpace k N (FDRep.of ρW) μ := by
+  ext w
+  simp only [Submodule.mem_map, glWeightSpace, Submodule.mem_iInf, LinearMap.mem_ker,
+    LinearMap.sub_apply, LinearMap.smul_apply,
+    LinearEquiv.coe_coe]
+  constructor
+  · rintro ⟨v, hv, rfl⟩ i t
+    have h : ρV (diagUnit k N i t) v = ((t : k) ^ μ i) • v := sub_eq_zero.mp (hv i t)
+    have h' : e (ρV (diagUnit k N i t) v) = ((t : k) ^ μ i) • e v := by
+      rw [h, map_smul]
+    rw [hequiv] at h'
+    exact sub_eq_zero.mpr h'
+  · intro hw
+    refine ⟨e.symm w, ?_, e.apply_symm_apply w⟩
+    intro i t
+    have h : ρW (diagUnit k N i t) w = ((t : k) ^ μ i) • w := sub_eq_zero.mp (hw i t)
+    have h1 : e (ρV (diagUnit k N i t) (e.symm w)) = ((t : k) ^ μ i) • w := by
+      rw [hequiv, e.apply_symm_apply, h]
+    have h2 : e (((t : k) ^ μ i) • e.symm w) = ((t : k) ^ μ i) • w := by
+      rw [map_smul, e.apply_symm_apply]
+    exact sub_eq_zero.mpr (e.injective (h1.trans h2.symm))
+
+/-- **Formal character is invariant under GL_N-equivariant isomorphism.**
+A k-linear equivalence `e : V ≃ W` that intertwines two GL_N representations induces
+equality of their formal characters. -/
+theorem formalCharacter_eq_of_rep_iso (N : ℕ)
+    {V W : Type _} [AddCommGroup V] [Module k V] [Module.Finite k V]
+    [AddCommGroup W] [Module k W] [Module.Finite k W]
+    (ρV : Representation k (Matrix.GeneralLinearGroup (Fin N) k) V)
+    (ρW : Representation k (Matrix.GeneralLinearGroup (Fin N) k) W)
+    (e : V ≃ₗ[k] W)
+    (hequiv : ∀ g : Matrix.GeneralLinearGroup (Fin N) k, ∀ v : V,
+      e (ρV g v) = ρW g (e v)) :
+    formalCharacter k N (FDRep.of ρV) = formalCharacter k N (FDRep.of ρW) := by
+  ext μ
+  rw [formalCharacter_coeff, formalCharacter_coeff]
+  congr 1
+  rw [← glWeightSpace_map_eq_of_rep_iso k N ρV ρW e hequiv]
+  exact (e.finrank_map_eq (glWeightSpace k N (FDRep.of ρV) μ)).symm
+
+open scoped DirectSum in
+open Representation in
+/-- **Trivial-tensor multiplicativity of formal character.**
+For a trivial GL_N-action on `S` tensor-producted with a representation `L`, the
+formal character is `(dim S) • formalCharacter L`. -/
+theorem formalCharacter_trivialTensor (N : ℕ)
+    (S : Type _) [AddCommGroup S] [Module k S] [Module.Finite k S]
+    (L : FDRep k (Matrix.GeneralLinearGroup (Fin N) k)) :
+    formalCharacter k N
+        (FDRep.of ((Representation.trivial k
+          (Matrix.GeneralLinearGroup (Fin N) k) S).tprod L.ρ)) =
+      (Module.finrank k S : ℚ) • formalCharacter k N L := by
+  classical
+  -- Pick a basis of S indexed by `Fin n` with `n = finrank k S`.
+  set n := Module.finrank k S with hn_def
+  let b : Module.Basis (Fin n) k S := Module.finBasis k S
+  -- Build the carrier iso `S ⊗ L ≃ ⨁ Fin n, L` in four steps.
+  let e : TensorProduct k S L ≃ₗ[k] (⨁ _ : Fin n, L) :=
+    (b.equivFun.rTensor L) ≪≫ₗ TensorProduct.comm k (Fin n → k) L ≪≫ₗ
+      TensorProduct.piScalarRight k k L (Fin n) ≪≫ₗ
+      (DirectSum.linearEquivFunOnFintype k (Fin n) (fun _ : Fin n => L)).symm
+  -- Prove `e` intertwines `(trivial).tprod L.ρ` with `Representation.directSum (_ => L.ρ)`.
+  have hequiv : ∀ (g : Matrix.GeneralLinearGroup (Fin N) k) (v : TensorProduct k S L),
+      e (((Representation.trivial k
+            (Matrix.GeneralLinearGroup (Fin N) k) S).tprod L.ρ) g v) =
+        Representation.directSum (fun _ : Fin n => L.ρ) g (e v) := by
+    intro g
+    suffices h : (e.toLinearMap ∘ₗ
+        ((Representation.trivial k
+          (Matrix.GeneralLinearGroup (Fin N) k) S).tprod L.ρ) g) =
+        (Representation.directSum (fun _ : Fin n => L.ρ) g).comp e.toLinearMap by
+      intro v; exact LinearMap.congr_fun h v
+    apply TensorProduct.ext'
+    intro s ℓ
+    -- Both sides are elements of `⨁ Fin n, L`. Compare at each component.
+    refine DFinsupp.ext fun j => ?_
+    -- RHS: component j of directSum action = L.ρ g (component j of e (s ⊗ ℓ)).
+    have hrhs_comp :
+        (Representation.directSum (fun _ : Fin n => L.ρ) g (e (s ⊗ₜ[k] ℓ))) j =
+          L.ρ g ((e (s ⊗ₜ[k] ℓ)) j) :=
+      directSum_rep_coord k N (fun _ : Fin n => L) (fun _ => L.ρ) g _ j
+    -- Now compute e on pure tensors using the iso chain.
+    have he : ∀ (x : L),
+        e (s ⊗ₜ[k] x) = (DirectSum.linearEquivFunOnFintype k (Fin n)
+          (fun _ : Fin n => L)).symm (fun j : Fin n => (b.equivFun s j) • x) := by
+      intro x
+      simp only [e, LinearEquiv.trans_apply, LinearEquiv.rTensor_tmul,
+        TensorProduct.comm_tmul, TensorProduct.piScalarRight_apply,
+        TensorProduct.piScalarRightHom_tmul]
+    -- Component access of `linearEquivFunOnFintype.symm f` is `f j`:
+    have hcomp : ∀ (f : Fin n → L),
+        ((DirectSum.linearEquivFunOnFintype k (Fin n) (fun _ : Fin n => L)).symm f)
+            j = f j := by
+      intro f
+      -- `linearEquivFunOnFintype` is the Equiv going from ⨁ to Pi; its symm on f
+      -- gives the DFinsupp whose underlying function is f.
+      change (DFinsupp.equivFunOnFintype.symm f : ⨁ _ : Fin n, L) j = f j
+      rw [show (DFinsupp.equivFunOnFintype.symm f : ⨁ _ : Fin n, L) j
+            = DFinsupp.equivFunOnFintype (DFinsupp.equivFunOnFintype.symm f) j from rfl,
+          DFinsupp.equivFunOnFintype.apply_symm_apply]
+    -- Compute LHS component.
+    have hlhs :
+        (e (((Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+              S).tprod L.ρ) g (s ⊗ₜ[k] ℓ))) j = (b.equivFun s j) • L.ρ g ℓ := by
+      rw [show ((Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+                  S).tprod L.ρ) g (s ⊗ₜ[k] ℓ) = s ⊗ₜ[k] L.ρ g ℓ from by
+            simp [Representation.tprod_apply, TensorProduct.map_tmul]]
+      rw [he (L.ρ g ℓ), hcomp]
+    -- Compute RHS component.
+    have hrhs :
+        L.ρ g ((e (s ⊗ₜ[k] ℓ)) j) = (b.equivFun s j) • L.ρ g ℓ := by
+      rw [he ℓ, hcomp, map_smul]
+    -- Combine.
+    calc (e (((Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+            S).tprod L.ρ) g (s ⊗ₜ[k] ℓ))) j
+        = (b.equivFun s j) • L.ρ g ℓ := hlhs
+      _ = L.ρ g ((e (s ⊗ₜ[k] ℓ)) j) := hrhs.symm
+      _ = (Representation.directSum (fun _ : Fin n => L.ρ) g (e (s ⊗ₜ[k] ℓ))) j :=
+          hrhs_comp.symm
+      _ = (((Representation.directSum (fun _ : Fin n => L.ρ) g).comp e.toLinearMap)
+              (s ⊗ₜ[k] ℓ)) j := rfl
+  -- Apply iso-invariance of character.
+  rw [formalCharacter_eq_of_rep_iso k N _ _ e hequiv, formalCharacter_directSum]
+  simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin]
+  -- Goal: n • char L = (n : ℚ) • char L (both on MvPolynomial (Fin N) ℚ).
+  exact (Nat.cast_smul_eq_nsmul ℚ n (formalCharacter k N L)).symm
+
 end Etingof
