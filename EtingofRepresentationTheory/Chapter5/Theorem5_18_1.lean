@@ -460,6 +460,23 @@ noncomputable instance centralizerModuleHom
     change (centralizerToEndA k E A 0) (f v) = 0
     rw [map_zero]; rfl
 
+set_option maxHeartbeats 400000 in
+set_option synthInstance.maxHeartbeats 400000 in
+/-- The centralizer action on `V →ₗ[A] E` (post-composition) commutes with
+the standard `k`-action on `V →ₗ[A] E` (pointwise scaling). This follows
+from each `b ∈ centralizer(A) ⊆ End k E` being a `k`-linear map. -/
+instance centralizerModuleHom_smulCommClass
+    {A : Subalgebra k (Module.End k E)}
+    {V : Type*} [AddCommGroup V] [Module k V]
+    [Module A V] [IsScalarTower k A V] :
+    SMulCommClass (↥(Subalgebra.centralizer k (A : Set (Module.End k E)))) k
+      (V →ₗ[A] E) where
+  smul_comm b c f := by
+    refine LinearMap.ext fun v => ?_
+    -- (b • (c • f)) v = b.val (c • f v) = c • b.val (f v) = c • (b • f) v
+    show b.val ((c • f) v) = c • b.val (f v)
+    rw [LinearMap.smul_apply, map_smul]
+
 set_option synthInstance.maxHeartbeats 400000 in
 /-- The natural bridge: every `A`-linear map from a simple submodule `V ≤ E`
 into `E` lands in the isotypic component `isotypicComponent A E V`. -/
@@ -513,8 +530,12 @@ noncomputable def homIsotypicBridge
   map_add' f g := by ext v; simp
   map_smul' r f := by ext v; rfl
 
-set_option maxHeartbeats 1600000 in
-set_option synthInstance.maxHeartbeats 800000 in
+-- Heartbeats are bumped because the existential output has several universe-polymorphic
+-- ∀-binders whose instance synthesis (AddCommGroup / Module / SMulCommClass / Module.Finite
+-- over a subalgebra-wrapped ring) each triggers a deep `Subalgebra → Ring → Module.End`
+-- instance chain.
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1600000 in
 /-- Double centralizer theorem, part (iii), bimodule form.
 
 If `A` is a semisimple subalgebra of `End_k(E)` with `E` faithful and
@@ -542,7 +563,11 @@ theorem Theorem5_18_1_bimodule_decomposition
       (_ : ∀ i, Module k (L i))
       (_ : ∀ i, Module
             (↥(Subalgebra.centralizer k (A : Set (Module.End k E))))
-            (L i)),
+            (L i))
+      (_ : ∀ i, SMulCommClass
+            (↥(Subalgebra.centralizer k (A : Set (Module.End k E))))
+            k (L i))
+      (_ : ∀ i, Module.Finite k (L i)),
       Nonempty (E ≃ₗ[k] DirectSum ι (fun i => V i ⊗[k] L i)) := by
   classical
   haveI : IsSemisimpleModule A E := IsSemisimpleRing.isSemisimpleModule
@@ -567,6 +592,17 @@ theorem Theorem5_18_1_bimodule_decomposition
     intro c
     haveI := V'_simple c
     exact eq_isotypicComponent_of_le c.2 (V'_le c)
+  haveI : ∀ c : isotypicComponents A E, Module.Finite k ↥(V' c) := fun c =>
+    Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
+      Subtype.val_injective
+  haveI : ∀ c : isotypicComponents A E,
+      Module.Finite k ((↥(V' c) : Type v) →ₗ[A] E) := fun c => by
+    -- The A-linear hom space is a subspace of the k-linear hom space
+    -- (via `LinearMap.restrictScalars`), which is finite-dimensional.
+    haveI : Module.Finite k ((↥(V' c) : Type v) →ₗ[k] E) := inferInstance
+    exact Module.Finite.of_injective
+      (LinearMap.restrictScalarsₗ k A (↥(V' c)) E k)
+      (LinearMap.restrictScalars_injective _)
   refine ⟨Fin m, inferInstance, inferInstance,
     fun i => ↥(V' (φ.symm i)),
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
@@ -574,6 +610,8 @@ theorem Theorem5_18_1_bimodule_decomposition
     ?_,
     fun i => (↥(V' (φ.symm i)) →ₗ[A] E),
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
+    fun _ => inferInstance,
+    fun _ => inferInstance,
     ?_⟩
   · -- Distinctness: V i ≃[A] V j → i = j
     intro i j ⟨e⟩

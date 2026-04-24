@@ -2241,33 +2241,59 @@ private noncomputable def dTildePathId (m : ℕ) :
     (Fin (2 * (m + 1)) → ℂ) →ₗ[ℂ] (Fin (2 * (m + 1)) → ℂ) :=
   LinearMap.id
 
+/-- Reindex a linear map between Fin-indexed function spaces through dimension
+    equalities via `LinearEquiv.funCongrLeft ∘ finCongr`. This makes the
+    resulting map pointwise computable: evaluating at an index reduces to
+    `F` applied to a val-cast of the input at a val-cast of the index
+    (see `dTildeCast_apply`). Using explicit reindexing instead of `▸`-casts
+    is what makes `dTildeRep_mapLinear_transport` reduce cleanly. -/
+private noncomputable def dTildeCast {p q p' q' : ℕ}
+    (hp : p' = p) (hq : q' = q)
+    (F : (Fin p → ℂ) →ₗ[ℂ] (Fin q → ℂ)) :
+    (Fin p' → ℂ) →ₗ[ℂ] (Fin q' → ℂ) :=
+  (LinearEquiv.funCongrLeft ℂ ℂ (finCongr hq)).toLinearMap ∘ₗ
+    F ∘ₗ (LinearEquiv.funCongrLeft ℂ ℂ (finCongr hp.symm)).toLinearMap
+
+private theorem dTildeCast_apply {p q p' q' : ℕ}
+    (hp : p' = p) (hq : q' = q)
+    (F : (Fin p → ℂ) →ₗ[ℂ] (Fin q → ℂ))
+    (x : Fin p' → ℂ) (i : Fin q') :
+    dTildeCast hp hq F x i = F (fun j => x ⟨j.val, hp.symm ▸ j.isLt⟩) ⟨i.val, hq ▸ i.isLt⟩ := by
+  rfl
+
 /-- Match-based map for the D̃_{k+5} representation. -/
 private noncomputable def dTildeRepMap (k m : ℕ) (a b : Fin (k + 6)) :
     (Fin (dTildeDim k m a) → ℂ) →ₗ[ℂ] (Fin (dTildeDim k m b) → ℂ) :=
   if h : a.val = 0 ∧ b.val = 2 then
-    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ starEmbed1 m
+    dTildeCast
+      (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (starEmbed1 m)
   else if h : a.val = 1 ∧ b.val = 2 then
-    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ starEmbed2 m
+    dTildeCast
+      (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (starEmbed2 m)
   else if h : a.val = 2 ∧ b.val = 3 then
-    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ d5tildeGamma m
+    dTildeCast
+      (show dTildeDim k m a = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (d5tildeGamma m)
   else if h : 3 ≤ a.val ∧ a.val + 1 = b.val ∧ b.val ≤ k + 3 then
-    have ha : dTildeDim k m a = 2 * (m + 1) := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ dTildePathId m
+    dTildeCast
+      (show dTildeDim k m a = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (dTildePathId m)
   else if h : a.val = k + 4 ∧ b.val = k + 3 then
-    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ starEmbed1 m
+    dTildeCast
+      (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (starEmbed1 m)
   else if h : a.val = k + 5 ∧ b.val = k + 3 then
-    have ha : dTildeDim k m a = m + 1 := by simp [dTildeDim]; omega
-    have hb : dTildeDim k m b = 2 * (m + 1) := by simp [dTildeDim]; omega
-    ha ▸ hb ▸ starEmbed2 m
+    dTildeCast
+      (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+      (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+      (starEmbed2 m)
   else
     0
 
@@ -2929,6 +2955,93 @@ private theorem DTildeArrowPred'_toFin {k : ℕ} {a b : DTildeVertex k}
   | .rightLeaf2, .branchRight, _ =>
     exact Or.inr (Or.inr (Or.inr (Or.inr ⟨rfl, rfl⟩)))
 
+/-- Unfolding of `dTildeRepMap` on the `starEmbed1` branch (arrow `a → b` with
+    `a.val = 0, b.val = 2`). -/
+private lemma dTildeRepMap_starEmbed1_zero_two (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : a.val = 0) (hB : b.val = 2) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (starEmbed1 m) := by
+  unfold dTildeRepMap
+  rw [dif_pos (And.intro hA hB)]
+
+/-- Unfolding of `dTildeRepMap` on the `starEmbed2` branch (arrow `a → b` with
+    `a.val = 1, b.val = 2`). -/
+private lemma dTildeRepMap_starEmbed2_one_two (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : a.val = 1) (hB : b.val = 2) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (starEmbed2 m) := by
+  unfold dTildeRepMap
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_pos (And.intro hA hB)]
+
+/-- Unfolding of `dTildeRepMap` on the `d5tildeGamma` branch (arrow `a → b` with
+    `a.val = 2, b.val = 3`). -/
+private lemma dTildeRepMap_gamma_two_three (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : a.val = 2) (hB : b.val = 3) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (d5tildeGamma m) := by
+  unfold dTildeRepMap
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_pos (And.intro hA hB)]
+
+/-- Unfolding of `dTildeRepMap` on the `dTildePathId` branch (arrow `a → b` with
+    `3 ≤ a.val`, `a.val + 1 = b.val`, `b.val ≤ k + 3`). -/
+private lemma dTildeRepMap_path_id (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : 3 ≤ a.val) (hAB : a.val + 1 = b.val) (hB : b.val ≤ k + 3) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (dTildePathId m) := by
+  unfold dTildeRepMap
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_pos ⟨hA, hAB, hB⟩]
+
+/-- Unfolding of `dTildeRepMap` on the right-leaf1 `starEmbed1` branch
+    (arrow `a → b` with `a.val = k + 4, b.val = k + 3`). -/
+private lemma dTildeRepMap_starEmbed1_right (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : a.val = k + 4) (hB : b.val = k + 3) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (starEmbed1 m) := by
+  unfold dTildeRepMap
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨_, h, _⟩; omega)]
+  rw [dif_pos (And.intro hA hB)]
+
+/-- Unfolding of `dTildeRepMap` on the right-leaf2 `starEmbed2` branch
+    (arrow `a → b` with `a.val = k + 5, b.val = k + 3`). -/
+private lemma dTildeRepMap_starEmbed2_right (k m : ℕ)
+    (a b : Fin (k + 6)) (hA : a.val = k + 5) (hB : b.val = k + 3) :
+    dTildeRepMap k m a b =
+      dTildeCast
+        (show dTildeDim k m a = m + 1 by simp [dTildeDim]; omega)
+        (show dTildeDim k m b = 2 * (m + 1) by simp [dTildeDim]; omega)
+        (starEmbed2 m) := by
+  unfold dTildeRepMap
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨_, h, _⟩; omega)]
+  rw [dif_neg (by rintro ⟨h, _⟩; omega)]
+  rw [dif_pos (And.intro hA hB)]
+
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
 /-- Map agreement: for any `DTildeQuiver'` arrow `e'`, the map of `dTildeRep` at the
@@ -2946,16 +3059,69 @@ private theorem dTildeRep_mapLinear_transport (k m : ℕ) {a b : DTildeVertex k}
       dTildeTransportEquiv k m b
         (@Etingof.QuiverRepresentation.mapLinear ℂ (DTildeVertex k) _ (DTildeQuiver' k)
           (dTildeRep' k m) a b e' x) := by
-  -- Case analysis on the 8 arrow patterns.  Four cases reduce by `rfl`
-  -- (after concretising abstract indices via `subst`); the remaining
-  -- four cases (`pathMid → pathMid`, `pathMid → branchRight`,
-  -- `rightLeaf1 → branchRight`, `rightLeaf2 → branchRight`) require
-  -- explicit pointwise analysis to commute the `ha ▸ hb ▸` dimension
-  -- casts of `dTildeRepMap` with the `LinearEquiv.funCongrLeft`
-  -- reindexing of `dTildeTransportEquiv`, which is tracked as a
-  -- follow-up.  This single residual sorry is the final obstruction
-  -- to closing Wall 2 Stage C.
-  sorry
+  -- With `dTildeRepMap` refactored to use `dTildeCast` (explicit
+  -- `LinearEquiv.funCongrLeft`-based reindexing) rather than `▸`-casts,
+  -- each of the 8 arrow patterns reduces to pointwise val-preserving
+  -- finCongr composition, which `rfl` closes after selecting the right
+  -- branch of the `dTildeRepMap` `if`-chain (via the helper lemmas above).
+  match a, b, e' with
+  | .leftLeaf1, .branchLeft, _ =>
+    show dTildeRepMap k m _ _ _ = _
+    rw [dTildeRepMap_starEmbed1_zero_two k m _ _ rfl rfl]
+    rfl
+  | .leftLeaf2, .branchLeft, _ =>
+    show dTildeRepMap k m _ _ _ = _
+    rw [dTildeRepMap_starEmbed2_one_two k m _ _ rfl rfl]
+    rfl
+  | .branchLeft, .pathMid j, ⟨hj0⟩ =>
+    show dTildeRepMap k m _ _ _ = _
+    have : j.val = 0 := hj0
+    rw [dTildeRepMap_gamma_two_three k m _ _ rfl
+          (show (DTildeVertex.pathMid j : DTildeVertex k).toFin.val = 3 by
+             show j.val + 3 = 3; omega)]
+    rfl
+  | .branchLeft, .branchRight, ⟨hk0⟩ =>
+    show dTildeRepMap k m _ _ _ = _
+    have : k = 0 := hk0
+    rw [dTildeRepMap_gamma_two_three k m _ _ rfl
+          (show (DTildeVertex.branchRight : DTildeVertex k).toFin.val = 3 by
+             show k + 3 = 3; omega)]
+    rfl
+  | .pathMid i, .pathMid j, ⟨hij⟩ =>
+    show dTildeRepMap k m _ _ _ = _
+    have hij' : j.val = i.val + 1 := hij
+    have hi : i.val < k := i.isLt
+    have hj : j.val < k := j.isLt
+    rw [dTildeRepMap_path_id k m _ _
+          (show 3 ≤ (DTildeVertex.pathMid i : DTildeVertex k).toFin.val by
+             show 3 ≤ i.val + 3; omega)
+          (show (DTildeVertex.pathMid i : DTildeVertex k).toFin.val + 1 =
+                  (DTildeVertex.pathMid j : DTildeVertex k).toFin.val by
+             show i.val + 3 + 1 = j.val + 3; omega)
+          (show (DTildeVertex.pathMid j : DTildeVertex k).toFin.val ≤ k + 3 by
+             show j.val + 3 ≤ k + 3; omega)]
+    rfl
+  | .pathMid i, .branchRight, ⟨hik⟩ =>
+    show dTildeRepMap k m _ _ _ = _
+    have hik' : i.val + 1 = k := hik
+    have hi : i.val < k := i.isLt
+    rw [dTildeRepMap_path_id k m _ _
+          (show 3 ≤ (DTildeVertex.pathMid i : DTildeVertex k).toFin.val by
+             show 3 ≤ i.val + 3; omega)
+          (show (DTildeVertex.pathMid i : DTildeVertex k).toFin.val + 1 =
+                  (DTildeVertex.branchRight : DTildeVertex k).toFin.val by
+             show i.val + 3 + 1 = k + 3; omega)
+          (show (DTildeVertex.branchRight : DTildeVertex k).toFin.val ≤ k + 3 by
+             show k + 3 ≤ k + 3; omega)]
+    rfl
+  | .rightLeaf1, .branchRight, _ =>
+    show dTildeRepMap k m _ _ _ = _
+    rw [dTildeRepMap_starEmbed1_right k m _ _ rfl rfl]
+    rfl
+  | .rightLeaf2, .branchRight, _ =>
+    show dTildeRepMap k m _ _ _ = _
+    rw [dTildeRepMap_starEmbed2_right k m _ _ rfl rfl]
+    rfl
 
 attribute [-instance] CategoryTheory.CategoryStruct.toQuiver
   CategoryTheory.ReflQuiver.toQuiver in
