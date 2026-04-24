@@ -215,6 +215,70 @@ lemma prod_X_canonicalSeq (s : (Fin N × Fin N) →₀ ℕ) (hs : s.sum (fun _ =
   -- Now goal is `s.prod (fun a n => (X a) ^ n) = monomial s 1`
   exact MvPolynomial.prod_X_pow_eq_monomial
 
+/-- `tensorToPoly` applied to `multisetToTensor s` recovers the monomial `X^s`
+when `s` has the correct degree `n` (otherwise it is zero). -/
+lemma tensorToPoly_multisetToTensor (s : (Fin N × Fin N) →₀ ℕ) :
+    tensorToPoly k N n (multisetToTensor k N n s) =
+      if s.sum (fun _ => id) = n then MvPolynomial.monomial s (1 : k) else 0 := by
+  unfold multisetToTensor
+  split_ifs with hs
+  · rw [tensorToPoly_symTensor, prod_X_canonicalSeq (k := k) (N := N) (n := n) s hs]
+  · simp
+
+/-- The composition `tensorToPoly ∘ polyToTensor` is the identity on the
+degree-`n` homogeneous submodule: a homogeneous polynomial `p` recovers as
+`tensorToPoly (polyToTensor p) = p`. -/
+lemma tensorToPoly_polyToTensor_eq_self (p : MvPolynomial (Fin N × Fin N) k)
+    (hp : p.IsHomogeneous n) :
+    tensorToPoly k N n (polyToTensor k N n p) = p := by
+  classical
+  -- Expand p in the monomial basis and compute term-by-term.
+  conv_rhs => rw [p.as_sum]
+  rw [show tensorToPoly k N n (polyToTensor k N n p) =
+      tensorToPoly k N n (polyToTensor k N n
+        (∑ v ∈ p.support, MvPolynomial.monomial v (MvPolynomial.coeff v p))) from by
+    congr 2; exact p.as_sum]
+  rw [map_sum, map_sum]
+  apply Finset.sum_congr rfl
+  intro s hs
+  -- For `monomial s c`, compute polyToTensor and tensorToPoly.
+  have hcoeff_ne : MvPolynomial.coeff s p ≠ 0 := MvPolynomial.mem_support_iff.mp hs
+  -- Homogeneity: |s| = n.
+  have hsn : s.sum (fun _ => id) = n := by
+    have hw := hp hcoeff_ne  -- weight 1 s = n
+    -- weight 1 s = s.sum (fun _ => id) when s takes values in ℕ
+    rw [Finsupp.weight_apply] at hw
+    simpa using hw
+  -- Compute: monomial s c = c • monomial s 1
+  rw [show MvPolynomial.monomial s (MvPolynomial.coeff s p) =
+        MvPolynomial.coeff s p • MvPolynomial.monomial s (1 : k) from by
+    rw [MvPolynomial.smul_monomial, smul_eq_mul, mul_one]]
+  rw [LinearMap.map_smul, LinearMap.map_smul]
+  congr 1
+  -- polyToTensor (monomial s 1) = multisetToTensor s
+  rw [show polyToTensor k N n (MvPolynomial.monomial s 1) = multisetToTensor k N n s from by
+    unfold polyToTensor
+    rw [show (MvPolynomial.monomial s 1 : MvPolynomial (Fin N × Fin N) k) =
+         MvPolynomial.basisMonomials (Fin N × Fin N) k s from rfl,
+      Module.Basis.constr_basis]]
+  rw [tensorToPoly_multisetToTensor, if_pos hsn]
+
+/-- The bridge `homogeneousPolyToTensor` is injective: distinct homogeneous
+polynomials give distinct tensors. -/
+theorem homogeneousPolyToTensor_injective :
+    Function.Injective (homogeneousPolyToTensor k N n) := by
+  intro p q hpq
+  apply Subtype.ext
+  have hp := tensorToPoly_polyToTensor_eq_self k N n p.val p.property
+  have hq := tensorToPoly_polyToTensor_eq_self k N n q.val q.property
+  have heq : tensorToPoly k N n (polyToTensor k N n p.val) =
+      tensorToPoly k N n (polyToTensor k N n q.val) := by
+    unfold homogeneousPolyToTensor at hpq
+    simp only [LinearMap.comp_apply, Submodule.subtype_apply] at hpq
+    rw [hpq]
+  rw [hp, hq] at heq
+  exact heq
+
 end PolynomialTensorBridge
 
 end Etingof
