@@ -79,6 +79,7 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_18_1
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_18_3
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
+import EtingofRepresentationTheory.Chapter5.PolynomialTensorBridge
 
 -- Section 5.19: Schur-Weyl Duality and Schur Functors
 import EtingofRepresentationTheory.Chapter5.Proposition5_19_1
