@@ -27,7 +27,11 @@ equal-dimensions hypothesis holds vacuously) yet are non-isomorphic.
 
 open CategoryTheory MvPolynomial
 
+open scoped TensorProduct
+
 noncomputable section
+
+universe u
 
 namespace Etingof
 
@@ -221,7 +225,7 @@ theorem schurPoly_isHomogeneous (N : ℕ) (lam : Fin N → ℕ) :
   rw [MvPolynomial.coeff_homogeneousComponent, if_pos rfl] at h_coeff_zero
   exact hd h_coeff_zero
 
-variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
+variable (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- The family of weight spaces of a `GL_N(k)`-representation is sup-independent.
 This follows from `Module.End.independent_iInf_maxGenEigenspace_of_forall_mapsTo`
@@ -727,5 +731,93 @@ theorem formalCharacter_trivialTensor (N : ℕ)
   simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin]
   -- Goal: n • char L = (n : ℚ) • char L (both on MvPolynomial (Fin N) ℚ).
   exact (Nat.cast_smul_eq_nsmul ℚ n (formalCharacter k N L)).symm
+
+/-! ### GL_N-equivariant Schur-Weyl bimodule decomposition
+
+Using the explicit evaluation formula `e.symm (of i (v ⊗ l)) = l v` from
+`Theorem5_18_1_bimodule_decomposition_explicit`, we upgrade the Schur-Weyl
+bimodule decomposition to a `GL_N(k)`-equivariant form: the iso
+`V^{⊗n} ≃ ⨁ Sᵢ ⊗ Lᵢ` intertwines the diagonal `glTensorRep` action on the
+LHS with the natural action on the RHS (trivial on each `Sᵢ`, the
+post-composition `GL_N`-action on each `Lᵢ`).
+
+This is the form required by the Schur-Weyl #3 character argument
+(`formalCharacter_tensorPower_eq_sum_character_L`).
+-/
+
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1600000 in
+/-- **Equivariant Schur-Weyl decomposition for `V^{⊗n}`.**
+Specializing to `V = Fin N → k`, there is a finite family of Specht modules
+`S i` and polynomial `GL_N(k)`-representations `L i`, together with a
+`k`-linear equivalence
+  `V^{⊗n} ≃ₗ[k] ⨁ i, S i ⊗[k] L i`
+that is `GL_N(k)`-equivariant: it intertwines the diagonal action on the
+LHS with the action on the RHS that is trivial on each `S i` and the given
+`L i`-action on the second factor. -/
+theorem glTensorRep_equivariant_schurWeyl_decomposition
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
+      ∃ (e : TensorPower k (Fin N → k) n ≃ₗ[k]
+          (DirectSum ι (fun i => S i ⊗[k] (L i : Type u)))),
+        ∀ (g : Matrix.GeneralLinearGroup (Fin N) k)
+          (v : TensorPower k (Fin N → k) n),
+          e (glTensorRep k N n g v) =
+            Representation.directSum (fun i =>
+              (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+                (S i)).tprod (L i).ρ) g (e v) := by
+  sorry
+
+/-! ### Schur-Weyl character decomposition of `V^{⊗n}`
+
+Combining the Schur-Weyl bimodule decomposition (Theorem 5.18.4 part iii)
+with the direct-sum additivity and trivial-tensor multiplicativity lemmas
+above yields the main character identity used in the Schur-Weyl #3
+character argument:
+
+  `char(V^{⊗n}) = ∑ᵢ dim(Sᵢ) · char(Lᵢ)`
+
+where the sum ranges over isotypic components of the `Sₙ`-action (Specht
+modules `Sᵢ`) and each `Lᵢ` is an irreducible polynomial
+`GL_N(k)`-representation.
+-/
+
+/-- **Schur-Weyl character decomposition.** For `V = Fin N → k` and `n ≤ N`,
+the formal character of the `GL_N(k)`-representation `V^{⊗n}` decomposes as
+a sum indexed by the isotypic components of the `Sₙ`-action,
+  `char(V^{⊗n}) = ∑ᵢ dim(Sᵢ) · char(Lᵢ)`,
+where `Sᵢ` is a simple `k[Sₙ]`-module (Specht module) and `Lᵢ` is an
+irreducible polynomial `GL_N(k)`-representation. -/
+theorem formalCharacter_tensorPower_eq_sum_character_L
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
+      formalCharacter k N (FDRep.of (glTensorRep k N n)) =
+        ∑ i : ι, (Module.finrank k (S i) : ℚ) • formalCharacter k N (L i) := by
+  -- Invoke the GL_N-equivariant Schur-Weyl decomposition (Theorem 5.18.4 iii).
+  obtain ⟨ι, hιFin, hιDec, S, hS_acg, hS_mod, hS_fin, L, e, he⟩ :=
+    glTensorRep_equivariant_schurWeyl_decomposition k N n hN
+  refine ⟨ι, hιFin, hιDec, S, hS_acg, hS_mod, hS_fin, L, ?_⟩
+  -- Step 1: push char(glTensorRep) across the equivariant iso to the
+  -- direct sum of (trivial_S_i ⊗ L_i)-representations.
+  have h_iso := formalCharacter_eq_of_rep_iso k N (glTensorRep k N n)
+    (Representation.directSum (fun i =>
+      (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+        (S i)).tprod (L i).ρ)) e he
+  rw [h_iso]
+  -- Step 2: split the direct sum.
+  rw [formalCharacter_directSum]
+  -- Step 3: apply trivial-tensor multiplicativity summand by summand.
+  refine Finset.sum_congr rfl (fun i _ => ?_)
+  exact formalCharacter_trivialTensor k N (S i) (L i)
 
 end Etingof
