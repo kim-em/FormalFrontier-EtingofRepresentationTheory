@@ -339,6 +339,42 @@ lemma tgtGLAction_seqTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N 
   intro b _
   rw [TensorProduct.smul_tmul']
 
+/-- Expansion of `tgtGLAction g` on a `symTensor`. The bijection
+`(σ, b) ↔ (σ, b ∘ σ⁻¹)` matches the inner sum on the LHS with the
+inner sum coming from `symTensor`'s expansion on the RHS. -/
+lemma tgtGLAction_symTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
+    tgtGLAction k N n g (symTensor k N n f) =
+      ∑ c : Fin n → Fin N, (∏ l, g (c l) (f l).2) •
+        symTensor k N n (fun l => ((f l).1, c l)) := by
+  classical
+  -- Expand LHS: tgtGLAction is linear, push it inside the symmetric sum.
+  -- Unfold every `symTensor` (both LHS and the per-c RHS) to a `(n!)⁻¹ • Σ_τ` form.
+  unfold symTensor
+  rw [LinearMap.map_smul, map_sum]
+  simp_rw [tgtGLAction_seqTensor]
+  -- LHS shape: (n!)⁻¹ • ∑ τ ∑ b, X τ b. RHS shape: ∑ c, scalar • (n!)⁻¹ • ∑ τ, ...
+  -- Pull the (n!)⁻¹ out of the c-sum on the RHS.
+  simp_rw [smul_comm _ ((n.factorial : k)⁻¹), ← Finset.smul_sum]
+  congr 1
+  -- ∑ τ, ∑ b, X τ b = ∑ c, (scalar c) • ∑ τ, T σ c. Push scalar inside, then swap.
+  simp_rw [Finset.smul_sum (s := (Finset.univ : Finset (Equiv.Perm (Fin n))))]
+  rw [Finset.sum_comm (s := (Finset.univ : Finset (Fin n → Fin N)))]
+  refine Finset.sum_congr rfl fun τ _ => ?_
+  -- Inner identity at fixed τ. Bijection on functions: e b := b ∘ τ.symm,
+  -- equivalently c ↦ c ∘ τ via the inverse.
+  refine Fintype.sum_equiv (Equiv.arrowCongr τ (Equiv.refl (Fin N))) _ _ ?_
+  intro b
+  simp only [Function.comp_apply]
+  congr 1
+  · -- product equality via reindex by τ
+    refine Fintype.prod_equiv τ _ _ ?_
+    intro l
+    simp [Equiv.arrowCongr_apply]
+  · -- seqTensor equality: (b ∘ τ.symm) (τ l) = b l
+    congr 1
+    funext l
+    simp [Equiv.arrowCongr_apply]
+
 end PolynomialTensorBridge
 
 end Etingof
