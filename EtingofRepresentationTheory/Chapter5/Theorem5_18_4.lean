@@ -386,4 +386,60 @@ theorem Theorem5_18_4_partition_decomposition
   -- Now compose: V⊗ⁿ →[e] ⊕_ι M →[e₂] ⊕_Σ M →[e₃] ⊕_p(⊕_fiber M) →[e₄] ⊕_p(⊕_fiber M ⊗ k)
   exact e.trans (e₂.trans (e₃.trans e₄))
 
+-- Heartbeat bumps match `Theorem5_18_1_bimodule_decomposition`: the deep
+-- `Subalgebra → Ring → Module.End` instance chain plus the `h_eq ▸` transport
+-- across the centralizer equality exceeds the defaults.
+set_option maxHeartbeats 1600000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Schur-Weyl duality, part (iii), bimodule form.
+
+As an `(A ⊗[k] B)`-module (with `A = symGroupImage k V n` and
+`B = diagonalActionImage k V n`), `V^⊗n` decomposes as
+  `V^⊗n ≅ ⨁ᵢ Sᵢ ⊗[k] Lᵢ`
+where the `Sᵢ` are pairwise non-isomorphic simple `A`-modules (Specht
+modules) and each `Lᵢ` is a `B`-module (an irreducible polynomial
+`GL(V)`-representation).
+
+This refines `Theorem5_18_4_decomposition` by adding:
+* a `Module A`-structure on each `Sᵢ` together with `IsSimpleModule`;
+* pairwise non-isomorphism of the `Sᵢ`;
+* a `Module B`-structure on each `Lᵢ`.
+
+The `Module B`-structure is obtained via
+`Theorem5_18_1_bimodule_decomposition` (which produces a `Module`
+action of `centralizer(A)` on `Lᵢ`) together with the Schur-Weyl
+centralizer identity `centralizer(symGroupImage) = diagonalActionImage`
+from `Theorem5_18_4_centralizers`.
+(Etingof Theorem 5.18.4, part iii, bimodule form.) -/
+theorem Theorem5_18_4_bimodule_decomposition
+    [IsAlgClosed k] [CharZero k]
+    (hN : n ≤ Module.finrank k V) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type (max u v))
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module (symGroupImage k V n) (S i))
+      (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
+      (_ : ∀ i j, Nonempty (S i ≃ₗ[symGroupImage k V n] S j) → i = j)
+      (L : ι → Type (max u v)) (_ : ∀ i, AddCommGroup (L i))
+      (_ : ∀ i, Module k (L i))
+      (_ : ∀ i, Module (diagonalActionImage k V n) (L i)),
+      Nonempty (TensorPower k V n ≃ₗ[k]
+        DirectSum ι (fun i => S i ⊗[k] L i)) := by
+  haveI := symGroupImage_isSemisimpleRing k V n
+  haveI := symGroupImage_faithfulSMul k V n hN
+  obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
+    hS'_dist, L', hL'_acg, hL'_mod, hL'_Bmod, ⟨e⟩⟩ :=
+    Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
+      (symGroupImage k V n)
+  -- Transport the `Module ↥(centralizer(symGroupImage))` structure on each
+  -- `L' i` to a `Module ↥(diagonalActionImage)` structure using the
+  -- centralizer identity from `Theorem5_18_4_centralizers` (part ii).
+  have h_eq : Subalgebra.centralizer k
+      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
+        diagonalActionImage k V n :=
+    (Theorem5_18_4_centralizers k V n hN).2.symm
+  refine ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp, hS'_dist,
+    L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
+
 end Etingof
