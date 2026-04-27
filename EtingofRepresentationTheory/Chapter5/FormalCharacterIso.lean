@@ -752,13 +752,10 @@ This is the form required by the Schur-Weyl #3 character argument
 (`formalCharacter_tensorPower_eq_sum_character_L`).
 -/
 
--- Heartbeats bumped: the existential output has 7 ∀-binders with deep
--- `Subalgebra → Ring → Module.End` instance chains. The equivariance
--- proof reduces via `DirectSum.linearMap_ext` + `TensorProduct.ext'` to
--- a per-component computation that uses the action formula returned by
--- `Theorem5_18_4_GL_rep_decomposition_explicit`.
-set_option maxHeartbeats 6400000 in
-set_option synthInstance.maxHeartbeats 1600000 in
+set_option maxHeartbeats 1200000 in
+-- existential output: 7 ∀-binders + deep `Subalgebra → Ring → Module.End` instance chains
+set_option synthInstance.maxHeartbeats 60000 in
+-- bisected #2601: min 800000 / 40000, chose 1.5× safety margin
 /-- **Equivariant Schur-Weyl decomposition for `V^{⊗n}`.**
 Specializing to `V = Fin N → k`, there is a finite family of Specht modules
 `S i` and polynomial `GL_N(k)`-representations `L i`, together with a
