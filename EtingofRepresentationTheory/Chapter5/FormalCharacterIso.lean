@@ -893,4 +893,162 @@ theorem formalCharacter_tensorPower_eq_sum_character_L
   refine Finset.sum_congr rfl (fun i _ => ?_)
   exact formalCharacter_trivialTensor k N (S i) (L i)
 
+/-! ### Formal character of `V^{⊗n}` as `(∑ Xᵢ)^n`
+
+The standard tensor basis `tensorStdBasis k N n`, indexed by colorings
+`f : Fin n → Fin N`, simultaneously diagonalises the diagonal torus
+action: `(diagUnit i t)^{⊗n}` scales `B f` by `t^{tensorWeight f i}`.
+Hence the weight space at `μ : Fin N → ℕ` is exactly the span of the
+basis vectors with `tensorWeight f = μ`, and its dimension is the count
+of such colorings — which matches the multinomial coefficient extraction
+of `(X₁ + ⋯ + X_N)^n`.
+-/
+
+/-- For each coloring `f`, the standard tensor basis vector `tensorStdBasis k N n f`
+lies in the weight space of weight `tensorWeight N f`. -/
+private theorem tensorStdBasis_mem_glWeightSpace (N n : ℕ) (f : Fin n → Fin N) :
+    (tensorStdBasis k N n f) ∈
+      glWeightSpace k N (FDRep.of (glTensorRep k N n))
+        (fun i => (tensorWeight N f) i) := by
+  simp only [glWeightSpace, Submodule.mem_iInf]
+  intro i t
+  rw [LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.smul_apply, sub_eq_zero]
+  change (glTensorRep k N n (diagUnit k N i t)) (tensorStdBasis k N n f) =
+      (t : k) ^ ((tensorWeight N f) i) • tensorStdBasis k N n f
+  rw [glTensorRep_diagUnit_basis k N n i t f]
+  rfl
+
+/-- The multinomial expansion: `(∑ X)^n = ∑_{f : Fin n → Fin N} ∏ j, X (f j)`. -/
+private lemma sum_X_pow_eq_sum_prod (N n : ℕ) :
+    (∑ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) ^ n =
+      ∑ f : Fin n → Fin N, ∏ j : Fin n, (MvPolynomial.X (f j) : MvPolynomial (Fin N) ℚ) := by
+  classical
+  rw [Finset.sum_pow' (s := (Finset.univ : Finset (Fin N)))
+    (f := fun i : Fin N => (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) n,
+    Fintype.piFinset_univ]
+
+/-- The expansion of `(∑ X)^n` in monomial form, indexed by tensor weights. -/
+private lemma sum_X_pow_eq_sum_monomial (N n : ℕ) :
+    (∑ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) ^ n =
+      ∑ f : Fin n → Fin N, MvPolynomial.monomial (tensorWeight N f) (1 : ℚ) := by
+  rw [sum_X_pow_eq_sum_prod]
+  exact Finset.sum_congr rfl (fun f _ => prod_X_eq_monomial_tensorWeight N f)
+
+/-- The coefficient of `monomial μ 1` in `(∑ X)^n` is the number of colorings
+`f : Fin n → Fin N` with `tensorWeight N f = μ`. -/
+private lemma sum_X_pow_coeff (N n : ℕ) (μ : Fin N →₀ ℕ) :
+    ((∑ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) ^ n).coeff μ =
+      ((Finset.univ.filter
+        fun f : Fin n → Fin N => tensorWeight N f = μ).card : ℚ) := by
+  classical
+  rw [sum_X_pow_eq_sum_monomial, MvPolynomial.coeff_sum]
+  simp_rw [MvPolynomial.coeff_monomial]
+  rw [Finset.sum_boole, Nat.cast_inj]
+
+/-- For `v` in the weight space of weight `μ`, the basis coordinate `B.repr v f`
+vanishes whenever the basis element `B f` has a different weight. -/
+private theorem tensorStdBasis_repr_eq_zero_of_ne_weight
+    (N n : ℕ) (μ : Fin N →₀ ℕ)
+    (v : TensorPower k (Fin N → k) n)
+    (hv : v ∈ glWeightSpace k N (FDRep.of (glTensorRep k N n)) (fun i => μ i))
+    (f : Fin n → Fin N) (hne : tensorWeight N f ≠ μ) :
+    (tensorStdBasis k N n).repr v f = 0 := by
+  -- Find an index `i` where the weights differ.
+  obtain ⟨i, hi⟩ : ∃ i, (tensorWeight N f) i ≠ μ i := by
+    by_contra h
+    push_neg at h
+    exact hne (Finsupp.ext h)
+  -- Pick a unit `t` with `t^(tensorWeight f i) ≠ t^(μ i)`.
+  obtain ⟨t, ht⟩ := exists_unit_pow_ne k hi
+  -- Apply membership in glWeightSpace at (i, t).
+  have hmem : v ∈ LinearMap.ker
+      ((FDRep.of (glTensorRep k N n)).ρ (diagUnit k N i t)
+        - ((t : k) ^ μ i) • LinearMap.id) := by
+    simp only [glWeightSpace, Submodule.mem_iInf] at hv
+    exact hv i t
+  rw [LinearMap.mem_ker] at hmem
+  -- The action is identified with glTensorRep via `FDRep.of_ρ` (definitional).
+  have hmem' : (glTensorRep k N n (diagUnit k N i t)) v - ((t : k) ^ μ i) • v = 0 := hmem
+  -- Apply B.repr at coordinate f.
+  have hcoord := congr_arg (fun w => (tensorStdBasis k N n).repr w f) hmem'
+  simp only [map_sub, Finsupp.sub_apply, map_zero, Finsupp.zero_apply, sub_eq_zero,
+    map_smul, Finsupp.smul_apply, smul_eq_mul] at hcoord
+  -- Apply repr_glTensorRep_diagUnit to rewrite the LHS.
+  rw [repr_glTensorRep_diagUnit k N n i t f v] at hcoord
+  -- The exponent `card{j : f j = i}` is `(tensorWeight N f) i` by definition.
+  -- hcoord : t^(tw f i) * (B.repr v f) = t^(μ i) * (B.repr v f)
+  -- so (t^(tw f i) - t^(μ i)) * (B.repr v f) = 0.
+  have hcoord' : ((t : k) ^ (tensorWeight N f) i - (t : k) ^ μ i) *
+      (tensorStdBasis k N n).repr v f = 0 := by
+    have hcw : (Finset.univ.filter (fun j : Fin n => f j = i)).card =
+        (tensorWeight N f) i := rfl
+    rw [hcw] at hcoord
+    linear_combination hcoord
+  rcases mul_eq_zero.mp hcoord' with hd | hr
+  · exact absurd (sub_eq_zero.mp hd) ht
+  · exact hr
+
+/-- The weight space of `V^⊗n` at weight `μ` is the span of the standard tensor basis
+elements indexed by colorings `f` with `tensorWeight N f = μ`. -/
+private theorem glWeightSpace_glTensorRep_eq_span (N n : ℕ) (μ : Fin N →₀ ℕ) :
+    glWeightSpace k N (FDRep.of (glTensorRep k N n)) (fun i => μ i) =
+      Submodule.span k
+        (Set.range (fun fh : {f : Fin n → Fin N // tensorWeight N f = μ} =>
+          tensorStdBasis k N n fh.val)) := by
+  classical
+  apply le_antisymm
+  · -- ⊆: any v in the weight space is a linear combination of B f for tw f = μ.
+    intro v hv
+    have hv_eq : v =
+        ((tensorStdBasis k N n).repr v).sum
+          (fun f c => c • tensorStdBasis k N n f) := by
+      conv_lhs => rw [← (tensorStdBasis k N n).linearCombination_repr v]
+      rw [Finsupp.linearCombination_apply]
+    rw [hv_eq, Finsupp.sum]
+    refine Submodule.sum_mem _ (fun f _ => ?_)
+    by_cases htw : tensorWeight N f = μ
+    · refine Submodule.smul_mem _ _ (Submodule.subset_span ?_)
+      exact ⟨⟨f, htw⟩, rfl⟩
+    · rw [tensorStdBasis_repr_eq_zero_of_ne_weight k N n μ v hv f htw, zero_smul]
+      exact Submodule.zero_mem _
+  · -- ⊇: each B f with tw f = μ is in the weight space.
+    refine Submodule.span_le.mpr ?_
+    rintro _ ⟨⟨f, hf⟩, rfl⟩
+    have hmem := tensorStdBasis_mem_glWeightSpace k N n f
+    -- hmem : B f ∈ glWeightSpace (fun i => tensorWeight N f i)
+    -- and we need: B f ∈ glWeightSpace (fun i => μ i). Use hf.
+    have heq : (fun i => (tensorWeight N f) i) = (fun i => μ i) := by
+      funext i; rw [hf]
+    rwa [heq] at hmem
+
+/-- The dimension of the weight space at `μ` in `V^⊗n` equals the number of colorings
+`f : Fin n → Fin N` with `tensorWeight N f = μ`. -/
+private theorem finrank_glWeightSpace_glTensorRep (N n : ℕ) (μ : Fin N →₀ ℕ) :
+    Module.finrank k
+        (glWeightSpace k N (FDRep.of (glTensorRep k N n)) (fun i => μ i)) =
+      Fintype.card {f : Fin n → Fin N // tensorWeight N f = μ} := by
+  classical
+  rw [glWeightSpace_glTensorRep_eq_span]
+  -- The family {B f : tw f = μ} is linearly independent (subfamily of basis B).
+  have hf_lin : LinearIndependent k
+      (fun fh : {f : Fin n → Fin N // tensorWeight N f = μ} =>
+        tensorStdBasis k N n fh.val) :=
+    (tensorStdBasis k N n).linearIndependent.comp _ Subtype.val_injective
+  exact finrank_span_eq_card hf_lin
+
+/-- **Formal character of the standard tensor power.** For `V = Fin N → k`, the formal
+character of `V^⊗n` (under the diagonal `GL_N(k)`-action `g ↦ g^{⊗n}`) is the
+multinomial expansion `(X_1 + ⋯ + X_N)^n`.
+
+This is the polynomial-side input to the Schur-Weyl character argument: combined with
+`formalCharacter_tensorPower_eq_sum_character_L`, it gives the identity
+`(∑ Xᵢ)^n = ∑ᵢ dim(Sᵢ) · char(Lᵢ)`. -/
+theorem formalCharacter_glTensorRep_eq_pow (N n : ℕ) :
+    formalCharacter k N (FDRep.of (glTensorRep k N n)) =
+      (∑ i : Fin N, MvPolynomial.X i) ^ n := by
+  classical
+  ext μ
+  rw [formalCharacter_coeff, sum_X_pow_coeff, finrank_glWeightSpace_glTensorRep,
+    Fintype.card_subtype]
+
 end Etingof
