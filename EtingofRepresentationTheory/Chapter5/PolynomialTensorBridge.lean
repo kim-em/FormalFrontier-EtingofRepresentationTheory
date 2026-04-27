@@ -293,6 +293,7 @@ The bridge `polyToTensor` intertwines the right-translation action on
 polynomials (sending `X_{ij}` to `Σ_l X_{il} · g_{l,j}`) with the
 `g ↦ g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. -/
 
+omit [CharZero k] in
 /-- Right-translation as an algebra hom on `MvPolynomial (Fin N × Fin N) k`.
 On generators: `X_{ij} ↦ Σ_l X_{il} · C(g_{l,j})`. This is the action coming
 from `(g · P)(X) = P(X · g)`. -/
@@ -301,6 +302,7 @@ noncomputable def polyRightTransl (g : Matrix (Fin N) (Fin N) k) :
   MvPolynomial.aeval fun ij : Fin N × Fin N =>
     ∑ l : Fin N, MvPolynomial.X (R := k) (ij.1, l) * MvPolynomial.C (g l ij.2)
 
+omit [CharZero k] in
 /-- The `g^⊗n ⊗ id` action on `V^⊗n ⊗ (V^*)^⊗n`. The matrix `g` acts on the
 first `V^⊗n` factor by tensor power; the second `(V^*)^⊗n` factor is left
 unchanged. -/
@@ -308,6 +310,7 @@ noncomputable def tgtGLAction (g : Matrix (Fin N) (Fin N) k) :
     PolyTensorTgt k N n →ₗ[k] PolyTensorTgt k N n :=
   TensorProduct.map (PiTensorProduct.map fun _ : Fin n => g.toLin') LinearMap.id
 
+omit [CharZero k] in
 /-- Expansion of `g.toLin'` on a standard basis vector. -/
 lemma toLin'_stdBasis (g : Matrix (Fin N) (Fin N) k) (j : Fin N) :
     Matrix.toLin' g (stdBasis k N j) = ∑ b : Fin N, g b j • stdBasis k N b := by
@@ -319,6 +322,7 @@ lemma toLin'_stdBasis (g : Matrix (Fin N) (Fin N) k) (j : Fin N) :
     Pi.single_apply, smul_eq_mul, mul_ite, mul_one, mul_zero,
     Finset.sum_ite_eq, Finset.mem_univ, if_true]
 
+omit [CharZero k] in
 /-- Expansion of `tgtGLAction g` on a `seqTensor`. -/
 lemma tgtGLAction_seqTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N × Fin N) :
     tgtGLAction k N n g (seqTensor k N n f) =
@@ -340,6 +344,7 @@ lemma tgtGLAction_seqTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N 
   intro b _
   rw [TensorProduct.smul_tmul']
 
+omit [CharZero k] in
 /-- Expansion of `tgtGLAction g` on a `symTensor`. The bijection
 `(σ, b) ↔ (σ, b ∘ σ⁻¹)` matches the inner sum on the LHS with the
 inner sum coming from `symTensor`'s expansion on the RHS. -/
@@ -378,6 +383,7 @@ lemma tgtGLAction_symTensor (g : Matrix (Fin N) (Fin N) k) (f : Fin n → Fin N 
 
 /-! ### Polynomial side: `polyRightTransl` on products of `X`s -/
 
+omit [CharZero k] in
 /-- A product of `X`s equals the monomial whose Finsupp records each pair's
 multiplicity. The proof is a straight Finset induction using
 `MvPolynomial.X = monomial (single _ 1) 1`. -/
@@ -398,6 +404,7 @@ private lemma prod_X_eq_monomial_fn (f : Fin n → Fin N × Fin N) :
         MvPolynomial.monomial_mul, mul_one]
   exact key _
 
+omit [CharZero k] in
 /-- `polyRightTransl g` evaluated on a single `X`-generator. -/
 @[simp]
 lemma polyRightTransl_X (g : Matrix (Fin N) (Fin N) k) (ij : Fin N × Fin N) :
@@ -407,6 +414,7 @@ lemma polyRightTransl_X (g : Matrix (Fin N) (Fin N) k) (ij : Fin N × Fin N) :
   unfold polyRightTransl
   rw [MvPolynomial.aeval_X]
 
+omit [CharZero k] in
 /-- Expansion of `polyRightTransl g` on a product `∏_l X (f l)`. The result
 is a sum over choice functions `c : Fin n → Fin N`, with constant
 multiplier `C(∏_l g (c l) (f l).2)` on the substituted monomial

@@ -1344,6 +1344,223 @@ private theorem tabloidSupport_straightening
     apply Submodule.subset_span
     exact ⟨⟨T, h_dom⟩, rfl⟩
 
+/-- **Pigeonhole core for the Support Bound**. Given a column-standard σ, any
+`q₀ ∈ ColumnSubgroup` whose `w · q₀⁻¹ · σ` has strictly greater cumulative
+count than σ at some threshold `(k, i)`, there exist two distinct positions
+`a₁ ≠ a₂` in the same column with the same `w`-image row.
+
+Strategy (avenue 1 of meditate note `bd928e67`): Let
+* `E := {e ≤ k}`, `S := σ(E)`, `K_c := |S ∩ C_c|` (per-column count of σ's E-image),
+* `B := {p ∈ Fin n | σ.symm (q₀ p) ≤ k ∧ row(w p) < i}` (size = cumulCount (w q₀⁻¹ σ)),
+* `D := {p ∈ Fin n | σ.symm p ≤ k ∧ row(p) < i}` (size = cumulCount σ).
+
+Hypothesis: `|B| > |D|`. For col-std σ, `|D ∩ C_c| = min(K_c, i)`. Claim the
+function `f : B → ℕ × ℕ`, `p ↦ (col(p), row(w p))`, is NOT injective on `B`.
+If it were: for each column `c`, (i) `|B ∩ C_c| ≤ K_c` (since `q₀` preserves
+columns so `B ∩ C_c ⊆ q₀⁻¹(S ∩ C_c)`), and (ii) `|B ∩ C_c| ≤ i` (from
+injectivity of `row ∘ w` on `B ∩ C_c`). So `|B ∩ C_c| ≤ min(K_c, i) = |D ∩ C_c|`,
+and summing gives `|B| ≤ |D|` — contradiction. -/
+private theorem twistedPolytabloid_pigeonhole_pair
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (w q₀ : Equiv.Perm (Fin n)) (hq₀_col : q₀ ∈ ColumnSubgroup n la)
+    (k : Fin n) (i : ℕ)
+    (hcount : tabloidCumulCount la σ k i <
+      tabloidCumulCount la (w * q₀⁻¹ * σ) k i) :
+    ∃ a₁ a₂ : Fin n, a₁ ≠ a₂ ∧
+      colOfPos la.sortedParts a₁.val = colOfPos la.sortedParts a₂.val ∧
+      rowOfPos la.sortedParts (w a₁).val = rowOfPos la.sortedParts (w a₂).val := by
+  -- Full combinatorial proof via column decomposition is deferred.
+  -- The proof strategy is documented above and validated against
+  -- counter-examples in `progress/20260424T064759Z_bd928e67.md`.
+  sorry
+
+/-- **Fibre coefficient vanishes for non-dominators** (helper for support bound).
+For column-standard σ, if α does not dominate σ in the tabloid order, then the
+coefficient of `δ_{[α]}` in `twistedPolytabloid w σ` is zero.
+
+This is the combinatorial core of the Support Bound. Proof strategy (avenue 1
+of meditate note `bd928e67`): pick the lex-smallest witness `(k, i)` with
+`cumulCount(α, k, i) > cumulCount(σ, k, i)`. Decomposing the count by columns
+of the diagram, some column `C*` has an excess: its σ-entries ≤ k are routed
+by `w ∘ q⁻¹` into too many top-i-row positions. Concretely `K_{C*} > i` and the
+α-induced image of σ's column-C* entries ≤ k lands in more than `i` of the
+`i` top rows, so two of them collide in some row `r < i`. The transposition
+of their preimages in `C*` is an element of `ColumnSubgroup`, its action on q
+by right multiplication preserves the tabloid class `[α]` (since the two
+collided entries swap column-C* preimages but land on same-row positions
+under w), and it reverses sign — a sign-reversing involution.
+
+Difficulty 7/10. See sub-issue for the decomposed pigeonhole + involution. -/
+private theorem twistedPolytabloid_apply_of_not_dominates
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (w α : Equiv.Perm (Fin n))
+    (hnotdom : ¬ tabloidDominates la σ α) :
+    twistedPolytabloid (la := la) w σ (toTabloid n la α) = 0 := by
+  classical
+  -- Extract a witness threshold (k, i) where α exceeds σ's cumulative count.
+  simp only [tabloidDominates, not_forall, not_le] at hnotdom
+  obtain ⟨k, i, hkia⟩ := hnotdom
+  -- hkia : tabloidCumulCount la σ k i < tabloidCumulCount la α k i
+  -- Unfold the coefficient to a signed indicator sum.
+  rw [twistedPolytabloid, Finsupp.finset_sum_apply]
+  simp_rw [Finsupp.smul_apply, Finsupp.single_apply, smul_eq_mul, mul_ite, mul_one,
+    mul_zero]
+  -- Case: there exists q₀ ∈ ColumnSubgroup with the α-tabloid match.
+  by_cases hexists : ∃ q ∈ ColumnSubgroup n la,
+      toTabloid n la (w * q⁻¹ * σ) = toTabloid n la α
+  swap
+  · -- Empty fibre: every indicator is zero, the sum is zero.
+    push_neg at hexists
+    refine Finset.sum_eq_zero ?_
+    intro q _
+    rw [if_neg (hexists q.val q.property)]
+  -- Non-empty fibre: extract q₀ and apply the pigeonhole + involution.
+  obtain ⟨q₀, hq₀_col, hq₀_tab⟩ := hexists
+  -- By tabloid equivalence, cumulCount w q₀⁻¹ σ = cumulCount α, so the excess
+  -- transfers to an excess of cumulCount over (w q₀⁻¹ σ).
+  have hcount_wq₀σ : tabloidCumulCount la σ k i <
+      tabloidCumulCount la (w * q₀⁻¹ * σ) k i := by
+    rw [tabloidCumulCount_eq_of_toTabloid_eq _ _ hq₀_tab]
+    exact hkia
+  -- Pigeonhole: find (a₁, a₂) with same column, same w-image row.
+  obtain ⟨a₁, a₂, ha_ne, ha_col, ha_row⟩ :=
+    twistedPolytabloid_pigeonhole_pair σ hcs w q₀ hq₀_col k i hcount_wq₀σ
+  -- Build the sign-reversing involution via τ = swap(a₁, a₂).
+  set τ : Equiv.Perm (Fin n) := Equiv.swap a₁ a₂ with hτ_def
+  have hτ_mem : τ ∈ ColumnSubgroup n la := swap_mem_columnSubgroup a₁ a₂ ha_col
+  have hτ_sign : Equiv.Perm.sign τ = -1 := Equiv.Perm.sign_swap ha_ne
+  -- `w · τ · w⁻¹ = swap (w a₁) (w a₂)` has both images in the same row, hence in P_λ.
+  have hconj : w * τ * w⁻¹ = Equiv.swap (w a₁) (w a₂) := by
+    classical
+    refine Equiv.ext (fun x => ?_)
+    simp only [hτ_def, Equiv.Perm.mul_apply, Equiv.Perm.inv_def]
+    -- Goal: w (swap a₁ a₂ (w.symm x)) = swap (w a₁) (w a₂) x
+    rcases eq_or_ne (w.symm x) a₁ with h | h
+    · rw [h, Equiv.swap_apply_left]
+      have hx : x = w a₁ := by rw [← h]; exact (w.apply_symm_apply x).symm
+      rw [hx, Equiv.swap_apply_left]
+    · rcases eq_or_ne (w.symm x) a₂ with h' | h'
+      · rw [h', Equiv.swap_apply_right]
+        have hx : x = w a₂ := by rw [← h']; exact (w.apply_symm_apply x).symm
+        rw [hx, Equiv.swap_apply_right]
+      · rw [Equiv.swap_apply_of_ne_of_ne (a := a₁) (b := a₂) h h',
+            w.apply_symm_apply]
+        symm
+        refine Equiv.swap_apply_of_ne_of_ne (a := w a₁) (b := w a₂)
+          (fun heq => h ?_) (fun heq => h' ?_)
+        · rw [heq]; exact w.symm_apply_apply a₁
+        · rw [heq]; exact w.symm_apply_apply a₂
+  have hwτw_row : w * τ * w⁻¹ ∈ RowSubgroup n la := by
+    rw [hconj]
+    intro p
+    simp only [Equiv.swap_apply_def]
+    split_ifs with h1 h2
+    · subst h1; exact ha_row.symm
+    · subst h2; exact ha_row
+    · rfl
+  -- Define the involution `φ : ColumnSubgroup → ColumnSubgroup`, `q ↦ q * τ`.
+  set H := ColumnSubgroup n la
+  let φ : ↥H ≃ ↥H :=
+    ⟨fun q => ⟨q.val * τ, H.mul_mem q.property hτ_mem⟩,
+     fun q => ⟨q.val * τ, H.mul_mem q.property hτ_mem⟩,
+     fun ⟨q, _⟩ => Subtype.ext (show q * τ * τ = q by
+       rw [mul_assoc, hτ_def, Equiv.swap_mul_self, mul_one]),
+     fun ⟨q, _⟩ => Subtype.ext (show q * τ * τ = q by
+       rw [mul_assoc, hτ_def, Equiv.swap_mul_self, mul_one])⟩
+  -- Each term cancels its φ-image.
+  have key : ∀ q : ↥H,
+      ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) *
+          (if toTabloid n la (w * q.val⁻¹ * σ) = toTabloid n la α then 1 else 0)) +
+      ((↑(↑(Equiv.Perm.sign (φ q).val) : ℤ) : ℂ) *
+          (if toTabloid n la (w * (φ q).val⁻¹ * σ) = toTabloid n la α then 1 else 0))
+      = 0 := by
+    intro ⟨q, hqH⟩
+    -- (φ q).val = q * τ; its inverse is τ * q⁻¹ = τ⁻¹ * q⁻¹ (since τ² = 1).
+    change ((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ) *
+        (if toTabloid n la (w * q⁻¹ * σ) = toTabloid n la α then 1 else 0)) +
+      ((↑(↑(Equiv.Perm.sign (q * τ)) : ℤ) : ℂ) *
+          (if toTabloid n la (w * (q * τ)⁻¹ * σ) = toTabloid n la α then 1 else 0))
+      = 0
+    have hsign : ((↑(↑(Equiv.Perm.sign (q * τ)) : ℤ) : ℂ)) =
+        -((↑(↑(Equiv.Perm.sign q) : ℤ) : ℂ)) := by
+      rw [map_mul, hτ_sign, Units.val_mul, Int.cast_mul]; simp
+    have htab :
+        toTabloid n la (w * (q * τ)⁻¹ * σ) = toTabloid n la (w * q⁻¹ * σ) := by
+      rw [toTabloid_eq_iff]
+      -- (w (q τ)⁻¹ σ) * (w q⁻¹ σ)⁻¹ = w τ⁻¹ w⁻¹ = w τ w⁻¹ (since τ² = 1) ∈ RowSubgroup
+      have h_rw : (w * (q * τ)⁻¹ * σ) * (w * q⁻¹ * σ)⁻¹ = w * τ * w⁻¹ := by
+        have hτ_inv : (τ : Equiv.Perm (Fin n))⁻¹ = τ := by
+          rw [hτ_def, Equiv.swap_inv]
+        rw [show (w * q⁻¹ * σ)⁻¹ = σ⁻¹ * q * w⁻¹ by group,
+            show (q * τ)⁻¹ = τ⁻¹ * q⁻¹ from mul_inv_rev _ _,
+            hτ_inv]
+        group
+      rw [h_rw]
+      exact hwτw_row
+    rw [hsign]
+    by_cases hind : toTabloid n la (w * q⁻¹ * σ) = toTabloid n la α
+    · rw [if_pos hind, if_pos (htab.trans hind)]; ring
+    · rw [if_neg hind, if_neg (fun h => hind (htab.symm.trans h))]; ring
+  -- Apply the involution-cancellation to conclude the sum is zero.
+  -- Strategy: 2 * S = S + S = S + (∑ f(φ q)) = ∑ (f q + f(φ q)) = ∑ 0 = 0.
+  -- Normalize the goal into the `F` form.
+  have goal_as_F : (∑ x : ↥H, if toTabloid n la (w * (↑x)⁻¹ * σ) = toTabloid n la α
+        then ((↑(↑(Equiv.Perm.sign x.val) : ℤ) : ℂ)) else 0) =
+      ∑ q : ↥H, ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) *
+        (if toTabloid n la (w * q.val⁻¹ * σ) = toTabloid n la α then 1 else 0)) := by
+    refine Finset.sum_congr rfl fun q _ => ?_
+    split_ifs <;> ring
+  rw [goal_as_F]
+  set F : ↥H → ℂ := fun q =>
+    ((↑(↑(Equiv.Perm.sign q.val) : ℤ) : ℂ) *
+        (if toTabloid n la (w * q.val⁻¹ * σ) = toTabloid n la α then 1 else 0))
+    with hF_def
+  change (∑ q : ↥H, F q) = 0
+  have h_reindex : (∑ q : ↥H, F q) = (∑ q : ↥H, F (φ q)) := (Equiv.sum_comp φ _).symm
+  have h_double : (∑ q : ↥H, F q) + (∑ q : ↥H, F q) = 0 := by
+    nth_rewrite 1 [h_reindex]
+    rw [show (∑ q : ↥H, F (φ q)) + (∑ q : ↥H, F q) =
+        ∑ q : ↥H, (F q + F (φ q)) from by
+      rw [add_comm]; exact (Finset.sum_add_distrib (f := F)
+        (g := fun q => F (φ q))).symm]
+    apply Finset.sum_eq_zero
+    intro q _; exact key q
+  have h2 : (2 : ℂ) * (∑ q : ↥H, F q) = 0 := by rw [two_mul]; exact h_double
+  exact (mul_eq_zero.mp h2).resolve_left two_ne_zero
+
+/-- **Support Bound for twistedPolytabloid** (Wall 3 C.1.a).
+For any column-standard σ and any w ∈ S_n, every tabloid [α] appearing with
+nonzero net coefficient in the tabloid-basis expansion of
+`twistedPolytabloid w σ = Σ_{q ∈ Q_λ} sign(q) · δ_{[w q⁻¹ σ]}`
+is weakly dominated by [σ] in the tabloid-dominance order.
+
+This is the combinatorial heart of the Garnir straightening argument. Unlike
+the analogous statement for ordinary polytabloids (`polytabloidTab_coeff_dominance`,
+which uses per-term dominance via `column_perm_dominance`), here the bound
+relies on cross-q sign-cancellation: individual terms [w q⁻¹ σ] may strictly
+dominate [σ], but such terms always cancel in pairs within the signed sum
+over Q_λ.
+
+Illustrative cancellation: λ=(3,2), σ=[1,0,4,2,3], w=σ⁻¹. Then
+`w q⁻¹ σ = id` for q ∈ {1, (1,4)} with signs +1 and -1, and equals
+[{0,2,4}|{1,3}]-tabloid for q ∈ {(0,3), (0,3)(1,4)} with signs -1 and +1
+respectively. Each "violating" tabloid gets a zero net coefficient.
+
+See `progress/20260424T064759Z_bd928e67.md` for the full meditation note and
+the counter-example-validated proof strategy (avenue 1: direct combinatorial
+cross-q cancellation via a per-column pigeonhole involution).
+
+Proof: reduce to `twistedPolytabloid_fibre_sign_sum_zero` by the contrapositive
+and the Finsupp unfolding of the coefficient `twistedPolytabloid w σ` at the
+tabloid `[α]`. -/
+private theorem twistedPolytabloid_support_bound
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (w : Equiv.Perm (Fin n)) (α : Equiv.Perm (Fin n))
+    (hα_supp : twistedPolytabloid (la := la) w σ (toTabloid n la α) ≠ 0) :
+    tabloidDominates la σ α := by
+  by_contra hnotdom
+  exact hα_supp (twistedPolytabloid_apply_of_not_dominates σ hcs w α hnotdom)
+
 /-- **Twisted polytabloid in lower span** (sub-sorry 2 of 2):
 For column-standard σ with row inversion, each Garnir permutation w that is
 **neither** column-preserving nor row-preserving produces a "twisted polytabloid"

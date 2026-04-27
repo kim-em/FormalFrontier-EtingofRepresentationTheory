@@ -27,7 +27,11 @@ equal-dimensions hypothesis holds vacuously) yet are non-isomorphic.
 
 open CategoryTheory MvPolynomial
 
+open scoped TensorProduct
+
 noncomputable section
+
+universe u
 
 namespace Etingof
 
@@ -221,7 +225,7 @@ theorem schurPoly_isHomogeneous (N : ℕ) (lam : Fin N → ℕ) :
   rw [MvPolynomial.coeff_homogeneousComponent, if_pos rfl] at h_coeff_zero
   exact hd h_coeff_zero
 
-variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
+variable (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-- The family of weight spaces of a `GL_N(k)`-representation is sup-independent.
 This follows from `Module.End.independent_iInf_maxGenEigenspace_of_forall_mapsTo`
@@ -454,6 +458,7 @@ Both follow from the analogous statements on weight-space finranks, combined wit
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- Componentwise formula for the direct-sum representation: for `x : DirectSum ι V`,
 the `j`-th coordinate of applying `Representation.directSum ρ g` to `x` is
 `ρ j g (x j)`. -/
@@ -468,6 +473,7 @@ private lemma directSum_rep_coord (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- The weight space of a direct-sum representation splits coordinate-wise: a
 vector `x` lies in the weight space iff each coordinate `x j` lies in the
 corresponding weight space of `ρ j`. -/
@@ -508,6 +514,7 @@ private lemma mem_glWeightSpace_directSum_iff (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- Linear equivalence between the direct sum of weight spaces and the weight
 space of a direct-sum representation. -/
 noncomputable def glWeightSpace_directSum_equiv (N : ℕ)
@@ -556,6 +563,7 @@ noncomputable def glWeightSpace_directSum_equiv (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- The finrank of the weight space of a direct-sum representation is the sum of
 finranks of the individual weight spaces. -/
 private lemma finrank_glWeightSpace_directSum (N : ℕ)
@@ -572,6 +580,7 @@ private lemma finrank_glWeightSpace_directSum (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- **Direct-sum additivity of formal character.**
 For a finite family of representations `ρ i` on finite-dimensional `k`-modules,
 the formal character of the direct-sum representation equals the sum of the
@@ -623,6 +632,7 @@ private theorem glWeightSpace_map_eq_of_rep_iso (N : ℕ)
       rw [map_smul, e.apply_symm_apply]
     exact sub_eq_zero.mpr (e.injective (h1.trans h2.symm))
 
+omit [CharZero k] in
 /-- **Formal character is invariant under GL_N-equivariant isomorphism.**
 A k-linear equivalence `e : V ≃ W` that intertwines two GL_N representations induces
 equality of their formal characters. -/
@@ -643,6 +653,7 @@ theorem formalCharacter_eq_of_rep_iso (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- **Trivial-tensor multiplicativity of formal character.**
 For a trivial GL_N-action on `S` tensor-producted with a representation `L`, the
 formal character is `(dim S) • formalCharacter L`. -/
@@ -727,5 +738,261 @@ theorem formalCharacter_trivialTensor (N : ℕ)
   simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin]
   -- Goal: n • char L = (n : ℚ) • char L (both on MvPolynomial (Fin N) ℚ).
   exact (Nat.cast_smul_eq_nsmul ℚ n (formalCharacter k N L)).symm
+
+/-! ### GL_N-equivariant Schur-Weyl bimodule decomposition
+
+Using the explicit evaluation formula `e.symm (of i (v ⊗ l)) = l v` from
+`Theorem5_18_1_bimodule_decomposition_explicit`, we upgrade the Schur-Weyl
+bimodule decomposition to a `GL_N(k)`-equivariant form: the iso
+`V^{⊗n} ≃ ⨁ Sᵢ ⊗ Lᵢ` intertwines the diagonal `glTensorRep` action on the
+LHS with the natural action on the RHS (trivial on each `Sᵢ`, the
+post-composition `GL_N`-action on each `Lᵢ`).
+
+This is the form required by the Schur-Weyl #3 character argument
+(`formalCharacter_tensorPower_eq_sum_character_L`).
+-/
+
+-- Heartbeats bumped: the existential output has 7 ∀-binders with deep
+-- `Subalgebra → Ring → Module.End` instance chains, and the GL_N
+-- representation construction composes several monoid homs each
+-- triggering similar chains. The equivariance proof itself reduces via
+-- `DirectSum.linearMap_ext` + `TensorProduct.ext'` to a
+-- per-component computation that requires unfolding the chain
+-- `(ρ i) g l = (centralizerToEndA (glHom g)).comp l`.
+set_option maxHeartbeats 6400000 in
+set_option synthInstance.maxHeartbeats 1600000 in
+/-- **Equivariant Schur-Weyl decomposition for `V^{⊗n}`.**
+Specializing to `V = Fin N → k`, there is a finite family of Specht modules
+`S i` and polynomial `GL_N(k)`-representations `L i`, together with a
+`k`-linear equivalence
+  `V^{⊗n} ≃ₗ[k] ⨁ i, S i ⊗[k] L i`
+that is `GL_N(k)`-equivariant: it intertwines the diagonal action on the
+LHS with the action on the RHS that is trivial on each `S i` and the given
+`L i`-action on the second factor.
+
+Built from `Theorem5_18_1_bimodule_decomposition_explicit`: the explicit
+evaluation formula `e.symm (of i (v ⊗ₜ l)) = l v` is the key ingredient
+that makes the equivariance argument go through directly. The `GL_N`
+action on each `Lᵢ = Sᵢ →ₗ[A] V^{⊗n}` is post-composition by
+`g^{⊗n}`, so `((L i).ρ g l) v = g^{⊗n} (l v) = glTensorRep g (l v)`,
+which intertwines with the diagonal action via the evaluation formula. -/
+theorem glTensorRep_equivariant_schurWeyl_decomposition
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
+      ∃ (e : TensorPower k (Fin N → k) n ≃ₗ[k]
+          (DirectSum ι (fun i => S i ⊗[k] (L i : Type u)))),
+        ∀ (g : Matrix.GeneralLinearGroup (Fin N) k)
+          (v : TensorPower k (Fin N → k) n),
+          e (glTensorRep k N n g v) =
+            Representation.directSum (fun i =>
+              (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+                (S i)).tprod (L i).ρ) g (e v) := by
+  classical
+  set V : Type u := Fin N → k
+  haveI : Module.Finite k V := inferInstance
+  have hfinrank : Module.finrank k V = N :=
+    (Module.finrank_pi k).trans (Fintype.card_fin N)
+  have hN' : n ≤ Module.finrank k V := hfinrank.symm ▸ hN
+  haveI : IsSemisimpleRing (symGroupImage k V n) :=
+    symGroupImage_isSemisimpleRing k V n
+  haveI : FaithfulSMul (symGroupImage k V n) (TensorPower k V n) :=
+    symGroupImage_faithfulSMul k V n hN'
+  -- Establish IsScalarTower at the parent level (Subalgebra acts on End k V).
+  haveI : IsScalarTower k (symGroupImage k V n) (TensorPower k V n) := inferInstance
+  -- Get the explicit bimodule decomposition.
+  obtain ⟨ι, hιFin, hιDec, V', hV'_simp, hV'_dist, e, h_eval⟩ :=
+    Theorem5_18_1_bimodule_decomposition_explicit k (TensorPower k V n)
+      (symGroupImage k V n)
+  -- Centralizer identity.
+  have h_eq : Subalgebra.centralizer k
+      (symGroupImage k V n :
+        Set (Module.End k (TensorPower k V n))) =
+        diagonalActionImage k V n :=
+    (Theorem5_18_4_centralizers k V n hN').2.symm
+  -- Module.Finite k for the carriers.
+  haveI hSi_fin : ∀ i, Module.Finite k (↥(V' i) : Type u) := fun i =>
+    Module.Finite.of_injective ((V' i).subtype.restrictScalars k)
+      Subtype.val_injective
+  haveI hLi_fin : ∀ i, Module.Finite k
+      ((↥(V' i) : Type u) →ₗ[symGroupImage k V n] TensorPower k V n) := fun i => by
+    haveI : Module.Finite k (↥(V' i) : Type u) := hSi_fin i
+    haveI : Module.Free k (↥(V' i) : Type u) :=
+      Module.Free.of_divisionRing k (↥(V' i))
+    haveI : Module.Finite k
+        ((↥(V' i) : Type u) →ₗ[k] TensorPower k V n) :=
+      Module.Finite.linearMap k k (↥(V' i)) (TensorPower k V n)
+    exact Module.Finite.of_injective
+      (LinearMap.restrictScalarsₗ k (symGroupImage k V n) (↥(V' i))
+        (TensorPower k V n) k)
+      (LinearMap.restrictScalars_injective _)
+  -- glHom : GL_N → centralizer(symGroupImage), via `g ↦ g^{⊗n}`.
+  let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
+      ↥(Subalgebra.centralizer k
+        (symGroupImage k V n :
+          Set (Module.End k (TensorPower k V n)))) :=
+  { toFun := fun g => ⟨PiTensorProduct.map
+        (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val), by
+      rw [h_eq]
+      exact Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩
+    map_one' := by
+      apply Subtype.ext
+      change PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) = 1
+      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
+          (fun _ : Fin n => (LinearMap.id : V →ₗ[k] V)) :=
+        funext fun _ => Matrix.mulVecLin_one
+      rw [this, PiTensorProduct.map_id]; rfl
+    map_mul' := fun g₁ g₂ => by
+      apply Subtype.ext
+      change PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+        PiTensorProduct.map
+            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₁.val) *
+          PiTensorProduct.map
+            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₂.val)
+      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+          (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp
+            (Matrix.mulVecLin g₂.val)) :=
+        funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
+      rw [this, PiTensorProduct.map_comp]; rfl }
+  -- ρ i : GL_N → End_k (Hom_A(V'_i, E)) via centralizer-action on Hom.
+  -- Built directly: g acts on l by post-composing with `(glHom g).val`,
+  -- which is `PiTensorProduct.map (mulVecLin g)` and lies in `centralizer(A)`,
+  -- so the post-composition is A-linear (hence preserves Hom_A(V'_i, E)).
+  let ρ : ∀ i, Matrix.GeneralLinearGroup (Fin N) k →*
+      Module.End k (↥(V' i) →ₗ[symGroupImage k V n] TensorPower k V n) := fun i =>
+  { toFun := fun g =>
+    { toFun := fun l =>
+        (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+          (glHom g)).comp l
+      map_add' := fun l₁ l₂ => by
+        ext v
+        simp only [LinearMap.comp_apply, LinearMap.add_apply, map_add]
+      map_smul' := fun c l => by
+        ext v
+        simp only [LinearMap.smul_apply, RingHom.id_apply,
+          LinearMap.comp_apply, LinearMap.map_smul_of_tower] }
+    map_one' := by
+      ext l v
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+        Module.End.one_apply]
+      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+        (glHom 1)) (l v) = l v
+      rw [map_one, map_one]; rfl
+    map_mul' := fun g₁ g₂ => by
+      ext l v
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+        Module.End.mul_apply]
+      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+          (glHom (g₁ * g₂))) (l v) = _
+      rw [map_mul, map_mul]; rfl }
+  let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
+    FDRep.of (ρ i)
+  refine ⟨ι, hιFin, hιDec, fun i => ↥(V' i),
+    fun _ => inferInstance, fun _ => inferInstance,
+    fun i => hSi_fin i, L, ?_, ?_⟩
+  · exact e
+  intro g v
+  -- Reduce equivariance to: (glTensorRep g) ∘ e.symm = e.symm ∘ directSum_action g.
+  -- We use `ρ i` directly instead of `(L i).ρ` because `e.symm` is typed
+  -- in terms of `↥(V' i) →ₗ[A] E`, not `↑(L i).V`, and the syntactic forms
+  -- must match. The two are defeq via `FDRep.of_ρ' = rfl`.
+  have h_lin :
+      (glTensorRep k N n g) ∘ₗ (e.symm : _ →ₗ[k] _) =
+        (e.symm : _ →ₗ[k] _) ∘ₗ
+          (Representation.directSum (fun i =>
+            (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+              (↥(V' i))).tprod (ρ i)) g) := by
+    refine DirectSum.linearMap_ext k fun i => ?_
+    apply TensorProduct.ext'
+    intro s l
+    change (glTensorRep k N n g) (e.symm
+        (DirectSum.lof k ι (fun i => ↥(V' i) ⊗[k]
+          (↥(V' i) →ₗ[symGroupImage k V n] TensorPower k V n)) i
+          (s ⊗ₜ[k] l))) =
+      e.symm ((Representation.directSum (fun i =>
+        (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+          (↥(V' i))).tprod (ρ i)) g)
+        (DirectSum.lof k ι _ i (s ⊗ₜ[k] l)))
+    -- LHS: e.symm (of i (s ⊗ₜ l)) = l s by h_eval.
+    rw [DirectSum.lof_eq_of, h_eval i s l]
+    -- RHS: directSum_action g (of i (s ⊗ₜ l)) = of i (s ⊗ₜ (ρ i g l))
+    -- via lmap_of + tprod_apply + map_tmul + trivial_apply, then h_eval.
+    change _ = e.symm (DirectSum.lmap
+      (fun i => ((Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+        (↥(V' i))).tprod (ρ i)) g) (DirectSum.of _ i (s ⊗ₜ[k] l)))
+    rw [DirectSum.lmap_of, Representation.tprod_apply, TensorProduct.map_tmul,
+      Representation.trivial_apply, h_eval i s ((ρ i) g l)]
+    -- Goal: glTensorRep g (l s) = ((ρ i) g l) s.
+    -- (ρ i) g l = (centralizerToEndA (glHom g)).comp l, so applied at s
+    -- gives (glHom g).val (l s) = PiTensorProduct.map (mulVecLin g) (l s).
+    rfl
+  -- Apply h_lin at z := e v.
+  have h := LinearMap.congr_fun h_lin (e v)
+  -- h : ((glTensorRep g) ∘ₗ e.symm.toLM) (e v) = (e.symm.toLM ∘ₗ ds_act) (e v).
+  -- Reduce composition + e.symm (e v) = v.
+  rw [LinearMap.comp_apply, LinearMap.comp_apply] at h
+  rw [show (e.symm : _ →ₗ[k] _) (e v) = v from e.symm_apply_apply v] at h
+  -- h : (glTensorRep g) v = e.symm.toLM (ds_act (e v)).
+  -- Goal: e ((glTensorRep g) v) = ds_act (e v).
+  rw [show (e.symm : _ →ₗ[k] _) ((Representation.directSum (fun i =>
+      (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+        (↥(V' i))).tprod (ρ i)) g) (e v)) =
+    e.symm ((Representation.directSum (fun i =>
+      (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+        (↥(V' i))).tprod (ρ i)) g) (e v)) from rfl] at h
+  exact (LinearEquiv.eq_symm_apply e).mp h
+
+/-! ### Schur-Weyl character decomposition of `V^{⊗n}`
+
+Combining the Schur-Weyl bimodule decomposition (Theorem 5.18.4 part iii)
+with the direct-sum additivity and trivial-tensor multiplicativity lemmas
+above yields the main character identity used in the Schur-Weyl #3
+character argument:
+
+  `char(V^{⊗n}) = ∑ᵢ dim(Sᵢ) · char(Lᵢ)`
+
+where the sum ranges over isotypic components of the `Sₙ`-action (Specht
+modules `Sᵢ`) and each `Lᵢ` is an irreducible polynomial
+`GL_N(k)`-representation.
+-/
+
+/-- **Schur-Weyl character decomposition.** For `V = Fin N → k` and `n ≤ N`,
+the formal character of the `GL_N(k)`-representation `V^{⊗n}` decomposes as
+a sum indexed by the isotypic components of the `Sₙ`-action,
+  `char(V^{⊗n}) = ∑ᵢ dim(Sᵢ) · char(Lᵢ)`,
+where `Sᵢ` is a simple `k[Sₙ]`-module (Specht module) and `Lᵢ` is an
+irreducible polynomial `GL_N(k)`-representation. -/
+theorem formalCharacter_tensorPower_eq_sum_character_L
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
+      formalCharacter k N (FDRep.of (glTensorRep k N n)) =
+        ∑ i : ι, (Module.finrank k (S i) : ℚ) • formalCharacter k N (L i) := by
+  -- Invoke the GL_N-equivariant Schur-Weyl decomposition (Theorem 5.18.4 iii).
+  obtain ⟨ι, hιFin, hιDec, S, hS_acg, hS_mod, hS_fin, L, e, he⟩ :=
+    glTensorRep_equivariant_schurWeyl_decomposition k N n hN
+  refine ⟨ι, hιFin, hιDec, S, hS_acg, hS_mod, hS_fin, L, ?_⟩
+  -- Step 1: push char(glTensorRep) across the equivariant iso to the
+  -- direct sum of (trivial_S_i ⊗ L_i)-representations.
+  have h_iso := formalCharacter_eq_of_rep_iso k N (glTensorRep k N n)
+    (Representation.directSum (fun i =>
+      (Representation.trivial k (Matrix.GeneralLinearGroup (Fin N) k)
+        (S i)).tprod (L i).ρ)) e he
+  rw [h_iso]
+  -- Step 2: split the direct sum.
+  rw [formalCharacter_directSum]
+  -- Step 3: apply trivial-tensor multiplicativity summand by summand.
+  refine Finset.sum_congr rfl (fun i _ => ?_)
+  exact formalCharacter_trivialTensor k N (S i) (L i)
 
 end Etingof

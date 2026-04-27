@@ -421,6 +421,7 @@ theorem Theorem5_18_4_bimodule_decomposition
       (_ : ∀ i, Module (symGroupImage k V n) (S i))
       (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
       (_ : ∀ i j, Nonempty (S i ≃ₗ[symGroupImage k V n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
       (L : ι → Type (max u v)) (_ : ∀ i, AddCommGroup (L i))
       (_ : ∀ i, Module k (L i))
       (_ : ∀ i, Module (diagonalActionImage k V n) (L i)),
@@ -429,7 +430,7 @@ theorem Theorem5_18_4_bimodule_decomposition
   haveI := symGroupImage_isSemisimpleRing k V n
   haveI := symGroupImage_faithfulSMul k V n hN
   obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L', hL'_acg, hL'_mod, hL'_Bmod, _hL'_smul, _hL'_fin, ⟨e⟩⟩ :=
+    hS'_dist, hS'_fin, L', hL'_acg, hL'_mod, hL'_Bmod, _hL'_smul, _hL'_fin, ⟨e⟩⟩ :=
     Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
       (symGroupImage k V n)
   -- Transport the `Module ↥(centralizer(symGroupImage))` structure on each
@@ -440,7 +441,7 @@ theorem Theorem5_18_4_bimodule_decomposition
         diagonalActionImage k V n :=
     (Theorem5_18_4_centralizers k V n hN).2.symm
   refine ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp, hS'_dist,
-    L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
+    hS'_fin, L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
 
 -- Heartbeat bumps match `Theorem5_18_1_bimodule_decomposition_explicit`.
 set_option maxHeartbeats 3200000 in
@@ -500,13 +501,17 @@ module over `(symGroupImage k V n) ⊗[k] (GL_N k)`, `V^⊗n` decomposes as
   `V^⊗n ≅ ⨁ᵢ Sᵢ ⊗[k] Lᵢ`
 where the `Sᵢ` are pairwise non-isomorphic simple `symGroupImage`-modules
 (Specht modules) and each `Lᵢ` is a full finite-dimensional
-`GL_N(k)`-representation (an irreducible polynomial representation).
+`GL_N(k)`-representation, expected to be an irreducible polynomial
+representation downstream (see #2483); irreducibility is not part of
+this statement.
 
 Refines `Theorem5_18_4_bimodule_decomposition` by upgrading each `Lᵢ`
-from a `Module (diagonalActionImage) Lᵢ` to a bundled
-`FDRep k (GL_N k)`. The `GL_N` action is built by composing
-`GL_N → diagonalActionImage` (via the `g ↦ g^{⊗n}` diagonal map) with
-the existing `diagonalActionImage`-module structure. -/
+from a `Module (centralizer(symGroupImage)) Lᵢ` to a bundled
+`FDRep k (GL_N k)`. The `GL_N` action is built by composing the monoid
+hom `GL_N → centralizer(symGroupImage)` given by `g ↦ g^{⊗n}` (whose
+image lies in `diagonalActionImage` by the centralizer identity from
+`Theorem5_18_4_centralizers`) with the existing
+`centralizer(symGroupImage)`-module structure on `Lᵢ`. -/
 theorem Theorem5_18_4_GL_rep_decomposition
     (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
     (N n : ℕ) (hN : n ≤ N) :
@@ -518,6 +523,7 @@ theorem Theorem5_18_4_GL_rep_decomposition
       (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
       (_ : ∀ i j,
         Nonempty (S i ≃ₗ[symGroupImage k (Fin N → k) n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
       (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
       Nonempty (TensorPower k (Fin N → k) n ≃ₗ[k]
         DirectSum ι (fun i => S i ⊗[k] (L i : Type u))) := by
@@ -531,7 +537,7 @@ theorem Theorem5_18_4_GL_rep_decomposition
   -- Get the bimodule decomposition with L_i carrying a Module over
   -- the centralizer of symGroupImage and the associated SMulCommClass.
   obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L', hL'_acg, hL'_mod, hL'_Bmod, hL'_smul, hL'_fin, ⟨e⟩⟩ :=
+    hS'_dist, hS'_fin, L', hL'_acg, hL'_mod, hL'_Bmod, hL'_smul, hL'_fin, ⟨e⟩⟩ :=
     Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
       (symGroupImage k V n)
   -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
@@ -582,6 +588,171 @@ theorem Theorem5_18_4_GL_rep_decomposition
   let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
     FDRep.of (ρ i)
   exact ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L, ⟨e⟩⟩
+    hS'_dist, hS'_fin, L, ⟨e⟩⟩
+
+-- Heartbeats bumped: the existential output has 8 ∀-binders followed by
+-- two more existentials; the GL_N representation construction composes
+-- several monoid homs each triggering deep `Subalgebra → Ring → Module.End`
+-- instance chains. Matches the bumps on `_GL_rep_decomposition`.
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1600000 in
+/-- Schur-Weyl duality, part (iii), GL_N representation form, explicit
+version.
+
+Strengthens `Theorem5_18_4_GL_rep_decomposition` by concretizing the
+summand types and producing an explicit iso whose inverse on pure
+tensors is the evaluation map:
+
+* `S i : Submodule (symGroupImage k V n) (V^⊗n)` (Specht-module realisations
+  as concrete submodules);
+* `L i : FDRep k (GL_N k)` whose carrier is
+  `↥(S i) →ₗ[symGroupImage k V n] V^⊗n`, with the `GL_N`-action given by
+  post-composition with `g ↦ g^{⊗n}` (which lies in
+  `centralizer(symGroupImage)` by the centralizer identity);
+* a `k`-linear iso `L_carrier i : (L i : Type u) ≃ₗ[k]
+  (↥(S i) →ₗ[symGroupImage k V n] V^⊗n)` identifying the bundled FDRep
+  carrier with the explicit hom-space (it is `LinearEquiv.refl` after
+  the `FGModuleCat.of_carrier` defeq);
+* explicit iso `e : V^⊗n ≃ₗ[k] ⨁ᵢ ↥(S i) ⊗[k] (L i : Type u)` whose
+  inverse on pure tensors is the evaluation map:
+  `e.symm (of i (v ⊗ₜ l)) = (L_carrier i l) v`.
+
+The `L_carrier` clause sidesteps a defeq fragility: when stating the
+existential, `(L i : Type u)` is universally quantified and not yet
+concretised, so an `l : (L i : Type u)` cannot be applied to `v` as a
+linear map without the explicit identification with `↥(S i) →ₗ[A] E`.
+
+This is the form required by the `GL_N`-equivariance argument
+(`glTensorRep_equivariant_schurWeyl_decomposition`,
+issue #2540): the evaluation formula together with the post-composition
+`GL_N`-action on each `L i` makes equivariance computable on pure
+tensors. -/
+theorem Theorem5_18_4_GL_rep_decomposition_explicit
+    (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Submodule (symGroupImage k (Fin N → k) n)
+        (TensorPower k (Fin N → k) n))
+      (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
+      (_ : ∀ i j,
+        Nonempty (↥(S i) ≃ₗ[symGroupImage k (Fin N → k) n] ↥(S j)) → i = j)
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+      (L_carrier : ∀ i, (L i : Type u) ≃ₗ[k]
+        (↥(S i) →ₗ[symGroupImage k (Fin N → k) n]
+          TensorPower k (Fin N → k) n)),
+      ∃ (e : TensorPower k (Fin N → k) n ≃ₗ[k]
+          DirectSum ι (fun i => ↥(S i) ⊗[k] (L i : Type u))),
+        ∀ (i : ι) (v : ↥(S i)) (l : (L i : Type u)),
+          e.symm (DirectSum.of (fun i => ↥(S i) ⊗[k] (L i : Type u)) i
+              (v ⊗ₜ[k] l)) = (L_carrier i l) v := by
+  set V : Type u := Fin N → k with hV
+  haveI : Module.Finite k V := inferInstance
+  have hfinrank : Module.finrank k V = N :=
+    (Module.finrank_pi k).trans (Fintype.card_fin N)
+  have hN' : n ≤ Module.finrank k V := hfinrank.symm ▸ hN
+  haveI := symGroupImage_isSemisimpleRing k V n
+  haveI := symGroupImage_faithfulSMul k V n hN'
+  -- Get the explicit bimodule decomposition with concrete summand types
+  -- and the evaluation formula.
+  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, e, he⟩ :=
+    Theorem5_18_4_bimodule_decomposition_explicit k V n hN'
+  -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
+  have h_eq : Subalgebra.centralizer k
+      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
+        diagonalActionImage k V n :=
+    (Theorem5_18_4_centralizers k V n hN').2.symm
+  -- Monoid hom GL_N → centralizer(symGroupImage), same as in
+  -- `_GL_rep_decomposition`.
+  let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
+      ↥(Subalgebra.centralizer k
+        (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
+  { toFun := fun g => ⟨PiTensorProduct.map
+        (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val), by
+      rw [h_eq]
+      exact Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩
+    map_one' := by
+      apply Subtype.ext
+      change PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) = 1
+      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
+          (fun _ : Fin n => (LinearMap.id : V →ₗ[k] V)) :=
+        funext fun _ => Matrix.mulVecLin_one
+      rw [this, PiTensorProduct.map_id]; rfl
+    map_mul' := fun g₁ g₂ => by
+      apply Subtype.ext
+      change PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+        PiTensorProduct.map
+            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₁.val) *
+          PiTensorProduct.map
+            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₂.val)
+      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+          (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp
+            (Matrix.mulVecLin g₂.val)) :=
+        funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
+      rw [this, PiTensorProduct.map_comp]; rfl }
+  -- Each `↥(S' i)` is a finite-dimensional `k`-vector space (it injects into
+  -- the finite-dimensional `TensorPower k V n` via the subtype map).
+  haveI hSi_fin : ∀ i, Module.Finite k ((↥(S' i) : Type u)) := fun i =>
+    Module.Finite.of_injective ((S' i).subtype.restrictScalars k)
+      Subtype.val_injective
+  -- The `A`-linear hom space `↥(S' i) →ₗ[A] E` is finite-dimensional over `k`
+  -- because it injects (`k`-linearly) into the `k`-linear hom space, which has
+  -- dimension `dim(↥(S' i)) · dim(E)`. (Same derivation as in
+  -- `glTensorRep_equivariant_schurWeyl_decomposition`.)
+  haveI hLi_fin : ∀ i, Module.Finite k
+      ((↥(S' i) : Type u) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+    fun i => by
+      haveI : Module.Finite k (↥(S' i) : Type u) := hSi_fin i
+      haveI : Module.Free k (↥(S' i) : Type u) :=
+        Module.Free.of_divisionRing k (↥(S' i))
+      haveI : Module.Finite k
+          ((↥(S' i) : Type u) →ₗ[k] TensorPower k V n) :=
+        Module.Finite.linearMap k k (↥(S' i)) (TensorPower k V n)
+      exact Module.Finite.of_injective
+        (LinearMap.restrictScalarsₗ k (symGroupImage k V n) (↥(S' i))
+          (TensorPower k V n) k)
+        (LinearMap.restrictScalars_injective _)
+  -- For each i, build the GL_N representation on `↥(S' i) →ₗ[A] E` directly:
+  -- `g · l := (centralizerToEndA (glHom g)).comp l`. Manual construction
+  -- bypasses an instance-synthesis diamond on the centralizer-Module
+  -- structure of the hom-space. (Same construction as in
+  -- `glTensorRep_equivariant_schurWeyl_decomposition`.)
+  let ρ : ∀ i, Matrix.GeneralLinearGroup (Fin N) k →*
+      Module.End k (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := fun i =>
+  { toFun := fun g =>
+    { toFun := fun l =>
+        (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+          (glHom g)).comp l
+      map_add' := fun l₁ l₂ => by
+        ext v
+        simp only [LinearMap.comp_apply, LinearMap.add_apply, map_add]
+      map_smul' := fun c l => by
+        ext v
+        simp only [LinearMap.smul_apply, RingHom.id_apply,
+          LinearMap.comp_apply, LinearMap.map_smul_of_tower] }
+    map_one' := by
+      ext l v
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+        Module.End.one_apply]
+      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+        (glHom 1)) (l v) = l v
+      rw [map_one, map_one]; rfl
+    map_mul' := fun g₁ g₂ => by
+      ext l v
+      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+        Module.End.mul_apply]
+      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
+          (glHom (g₁ * g₂))) (l v) = _
+      rw [map_mul, map_mul]; rfl }
+  -- Bundle each L_inner as a finite-dimensional GL_N representation.
+  let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
+    FDRep.of (ρ i)
+  -- The carrier of `L i` is, by `FGModuleCat.of_carrier`, definitionally
+  -- the explicit hom-space `↥(S' i) →ₗ[A] E`. Hence `LinearEquiv.refl`.
+  let L_carrier : ∀ i, (L i : Type u) ≃ₗ[k]
+      (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+    fun i => LinearEquiv.refl k _
+  exact ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, L, L_carrier, e, he⟩
 
 end Etingof

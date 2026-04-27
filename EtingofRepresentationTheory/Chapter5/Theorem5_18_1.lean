@@ -548,6 +548,13 @@ post-composition. This is the bimodule-enhanced version of
 `Theorem5_18_1_decomposition`: the `Lᵢ` are genuine `B`-modules (not
 just `k`-vector spaces) and the `Vᵢ` are pairwise non-isomorphic.
 
+The theorem additionally provides, for each `i`:
+* `SMulCommClass B k (Lᵢ)` — the `B`- and `k`-actions on `Lᵢ` commute,
+  so `Lᵢ` is a representation of `B` over `k` (i.e. an `A ⊗[k] B`-module
+  factor in the standard sense), and
+* `Module.Finite k (Lᵢ)` — each multiplicity space is a
+  finite-dimensional `k`-vector space.
+
 (Etingof Theorem 5.18.1, part iii, bimodule form.) -/
 theorem Theorem5_18_1_bimodule_decomposition
     [IsAlgClosed k]
@@ -559,6 +566,7 @@ theorem Theorem5_18_1_bimodule_decomposition
       (_ : ∀ i, Module k (V i)) (_ : ∀ i, Module A (V i))
       (_ : ∀ i, IsSimpleModule A (V i))
       (_ : ∀ i j, Nonempty (V i ≃ₗ[A] V j) → i = j)
+      (_ : ∀ i, Module.Finite k (V i))
       (L : ι → Type v) (_ : ∀ i, AddCommGroup (L i))
       (_ : ∀ i, Module k (L i))
       (_ : ∀ i, Module
@@ -608,6 +616,7 @@ theorem Theorem5_18_1_bimodule_decomposition
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
     fun i => V'_simple (φ.symm i),
     ?_,
+    fun _ => inferInstance,
     fun i => (↥(V' (φ.symm i)) →ₗ[A] E),
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
     fun _ => inferInstance,

@@ -505,6 +505,7 @@ variable (k : Type*) [Field k] [IsAlgClosed k] [CharZero k]
 
 /-! ### Coefficient extraction for formal character -/
 
+omit [CharZero k] in
 /-- The coefficient of `x^μ` in the formal character equals the dimension of the weight space. -/
 theorem formalCharacter_coeff (N : ℕ)
     (M : FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
