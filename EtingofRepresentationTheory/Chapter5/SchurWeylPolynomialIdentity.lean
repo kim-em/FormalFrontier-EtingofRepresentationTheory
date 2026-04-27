@@ -107,4 +107,38 @@ theorem charValue_trivialCycleType_eq_spechtFinrank
       charValue_eq_spechtModuleCharacter N n lam 1,
       spechtModuleCharacter_one]
 
+/-- **Specht-dimension bridge over `ℚ`.** Stronger form of
+`charValue_trivialCycleType_eq_spechtFinrank`: the rational character value at
+the trivial cycle type already equals the natural-number dimension of the
+Specht module (cast to `ℚ`). Obtained from the `ℂ`-form by injectivity of
+`Rat.cast : ℚ → ℂ`. -/
+theorem charValue_trivialCycleType_eq_spechtFinrank_rat
+    (N : ℕ) {n : ℕ} (lam : BoundedPartition N n) :
+    charValue N lam (trivialCycleType n) =
+      (Module.finrank ℂ
+        (SpechtModule n (lam.sum_eq ▸ weightToPartition N lam.parts)) : ℚ) := by
+  apply (Rat.cast_injective (α := ℂ))
+  rw [Rat.cast_natCast]
+  exact charValue_trivialCycleType_eq_spechtFinrank N lam
+
+/-- **Schur-Weyl polynomial identity in dimension form.**
+
+The `n`-th power of the standard character `∑ᵢ Xᵢ` decomposes as a sum of
+Schur polynomials weighted by Specht-module dimensions:
+
+`(∑ᵢ Xᵢ)ⁿ = ∑_{λ ∈ BoundedPartition N n} dim_ℂ(Sλ) • s_λ(X)`.
+
+This is the dimension-form combination of `sum_X_pow_eq_sum_charValue_smul_schurPoly`
+and `charValue_trivialCycleType_eq_spechtFinrank_rat`, ready for direct use by
+the Schur-Weyl L_i final assembly. -/
+theorem sum_X_pow_eq_sum_finrank_smul_schurPoly (N n : ℕ) :
+    (∑ i : Fin N, (MvPolynomial.X i : MvPolynomial (Fin N) ℚ)) ^ n =
+      ∑ lam : BoundedPartition N n,
+        (Module.finrank ℂ (SpechtModule n
+          (lam.sum_eq ▸ weightToPartition N lam.parts)) : ℚ) •
+        schurPoly N lam.parts := by
+  rw [sum_X_pow_eq_sum_charValue_smul_schurPoly]
+  refine Finset.sum_congr rfl (fun lam _ => ?_)
+  rw [charValue_trivialCycleType_eq_spechtFinrank_rat]
+
 end Etingof
