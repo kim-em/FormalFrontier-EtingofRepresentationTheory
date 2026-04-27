@@ -594,7 +594,11 @@ then `s` comes from a `GL_N`-element, so `eval s p = eval s q` by hypothesis;
 if `det s = 0`, then `eval s (det X) = 0`. In either case the product
 vanishes, so by `MvPolynomial.funext` the product is zero as a polynomial.
 The determinant polynomial is nonzero by `Matrix.det_mvPolynomialX_ne_zero`,
-and `MvPolynomial σ k` is an integral domain, so `p - q = 0`. -/
+and `MvPolynomial σ k` is an integral domain, so `p - q = 0`.
+
+Upstream Mathlib PR: https://github.com/leanprover-community/mathlib4/pull/38583
+(once it merges, replace this lemma with the upstream `MvPolynomial.eq_of_eval_eq_on_gl`
+and remove this local copy — see issue #2564). -/
 lemma eq_of_eval_eq_on_gl
     {k : Type*} [Field k] [Infinite k] {N : ℕ}
     {p q : MvPolynomial (Fin N × Fin N) k}
