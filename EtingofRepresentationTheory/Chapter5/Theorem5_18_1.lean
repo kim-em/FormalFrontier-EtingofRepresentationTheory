@@ -460,8 +460,15 @@ noncomputable instance centralizerModuleHom
     change (centralizerToEndA k E A 0) (f v) = 0
     rw [map_zero]; rfl
 
-set_option maxHeartbeats 400000 in
-set_option synthInstance.maxHeartbeats 400000 in
+-- Both `maxHeartbeats` and `synthInstance.maxHeartbeats` need to be bumped
+-- above 300000: `LinearMap.ext`'s `isDefEq` on the centralizer-wrapped
+-- subtype overruns 200000 (timeout at the `refine` line below), and
+-- downstream re-derivation of the `SMulCommClass` instance in
+-- `Theorem5_18_1_bimodule_decomposition` needs more than 200000 synth
+-- heartbeats. Empirical minimum is ~310000 for both; 320000 is the value
+-- chosen with a small safety buffer (was 400000 / 400000 in #2504).
+set_option maxHeartbeats 320000 in
+set_option synthInstance.maxHeartbeats 320000 in
 /-- The centralizer action on `V →ₗ[A] E` (post-composition) commutes with
 the standard `k`-action on `V →ₗ[A] E` (pointwise scaling). This follows
 from each `b ∈ centralizer(A) ⊆ End k E` being a `k`-linear map. -/
@@ -533,9 +540,11 @@ noncomputable def homIsotypicBridge
 -- Heartbeats are bumped because the existential output has several universe-polymorphic
 -- ∀-binders whose instance synthesis (AddCommGroup / Module / SMulCommClass / Module.Finite
 -- over a subalgebra-wrapped ring) each triggers a deep `Subalgebra → Ring → Module.End`
--- instance chain.
-set_option maxHeartbeats 3200000 in
-set_option synthInstance.maxHeartbeats 1600000 in
+-- instance chain. Empirical minimum is between 1600000 / 800000 (fails) and 1800000 /
+-- 900000 (passes); 2000000 / 1000000 used here for a small safety buffer (was
+-- 3200000 / 1600000 in #2504).
+set_option maxHeartbeats 2000000 in
+set_option synthInstance.maxHeartbeats 1000000 in
 /-- Double centralizer theorem, part (iii), bimodule form.
 
 If `A` is a semisimple subalgebra of `End_k(E)` with `E` faithful and
