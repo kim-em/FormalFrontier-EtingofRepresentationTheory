@@ -715,7 +715,8 @@ theorem Theorem5_18_1_bimodule_decomposition_explicit
     [FaithfulSMul A E] :
     ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
       (V : ι → Submodule A E) (_ : ∀ i, IsSimpleModule A (V i))
-      (_ : ∀ i j, Nonempty (↥(V i) ≃ₗ[A] ↥(V j)) → i = j),
+      (_ : ∀ i j, Nonempty (↥(V i) ≃ₗ[A] ↥(V j)) → i = j)
+      (_ : ∀ i, Module.Finite k ↥(V i)),
       ∃ (e : E ≃ₗ[k] DirectSum ι
           (fun i => ↥(V i) ⊗[k] (↥(V i) →ₗ[A] E))),
         ∀ (i : ι) (v : ↥(V i)) (l : ↥(V i) →ₗ[A] E),
@@ -742,14 +743,18 @@ theorem Theorem5_18_1_bimodule_decomposition_explicit
     intro c
     haveI := V'_simple c
     exact eq_isotypicComponent_of_le c.2 (V'_le c)
+  -- Each `↥(V' c)` is finite-dimensional over `k` (it injects into the
+  -- finite-dimensional ambient `E`). Hoisted to top-level so the existential
+  -- output can advertise `Module.Finite k ↥(V i)` directly.
+  haveI hV'_fin : ∀ c : isotypicComponents A E,
+      Module.Finite k ((↥(V' c) : Type v)) := fun c =>
+    Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
+      Subtype.val_injective
   -- Per-component k-linear iso: ↥c.1 ≃[k] V' c ⊗[k] (V' c →ₗ[A] E)
   let perComp : ∀ c : isotypicComponents A E,
       (↥c.1 : Type v) ≃ₗ[k]
         ↥(V' c) ⊗[k] (↥(V' c) →ₗ[A] E) := fun c => by
     haveI := V'_simple c
-    haveI : Module.Finite k (↥(V' c) : Type v) :=
-      Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
-        Subtype.val_injective
     haveI : Module.Finite k (↥c.1 : Type v) :=
       Module.Finite.of_injective (c.1.subtype.restrictScalars k)
         Subtype.val_injective
@@ -769,9 +774,6 @@ theorem Theorem5_18_1_bimodule_decomposition_explicit
       (((perComp c).symm (v ⊗ₜ[k] l) : ↥c.1) : E) = l v := by
     intro c v l
     haveI := V'_simple c
-    haveI : Module.Finite k (↥(V' c) : Type v) :=
-      Module.Finite.of_injective ((V' c).subtype.restrictScalars k)
-        Subtype.val_injective
     haveI : Module.Finite k (↥c.1 : Type v) :=
       Module.Finite.of_injective (c.1.subtype.restrictScalars k)
         Subtype.val_injective
@@ -812,7 +814,7 @@ theorem Theorem5_18_1_bimodule_decomposition_explicit
   refine ⟨Fin m, inferInstance, inferInstance,
     fun i => V' (φ.symm i),
     fun i => V'_simple (φ.symm i),
-    ?_, etotal, ?_⟩
+    ?_, fun i => hV'_fin (φ.symm i), etotal, ?_⟩
   · -- Distinctness
     intro i j ⟨eqv⟩
     have h_eq : isotypicComponent A E (V' (φ.symm i)) =

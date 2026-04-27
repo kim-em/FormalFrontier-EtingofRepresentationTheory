@@ -792,13 +792,9 @@ theorem glTensorRep_equivariant_schurWeyl_decomposition
                 (S i)).tprod (L i).ρ) g (e v) := by
   classical
   -- Get the explicit GL_N decomposition (issue #2572).
-  obtain ⟨ι, hιFin, hιDec, S', hS'_simp, hS'_dist, L, L_carrier, e, he, h_act⟩ :=
+  obtain ⟨ι, hιFin, hιDec, S', hS'_simp, hS'_dist, hSi_fin, L, L_carrier, e, he,
+      h_act⟩ :=
     Theorem5_18_4_GL_rep_decomposition_explicit k N n hN
-  -- Each `↥(S' i)` is finite-dimensional over `k` (it injects into the
-  -- finite-dimensional ambient `TensorPower`).
-  haveI hSi_fin : ∀ i, Module.Finite k (↥(S' i) : Type u) := fun i =>
-    Module.Finite.of_injective ((S' i).subtype.restrictScalars k)
-      Subtype.val_injective
   refine ⟨ι, hιFin, hιDec, fun i => ↥(S' i),
     fun _ => inferInstance, fun _ => inferInstance,
     fun i => hSi_fin i, L, ?_, ?_⟩
