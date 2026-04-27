@@ -270,4 +270,90 @@ theorem tensorPow_sub_smul_eq_sum_coeff (n : ℕ)
       rw [neg_pow]; ring]
     rw [mul_smul]
 
-end Etingof
+/-! ### Cofinite invertibility of `f - c • 1`
+
+For any `f : End k V` with `V` finite-dimensional, `f - c • 1` is invertible
+for all but finitely many `c ∈ k`. The bad set is the eigenvalue set, which
+has cardinality at most `finrank V`. -/
+
+/-- For a finite-dim k-vector space V and any `f : End k V`, the set of
+`c ∈ k` for which `f - c • 1` is non-invertible is finite (at most `dim V`). -/
+theorem exists_finset_isUnit_sub_smul_one [Module.Finite k V] (f : Module.End k V) :
+    ∃ S : Finset k, ∀ c, c ∉ S → IsUnit (f - c • (1 : Module.End k V)) := by
+  haveI : Module.Free k V := Module.Free.of_divisionRing k V
+  classical
+  -- Use the characteristic polynomial: c is an eigenvalue ↔ c is a root of f.charpoly.
+  refine ⟨f.charpoly.roots.toFinset, fun c hc => ?_⟩
+  rw [Multiset.mem_toFinset, Polynomial.mem_roots f.charpoly_monic.ne_zero] at hc
+  -- Show: IsUnit (c • 1 - f), hence IsUnit (-(c • 1 - f)) = IsUnit (f - c • 1).
+  have h_aux : IsUnit (algebraMap k (Module.End k V) c - f) := by
+    rw [LinearMap.isUnit_iff_isUnit_det, ← LinearMap.eval_charpoly]
+    rw [Polynomial.IsRoot.def] at hc
+    exact Ne.isUnit hc
+  have h_eq : f - c • (1 : Module.End k V) = -(algebraMap k (Module.End k V) c - f) := by
+    rw [Algebra.algebraMap_eq_smul_one]
+    abel
+  rw [h_eq]
+  exact h_aux.neg
+
+/-! ### Main span lemma
+
+For an infinite field `k` and finite-dim `V`, every `f^⊗n` lies in the `k`-span
+of `{g^⊗n : g ∈ Units(End k V)}`. This is the Zariski-density fact that GL(V)
+spans `End k V`.
+-/
+
+/-- For an infinite field `k` and finite-dim `V`, `f^⊗n` lies in the `k`-span
+of `{g^⊗n : g ∈ Units(End k V)}` for every `f : End k V`. -/
+theorem tensorPow_mem_span_unitsTensorPow [Module.Finite k V] [Infinite k]
+    (n : ℕ) (f : Module.End k V) :
+    PiTensorProduct.map (R := k) (fun _ : Fin n => f) ∈
+      Submodule.span k
+        (Set.range fun (g : (Module.End k V)ˣ) =>
+          PiTensorProduct.map (R := k) (fun _ : Fin n => (g : Module.End k V))) := by
+  classical
+  set W := Submodule.span k
+        (Set.range fun (g : (Module.End k V)ˣ) =>
+          PiTensorProduct.map (R := k) (fun _ : Fin n => (g : Module.End k V))) with hW
+  -- Step 1: Pick n+1 distinct values c_0, ..., c_n ∈ k with `f - c_j • 1 ∈ Units`.
+  obtain ⟨S, hS⟩ := exists_finset_isUnit_sub_smul_one k f
+  -- The complement Sᶜ ⊆ k is infinite (since S is finite and k is infinite).
+  have hSc_infinite : (↑S : Set k)ᶜ.Infinite := S.finite_toSet.infinite_compl
+  -- Pick `n + 1` distinct values from Sᶜ via natEmbedding.
+  let e : ℕ ↪ ((↑S : Set k)ᶜ : Set k) := hSc_infinite.natEmbedding
+  let c : Fin (n + 1) → k := fun j => ((e j.val) : k)
+  have hc_inj : Function.Injective c := by
+    intro j₁ j₂ hjj
+    have h1 : e j₁.val = e j₂.val := Subtype.ext hjj
+    have h2 : j₁.val = j₂.val := e.injective h1
+    exact Fin.val_injective h2
+  have hc_notin_S : ∀ j, c j ∉ S := fun j => by
+    have h1 : (c j : k) ∈ ((↑S : Set k)ᶜ : Set k) := (e j.val).property
+    rw [Set.mem_compl_iff, Finset.mem_coe] at h1
+    exact h1
+  -- For each j, `f - c j • 1 ∈ Units`, so `(f - c j • 1)^⊗n ∈ W`.
+  have h_in_W : ∀ j : Fin (n + 1), PiTensorProduct.map (R := k)
+      (fun _ : Fin n => f - c j • (1 : Module.End k V)) ∈ W := by
+    intro j
+    have h_unit : IsUnit (f - c j • (1 : Module.End k V)) := hS (c j) (hc_notin_S j)
+    refine Submodule.subset_span ⟨h_unit.unit, ?_⟩
+    rfl
+  -- Apply Vandermonde: each `tensorPowCoeff k n f i ∈ W`.
+  -- Reformulate the sum over `Finset.range (n+1)` as `∑ i : Fin (n+1)`.
+  have h_in_W' : ∀ j : Fin (n + 1),
+      ∑ i : Fin (n + 1), c j ^ (i : ℕ) • tensorPowCoeff k n f i ∈ W := by
+    intro j
+    have h_eq := tensorPow_sub_smul_eq_sum_coeff k n f (c j)
+    rw [show (∑ i ∈ Finset.range (n + 1), c j ^ i • tensorPowCoeff k n f i) =
+        ∑ i : Fin (n + 1), c j ^ (i : ℕ) • tensorPowCoeff k n f i from by
+      rw [Finset.sum_range (fun i => c j ^ i • tensorPowCoeff k n f i)]] at h_eq
+    rw [← h_eq]
+    exact h_in_W j
+  have h_coeff_in_W : ∀ i : Fin (n + 1), tensorPowCoeff k n f (i : ℕ) ∈ W := by
+    apply submodule_coeffs_mem_of_eval_mem k W _ c hc_inj
+    exact h_in_W'
+  -- In particular, `tensorPowCoeff k n f 0 = f^⊗n ∈ W`.
+  have := h_coeff_in_W ⟨0, Nat.zero_lt_succ n⟩
+  rw [show ((⟨0, Nat.zero_lt_succ n⟩ : Fin (n + 1)) : ℕ) = 0 from rfl,
+    tensorPowCoeff_zero] at this
+  exact this
