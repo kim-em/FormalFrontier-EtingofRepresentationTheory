@@ -548,6 +548,13 @@ post-composition. This is the bimodule-enhanced version of
 `Theorem5_18_1_decomposition`: the `Lᵢ` are genuine `B`-modules (not
 just `k`-vector spaces) and the `Vᵢ` are pairwise non-isomorphic.
 
+The theorem additionally provides, for each `i`:
+* `SMulCommClass B k (Lᵢ)` — the `B`- and `k`-actions on `Lᵢ` commute,
+  so `Lᵢ` is a representation of `B` over `k` (i.e. an `A ⊗[k] B`-module
+  factor in the standard sense), and
+* `Module.Finite k (Lᵢ)` — each multiplicity space is a
+  finite-dimensional `k`-vector space.
+
 (Etingof Theorem 5.18.1, part iii, bimodule form.) -/
 theorem Theorem5_18_1_bimodule_decomposition
     [IsAlgClosed k]
