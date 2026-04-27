@@ -489,120 +489,19 @@ The `L_i` summands from the bimodule decomposition carry a natural
 `V = Fin N → k` because that is the only case used downstream
 (for the `FormalCharacterIso` comparison with Schur polynomials). -/
 
--- Heartbeats bumped: the existential output has 10+ ∀-binders with
--- `Subalgebra → Ring → Module.End` instance chains, and the GL_N
--- representation construction composes several monoid homs each
--- triggering similar chains.
-set_option maxHeartbeats 3200000 in
-set_option synthInstance.maxHeartbeats 1600000 in
-/-- Schur-Weyl duality, part (iii), GL_N representation form.
-
-Specialized to `V = Fin N → k` (the only case used downstream): as a
-module over `(symGroupImage k V n) ⊗[k] (GL_N k)`, `V^⊗n` decomposes as
-  `V^⊗n ≅ ⨁ᵢ Sᵢ ⊗[k] Lᵢ`
-where the `Sᵢ` are pairwise non-isomorphic simple `symGroupImage`-modules
-(Specht modules) and each `Lᵢ` is a full finite-dimensional
-`GL_N(k)`-representation, expected to be an irreducible polynomial
-representation downstream (see #2483); irreducibility is not part of
-this statement.
-
-Refines `Theorem5_18_4_bimodule_decomposition` by upgrading each `Lᵢ`
-from a `Module (centralizer(symGroupImage)) Lᵢ` to a bundled
-`FDRep k (GL_N k)`. The `GL_N` action is built by composing the monoid
-hom `GL_N → centralizer(symGroupImage)` given by `g ↦ g^{⊗n}` (whose
-image lies in `diagonalActionImage` by the centralizer identity from
-`Theorem5_18_4_centralizers`) with the existing
-`centralizer(symGroupImage)`-module structure on `Lᵢ`. -/
-theorem Theorem5_18_4_GL_rep_decomposition
-    (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
-    (N n : ℕ) (hN : n ≤ N) :
-    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
-      (S : ι → Type u)
-      (_ : ∀ i, AddCommGroup (S i))
-      (_ : ∀ i, Module k (S i))
-      (_ : ∀ i, Module (symGroupImage k (Fin N → k) n) (S i))
-      (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
-      (_ : ∀ i j,
-        Nonempty (S i ≃ₗ[symGroupImage k (Fin N → k) n] S j) → i = j)
-      (_ : ∀ i, Module.Finite k (S i))
-      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
-      Nonempty (TensorPower k (Fin N → k) n ≃ₗ[k]
-        DirectSum ι (fun i => S i ⊗[k] (L i : Type u))) := by
-  set V : Type u := Fin N → k with hV
-  haveI : Module.Finite k V := inferInstance
-  have hfinrank : Module.finrank k V = N :=
-    (Module.finrank_pi k).trans (Fintype.card_fin N)
-  have hN' : n ≤ Module.finrank k V := hfinrank.symm ▸ hN
-  haveI := symGroupImage_isSemisimpleRing k V n
-  haveI := symGroupImage_faithfulSMul k V n hN'
-  -- Get the bimodule decomposition with L_i carrying a Module over
-  -- the centralizer of symGroupImage and the associated SMulCommClass.
-  obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, hS'_fin, L', hL'_acg, hL'_mod, hL'_Bmod, hL'_smul, hL'_fin, ⟨e⟩⟩ :=
-    Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
-      (symGroupImage k V n)
-  -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
-  have h_eq : Subalgebra.centralizer k
-      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
-        diagonalActionImage k V n :=
-    (Theorem5_18_4_centralizers k V n hN').2.symm
-  -- Monoid hom GL_N → centralizer(symGroupImage):
-  --   g ↦ PiTensorProduct.map (fun _ => mulVecLin g.val)
-  -- Its image lies in diagonalActionImage by definition, hence in the
-  -- centralizer via h_eq.
-  let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
-      ↥(Subalgebra.centralizer k
-        (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
-  { toFun := fun g => ⟨PiTensorProduct.map
-        (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val), by
-      rw [h_eq]
-      exact Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩
-    map_one' := by
-      apply Subtype.ext
-      change PiTensorProduct.map
-          (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) = 1
-      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
-          (fun _ : Fin n => (LinearMap.id : V →ₗ[k] V)) :=
-        funext fun _ => Matrix.mulVecLin_one
-      rw [this, PiTensorProduct.map_id]; rfl
-    map_mul' := fun g₁ g₂ => by
-      apply Subtype.ext
-      change PiTensorProduct.map
-          (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
-        PiTensorProduct.map
-            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₁.val) *
-          PiTensorProduct.map
-            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₂.val)
-      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
-          (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp
-            (Matrix.mulVecLin g₂.val)) :=
-        funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
-      rw [this, PiTensorProduct.map_comp]; rfl }
-  -- For each i, build the GL_N representation on L' i.
-  let ρ : ∀ i,
-      Matrix.GeneralLinearGroup (Fin N) k →* Module.End k (L' i) := fun i =>
-    (Module.toModuleEnd k (L' i)
-      (S := ↥(Subalgebra.centralizer k
-        (symGroupImage k V n :
-          Set (Module.End k (TensorPower k V n)))))).toMonoidHom.comp glHom
-  -- Bundle each L' i as a finite-dimensional GL_N representation.
-  let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
-    FDRep.of (ρ i)
-  exact ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, hS'_fin, L, ⟨e⟩⟩
-
 -- Heartbeats bumped: the existential output has 8 ∀-binders followed by
 -- two more existentials; the GL_N representation construction composes
 -- several monoid homs each triggering deep `Subalgebra → Ring → Module.End`
--- instance chains. Matches the bumps on `_GL_rep_decomposition`.
+-- instance chains.
 set_option maxHeartbeats 3200000 in
 set_option synthInstance.maxHeartbeats 1600000 in
 /-- Schur-Weyl duality, part (iii), GL_N representation form, explicit
 version.
 
-Strengthens `Theorem5_18_4_GL_rep_decomposition` by concretizing the
-summand types and producing an explicit iso whose inverse on pure
-tensors is the evaluation map:
+The canonical implementation: produces concrete `Submodule` realisations
+of the `Sᵢ`, an explicit iso, and evaluation/action formulas. The thin
+wrapper `Theorem5_18_4_GL_rep_decomposition` (below) forgets these
+extras for callers that only need the existential.
 
 * `S i : Submodule (symGroupImage k V n) (V^⊗n)` (Specht-module realisations
   as concrete submodules);
@@ -672,8 +571,10 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
       (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
         diagonalActionImage k V n :=
     (Theorem5_18_4_centralizers k V n hN').2.symm
-  -- Monoid hom GL_N → centralizer(symGroupImage), same as in
-  -- `_GL_rep_decomposition`.
+  -- Monoid hom GL_N → centralizer(symGroupImage):
+  --   g ↦ PiTensorProduct.map (fun _ => mulVecLin g.val).
+  -- Its image lies in `diagonalActionImage` by definition, hence in the
+  -- centralizer via `h_eq`.
   let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
       ↥(Subalgebra.centralizer k
         (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
@@ -766,5 +667,50 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   refine ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, L, L_carrier, e, he, ?_⟩
   intro i g l v
   rfl
+
+-- Heartbeats bumped: the existential output has 10+ ∀-binders with
+-- `Subalgebra → Ring → Module.End` instance chains.
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1600000 in
+/-- Schur-Weyl duality, part (iii), GL_N representation form.
+
+Specialized to `V = Fin N → k` (the only case used downstream): as a
+module over `(symGroupImage k V n) ⊗[k] (GL_N k)`, `V^⊗n` decomposes as
+  `V^⊗n ≅ ⨁ᵢ Sᵢ ⊗[k] Lᵢ`
+where the `Sᵢ` are pairwise non-isomorphic simple `symGroupImage`-modules
+(Specht modules) and each `Lᵢ` is a full finite-dimensional
+`GL_N(k)`-representation, expected to be an irreducible polynomial
+representation downstream (see #2483); irreducibility is not part of
+this statement.
+
+This is a thin wrapper over `Theorem5_18_4_GL_rep_decomposition_explicit`
+that forgets the explicit `Submodule` realisation of each `Sᵢ`, the
+`L_carrier` identification of `Lᵢ` with the explicit hom-space, the
+explicit iso `e`, and the evaluation/action formulas. Use the explicit
+form when any of those are needed (e.g. for the equivariance proof in
+`glTensorRep_equivariant_schurWeyl_decomposition`). -/
+theorem Theorem5_18_4_GL_rep_decomposition
+    (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module (symGroupImage k (Fin N → k) n) (S i))
+      (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
+      (_ : ∀ i j,
+        Nonempty (S i ≃ₗ[symGroupImage k (Fin N → k) n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
+      Nonempty (TensorPower k (Fin N → k) n ≃ₗ[k]
+        DirectSum ι (fun i => S i ⊗[k] (L i : Type u))) := by
+  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, L, _, e, _⟩ :=
+    Theorem5_18_4_GL_rep_decomposition_explicit k N n hN
+  exact ⟨ι, hι, hι_dec, fun i => ↥(S' i),
+    fun _ => inferInstance,
+    fun _ => inferInstance,
+    fun _ => inferInstance,
+    hS'_simp, hS'_dist, hS'_fin,
+    L, ⟨e⟩⟩
 
 end Etingof
