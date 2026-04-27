@@ -1063,6 +1063,287 @@ private theorem garnir_pigeonhole_collapse
         rw [hsign_zero]
     _ = 0 := zero_smul _ _
 
+/-! ### Helpers for Algorithm A (leading-tabloid elimination, C.1.b)
+
+The following helpers generalize `column_perm_dominance` and
+`polytabloidTab_coeff_dominance` from SYT `σ_T` to arbitrary column-standard
+permutations. They are the foundation of Algorithm A: the leading-tabloid
+elimination procedure used to straighten any tabloid-support-bounded element
+of V^λ into a combination of SYT polytabloids.
+
+Main statements:
+* `generalizedPolytabloidTab_coeff_self`: `ψ_α` has coefficient 1 at `[α]`.
+* `generalizedPolytabloidTab_leading_tabloid`: combined — `ψ_α` has leading
+  tabloid `[α]` with coefficient 1, and every other supporting tabloid is
+  strictly dominated by `[α]` (for col-std `α`).
+-/
+
+/-- For column-standard σ, within a fixed column, entry positions are
+monotone in row: if entries e₁ ≤ e₂ are in the same column of σ,
+then row(σ e₁) ≤ row(σ e₂). Generalizes `syt_row_le_of_entry_le`. -/
+private theorem colStd_row_le_of_entry_le
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (e₁ e₂ : Fin n)
+    (hcol : colOfPos la.sortedParts (σ e₁).val =
+            colOfPos la.sortedParts (σ e₂).val)
+    (hle : e₁ ≤ e₂) :
+    rowOfPos la.sortedParts (σ e₁).val ≤
+    rowOfPos la.sortedParts (σ e₂).val := by
+  by_contra h
+  push_neg at h
+  have hlt := hcs (σ e₂) (σ e₁) hcol.symm h
+  simp only [Equiv.symm_apply_apply] at hlt
+  omega
+
+/-- **Column-perm dominance for col-std σ.** For column-standard σ and
+q ∈ Q_λ, the tabloid of σ dominates the tabloid of q⁻¹σ. Generalizes
+`column_perm_dominance` (which required σ = sytPerm T). -/
+private theorem colStd_column_perm_dominance
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (q : Equiv.Perm (Fin n)) (hq : q ∈ ColumnSubgroup n la) :
+    tabloidDominates la σ (q⁻¹ * σ) := by
+  have hq_inv : ∀ p : Fin n, colOfPos la.sortedParts (q⁻¹ p).val =
+      colOfPos la.sortedParts p.val := (ColumnSubgroup n la).inv_mem hq
+  have hq_fwd : ∀ p : Fin n, colOfPos la.sortedParts (q p).val =
+      colOfPos la.sortedParts p.val := hq
+  intro k i
+  simp only [tabloidCumulCount, Equiv.Perm.coe_mul, Function.comp_apply]
+  set A := Finset.univ.filter (fun e : Fin n =>
+    e ≤ k ∧ rowOfPos la.sortedParts (σ e).val < i)
+  set B := Finset.univ.filter (fun e : Fin n =>
+    e ≤ k ∧ rowOfPos la.sortedParts (q⁻¹ (σ e)).val < i)
+  set ecol : Fin n → ℕ := fun e => colOfPos la.sortedParts (σ e).val
+  suffices hcol : ∀ c, (B.filter (fun e => ecol e = c)).card ≤
+      (A.filter (fun e => ecol e = c)).card by
+    have hmaps : ∀ (S : Finset (Fin n)), (S : Set (Fin n)).MapsTo ecol
+        (↑(Finset.univ.image ecol)) :=
+      fun _ e _ => Finset.mem_coe.mpr (Finset.mem_image.mpr ⟨e, Finset.mem_univ e, rfl⟩)
+    rw [Finset.card_eq_sum_card_fiberwise (hmaps B),
+        Finset.card_eq_sum_card_fiberwise (hmaps A)]
+    exact Finset.sum_le_sum (fun c _ => hcol c)
+  intro c
+  by_cases hall : ∀ e : Fin n, ecol e = c → e ≤ k →
+      rowOfPos la.sortedParts (σ e).val < i
+  · have hAeq : A.filter (fun e => ecol e = c) =
+        Finset.univ.filter (fun e : Fin n => e ≤ k ∧ ecol e = c) := by
+      ext e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, A]
+      exact ⟨fun ⟨⟨h1, _⟩, h2⟩ => ⟨h1, h2⟩,
+             fun ⟨h1, h2⟩ => ⟨⟨h1, hall e h2 h1⟩, h2⟩⟩
+    rw [hAeq]
+    apply Finset.card_le_card
+    intro e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, B]
+    exact fun ⟨⟨h1, _⟩, h2⟩ => ⟨h1, h2⟩
+  · push_neg at hall
+    obtain ⟨e₀, hecol₀, hle₀, hrow₀⟩ := hall
+    have hrow_imp : ∀ e : Fin n, ecol e = c →
+        rowOfPos la.sortedParts (σ e).val < i → e ≤ k := by
+      intro e hec hri
+      by_contra hgt; push_neg at hgt
+      have he₀_le : e₀ ≤ e := by omega
+      have hcol_eq : colOfPos la.sortedParts (σ e₀).val =
+          colOfPos la.sortedParts (σ e).val := by
+        change ecol e₀ = ecol e; rw [hecol₀, hec]
+      have hrow_le := colStd_row_le_of_entry_le σ hcs e₀ e hcol_eq he₀_le
+      omega
+    have hAeq : A.filter (fun e => ecol e = c) =
+        Finset.univ.filter (fun e : Fin n =>
+          rowOfPos la.sortedParts (σ e).val < i ∧ ecol e = c) := by
+      ext e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, A]
+      exact ⟨fun ⟨⟨_, h2⟩, h3⟩ => ⟨h2, h3⟩,
+             fun ⟨h1, h2⟩ => ⟨⟨hrow_imp e h2 h1, h1⟩, h2⟩⟩
+    rw [hAeq]
+    calc (B.filter (fun e => ecol e = c)).card
+        ≤ (Finset.univ.filter (fun e : Fin n =>
+            rowOfPos la.sortedParts (q⁻¹ (σ e)).val < i ∧ ecol e = c)).card := by
+          apply Finset.card_le_card
+          intro e; simp only [Finset.mem_filter, Finset.mem_univ, true_and, B]
+          exact fun ⟨⟨_, h2⟩, h3⟩ => ⟨h2, h3⟩
+      _ = (Finset.univ.filter (fun e : Fin n =>
+            rowOfPos la.sortedParts (σ e).val < i ∧ ecol e = c)).card := by
+          apply Finset.card_nbij'
+            (fun e => σ.symm ((q : Equiv.Perm (Fin n))⁻¹ (σ e)))
+            (fun e => σ.symm (q (σ e)))
+          · intro e he
+            simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ,
+              true_and] at he ⊢
+            refine ⟨?_, ?_⟩
+            · simp only [Equiv.apply_symm_apply]; exact he.1
+            · change ecol (σ.symm ((q : Equiv.Perm (Fin n))⁻¹ (σ e))) = c
+              simp only [ecol, Equiv.apply_symm_apply, hq_inv]; exact he.2
+          · intro e he
+            simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ,
+              true_and] at he ⊢
+            refine ⟨?_, ?_⟩
+            · rw [Equiv.apply_symm_apply]
+              change rowOfPos la.sortedParts (q.symm (q (σ e))).val < i
+              rw [Equiv.symm_apply_apply]; exact he.1
+            · change ecol (σ.symm (q (σ e))) = c
+              simp only [ecol, Equiv.apply_symm_apply, hq_fwd]; exact he.2
+          · intro e _
+            dsimp only
+            rw [Equiv.apply_symm_apply, Equiv.Perm.apply_inv_self,
+                Equiv.symm_apply_apply]
+          · intro e _
+            dsimp only
+            rw [Equiv.apply_symm_apply, Equiv.Perm.inv_apply_self,
+                Equiv.symm_apply_apply]
+
+/-- The coefficient of `[σ]` in `ψ_σ` is 1, for any permutation σ.
+Generalizes `polytabloidTab_coeff_self` (which required σ = sytPerm T).
+Does not require σ to be column-standard: only uses P_λ ∩ Q_λ = {1}. -/
+private theorem generalizedPolytabloidTab_coeff_self
+    (σ : Equiv.Perm (Fin n)) :
+    generalizedPolytabloidTab (n := n) (la := la) σ (toTabloid n la σ) = 1 := by
+  classical
+  simp only [generalizedPolytabloidTab]
+  rw [Finsupp.finset_sum_apply]
+  rw [Finset.sum_eq_single (⟨1, (ColumnSubgroup n la).one_mem⟩ :
+      ↥(ColumnSubgroup n la))]
+  · simp [Equiv.Perm.sign_one]
+  · intro q _ hq
+    rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply]
+    have hne : (q : Equiv.Perm (Fin n)) ≠ 1 := fun h => hq (Subtype.ext h)
+    have hqinv_col : q.val⁻¹ ∈ ColumnSubgroup n la :=
+      (ColumnSubgroup n la).inv_mem q.prop
+    have hqinv_ne : q.val⁻¹ ≠ 1 := by
+      intro h
+      have hv : q.val = 1 := by rw [← inv_inv q.val, h, inv_one]
+      exact hne hv
+    have hne_tabloid : toTabloid n la (q.val⁻¹ * σ) ≠ toTabloid n la σ := by
+      rw [Ne, toTabloid_eq_iff]
+      intro hmem
+      have h_simp : q.val⁻¹ * σ * σ⁻¹ = q.val⁻¹ := by group
+      rw [h_simp] at hmem
+      exact hqinv_ne (RowSubgroup_inter_ColumnSubgroup n la q.val⁻¹ hmem hqinv_col)
+    rw [if_neg hne_tabloid, mul_zero]
+  · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- For column-standard σ, the tabloid support of `ψ_σ` is bounded by `[σ]`
+in dominance order. Generalizes `polytabloidTab_coeff_dominance`. -/
+private theorem generalizedPolytabloidTab_coeff_dominance
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (β : Equiv.Perm (Fin n))
+    (hne : generalizedPolytabloidTab (n := n) (la := la) σ
+        (toTabloid n la β) ≠ 0) :
+    tabloidDominates la σ β := by
+  classical
+  simp only [generalizedPolytabloidTab] at hne
+  rw [Finsupp.finset_sum_apply] at hne
+  obtain ⟨q, _, hq_term⟩ := Finset.exists_ne_zero_of_sum_ne_zero hne
+  rw [Finsupp.smul_apply, smul_eq_mul, Finsupp.single_apply] at hq_term
+  split_ifs at hq_term with heq
+  · have hdom := colStd_column_perm_dominance σ hcs q.val q.prop
+    exact tabloidDominates_congr rfl heq hdom
+  · simp at hq_term
+
+/-- **Leading tabloid of a polytabloid.** For column-standard α, the coefficient
+of `[α]` in `ψ_α` is 1, and every other tabloid in `ψ_α`'s support is strictly
+dominated by `[α]`. This is the key property underlying Algorithm A
+(leading-tabloid elimination). -/
+private theorem generalizedPolytabloidTab_leading_tabloid
+    (α : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la α) :
+    generalizedPolytabloidTab (n := n) (la := la) α (toTabloid n la α) = 1 ∧
+    ∀ β : Equiv.Perm (Fin n), toTabloid n la β ≠ toTabloid n la α →
+      generalizedPolytabloidTab (n := n) (la := la) α (toTabloid n la β) ≠ 0 →
+      tabloidStrictDominates la α β := by
+  refine ⟨generalizedPolytabloidTab_coeff_self α, ?_⟩
+  intro β hne_tabloid hne_coeff
+  exact ⟨generalizedPolytabloidTab_coeff_dominance α hcs β hne_coeff, hne_tabloid.symm⟩
+
+/-- **Algorithm A (Leading-tabloid elimination).** Any element `v ∈ V^λ` whose
+tabloid-basis support is bounded by `[σ]` in dominance order can be written as
+a ℂ-linear combination of polytabloids `e_T` for SYTs `T` with `[T] ≼ [σ]`.
+
+This is the main Algorithm A correctness statement for C.1.b: it takes a
+tabloid-support bound (from C.1.a) and produces a span-membership statement
+used in the C.1.c glue to discharge `garnir_twisted_in_lower_span`. -/
+private theorem tabloidSupport_straightening
+    (σ : Equiv.Perm (Fin n)) (_hcs : isColumnStandard' n la σ)
+    (v : TabloidRepresentation n la)
+    (hv_in_V : v ∈ Submodule.span ℂ (Set.range (fun T : StandardYoungTableau n la =>
+      polytabloidTab (n := n) (la := la) T)))
+    (hv_supp : ∀ α : Equiv.Perm (Fin n),
+        v (toTabloid n la α) ≠ 0 → tabloidDominates la σ α) :
+    v ∈ Submodule.span ℂ (Set.range (fun T : {T : StandardYoungTableau n la //
+        tabloidDominates la σ (sytPerm n la T)} =>
+      polytabloidTab (n := n) (la := la) T.val)) := by
+  classical
+  rw [Submodule.mem_span_range_iff_exists_fun] at hv_in_V
+  obtain ⟨c, hv_eq⟩ := hv_in_V
+  -- Main claim: for every T, c T ≠ 0 → [T] ≼ [σ]
+  have hclaim : ∀ T : StandardYoungTableau n la, c T ≠ 0 →
+      tabloidDominates la σ (sytPerm n la T) := by
+    by_contra hnot
+    push_neg at hnot
+    obtain ⟨Tbad, hcTbad, h_nd⟩ := hnot
+    -- Apply exists_dominance_maximal within S_bad = {T : c T ≠ 0 ∧ ¬ ≼}
+    set S_bad : Finset (StandardYoungTableau n la) :=
+      Finset.univ.filter (fun T' =>
+        c T' ≠ 0 ∧ ¬ tabloidDominates la σ (sytPerm n la T'))
+    have hTbad_mem : Tbad ∈ S_bad := by
+      simp only [S_bad, Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨hcTbad, h_nd⟩
+    -- On S_bad, c T' ≠ 0 is automatic
+    obtain ⟨Tmax, hTmaxS, hTmax_c, hmax⟩ := exists_dominance_maximal
+      (la := la) S_bad c Tbad hTbad_mem hcTbad
+    have hTmax_nd : ¬ tabloidDominates la σ (sytPerm n la Tmax) := by
+      have hm := Finset.mem_filter.mp hTmaxS
+      exact hm.2.2
+    -- Evaluate v at toTabloid (sytPerm Tmax) = sytToTabloid Tmax.
+    -- Show it equals c Tmax ≠ 0.
+    have hv_eval : v (toTabloid n la (sytPerm n la Tmax)) = c Tmax := by
+      rw [← hv_eq]
+      rw [Finsupp.finset_sum_apply]
+      -- Split off the Tmax term: ∑_T c_T · ψ_T(t_max) = c_Tmax · 1 + rest
+      rw [← Finset.add_sum_erase _ _ (Finset.mem_univ Tmax)]
+      have hself : polytabloidTab (n := n) (la := la) Tmax
+          (toTabloid n la (sytPerm n la Tmax)) = 1 := by
+        exact polytabloidTab_coeff_self Tmax
+      simp only [Finsupp.smul_apply, smul_eq_mul]
+      rw [hself, mul_one]
+      -- The rest-sum is 0: for each T ≠ Tmax, c T * ψ_T(t_max) = 0
+      have hrest : ∀ T ∈ Finset.univ.erase Tmax,
+          c T * polytabloidTab (n := n) (la := la) T
+              (toTabloid n la (sytPerm n la Tmax)) = 0 := by
+        intro T hT
+        have hTne : T ≠ Tmax := Finset.ne_of_mem_erase hT
+        by_cases hcT : c T = 0
+        · rw [hcT, zero_mul]
+        by_cases hcoeff : polytabloidTab (n := n) (la := la) T
+            (toTabloid n la (sytPerm n la Tmax)) = 0
+        · rw [hcoeff, mul_zero]
+        exfalso
+        -- ψ_T(t_max) ≠ 0 ⟹ [T] ≽ [Tmax]
+        have hdom : tabloidDominates la (sytPerm n la T) (sytPerm n la Tmax) :=
+          polytabloidTab_coeff_dominance T (sytPerm n la Tmax) hcoeff
+        -- Case on whether T ∈ S_bad
+        by_cases hTS : T ∈ S_bad
+        · -- T ∈ S_bad: max property forces same tabloid, hence T = Tmax
+          have htab_eq := hmax T hTS hcT hdom
+          exact hTne (sytToTabloid_injective n la htab_eq)
+        · -- T ∉ S_bad and c T ≠ 0: must have [T] ≼ [σ]
+          simp only [S_bad, Finset.mem_filter, Finset.mem_univ, true_and,
+            not_and, not_not] at hTS
+          have h_leq := hTS hcT
+          -- By transitivity: [Tmax] ≼ [T] ≼ [σ] gives [Tmax] ≼ [σ]
+          exact hTmax_nd (tabloidDominates_trans h_leq hdom)
+      rw [Finset.sum_eq_zero hrest, add_zero]
+    -- Now contradiction: v (toTabloid Tmax) = c Tmax ≠ 0, but hv_supp forces [Tmax] ≼ σ
+    have hne_v : v (toTabloid n la (sytPerm n la Tmax)) ≠ 0 := by
+      rw [hv_eval]; exact hTmax_c
+    exact hTmax_nd (hv_supp (sytPerm n la Tmax) hne_v)
+  -- Use the claim to express v as a sum over the restricted subtype
+  rw [← hv_eq]
+  apply Submodule.sum_mem
+  intro T _
+  by_cases hcT : c T = 0
+  · rw [hcT, zero_smul]
+    exact Submodule.zero_mem _
+  · have h_dom : tabloidDominates la σ (sytPerm n la T) := hclaim T hcT
+    apply Submodule.smul_mem
+    apply Submodule.subset_span
+    exact ⟨⟨T, h_dom⟩, rfl⟩
+
 /-- **Pigeonhole core for the Support Bound**. Given a column-standard σ, any
 `q₀ ∈ ColumnSubgroup` whose `w · q₀⁻¹ · σ` has strictly greater cumulative
 count than σ at some threshold `(k, i)`, there exist two distinct positions
@@ -1315,6 +1596,7 @@ The proof requires (classical Garnir-term dominance + column-restandardization):
      form has strictly smaller `rowInvCount'` (second disjunct).
 
 Difficulty: 8. Combinatorial heart of the straightening theorem. -/
+
 private theorem garnir_twisted_in_lower_span
     (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
     (hrp : 0 < rowInvCount' (la := la) σ)
