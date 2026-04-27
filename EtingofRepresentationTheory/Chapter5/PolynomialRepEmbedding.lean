@@ -653,7 +653,7 @@ variable (k : Type u) [Field k] (N : ℕ)
 /-- Evaluating `polyRightTransl g p` at `h` coincides with evaluating `p` at
 the product matrix `h * g`. The algebra homs `eval_h ∘ polyRightTransl_g` and
 `eval_{h·g}` agree on generators `X_{ij}` (both give `(h*g)_{ij}`). -/
-lemma eval_polyRightTransl [CharZero k]
+lemma eval_polyRightTransl
     (g h : Matrix (Fin N) (Fin N) k) (p : MvPolynomial (Fin N × Fin N) k) :
     MvPolynomial.eval (fun ij : Fin N × Fin N => h ij.1 ij.2)
         (PolynomialTensorBridge.polyRightTransl k N g p) =
@@ -681,7 +681,7 @@ evaluation identity `hP`, the polynomial-level multiplicativity identity
 `hP_mul` follows from `ρ.map_mul`: both sides of `hP_mul` agree under
 evaluation at every `h ∈ GL_N` (via `MvPolynomial.eq_of_eval_eq_on_gl`),
 because `h · g ∈ GL_N` and `ρ.map_mul` gives `ρ(h·g) = ρ h ∘ ρ g`. -/
-lemma hP_mul_of_hP [CharZero k] {d : ℕ}
+lemma hP_mul_of_hP [Infinite k] {d : ℕ}
     (b : Module.Basis (Fin d) k M)
     (P : Fin d → Fin d → MvPolynomial (Fin N × Fin N) k)
     (ρ : Matrix.GeneralLinearGroup (Fin N) k →* (M →ₗ[k] M))
