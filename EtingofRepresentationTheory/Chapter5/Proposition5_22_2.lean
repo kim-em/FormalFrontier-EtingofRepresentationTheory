@@ -188,8 +188,9 @@ private lemma glTensorRep_diagUnit_tBasis (N n : ℕ) (i : Fin N) (t : kˣ)
 
 omit [IsAlgClosed k] in
 /-- The f-th basis coordinate of `glTensorRep(diagUnit(i,t))` applied to `v` equals
-`t^(count f i) * (f-th coordinate of v)`. -/
-private lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
+`t^(count f i) * (f-th coordinate of v)`. Local copy specialised to `tBasis`; the
+`tensorStdBasis`-version is exposed publicly in `Theorem5_22_1.lean`. -/
+private lemma repr_glTensorRep_diagUnit_local (N n : ℕ) (i : Fin N) (t : kˣ)
     (v : TensorPower k (Fin N → k) n) (f : Fin n → Fin N) :
     (tBasis (k := k) N n).repr ((glTensorRep k N n (diagUnit k N i t)) v) f =
       ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) *
@@ -264,7 +265,7 @@ private theorem formalCharacter_detTwist_eq_shift (N : ℕ) (lam : Fin N → ℕ
       have hcoord : (t₀ : k) ^ (m + 1) * b.repr vt f = b.repr vt f := by
         have h1 := congr_arg (fun w => b.repr w f) hfix_val
         simp only [map_smul, Finsupp.smul_apply, smul_eq_mul] at h1
-        rw [repr_glTensorRep_diagUnit, ← mul_assoc, ← pow_succ'] at h1
+        rw [repr_glTensorRep_diagUnit_local, ← mul_assoc, ← pow_succ'] at h1
         exact h1
       -- (t₀^(m+1) - 1) * c_f = 0, contradicting both ≠ 0
       have h_zero : ((t₀ : k) ^ (m + 1) - 1) * b.repr vt f = 0 := by
