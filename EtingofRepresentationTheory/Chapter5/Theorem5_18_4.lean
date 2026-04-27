@@ -501,13 +501,17 @@ module over `(symGroupImage k V n) ⊗[k] (GL_N k)`, `V^⊗n` decomposes as
   `V^⊗n ≅ ⨁ᵢ Sᵢ ⊗[k] Lᵢ`
 where the `Sᵢ` are pairwise non-isomorphic simple `symGroupImage`-modules
 (Specht modules) and each `Lᵢ` is a full finite-dimensional
-`GL_N(k)`-representation (an irreducible polynomial representation).
+`GL_N(k)`-representation, expected to be an irreducible polynomial
+representation downstream (see #2483); irreducibility is not part of
+this statement.
 
 Refines `Theorem5_18_4_bimodule_decomposition` by upgrading each `Lᵢ`
-from a `Module (diagonalActionImage) Lᵢ` to a bundled
-`FDRep k (GL_N k)`. The `GL_N` action is built by composing
-`GL_N → diagonalActionImage` (via the `g ↦ g^{⊗n}` diagonal map) with
-the existing `diagonalActionImage`-module structure. -/
+from a `Module (centralizer(symGroupImage)) Lᵢ` to a bundled
+`FDRep k (GL_N k)`. The `GL_N` action is built by composing the monoid
+hom `GL_N → centralizer(symGroupImage)` given by `g ↦ g^{⊗n}` (whose
+image lies in `diagonalActionImage` by the centralizer identity from
+`Theorem5_18_4_centralizers`) with the existing
+`centralizer(symGroupImage)`-module structure on `Lᵢ`. -/
 theorem Theorem5_18_4_GL_rep_decomposition
     (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
     (N n : ℕ) (hN : n ≤ N) :
