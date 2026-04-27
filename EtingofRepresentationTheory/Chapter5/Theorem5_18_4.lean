@@ -467,7 +467,8 @@ theorem Theorem5_18_4_bimodule_decomposition_explicit
     ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
       (S : ι → Submodule (symGroupImage k V n) (TensorPower k V n))
       (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
-      (_ : ∀ i j, Nonempty (↥(S i) ≃ₗ[symGroupImage k V n] ↥(S j)) → i = j),
+      (_ : ∀ i j, Nonempty (↥(S i) ≃ₗ[symGroupImage k V n] ↥(S j)) → i = j)
+      (_ : ∀ i, Module.Finite k ↥(S i)),
       ∃ (e : TensorPower k V n ≃ₗ[k]
           DirectSum ι
             (fun i => ↥(S i) ⊗[k] (↥(S i) →ₗ[symGroupImage k V n] TensorPower k V n))),
@@ -639,6 +640,7 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
       (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
       (_ : ∀ i j,
         Nonempty (↥(S i) ≃ₗ[symGroupImage k (Fin N → k) n] ↥(S j)) → i = j)
+      (_ : ∀ i, Module.Finite k ↥(S i))
       (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
       (L_carrier : ∀ i, (L i : Type u) ≃ₗ[k]
         (↥(S i) →ₗ[symGroupImage k (Fin N → k) n]
@@ -663,7 +665,7 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   haveI := symGroupImage_faithfulSMul k V n hN'
   -- Get the explicit bimodule decomposition with concrete summand types
   -- and the evaluation formula.
-  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, e, he⟩ :=
+  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, e, he⟩ :=
     Theorem5_18_4_bimodule_decomposition_explicit k V n hN'
   -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
   have h_eq : Subalgebra.centralizer k
@@ -700,19 +702,15 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
             (Matrix.mulVecLin g₂.val)) :=
         funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
       rw [this, PiTensorProduct.map_comp]; rfl }
-  -- Each `↥(S' i)` is a finite-dimensional `k`-vector space (it injects into
-  -- the finite-dimensional `TensorPower k V n` via the subtype map).
-  haveI hSi_fin : ∀ i, Module.Finite k ((↥(S' i) : Type u)) := fun i =>
-    Module.Finite.of_injective ((S' i).subtype.restrictScalars k)
-      Subtype.val_injective
   -- The `A`-linear hom space `↥(S' i) →ₗ[A] E` is finite-dimensional over `k`
   -- because it injects (`k`-linearly) into the `k`-linear hom space, which has
-  -- dimension `dim(↥(S' i)) · dim(E)`. (Same derivation as in
-  -- `glTensorRep_equivariant_schurWeyl_decomposition`.)
+  -- dimension `dim(↥(S' i)) · dim(E)`. (`Module.Finite k ↥(S' i)` is now
+  -- propagated from `Theorem5_18_4_bimodule_decomposition_explicit` as
+  -- `hS'_fin`.)
   haveI hLi_fin : ∀ i, Module.Finite k
       ((↥(S' i) : Type u) →ₗ[symGroupImage k V n] TensorPower k V n) :=
     fun i => by
-      haveI : Module.Finite k (↥(S' i) : Type u) := hSi_fin i
+      haveI : Module.Finite k (↥(S' i) : Type u) := hS'_fin i
       haveI : Module.Free k (↥(S' i) : Type u) :=
         Module.Free.of_divisionRing k (↥(S' i))
       haveI : Module.Finite k
@@ -765,7 +763,7 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   -- Action formula: `((L i).ρ g l) v = PiTensorProduct.map (mulVecLin g.val) (l v)`
   -- because `(L i).ρ = ρ i` and `ρ i g l = (centralizerToEndA (glHom g)).comp l`
   -- whose underlying map is `PiTensorProduct.map (mulVecLin g.val)`.
-  refine ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, L, L_carrier, e, he, ?_⟩
+  refine ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, L, L_carrier, e, he, ?_⟩
   intro i g l v
   rfl
 
