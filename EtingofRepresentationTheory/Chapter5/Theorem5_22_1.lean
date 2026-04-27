@@ -709,13 +709,13 @@ private theorem trace_normalized_youngSym_eq_finrank
 
 /-- The weight of a tensor basis element `f : Fin n → Fin N`: counts how many times
 each color `i : Fin N` appears in the coloring `f`. -/
-private def tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) : Fin N →₀ ℕ where
+def tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) : Fin N →₀ ℕ where
   toFun i := (Finset.univ.filter (fun j => f j = i)).card
   support := Finset.univ.filter (fun i => 0 < (Finset.univ.filter (fun j => f j = i)).card)
   mem_support_toFun i := by simp [Finset.card_pos, Finset.filter_nonempty_iff]
 
 /-- The monomial `∏_j X_{f(j)}` equals `X^{tensorWeight f}`. -/
-private lemma prod_X_eq_monomial_tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) :
+lemma prod_X_eq_monomial_tensorWeight (N : ℕ) {n : ℕ} (f : Fin n → Fin N) :
     ∏ j : Fin n, (MvPolynomial.X (f j) : MvPolynomial (Fin N) ℚ) =
       MvPolynomial.monomial (tensorWeight N f) 1 := by
   -- ∏_j X_{f(j)} = ∏_{i : Fin N} X_i ^ #{j : f(j) = i}
@@ -757,7 +757,7 @@ private lemma permTracePoly_coeff_eq_card (N : ℕ) {n : ℕ}
   rw [Finset.filter_filter]
 
 /-- The standard tensor basis for `V^{⊗n}` over `k'`, indexed by colorings `f : Fin n → Fin N`. -/
-private noncomputable abbrev tensorStdBasis (k' : Type*) [Field k'] (N n : ℕ) :=
+noncomputable abbrev tensorStdBasis (k' : Type*) [Field k'] (N n : ℕ) :=
   (_root_.Basis.piTensorProduct (R := k') (fun _ : Fin n => Pi.basisFun k' (Fin N)))
 
 /-- A permutation σ ∈ S_n acts on the standard tensor basis by reindexing:
@@ -840,7 +840,7 @@ private lemma diagUnit_mulVecLin_basisFun (N : ℕ) (i : Fin N) (t : kˣ)
   simp only [Pi.smul_apply, smul_eq_mul]
   by_cases hm : m = i <;> by_cases hx : x = m <;> simp_all [Pi.single_apply]
 
-private lemma glTensorRep_diagUnit_basis (N n : ℕ) (i : Fin N) (t : kˣ)
+lemma glTensorRep_diagUnit_basis (N n : ℕ) (i : Fin N) (t : kˣ)
     (f : Fin n → Fin N) :
     (glTensorRep k N n (diagUnit k N i t)) (tensorStdBasis k N n f) =
       ((t : k) ^ (Finset.univ.filter (fun j => f j = i)).card) •
@@ -945,7 +945,7 @@ private lemma weight_restricted_diag_sum (N : ℕ) (lam : Fin N → ℕ) (μ : F
 
 /-- The basis repr coordinate of a diagonal torus action is multiplicative:
 `B.repr(ρ(diag(i,t))(v))(g) = t^(wt(g)(i)) * B.repr(v)(g)`. -/
-private lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
+lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
     (g : Fin n → Fin N) (v : TensorPower k (Fin N → k) n) :
     (tensorStdBasis k N n).repr (glTensorRep k N n (diagUnit k N i t) v) g =
     ((t : k) ^ (Finset.univ.filter (fun j => g j = i)).card) *
