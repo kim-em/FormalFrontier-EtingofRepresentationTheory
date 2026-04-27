@@ -468,7 +468,11 @@ theorem Theorem5_18_4_bimodule_decomposition_explicit
       (S : ι → Submodule (symGroupImage k V n) (TensorPower k V n))
       (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
       (_ : ∀ i j, Nonempty (↥(S i) ≃ₗ[symGroupImage k V n] ↥(S j)) → i = j)
-      (_ : ∀ i, Module.Finite k ↥(S i)),
+      (_ : ∀ i, Module.Finite k ↥(S i))
+      (_ : ∀ i, IsSimpleModule
+        (↥(Subalgebra.centralizer k
+          (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))
+        (↥(S i) →ₗ[symGroupImage k V n] TensorPower k V n)),
       ∃ (e : TensorPower k V n ≃ₗ[k]
           DirectSum ι
             (fun i => ↥(S i) ⊗[k] (↥(S i) →ₗ[symGroupImage k V n] TensorPower k V n))),
@@ -564,7 +568,7 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   haveI := symGroupImage_faithfulSMul k V n hN'
   -- Get the explicit bimodule decomposition with concrete summand types
   -- and the evaluation formula.
-  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, e, he⟩ :=
+  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, _, e, he⟩ :=
     Theorem5_18_4_bimodule_decomposition_explicit k V n hN'
   -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
   have h_eq : Subalgebra.centralizer k
