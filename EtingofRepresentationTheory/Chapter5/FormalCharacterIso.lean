@@ -458,6 +458,7 @@ Both follow from the analogous statements on weight-space finranks, combined wit
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- Componentwise formula for the direct-sum representation: for `x : DirectSum ι V`,
 the `j`-th coordinate of applying `Representation.directSum ρ g` to `x` is
 `ρ j g (x j)`. -/
@@ -472,6 +473,7 @@ private lemma directSum_rep_coord (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- The weight space of a direct-sum representation splits coordinate-wise: a
 vector `x` lies in the weight space iff each coordinate `x j` lies in the
 corresponding weight space of `ρ j`. -/
@@ -512,6 +514,7 @@ private lemma mem_glWeightSpace_directSum_iff (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- Linear equivalence between the direct sum of weight spaces and the weight
 space of a direct-sum representation. -/
 noncomputable def glWeightSpace_directSum_equiv (N : ℕ)
@@ -560,6 +563,7 @@ noncomputable def glWeightSpace_directSum_equiv (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- The finrank of the weight space of a direct-sum representation is the sum of
 finranks of the individual weight spaces. -/
 private lemma finrank_glWeightSpace_directSum (N : ℕ)
@@ -576,6 +580,7 @@ private lemma finrank_glWeightSpace_directSum (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- **Direct-sum additivity of formal character.**
 For a finite family of representations `ρ i` on finite-dimensional `k`-modules,
 the formal character of the direct-sum representation equals the sum of the
@@ -627,6 +632,7 @@ private theorem glWeightSpace_map_eq_of_rep_iso (N : ℕ)
       rw [map_smul, e.apply_symm_apply]
     exact sub_eq_zero.mpr (e.injective (h1.trans h2.symm))
 
+omit [CharZero k] in
 /-- **Formal character is invariant under GL_N-equivariant isomorphism.**
 A k-linear equivalence `e : V ≃ W` that intertwines two GL_N representations induces
 equality of their formal characters. -/
@@ -647,6 +653,7 @@ theorem formalCharacter_eq_of_rep_iso (N : ℕ)
 
 open scoped DirectSum in
 open Representation in
+omit [CharZero k] in
 /-- **Trivial-tensor multiplicativity of formal character.**
 For a trivial GL_N-action on `S` tensor-producted with a representation `L`, the
 formal character is `(dim S) • formalCharacter L`. -/
