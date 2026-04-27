@@ -559,6 +559,7 @@ theorem Theorem5_18_1_bimodule_decomposition
       (_ : ∀ i, Module k (V i)) (_ : ∀ i, Module A (V i))
       (_ : ∀ i, IsSimpleModule A (V i))
       (_ : ∀ i j, Nonempty (V i ≃ₗ[A] V j) → i = j)
+      (_ : ∀ i, Module.Finite k (V i))
       (L : ι → Type v) (_ : ∀ i, AddCommGroup (L i))
       (_ : ∀ i, Module k (L i))
       (_ : ∀ i, Module
@@ -608,6 +609,7 @@ theorem Theorem5_18_1_bimodule_decomposition
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
     fun i => V'_simple (φ.symm i),
     ?_,
+    fun _ => inferInstance,
     fun i => (↥(V' (φ.symm i)) →ₗ[A] E),
     fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
     fun _ => inferInstance,

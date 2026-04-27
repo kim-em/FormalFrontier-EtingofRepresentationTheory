@@ -421,6 +421,7 @@ theorem Theorem5_18_4_bimodule_decomposition
       (_ : ∀ i, Module (symGroupImage k V n) (S i))
       (_ : ∀ i, IsSimpleModule (symGroupImage k V n) (S i))
       (_ : ∀ i j, Nonempty (S i ≃ₗ[symGroupImage k V n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
       (L : ι → Type (max u v)) (_ : ∀ i, AddCommGroup (L i))
       (_ : ∀ i, Module k (L i))
       (_ : ∀ i, Module (diagonalActionImage k V n) (L i)),
@@ -429,7 +430,7 @@ theorem Theorem5_18_4_bimodule_decomposition
   haveI := symGroupImage_isSemisimpleRing k V n
   haveI := symGroupImage_faithfulSMul k V n hN
   obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L', hL'_acg, hL'_mod, hL'_Bmod, _hL'_smul, _hL'_fin, ⟨e⟩⟩ :=
+    hS'_dist, hS'_fin, L', hL'_acg, hL'_mod, hL'_Bmod, _hL'_smul, _hL'_fin, ⟨e⟩⟩ :=
     Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
       (symGroupImage k V n)
   -- Transport the `Module ↥(centralizer(symGroupImage))` structure on each
@@ -440,7 +441,7 @@ theorem Theorem5_18_4_bimodule_decomposition
         diagonalActionImage k V n :=
     (Theorem5_18_4_centralizers k V n hN).2.symm
   refine ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp, hS'_dist,
-    L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
+    hS'_fin, L', hL'_acg, hL'_mod, fun i => h_eq ▸ hL'_Bmod i, ⟨e⟩⟩
 
 -- Heartbeat bumps match `Theorem5_18_1_bimodule_decomposition_explicit`.
 set_option maxHeartbeats 3200000 in
@@ -518,6 +519,7 @@ theorem Theorem5_18_4_GL_rep_decomposition
       (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
       (_ : ∀ i j,
         Nonempty (S i ≃ₗ[symGroupImage k (Fin N → k) n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
       (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k)),
       Nonempty (TensorPower k (Fin N → k) n ≃ₗ[k]
         DirectSum ι (fun i => S i ⊗[k] (L i : Type u))) := by
@@ -531,7 +533,7 @@ theorem Theorem5_18_4_GL_rep_decomposition
   -- Get the bimodule decomposition with L_i carrying a Module over
   -- the centralizer of symGroupImage and the associated SMulCommClass.
   obtain ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L', hL'_acg, hL'_mod, hL'_Bmod, hL'_smul, hL'_fin, ⟨e⟩⟩ :=
+    hS'_dist, hS'_fin, L', hL'_acg, hL'_mod, hL'_Bmod, hL'_smul, hL'_fin, ⟨e⟩⟩ :=
     Theorem5_18_1_bimodule_decomposition k (TensorPower k V n)
       (symGroupImage k V n)
   -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
@@ -582,7 +584,7 @@ theorem Theorem5_18_4_GL_rep_decomposition
   let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
     FDRep.of (ρ i)
   exact ⟨ι, hι, hι_dec, S', hS'_acg, hS'_mod, hS'_Amod, hS'_simp,
-    hS'_dist, L, ⟨e⟩⟩
+    hS'_dist, hS'_fin, L, ⟨e⟩⟩
 
 -- Heartbeats bumped: the existential output has 8 ∀-binders followed by
 -- two more existentials; the GL_N representation construction composes
