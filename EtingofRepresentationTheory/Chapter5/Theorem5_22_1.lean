@@ -2484,7 +2484,7 @@ private lemma charValue_stability
 the Weyl character formula with the trace definition used in Specht module theory.
 
 For general N, this reduces to the N = n case via `charValue_stability`. -/
-private lemma charValue_eq_spechtModuleCharacter
+theorem charValue_eq_spechtModuleCharacter
     (N : ℕ) (n : ℕ) (lam' : BoundedPartition N n) (σ : Equiv.Perm (Fin n)) :
     (charValue N lam' (fullCycleTypePartition σ) : ℂ) =
       spechtModuleCharacter n (lam'.sum_eq ▸ weightToPartition N lam'.parts) σ := by

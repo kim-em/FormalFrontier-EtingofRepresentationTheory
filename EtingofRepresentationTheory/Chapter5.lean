@@ -95,6 +95,7 @@ import EtingofRepresentationTheory.Chapter5.Proposition5_21_2
 import EtingofRepresentationTheory.Chapter5.PermDiagonalTrace
 import EtingofRepresentationTheory.Chapter5.Theorem5_22_1
 import EtingofRepresentationTheory.Chapter5.Proposition5_22_2
+import EtingofRepresentationTheory.Chapter5.SchurWeylPolynomialIdentity
 
 -- Section 5.23: Algebraic Representations of GL(V)
 import EtingofRepresentationTheory.Chapter5.Definition5_23_1

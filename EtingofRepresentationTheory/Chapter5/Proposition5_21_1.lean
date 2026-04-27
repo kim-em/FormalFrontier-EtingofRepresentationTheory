@@ -565,13 +565,15 @@ theorem exists_bp_of_strictAnti_sum {N n : ℕ}
     simp only [vandermondeExps] at hsum; omega
   · funext j; simp only [shiftedExps, parts]; exact Nat.sub_add_cancel (hge j)
 
-theorem Proposition5_21_1
+/-- **Frobenius character formula (universe form).** Stronger version of
+`Proposition5_21_1` where the indexing finset is `Finset.univ`: every
+power-sum partition expands as a sum over *all* bounded partitions, with
+coefficients given by `charValue`. -/
+theorem Proposition5_21_1_univ
     {n : ℕ} (N : ℕ) (μ : n.Partition) :
-    ∃ (lams : Finset (BoundedPartition N n)),
-      (MvPolynomial.psumPart (Fin N) ℚ μ : MvPolynomial (Fin N) ℚ) =
-        ∑ lam ∈ lams,
-          (charValue N lam μ : ℚ) • schurPoly N lam.parts := by
-  use Finset.univ
+    (MvPolynomial.psumPart (Fin N) ℚ μ : MvPolynomial (Fin N) ℚ) =
+      ∑ lam : BoundedPartition N n,
+        (charValue N lam μ : ℚ) • schurPoly N lam.parts := by
   -- Step 1: Cancel the Vandermonde determinant Δ from both sides (integral domain)
   have hΔ : (alternantMatrix N (vandermondeExps N)).det ≠ 0 := by
     obtain ⟨u, hu⟩ := alternant_det_associated_prod N
@@ -652,5 +654,19 @@ theorem Proposition5_21_1
     · -- Matching partition exists, card = 1
       have : filt.card = 1 := by omega
       rw [this, one_nsmul]
+
+/-- **Proposition 5.21.1** (Etingof). Every power-sum partition decomposes
+as a sum of Schur polynomials weighted by character values: there exists
+a finset of bounded partitions over which the expansion holds.
+
+This is the existential form; for the universe form (which fixes the
+indexing finset to `Finset.univ`), see `Proposition5_21_1_univ`. -/
+theorem Proposition5_21_1
+    {n : ℕ} (N : ℕ) (μ : n.Partition) :
+    ∃ (lams : Finset (BoundedPartition N n)),
+      (MvPolynomial.psumPart (Fin N) ℚ μ : MvPolynomial (Fin N) ℚ) =
+        ∑ lam ∈ lams,
+          (charValue N lam μ : ℚ) • schurPoly N lam.parts :=
+  ⟨Finset.univ, Proposition5_21_1_univ N μ⟩
 
 end Etingof
