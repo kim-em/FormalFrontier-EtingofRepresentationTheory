@@ -615,7 +615,11 @@ tensors is the evaluation map:
   the `FGModuleCat.of_carrier` defeq);
 * explicit iso `e : V^⊗n ≃ₗ[k] ⨁ᵢ ↥(S i) ⊗[k] (L i : Type u)` whose
   inverse on pure tensors is the evaluation map:
-  `e.symm (of i (v ⊗ₜ l)) = (L_carrier i l) v`.
+  `e.symm (of i (v ⊗ₜ l)) = (L_carrier i l) v`;
+* the `GL_N`-action on each `L i` is, after the `L_carrier` identification,
+  post-composition by `g ↦ g^{⊗n}`:
+  `(L_carrier i ((L i).ρ g l)) v =
+   PiTensorProduct.map (fun _ ↦ mulVecLin g.val) ((L_carrier i l) v)`.
 
 The `L_carrier` clause sidesteps a defeq fragility: when stating the
 existential, `(L i : Type u)` is universally quantified and not yet
@@ -625,8 +629,7 @@ linear map without the explicit identification with `↥(S i) →ₗ[A] E`.
 This is the form required by the `GL_N`-equivariance argument
 (`glTensorRep_equivariant_schurWeyl_decomposition`,
 issue #2540): the evaluation formula together with the post-composition
-`GL_N`-action on each `L i` makes equivariance computable on pure
-tensors. -/
+`GL_N`-action formula make equivariance computable on pure tensors. -/
 theorem Theorem5_18_4_GL_rep_decomposition_explicit
     (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
     (N n : ℕ) (hN : n ≤ N) :
@@ -642,9 +645,15 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
           TensorPower k (Fin N → k) n)),
       ∃ (e : TensorPower k (Fin N → k) n ≃ₗ[k]
           DirectSum ι (fun i => ↥(S i) ⊗[k] (L i : Type u))),
-        ∀ (i : ι) (v : ↥(S i)) (l : (L i : Type u)),
+        (∀ (i : ι) (v : ↥(S i)) (l : (L i : Type u)),
           e.symm (DirectSum.of (fun i => ↥(S i) ⊗[k] (L i : Type u)) i
-              (v ⊗ₜ[k] l)) = (L_carrier i l) v := by
+              (v ⊗ₜ[k] l)) = (L_carrier i l) v) ∧
+        (∀ (i : ι) (g : Matrix.GeneralLinearGroup (Fin N) k)
+            (l : (L i : Type u)) (v : ↥(S i)),
+          (L_carrier i ((L i).ρ g l)) v =
+            PiTensorProduct.map
+              (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val)
+              ((L_carrier i l) v)) := by
   set V : Type u := Fin N → k with hV
   haveI : Module.Finite k V := inferInstance
   have hfinrank : Module.finrank k V = N :=
@@ -753,6 +762,11 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   let L_carrier : ∀ i, (L i : Type u) ≃ₗ[k]
       (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
     fun i => LinearEquiv.refl k _
-  exact ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, L, L_carrier, e, he⟩
+  -- Action formula: `((L i).ρ g l) v = PiTensorProduct.map (mulVecLin g.val) (l v)`
+  -- because `(L i).ρ = ρ i` and `ρ i g l = (centralizerToEndA (glHom g)).comp l`
+  -- whose underlying map is `PiTensorProduct.map (mulVecLin g.val)`.
+  refine ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, L, L_carrier, e, he, ?_⟩
+  intro i g l v
+  rfl
 
 end Etingof
