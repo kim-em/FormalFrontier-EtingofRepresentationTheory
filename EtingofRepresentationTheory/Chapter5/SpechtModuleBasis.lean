@@ -1344,6 +1344,87 @@ private theorem tabloidSupport_straightening
     apply Submodule.subset_span
     exact ⟨⟨T, h_dom⟩, rfl⟩
 
+/-! ### Bridge lemma for Algorithm A on twistedPolytabloid
+
+The bridge lemma `polytabloidTab_in_lower_span_of_dominates` transfers a
+membership statement from the SYT-indexed span to the column-standard /
+strict-dominance-or-smaller-rowInv span used by
+`garnir_twisted_in_lower_span_aux`. It is the IH-case adapter inside
+the Algorithm A loop on `twistedPolytabloid`'s tabloid support.
+-/
+
+/-- The standard Young tableau permutation `sytPerm T` is column-standard.
+The proof mirrors the inline argument in `column_row_standard_is_syt`'s
+row-standardness derivation, applied to the column-strict-increasing
+clause of the SYT definition. -/
+private theorem sytPerm_isColumnStandard' (T : StandardYoungTableau n la) :
+    isColumnStandard' n la (sytPerm n la T) := by
+  intro p₁ p₂ hcol hrow
+  have hsymm : ∀ p, (sytPerm n la T).symm p =
+      (Equiv.ofBijective T.val T.prop.1) ((canonicalFilling n la) p) := by
+    intro p; simp only [sytPerm, Equiv.symm_trans_apply, Equiv.symm_symm]
+  rw [hsymm, hsymm]
+  set c₁ := (canonicalFilling n la) p₁
+  set c₂ := (canonicalFilling n la) p₂
+  have hcol' : c₁.val.2 = c₂.val.2 := hcol
+  have hrow' : c₁.val.1 < c₂.val.1 := hrow
+  simp only [Equiv.ofBijective_apply]
+  exact T.prop.2.2 c₁ c₂ hcol' hrow'
+
+/-- The standard Young tableau permutation `sytPerm T` is row-standard. The
+proof mirrors the inline argument in `column_row_standard_is_syt`. -/
+private theorem sytPerm_isRowStandard' (T : StandardYoungTableau n la) :
+    isRowStandard' (la := la) (sytPerm n la T) := by
+  intro p₁ p₂ hrow hcol
+  have hsymm : ∀ p, (sytPerm n la T).symm p =
+      (Equiv.ofBijective T.val T.prop.1) ((canonicalFilling n la) p) := by
+    intro p; simp only [sytPerm, Equiv.symm_trans_apply, Equiv.symm_symm]
+  rw [hsymm, hsymm]
+  set c₁ := (canonicalFilling n la) p₁
+  set c₂ := (canonicalFilling n la) p₂
+  have hrow' : c₁.val.1 = c₂.val.1 := hrow
+  have hcol' : c₁.val.2 < c₂.val.2 := hcol
+  simp only [Equiv.ofBijective_apply]
+  exact T.prop.2.1 c₁ c₂ hrow' hcol'
+
+/-- **Bridge lemma for Algorithm A on `twistedPolytabloid`.** For column-standard
+`σ` with positive row inversion count, an SYT `T` whose tabloid is dominated
+by `σ`'s contributes a `polytabloidTab T` that lies in the target span used
+by `garnir_twisted_in_lower_span_aux`.
+
+The case split is on whether `[T] = [σ]`:
+- If `[T] = [σ]`: `sytPerm T` is column-standard with row inversion count 0,
+  matching the `Or.inr` (same-tabloid, smaller-rowInv) branch of the target
+  disjunction.
+- Otherwise `[T]` is strictly dominated by `[σ]`, matching the `Or.inl`
+  (strict dominance) branch.
+
+Used inside the Algorithm A IH-case dispatch in
+`garnir_twisted_in_lower_span_aux`. -/
+private theorem polytabloidTab_in_lower_span_of_dominates
+    (σ : Equiv.Perm (Fin n)) (hrp : 0 < rowInvCount' (la := la) σ)
+    (T : StandardYoungTableau n la)
+    (hdom : tabloidDominates la σ (sytPerm n la T)) :
+    polytabloidTab (n := n) (la := la) T ∈
+    Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+        isColumnStandard' n la τ ∧
+          (tabloidStrictDominates la σ τ ∨
+            (toTabloid n la τ = toTabloid n la σ ∧
+              rowInvCount' (la := la) τ < rowInvCount' (la := la) σ))} =>
+      generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
+  rw [← generalizedPolytabloidTab_eq_polytabloidTab T]
+  have hcs_T : isColumnStandard' n la (sytPerm n la T) := sytPerm_isColumnStandard' T
+  apply Submodule.subset_span
+  by_cases htab : toTabloid n la (sytPerm n la T) = toTabloid n la σ
+  · -- [T] = [σ] case: Or.inr branch.
+    have hrs_T : isRowStandard' (la := la) (sytPerm n la T) := sytPerm_isRowStandard' T
+    have hr_T : rowInvCount' (la := la) (sytPerm n la T) = 0 :=
+      (rowInvCount'_eq_zero_iff (la := la) _).mpr hrs_T
+    refine ⟨⟨sytPerm n la T, hcs_T, Or.inr ⟨htab, ?_⟩⟩, rfl⟩
+    rw [hr_T]; exact hrp
+  · -- [T] ≺ [σ] case: Or.inl strict dominance branch.
+    refine ⟨⟨sytPerm n la T, hcs_T, Or.inl ⟨hdom, fun h => htab h.symm⟩⟩, rfl⟩
+
 /-- **Pigeonhole core for the Support Bound**. Given a column-standard σ, any
 `q₀ ∈ ColumnSubgroup` whose `w · q₀⁻¹ · σ` has strictly greater cumulative
 count than σ at some threshold `(k, i)`, there exist two distinct positions
