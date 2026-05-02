@@ -527,4 +527,105 @@ theorem submodule_eq_bot_or_top_of_unit_smul_mem
     have : x ∈ W' := by rw [h]; trivial
     exact this
 
+/-! ### MonoidAlgebra-simplicity transfer
+
+A representation of `GL_N(k)` whose action factors through
+`g ↦ ⟨g^⊗n, _⟩ ∈ diagonalActionImage k V n` (with `V = Fin N → k`) inherits
+simplicity from the `diagonalActionImage`-side: a `diagonalActionImage`-simple
+module becomes simple as a `MonoidAlgebra k GL_N`-module via the
+representation.
+
+This packages the chain
+* `Submodule k[GL_N] ρ.asModule` ↪ `Submodule k M` (via `restrictScalars`),
+* GL_N-closure ⇒ `(End k V)ˣ`-closure (via `Matrix.GeneralLinearGroup.toLin`),
+* `(End k V)ˣ`-closure + `diagonalActionImage`-simplicity ⇒ `⊥` or `⊤`
+  (via `submodule_eq_bot_or_top_of_unit_smul_mem`),
+* `⊥`/`⊤` of `restrictScalars` ⇔ `⊥`/`⊤` of original (via
+  `restrictScalars_eq_bot_iff`/`_top_iff`).
+-/
+
+set_option maxHeartbeats 800000 in
+set_option synthInstance.maxHeartbeats 400000 in
+/-- Simplicity transfer for representations factoring through `diagonalActionImage`:
+if `M` is a `diagonalActionImage k (Fin N → k) n`-simple module and the
+`GL_N`-representation `ρ` on `M` factors through `g ↦ ⟨g^⊗n, _⟩`, then `M`
+is simple as a `MonoidAlgebra k GL_N`-module via `ρ`. -/
+theorem isSimpleModule_monoidAlgebra_GL_of_centralizer_simple
+    {N n : ℕ}
+    {M : Type*} [AddCommGroup M] [Module k M] [Module.Finite k M]
+    [Module (diagonalActionImage k (Fin N → k) n) M]
+    [IsScalarTower k (diagonalActionImage k (Fin N → k) n) M]
+    [IsSimpleModule (diagonalActionImage k (Fin N → k) n) M]
+    [IsAlgClosed k]
+    (ρ : Representation k (Matrix.GeneralLinearGroup (Fin N) k) M)
+    (h_act : ∀ (g : Matrix.GeneralLinearGroup (Fin N) k) (x : M),
+        ρ g x =
+          (⟨PiTensorProduct.map (R := k)
+              (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val),
+            Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩ :
+              diagonalActionImage k (Fin N → k) n) • x) :
+    IsSimpleModule (MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k))
+      ρ.asModule := by
+  haveI : Module.Finite k (Fin N → k) := inferInstance
+  haveI : Nontrivial M :=
+    IsSimpleModule.nontrivial (diagonalActionImage k (Fin N → k) n) M
+  haveI : Nontrivial ρ.asModule := (show Nontrivial M from inferInstance)
+  haveI : Nontrivial (Submodule
+      (MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k)) ρ.asModule) :=
+    (Submodule.nontrivial_iff
+      (MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k))).mpr inferInstance
+  rw [isSimpleModule_iff]
+  -- `IsSimpleOrder` extends `Nontrivial`; supply `Nontrivial` via instance synthesis
+  -- and provide the `eq_bot_or_eq_top` field directly.
+  refine ⟨fun W => ?_⟩
+  -- Reinterpret W as a k-submodule of M (via restrictScalars k).
+  set W_k : Submodule k M := W.restrictScalars k with hW_k_def
+  -- W_k is closed under `⟨f^⊗n, _⟩` for every `f : (End k V)ˣ`,
+  -- via the bridge `Matrix.GeneralLinearGroup.toLin.symm`.
+  have hW_k_closed : ∀ (f : (Module.End k (Fin N → k))ˣ),
+      ∀ x ∈ W_k,
+      (⟨PiTensorProduct.map (R := k)
+          (fun _ : Fin n => (f : Module.End k (Fin N → k))),
+        Algebra.subset_adjoin ⟨(f : Module.End k (Fin N → k)), rfl⟩⟩ :
+          diagonalActionImage k (Fin N → k) n) • x ∈ W_k := by
+    intro f x hx
+    -- Bridge: pick `g : GL_N` with `mulVecLin g.val = f.val`.
+    set g : Matrix.GeneralLinearGroup (Fin N) k :=
+      (Matrix.GeneralLinearGroup.toLin (n := Fin N) (R := k)).symm f with hg_def
+    have hg_eq : Matrix.mulVecLin (R := k) g.val =
+        (f : Module.End k (Fin N → k)) := by
+      have h := MulEquiv.apply_symm_apply
+        (Matrix.GeneralLinearGroup.toLin (n := Fin N) (R := k)) f
+      exact congrArg Units.val h
+    -- Rewrite the LHS using `hg_eq` so it matches `ρ g x` via `h_act`.
+    have hfg : (fun _ : Fin n => (f : Module.End k (Fin N → k))) =
+        (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val) :=
+      funext fun _ => hg_eq.symm
+    have h_subst : (⟨PiTensorProduct.map (R := k)
+        (fun _ : Fin n => (f : Module.End k (Fin N → k))),
+        Algebra.subset_adjoin ⟨(f : Module.End k (Fin N → k)), rfl⟩⟩ :
+          diagonalActionImage k (Fin N → k) n) =
+        ⟨PiTensorProduct.map (R := k)
+            (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val),
+          Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩ :=
+      Subtype.ext (congrArg (PiTensorProduct.map (R := k)) hfg)
+    rw [h_subst, ← h_act g x]
+    -- `ρ g x = (single g 1) • x` on `ρ.asModule` (`Representation.single_smul`),
+    -- and `W` is closed under the `MonoidAlgebra` action.
+    change ρ g x ∈ W_k
+    have hxW : (show ρ.asModule from x) ∈ W := hx
+    have h_single : (MonoidAlgebra.single g (1 : k) :
+        MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k)) •
+        (show ρ.asModule from x) = ρ g x := by
+      rw [Representation.single_smul, one_smul]
+      rfl
+    rw [hW_k_def, Submodule.restrictScalars_mem]
+    exact h_single ▸ W.smul_mem _ hxW
+  have h_W_k := submodule_eq_bot_or_top_of_unit_smul_mem k W_k hW_k_closed
+  rcases h_W_k with h | h
+  · left
+    rwa [hW_k_def, Submodule.restrictScalars_eq_bot_iff] at h
+  · right
+    rwa [hW_k_def, Submodule.restrictScalars_eq_top_iff] at h
+
 end Etingof
