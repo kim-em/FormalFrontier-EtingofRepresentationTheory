@@ -731,6 +731,139 @@ theorem youngSym_block_factorization
   rw [he i v l, hl, ← he i ((youngSymElement k N lam : ↥A) • v) l,
     e.apply_symm_apply]
 
+/-! #### Trace formula for `youngSymEndomorphism` restricted to a
+`symGroupImage`-stable submodule -/
+
+/-- A `symGroupImage`-stable submodule of `V^⊗n` is preserved by every
+permutation operator (viewed as the linear endomorphism `symGroupAction σ`). -/
+private lemma symGroupAction_mem_of_symGroupImage_submodule
+    {k : Type*} [Field k] {N n : ℕ}
+    (S : Submodule (symGroupImage k (Fin N → k) n)
+      (TensorPower k (Fin N → k) n))
+    (σ : Equiv.Perm (Fin n))
+    {v : TensorPower k (Fin N → k) n} (hv : v ∈ S) :
+    (symGroupAction k (Fin N → k) n σ).toLinearMap v ∈ S := by
+  have h_in : (symGroupAction k (Fin N → k) n σ).toLinearMap ∈
+      (symGroupImage k (Fin N → k) n :
+        Set (Module.End k (TensorPower k (Fin N → k) n))) :=
+    Algebra.subset_adjoin ⟨σ, rfl⟩
+  exact S.smul_mem ⟨_, h_in⟩ hv
+
+/-- A `symGroupImage`-stable submodule of `V^⊗n` is preserved by the Young
+symmetrizer endomorphism. -/
+private lemma youngSymEndomorphism_mem_of_symGroupImage_submodule
+    {k : Type*} [Field k] {N : ℕ} (lam : Fin N → ℕ)
+    (S : Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    {v : TensorPower k (Fin N → k) (∑ i, lam i)} (hv : v ∈ S) :
+    youngSymEndomorphism k N lam v ∈ S :=
+  S.smul_mem (youngSymElement k N lam) hv
+
+/-- Decomposition of the Young symmetrizer endomorphism as a finite sum of
+permutation operators weighted by the Young symmetrizer coefficients. -/
+private lemma youngSymEndomorphism_eq_sum_symGroupAction
+    {k : Type*} [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    youngSymEndomorphism k N lam =
+    ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+      (YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) σ) •
+      (symGroupAction k (Fin N → k) (∑ i, lam i) σ).toLinearMap := by
+  set c := YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) with hc
+  have hE : youngSymEndomorphism k N lam =
+      c.sum (fun σ a => a •
+        (symGroupAction k (Fin N → k) (∑ i, lam i) σ).toLinearMap) := by
+    unfold youngSymEndomorphism symGroupAlgHom
+    rw [MonoidAlgebra.lift_apply]
+    rfl
+  rw [hE, Finsupp.sum]
+  apply Finset.sum_subset (Finset.subset_univ c.support)
+  intro σ _ hmem
+  simp only [Finsupp.mem_support_iff, not_not] at hmem
+  rw [hmem, zero_smul]
+
+-- Heartbeats bumped: the `Module k ↥(S.restrictScalars k)` instance synthesis
+-- traverses the `Subalgebra → Subsemiring → Module` chain via `IsScalarTower`,
+-- which exceeds the default 20000 heartbeats; the `whnf` reduction of
+-- `LinearMap.restrict` together with `Submodule.coe_sum` traversal also needs
+-- additional `maxHeartbeats`.
+set_option maxHeartbeats 800000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Trace formula: the trace of the Young symmetrizer endomorphism, restricted
+to a `symGroupImage`-stable submodule `S ≤ V^⊗n`, equals the weighted sum
+`∑_σ c_λ(σ) · tr(symGroupAction σ on S)`. -/
+theorem trace_youngSymEndomorphism_restrict_eq_sum
+    {k : Type*} [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (S : Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    [Module.Finite k ↥(S.restrictScalars k)] :
+    LinearMap.trace k ↥(S.restrictScalars k)
+        ((youngSymEndomorphism k N lam).restrict
+          (p := S.restrictScalars k) (q := S.restrictScalars k)
+          (fun _ hv =>
+            youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)) =
+      ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) σ) *
+        LinearMap.trace k ↥(S.restrictScalars k)
+          ((symGroupAction k (Fin N → k) (∑ i, lam i) σ).toLinearMap.restrict
+            (p := S.restrictScalars k) (q := S.restrictScalars k)
+            (fun _ hv =>
+              symGroupAction_mem_of_symGroupImage_submodule S σ hv)) := by
+  have h_eq : (youngSymEndomorphism k N lam).restrict
+        (p := S.restrictScalars k) (q := S.restrictScalars k)
+        (fun _ hv =>
+          youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv) =
+      ∑ σ : Equiv.Perm (Fin (∑ i, lam i)),
+        (YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) σ) •
+        (symGroupAction k (Fin N → k) (∑ i, lam i) σ).toLinearMap.restrict
+          (p := S.restrictScalars k) (q := S.restrictScalars k)
+          (fun _ hv =>
+            symGroupAction_mem_of_symGroupImage_submodule S σ hv) := by
+    apply LinearMap.ext
+    intro v
+    apply Subtype.ext
+    have h_pt := LinearMap.ext_iff.mp
+      (youngSymEndomorphism_eq_sum_symGroupAction (k := k) N lam) v.val
+    simp only [LinearMap.coe_sum, Finset.sum_apply, LinearMap.smul_apply] at h_pt
+    simp only [LinearMap.restrict_apply, LinearMap.coe_sum, Finset.sum_apply,
+      LinearMap.smul_apply, Submodule.coe_sum, Submodule.coe_smul_of_tower]
+    exact h_pt
+  rw [h_eq, map_sum]
+  refine Finset.sum_congr rfl ?_
+  intro σ _
+  rw [LinearMap.map_smul, smul_eq_mul]
+
+/-- Companion: the squared Young symmetrizer endomorphism on `S` equals
+`α` times itself when `c_λ² = α · c_λ`. -/
+theorem youngSymEndomorphism_restrict_sq_scalar
+    {k : Type*} [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (S : Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    (α : k)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam)) :
+    ((youngSymEndomorphism k N lam).restrict
+        (p := S.restrictScalars k) (q := S.restrictScalars k)
+        (fun _ hv =>
+          youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)) *
+      ((youngSymEndomorphism k N lam).restrict
+        (p := S.restrictScalars k) (q := S.restrictScalars k)
+        (fun _ hv =>
+          youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)) =
+    α • (youngSymEndomorphism k N lam).restrict
+        (p := S.restrictScalars k) (q := S.restrictScalars k)
+        (fun _ hv =>
+          youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv) := by
+  apply LinearMap.ext
+  intro v
+  apply Subtype.ext
+  have h_sq : youngSymEndomorphism k N lam * youngSymEndomorphism k N lam =
+      α • youngSymEndomorphism k N lam :=
+    youngSymEndomorphism_sq_scalar k N lam α hα_sq
+  have h_pt := LinearMap.ext_iff.mp h_sq v.val
+  simp only [Module.End.mul_apply, LinearMap.smul_apply,
+    LinearMap.restrict_apply, SetLike.val_smul_of_tower]
+  exact h_pt
+
 /-! #### Step 1: Formal character via trace of Young symmetrizer
 
 The Schur module `L_λ = Im(c_λ)` where `c_λ² = α · c_λ`. So `(1/α) · c_λ` is
