@@ -897,6 +897,7 @@ of such colorings — which matches the multinomial coefficient extraction
 of `(X₁ + ⋯ + X_N)^n`.
 -/
 
+omit [CharZero k] in
 /-- For each coloring `f`, the standard tensor basis vector `tensorStdBasis k N n f`
 lies in the weight space of weight `tensorWeight N f`. -/
 private theorem tensorStdBasis_mem_glWeightSpace (N n : ℕ) (f : Fin n → Fin N) :
@@ -938,6 +939,7 @@ private lemma sum_X_pow_coeff (N n : ℕ) (μ : Fin N →₀ ℕ) :
   simp_rw [MvPolynomial.coeff_monomial]
   rw [Finset.sum_boole, Nat.cast_inj]
 
+omit [CharZero k] in
 /-- For `v` in the weight space of weight `μ`, the basis coordinate `B.repr v f`
 vanishes whenever the basis element `B f` has a different weight. -/
 private theorem tensorStdBasis_repr_eq_zero_of_ne_weight
@@ -981,6 +983,7 @@ private theorem tensorStdBasis_repr_eq_zero_of_ne_weight
   · exact absurd (sub_eq_zero.mp hd) ht
   · exact hr
 
+omit [CharZero k] in
 /-- The weight space of `V^⊗n` at weight `μ` is the span of the standard tensor basis
 elements indexed by colorings `f` with `tensorWeight N f = μ`. -/
 private theorem glWeightSpace_glTensorRep_eq_span (N n : ℕ) (μ : Fin N →₀ ℕ) :
@@ -1014,6 +1017,7 @@ private theorem glWeightSpace_glTensorRep_eq_span (N n : ℕ) (μ : Fin N →₀
       funext i; rw [hf]
     rwa [heq] at hmem
 
+omit [CharZero k] in
 /-- The dimension of the weight space at `μ` in `V^⊗n` equals the number of colorings
 `f : Fin n → Fin N` with `tensorWeight N f = μ`. -/
 private theorem finrank_glWeightSpace_glTensorRep (N n : ℕ) (μ : Fin N →₀ ℕ) :
@@ -1029,6 +1033,7 @@ private theorem finrank_glWeightSpace_glTensorRep (N n : ℕ) (μ : Fin N →₀
     (tensorStdBasis k N n).linearIndependent.comp _ Subtype.val_injective
   exact finrank_span_eq_card hf_lin
 
+omit [CharZero k] in
 /-- **Formal character of the standard tensor power.** For `V = Fin N → k`, the formal
 character of `V^⊗n` (under the diagonal `GL_N(k)`-action `g ↦ g^{⊗n}`) is the
 multinomial expansion `(X_1 + ⋯ + X_N)^n`.

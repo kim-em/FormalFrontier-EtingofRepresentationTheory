@@ -902,6 +902,7 @@ private lemma youngSym_diagonal_entry (k' : Type*) [Field k'] (N : ℕ) (lam : F
     simp only [Finsupp.mem_support_iff, not_not] at hmem
     simp [hmem]
 
+omit [CharZero k] in
 /-- The `diagUnit(i,t)` action on a standard tensor basis element multiplies by `t` raised
 to the number of times color `i` appears in `f`. -/
 private lemma diagUnit_mulVecLin_basisFun (N : ℕ) (i : Fin N) (t : kˣ)
@@ -916,6 +917,7 @@ private lemma diagUnit_mulVecLin_basisFun (N : ℕ) (i : Fin N) (t : kˣ)
   simp only [Pi.smul_apply, smul_eq_mul]
   by_cases hm : m = i <;> by_cases hx : x = m <;> simp_all [Pi.single_apply]
 
+omit [CharZero k] in
 lemma glTensorRep_diagUnit_basis (N n : ℕ) (i : Fin N) (t : kˣ)
     (f : Fin n → Fin N) :
     (glTensorRep k N n (diagUnit k N i t)) (tensorStdBasis k N n f) =
@@ -1019,6 +1021,7 @@ private lemma weight_restricted_diag_sum (N : ℕ) (lam : Fin N → ℕ) (μ : F
   intro f _
   exact youngSym_diagonal_entry ℚ N lam f
 
+omit [CharZero k] in
 /-- The basis repr coordinate of a diagonal torus action is multiplicative:
 `B.repr(ρ(diag(i,t))(v))(g) = t^(wt(g)(i)) * B.repr(v)(g)`. -/
 lemma repr_glTensorRep_diagUnit (N n : ℕ) (i : Fin N) (t : kˣ)
