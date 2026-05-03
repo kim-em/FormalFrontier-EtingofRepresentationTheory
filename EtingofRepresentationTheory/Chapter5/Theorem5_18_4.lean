@@ -672,9 +672,9 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   intro i g l v
   rfl
 
+set_option maxHeartbeats 3200000 in
 -- Heartbeats bumped: the existential output has 10+ ∀-binders with
 -- `Subalgebra → Ring → Module.End` instance chains.
-set_option maxHeartbeats 3200000 in
 set_option synthInstance.maxHeartbeats 1600000 in
 /-- Schur-Weyl duality, part (iii), GL_N representation form.
 

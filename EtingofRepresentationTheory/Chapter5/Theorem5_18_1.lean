@@ -537,11 +537,11 @@ noncomputable def homIsotypicBridge
   map_add' f g := by ext v; simp
   map_smul' r f := by ext v; rfl
 
+set_option maxHeartbeats 800000 in
 -- Heartbeats bumped: the `IsSimpleModule` statement on the centralizer-wrapped
 -- subtype hom-space `V →ₗ[A] E` triggers a deep instance synthesis chain on
 -- `Submodule (↥centralizer) (V →ₗ[A] E)` (involving Subalgebra → Ring → Module.End
 -- and the non-trivial centralizerModuleHom instance) that overruns 200000.
-set_option maxHeartbeats 800000 in
 set_option synthInstance.maxHeartbeats 800000 in
 /-- Schur's lemma on the multiplicity space: for a simple `A`-submodule
 `V ≤ E` of a semisimple `A`-module `E`, the hom-space `V →ₗ[A] E` is a
@@ -615,13 +615,13 @@ theorem isSimpleModule_homA_centralizer
     change h (f v) = g v
     exact LinearMap.congr_fun hh v
 
+set_option maxHeartbeats 2000000 in
 -- Heartbeats are bumped because the existential output has several universe-polymorphic
 -- ∀-binders whose instance synthesis (AddCommGroup / Module / SMulCommClass / Module.Finite
 -- over a subalgebra-wrapped ring) each triggers a deep `Subalgebra → Ring → Module.End`
 -- instance chain. Empirical minimum is between 1600000 / 800000 (fails) and 1800000 /
 -- 900000 (passes); 2000000 / 1000000 used here for a small safety buffer (was
 -- 3200000 / 1600000 in #2504).
-set_option maxHeartbeats 2000000 in
 set_option synthInstance.maxHeartbeats 1000000 in
 /-- Double centralizer theorem, part (iii), bimodule form.
 
@@ -764,13 +764,15 @@ theorem Theorem5_18_1_bimodule_decomposition
       DirectSum.lequivCongrLeft k φ
     exact ⟨e2.trans (e3.trans e4)⟩
 
--- Heartbeats further bumped from 3200000 / 1200000 (see prior comment) to
--- 6400000 / 2400000 because the existential signature now also advertises
--- the `B`-side simplicity clause (`isSimpleModule_homA_centralizer`) on each
--- multiplicity space, which adds another non-trivial typeclass-search chain
--- through the centralizer-module instance.
-set_option maxHeartbeats 6400000 in
-set_option synthInstance.maxHeartbeats 2400000 in
+set_option maxHeartbeats 4000000 in
+-- Heartbeats bumped because the existential signature advertises the `B`-side
+-- simplicity clause (`isSimpleModule_homA_centralizer`) on each multiplicity
+-- space in addition to the prior `A`-side clauses, adding another non-trivial
+-- typeclass-search chain through the centralizer-module instance. Empirical
+-- minimum is between 3200000 / 1200000 (fails @ line 986 isDefEq + line 920
+-- tactic) and 3400000 / 1300000 (passes); 4000000 / 1500000 used here for an
+-- ~18% safety buffer (was 6400000 / 2400000 in #2634).
+set_option synthInstance.maxHeartbeats 1500000 in
 /-- Double centralizer theorem, part (iii), bimodule form with explicit
 evaluation.
 
