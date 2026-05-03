@@ -1425,6 +1425,37 @@ private theorem polytabloidTab_in_lower_span_of_dominates
   · -- [T] ≺ [σ] case: Or.inl strict dominance branch.
     refine ⟨⟨sytPerm n la T, hcs_T, Or.inl ⟨hdom, fun h => htab h.symm⟩⟩, rfl⟩
 
+/-- **V-membership + tabloid-support bound ⇒ membership in `L_σ`**. If
+`v` lies in `V^λ` (the SYT polytabloid span) and every tabloid in the
+support of `v` is dominated by `[σ]`, then `v` lies in the target lower
+span used by `garnir_twisted_in_lower_span`.
+
+The proof composes `tabloidSupport_straightening` (Algorithm A's reduction
+of a support-bounded `v` to a sum of polytabloids over SYTs whose tabloids
+are dominated by `[σ]`) with `polytabloidTab_in_lower_span_of_dominates`
+(SYT-into-target lift). See `progress/algorithm-A-redesign.md` §2.2 for
+the rationale. -/
+private lemma in_L_of_in_V_of_supp_bounded
+    (σ : Equiv.Perm (Fin n)) (hcs : isColumnStandard' n la σ)
+    (hrp : 0 < rowInvCount' (la := la) σ)
+    (v : TabloidRepresentation n la)
+    (hv_V : v ∈ Submodule.span ℂ
+              (Set.range (fun T : StandardYoungTableau n la =>
+                 polytabloidTab (n := n) (la := la) T)))
+    (hv_supp : ∀ α : Equiv.Perm (Fin n),
+        v (toTabloid n la α) ≠ 0 → tabloidDominates la σ α) :
+    v ∈ Submodule.span ℂ (Set.range (fun τ : {τ : Equiv.Perm (Fin n) //
+        isColumnStandard' n la τ ∧
+          (tabloidStrictDominates la σ τ ∨
+            (toTabloid n la τ = toTabloid n la σ ∧
+              rowInvCount' (la := la) τ < rowInvCount' (la := la) σ))} =>
+      generalizedPolytabloidTab (n := n) (la := la) τ.val)) := by
+  have hv_dom :=
+    tabloidSupport_straightening (la := la) σ hcs v hv_V hv_supp
+  refine (Submodule.span_le.mpr ?_) hv_dom
+  rintro _ ⟨T, rfl⟩
+  exact polytabloidTab_in_lower_span_of_dominates σ hrp T.val T.prop
+
 /-- **Pigeonhole core for the Support Bound**. Given a column-standard σ, any
 `q₀ ∈ ColumnSubgroup` whose `w · q₀⁻¹ · σ` has strictly greater cumulative
 count than σ at some threshold `(k, i)`, there exist two distinct positions
