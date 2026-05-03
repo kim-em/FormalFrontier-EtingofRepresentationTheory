@@ -493,6 +493,49 @@ The `L_i` summands from the bimodule decomposition carry a natural
 `V = Fin N → k` because that is the only case used downstream
 (for the `FormalCharacterIso` comparison with Schur polynomials). -/
 
+/-- Monoid hom `GL_N(k) →* ↥(centralizer(symGroupImage))` sending
+`g ↦ PiTensorProduct.map (fun _ ↦ Matrix.mulVecLin g.val)`.
+
+The image lies in `diagonalActionImage` by definition, hence in
+`centralizer(symGroupImage)` via
+`diagonalActionImage_le_centralizer_symGroupImage`. Specialized to
+`V = Fin N → k` to match the only downstream consumer
+(`Theorem5_18_4_GL_rep_decomposition_explicit`). No dimension
+hypothesis is required: containment in the centralizer comes from the
+direct commutation `symGroupAction_comm_diagonalAction`, not from the
+deep centralizer-equality `centralizer_symGroupImage_eq_diagonalActionImage`. -/
+noncomputable def glHom_to_centralizer_symGroupImage
+    (k : Type u) [Field k] (N n : ℕ) :
+    Matrix.GeneralLinearGroup (Fin N) k →*
+      ↥(Subalgebra.centralizer k
+        (symGroupImage k (Fin N → k) n :
+          Set (Module.End k (TensorPower k (Fin N → k) n)))) where
+  toFun g := ⟨PiTensorProduct.map
+      (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val),
+    diagonalActionImage_le_centralizer_symGroupImage k (Fin N → k) n
+      (Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩)⟩
+  map_one' := by
+    apply Subtype.ext
+    change PiTensorProduct.map
+        (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) = 1
+    have h : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
+        (fun _ : Fin n => (LinearMap.id : (Fin N → k) →ₗ[k] (Fin N → k))) :=
+      funext fun _ => Matrix.mulVecLin_one
+    rw [h, PiTensorProduct.map_id]; rfl
+  map_mul' g₁ g₂ := by
+    apply Subtype.ext
+    change PiTensorProduct.map
+        (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+      PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) g₁.val) *
+        PiTensorProduct.map
+          (fun _ : Fin n => Matrix.mulVecLin (R := k) g₂.val)
+    have h : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
+        (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp
+          (Matrix.mulVecLin g₂.val)) :=
+      funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
+    rw [h, PiTensorProduct.map_comp]; rfl
+
 -- Heartbeats bumped: the existential output has 8 ∀-binders followed by
 -- two more existentials; the GL_N representation construction composes
 -- several monoid homs each triggering deep `Subalgebra → Ring → Module.End`
@@ -570,43 +613,16 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
   -- and the evaluation formula.
   obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, _, e, he⟩ :=
     Theorem5_18_4_bimodule_decomposition_explicit k V n hN'
-  -- Centralizer identity: centralizer(symGroupImage) = diagonalActionImage.
-  have h_eq : Subalgebra.centralizer k
-      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
-        diagonalActionImage k V n :=
-    (Theorem5_18_4_centralizers k V n hN').2.symm
   -- Monoid hom GL_N → centralizer(symGroupImage):
   --   g ↦ PiTensorProduct.map (fun _ => mulVecLin g.val).
-  -- Its image lies in `diagonalActionImage` by definition, hence in the
-  -- centralizer via `h_eq`.
+  -- The explicit type ascription forces unification of `V` with `Fin N → k`
+  -- (via the `set V := Fin N → k` defeq) so that the centralizer subalgebra
+  -- in the type matches the one used by the `postCompCentralizerMonoidHom`
+  -- application below.
   let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
       ↥(Subalgebra.centralizer k
         (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
-  { toFun := fun g => ⟨PiTensorProduct.map
-        (fun _ : Fin n => Matrix.mulVecLin (R := k) g.val), by
-      rw [h_eq]
-      exact Algebra.subset_adjoin ⟨Matrix.mulVecLin g.val, rfl⟩⟩
-    map_one' := by
-      apply Subtype.ext
-      change PiTensorProduct.map
-          (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) = 1
-      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (1 : Matrix _ _ k)) =
-          (fun _ : Fin n => (LinearMap.id : V →ₗ[k] V)) :=
-        funext fun _ => Matrix.mulVecLin_one
-      rw [this, PiTensorProduct.map_id]; rfl
-    map_mul' := fun g₁ g₂ => by
-      apply Subtype.ext
-      change PiTensorProduct.map
-          (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
-        PiTensorProduct.map
-            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₁.val) *
-          PiTensorProduct.map
-            (fun _ : Fin n => Matrix.mulVecLin (R := k) g₂.val)
-      have : (fun _ : Fin n => Matrix.mulVecLin (R := k) (g₁.val * g₂.val)) =
-          (fun _ : Fin n => (Matrix.mulVecLin g₁.val).comp
-            (Matrix.mulVecLin g₂.val)) :=
-        funext fun _ => Matrix.mulVecLin_mul g₁.val g₂.val
-      rw [this, PiTensorProduct.map_comp]; rfl }
+    glHom_to_centralizer_symGroupImage k N n
   -- The `A`-linear hom space `↥(S' i) →ₗ[A] E` is finite-dimensional over `k`
   -- because it injects (`k`-linearly) into the `k`-linear hom space, which has
   -- dimension `dim(↥(S' i)) · dim(E)`. (`Module.Finite k ↥(S' i)` is now
@@ -625,38 +641,16 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
         (LinearMap.restrictScalarsₗ k (symGroupImage k V n) (↥(S' i))
           (TensorPower k V n) k)
         (LinearMap.restrictScalars_injective _)
-  -- For each i, build the GL_N representation on `↥(S' i) →ₗ[A] E` directly:
-  -- `g · l := (centralizerToEndA (glHom g)).comp l`. Manual construction
-  -- bypasses an instance-synthesis diamond on the centralizer-Module
-  -- structure of the hom-space. (Same construction as in
-  -- `glTensorRep_equivariant_schurWeyl_decomposition`.)
+  -- For each i, build the GL_N representation on `↥(S' i) →ₗ[A] E` as the
+  -- composite `GL_N →* centralizer(symGroupImage) →* End_k (↥(S' i) →ₗ[A] E)`,
+  -- where the second map is `postCompCentralizerMonoidHom` (post-composition
+  -- with `centralizerToEndA`). Going via this MonoidHom rather than the
+  -- `Module.toModuleEnd` of `centralizerModuleHom` bypasses an
+  -- instance-synthesis diamond on the centralizer-Module structure.
   let ρ : ∀ i, Matrix.GeneralLinearGroup (Fin N) k →*
       Module.End k (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := fun i =>
-  { toFun := fun g =>
-    { toFun := fun l =>
-        (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
-          (glHom g)).comp l
-      map_add' := fun l₁ l₂ => by
-        ext v
-        simp only [LinearMap.comp_apply, LinearMap.add_apply, map_add]
-      map_smul' := fun c l => by
-        ext v
-        simp only [LinearMap.smul_apply, RingHom.id_apply,
-          LinearMap.comp_apply, LinearMap.map_smul_of_tower] }
-    map_one' := by
-      ext l v
-      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
-        Module.End.one_apply]
-      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
-        (glHom 1)) (l v) = l v
-      rw [map_one, map_one]; rfl
-    map_mul' := fun g₁ g₂ => by
-      ext l v
-      simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
-        Module.End.mul_apply]
-      change (centralizerToEndA k (TensorPower k V n) (symGroupImage k V n)
-          (glHom (g₁ * g₂))) (l v) = _
-      rw [map_mul, map_mul]; rfl }
+    (postCompCentralizerMonoidHom k (TensorPower k V n) (symGroupImage k V n)
+      (↥(S' i))).comp glHom
   -- Bundle each L_inner as a finite-dimensional GL_N representation.
   let L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k) := fun i =>
     FDRep.of (ρ i)
@@ -666,8 +660,10 @@ theorem Theorem5_18_4_GL_rep_decomposition_explicit
       (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
     fun i => LinearEquiv.refl k _
   -- Action formula: `((L i).ρ g l) v = PiTensorProduct.map (mulVecLin g.val) (l v)`
-  -- because `(L i).ρ = ρ i` and `ρ i g l = (centralizerToEndA (glHom g)).comp l`
-  -- whose underlying map is `PiTensorProduct.map (mulVecLin g.val)`.
+  -- because `(L i).ρ = ρ i = postCompCentralizerMonoidHom ∘ glHom`, and
+  -- `postCompCentralizerMonoidHom_apply_apply` reduces to `(glHom g).val (l v)`,
+  -- which by definition of `glHom_to_centralizer_symGroupImage` equals
+  -- `PiTensorProduct.map (fun _ ↦ mulVecLin g.val) (l v)`.
   refine ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, L, L_carrier, e, he, ?_⟩
   intro i g l v
   rfl
