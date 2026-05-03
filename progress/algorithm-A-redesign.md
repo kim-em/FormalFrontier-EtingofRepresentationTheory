@@ -459,6 +459,31 @@ multiset of column entries can be reordered top-to-bottom in increasing
 order.  If `[α]` violates this, no col-std rep exists.  This condition
 is non-trivial and depends on the partition structure.
 
+### 4.4 `Q_eq' ≠ ∅` for "Neither" `w` (refutes Sub-claim 3.1.3)
+
+Documented in detail in `progress/q-high-involution.md` §2.5 / §6.1
+(the R3 meditate for issue #2676).
+
+**Setup**: λ = (2,2), σ = swap(0,1) (col-std, rowInv 1, [σ] is the
+maximum tabloid). w = (0 2 1) cycle (∈ Neither, supported on the
+canonical Garnir set G = {0, 1, 2} for the (0, 1) row inversion).
+
+**Witness**: at q = swap(1,3), the col-restandardisation forces
+γ_q = swap(0,2)·swap(1,3), giving τ_q = swap(0,1)·swap(2,3) col-std
+with [τ_q] = [σ] AND rowInv τ_q = 2 ≥ 1 = rowInv σ. Hence
+q ∈ Q_eq', refuting the redesign note's §3.1's Sub-claim 3.1.3
+(`Q_eq' = ∅`).
+
+**Implication**: Strategy A's per-q dispatch must be AGGREGATED
+(Strategy A*) to handle Q_eq' and Q_low ∪ Q_eq residuals together.
+The "Q_high involution" originally scoped as Sub-claim 3.1.2 is
+REPLACED by a residual cancellation argument that acts on a different
+group of terms — see `q-high-involution.md` §3 for Strategy A* and §4
+for the R2.a / R2.b / R2.c re-decomposition.
+
+**Future workers**: do NOT retry "prove Q_eq' = ∅". The above is a
+direct refutation by explicit witness.
+
 ---
 
 ## 5.  Re-decomposition into follow-up issues
