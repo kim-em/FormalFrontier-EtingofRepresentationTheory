@@ -628,4 +628,175 @@ theorem isSimpleModule_monoidAlgebra_GL_of_centralizer_simple
   · right
     rwa [hW_k_def, Submodule.restrictScalars_eq_top_iff] at h
 
+-- Heartbeats and synth-heartbeats bumped: the existential output has 11+ ∀-binders
+-- with `Subalgebra → Ring → Module.End` instance chains, and the per-i transport
+-- through `Subalgebra.equivOfEq` adds further `Module.compHom` synthesis cost
+-- (matching the budgets used by `_GL_rep_decomposition_explicit`).
+set_option maxHeartbeats 3200000 in
+set_option synthInstance.maxHeartbeats 1600000 in
+/-- Schur-Weyl duality, part (iii), GL_N-representation form, with the
+**simplicity** clause for each `L i` summand.
+
+Refines `Theorem5_18_4_GL_rep_decomposition` by adding
+`∀ i, IsSimpleModule (MonoidAlgebra k GL_N) (Representation.asModule (L i).ρ)`.
+
+This wrapper sits in `SchurWeylGLTransfer.lean` (and not next to its
+companions in `Theorem5_18_4.lean`) because the simplicity transfer
+helper `isSimpleModule_monoidAlgebra_GL_of_centralizer_simple` is
+defined here, after `Theorem5_18_4.lean` in the import order.
+
+Combines:
+
+* `Theorem5_18_4_bimodule_decomposition_explicit`'s simplicity clause:
+  each `↥(S i) →ₗ[symGroupImage k V n] V^⊗n` is simple over
+  `centralizer(symGroupImage k V n)`;
+* `Theorem5_18_4_centralizers`: the subalgebra equality
+  `centralizer(symGroupImage) = diagonalActionImage`;
+* `isSimpleModule_monoidAlgebra_GL_of_centralizer_simple` (above): a
+  `diagonalActionImage`-simple module whose `GL_N`-action factors
+  through `g ↦ ⟨g^⊗n, _⟩` is simple as a `MonoidAlgebra k GL_N`-module.
+-/
+theorem Theorem5_18_4_GL_rep_decomposition_simple
+    (k : Type u) [Field k] [IsAlgClosed k] [CharZero k]
+    (N n : ℕ) (hN : n ≤ N) :
+    ∃ (ι : Type) (_ : Fintype ι) (_ : DecidableEq ι)
+      (S : ι → Type u)
+      (_ : ∀ i, AddCommGroup (S i))
+      (_ : ∀ i, Module k (S i))
+      (_ : ∀ i, Module (symGroupImage k (Fin N → k) n) (S i))
+      (_ : ∀ i, IsSimpleModule (symGroupImage k (Fin N → k) n) (S i))
+      (_ : ∀ i j,
+        Nonempty (S i ≃ₗ[symGroupImage k (Fin N → k) n] S j) → i = j)
+      (_ : ∀ i, Module.Finite k (S i))
+      (L : ι → FDRep k (Matrix.GeneralLinearGroup (Fin N) k))
+      (_ : ∀ i, IsSimpleModule
+        (MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k))
+        (Representation.asModule (L i).ρ)),
+      Nonempty (TensorPower k (Fin N → k) n ≃ₗ[k]
+        DirectSum ι (fun i => S i ⊗[k] (L i : Type u))) := by
+  set V : Type u := Fin N → k with hV
+  haveI : Module.Finite k V := inferInstance
+  have hfinrank : Module.finrank k V = N :=
+    (Module.finrank_pi k).trans (Fintype.card_fin N)
+  have hN' : n ≤ Module.finrank k V := hfinrank.symm ▸ hN
+  haveI := symGroupImage_isSemisimpleRing k V n
+  haveI := symGroupImage_faithfulSMul k V n hN'
+  -- Re-destructure the bimodule decomposition; this time we keep `homA_simp`
+  -- (the centralizer-side simplicity clause) which the inner
+  -- `_GL_rep_decomposition_explicit` discards.
+  obtain ⟨ι, hι, hι_dec, S', hS'_simp, hS'_dist, hS'_fin, homA_simp, e, _he⟩ :=
+    Theorem5_18_4_bimodule_decomposition_explicit k V n hN'
+  -- Build the GL_N action data exactly as in `_explicit`.
+  let glHom : Matrix.GeneralLinearGroup (Fin N) k →*
+      ↥(Subalgebra.centralizer k
+        (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
+    glHom_to_centralizer_symGroupImage k N n
+  haveI hLi_fin : ∀ i, Module.Finite k
+      ((↥(S' i) : Type u) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+    fun i => by
+      haveI : Module.Finite k (↥(S' i) : Type u) := hS'_fin i
+      haveI : Module.Free k (↥(S' i) : Type u) :=
+        Module.Free.of_divisionRing k (↥(S' i))
+      haveI : Module.Finite k
+          ((↥(S' i) : Type u) →ₗ[k] TensorPower k V n) :=
+        Module.Finite.linearMap k k (↥(S' i)) (TensorPower k V n)
+      exact Module.Finite.of_injective
+        (LinearMap.restrictScalarsₗ k (symGroupImage k V n) (↥(S' i))
+          (TensorPower k V n) k)
+        (LinearMap.restrictScalars_injective _)
+  let ρ_i : ∀ i, Matrix.GeneralLinearGroup (Fin N) k →*
+      Module.End k (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := fun i =>
+    (postCompCentralizerMonoidHom k (TensorPower k V n) (symGroupImage k V n)
+      (↥(S' i))).comp glHom
+  -- Centralizer = diagonalActionImage equality (Theorem5_18_4_centralizers, RHS).
+  have h_eq : Subalgebra.centralizer k
+      (symGroupImage k V n : Set (Module.End k (TensorPower k V n))) =
+      diagonalActionImage k V n :=
+    ((Theorem5_18_4_centralizers k V n hN').2).symm
+  -- For each i, prove simplicity of the GL_N-representation `FDRep.of (ρ_i i)`
+  -- as a `MonoidAlgebra k GL_N`-module.
+  have hL_simple : ∀ i, IsSimpleModule
+      (MonoidAlgebra k (Matrix.GeneralLinearGroup (Fin N) k))
+      (Representation.asModule (FDRep.of (ρ_i i)).ρ) := by
+    intro i
+    -- Pin the canonical centralizer-module structure on the hom-space.
+    letI hC_mod :
+        Module (↥(Subalgebra.centralizer k
+          (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+      centralizerModuleHom (A := symGroupImage k V n)
+        (V := (↥(S' i) : Type u))
+    haveI hC_st :
+        IsScalarTower k
+          (↥(Subalgebra.centralizer k
+            (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := by
+      refine ⟨fun a c f => ?_⟩
+      refine LinearMap.ext fun v => ?_
+      change (a • c).val (f v) = a • c.val (f v)
+      rw [SetLike.val_smul]
+      exact LinearMap.smul_apply a c.val (f v)
+    haveI hC_simp :
+        IsSimpleModule
+          (↥(Subalgebra.centralizer k
+            (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+      homA_simp i
+    -- Algebra equiv `diagonalActionImage ≃ₐ centralizer(symGroupImage)`.
+    let φ : ↥(diagonalActionImage k V n) ≃ₐ[k]
+        ↥(Subalgebra.centralizer k
+          (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))) :=
+      Subalgebra.equivOfEq _ _ h_eq.symm
+    -- Transport `Module centralizer M` ⇝ `Module diagonalActionImage M` via φ.
+    letI hD_mod :
+        Module (↥(diagonalActionImage k V n))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+      Module.compHom (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n)
+        (φ : ↥(diagonalActionImage k V n) →+*
+          ↥(Subalgebra.centralizer k
+            (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))
+    haveI hD_st :
+        IsScalarTower k (↥(diagonalActionImage k V n))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := by
+      refine ⟨fun a d m => ?_⟩
+      change φ (a • d) • m = a • φ d • m
+      rw [map_smul]
+      exact (smul_assoc a (φ d) m).symm
+    haveI hφ_surj :
+        RingHomSurjective
+          (φ : ↥(diagonalActionImage k V n) →+*
+            ↥(Subalgebra.centralizer k
+              (symGroupImage k V n : Set (Module.End k (TensorPower k V n))))) :=
+      ⟨φ.surjective⟩
+    haveI hD_simp :
+        IsSimpleModule (↥(diagonalActionImage k V n))
+          (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) := by
+      let l : (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n)
+          →ₛₗ[(φ : ↥(diagonalActionImage k V n) →+*
+              ↥(Subalgebra.centralizer k
+                (symGroupImage k V n : Set (Module.End k (TensorPower k V n)))))]
+            (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+        { toFun := id
+          map_add' := fun _ _ => rfl
+          map_smul' := fun _ _ => rfl }
+      exact (LinearMap.isSimpleModule_iff_of_bijective l
+        Function.bijective_id).mpr hC_simp
+    haveI : Module.Finite k
+        (↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n) :=
+      hLi_fin i
+    refine isSimpleModule_monoidAlgebra_GL_of_centralizer_simple k
+      (N := N) (n := n)
+      (M := ↥(S' i) →ₗ[symGroupImage k V n] TensorPower k V n)
+      (FDRep.of (ρ_i i)).ρ ?_
+    intro g x
+    -- LHS: `(L i).ρ g x = ρ_i i g x = (centralizerToEndA (glHom g)).comp x`,
+    --      i.e. `v ↦ g^⊗n (x v) = v ↦ PiTensorProduct.map (mulVecLin g.val) (x v)`.
+    -- RHS: `⟨g^⊗n, …⟩_D • x = φ ⟨g^⊗n, …⟩_D • x = ⟨g^⊗n, h_eq.symm ▸ …⟩_C • x`,
+    --      i.e. `v ↦ g^⊗n (x v)`. They agree pointwise.
+    exact LinearMap.ext fun _ => rfl
+  refine ⟨ι, hι, hι_dec, fun i => ↥(S' i),
+    fun _ => inferInstance, fun _ => inferInstance, fun _ => inferInstance,
+    hS'_simp, hS'_dist, hS'_fin,
+    fun i => FDRep.of (ρ_i i), hL_simple, ⟨e⟩⟩
+
 end Etingof
