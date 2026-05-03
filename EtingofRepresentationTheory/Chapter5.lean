@@ -79,6 +79,7 @@ import EtingofRepresentationTheory.Chapter5.Theorem5_18_1
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_2
 import EtingofRepresentationTheory.Chapter5.Lemma5_18_3
 import EtingofRepresentationTheory.Chapter5.Theorem5_18_4
+import EtingofRepresentationTheory.Chapter5.PrimitiveIdempotentSimplicity
 import EtingofRepresentationTheory.Chapter5.PolynomialTensorBridge
 import EtingofRepresentationTheory.Chapter5.PolynomialRepEmbedding
 
