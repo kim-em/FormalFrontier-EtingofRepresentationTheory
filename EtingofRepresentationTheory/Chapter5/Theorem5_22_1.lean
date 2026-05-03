@@ -18,6 +18,7 @@ is GL_N-stable.
 -/
 
 open MvPolynomial Finset CategoryTheory
+open scoped TensorProduct
 
 noncomputable section
 
@@ -654,6 +655,81 @@ theorem youngSymEndomorphism_apply_on_range (k : Type*) [Field k] (N : ℕ) (lam
   show (youngSymEndomorphism k N lam * youngSymEndomorphism k N lam) w = α • youngSymEndomorphism k N lam w
   rw [youngSymEndomorphism_sq_scalar k N lam α hα_sq]
   rfl
+
+/-! ### Block factorization of `youngSymEndomorphism` via the bimodule iso -/
+
+/-- The Young symmetrizer endomorphism, packaged as an element of the
+symmetric-group image subalgebra `A = symGroupImage k V n`. This is the
+abstract `c_λ ∈ A`, paired with its `End`-level realisation
+`youngSymEndomorphism`. -/
+def youngSymElement (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    ↥(symGroupImage k (Fin N → k) (∑ i, lam i)) :=
+  ⟨youngSymEndomorphism k N lam, by
+    rw [← symGroupAlgHom_range]; exact ⟨_, rfl⟩⟩
+
+@[simp]
+theorem youngSymElement_val (k : Type*) [Field k] (N : ℕ) (lam : Fin N → ℕ) :
+    (youngSymElement k N lam).val = youngSymEndomorphism k N lam := rfl
+
+-- Heartbeats bumped: the statement and proof traverse a deep
+-- `Subalgebra → Subsemiring → Module` instance chain (`Module ↥A ↥(S i)`
+-- and `AddZeroClass ↥(S i)` for `S i : Submodule ↥A V^⊗n`).
+-- Empirical minimum: 1600000 / 800000 fails at the final `rw` chain whnf,
+-- 2000000 / 800000 passes; 2400000 / 1000000 used here for a 20% safety
+-- buffer.
+set_option maxHeartbeats 2400000 in
+set_option synthInstance.maxHeartbeats 1000000 in
+/-- Block factorization of the Young symmetrizer endomorphism through the
+bimodule iso of Schur-Weyl duality (Theorem 5.18.4, part iii, bimodule form).
+
+Given any `k`-linear iso
+  `e : V^⊗n ≃ₗ[k] ⨁ᵢ ↥(S i) ⊗[k] (↥(S i) →ₗ[A] V^⊗n)`
+with the evaluation formula
+  `e.symm (of i (v ⊗ₜ l)) = l v`,
+the endomorphism `youngSymEndomorphism k N lam`, applied through `e`,
+acts on each block `↥(S i) ⊗[k] (↥(S i) →ₗ[A] V^⊗n)` as
+`(youngSymElement • -) ⊗ id_{L i}` on pure tensors, where the action on
+the first factor is the restriction of the `A`-action on `V^⊗n` to the
+submodule `S i`.
+
+This is the abstract algebraic step `(1)` in the C-4a-i decomposition of
+the algebraic-core simplicity proof for the Schur-Weyl `L_i` simple
+modules: it is the input to the off-block vanishing analysis (sub-β)
+and the rank-1 scaled-projection analysis (sub-γ). -/
+theorem youngSym_block_factorization
+    (k : Type*) [Field k]
+    (N : ℕ) (lam : Fin N → ℕ)
+    {ι : Type} [DecidableEq ι]
+    (S : ι → Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    (e : TensorPower k (Fin N → k) (∑ i, lam i) ≃ₗ[k]
+      DirectSum ι (fun i => ↥(S i) ⊗[k]
+        (↥(S i) →ₗ[symGroupImage k (Fin N → k) (∑ i, lam i)]
+          TensorPower k (Fin N → k) (∑ i, lam i))))
+    (he : ∀ (i : ι) (v : ↥(S i))
+        (l : ↥(S i) →ₗ[symGroupImage k (Fin N → k) (∑ i, lam i)]
+          TensorPower k (Fin N → k) (∑ i, lam i)),
+      e.symm (DirectSum.of _ i (v ⊗ₜ[k] l)) = l v)
+    (i : ι) (v : ↥(S i))
+    (l : ↥(S i) →ₗ[symGroupImage k (Fin N → k) (∑ i, lam i)]
+      TensorPower k (Fin N → k) (∑ i, lam i)) :
+    e (youngSymEndomorphism k N lam
+        (e.symm (DirectSum.of _ i (v ⊗ₜ[k] l)))) =
+      DirectSum.of _ i ((youngSymElement k N lam • v) ⊗ₜ[k] l) := by
+  set A := symGroupImage k (Fin N → k) (∑ i, lam i) with hA
+  -- `youngSymElement • x = youngSymEndomorphism x` on `V^⊗n`: factors
+  -- through `Subalgebra.smul_def` and `Module.End.smul_def`.
+  have hsmul : ((youngSymElement k N lam : ↥A) • (l v)
+      : TensorPower k (Fin N → k) (∑ i, lam i)) =
+      youngSymEndomorphism k N lam (l v) := by
+    rw [Subalgebra.smul_def, Module.End.smul_def, youngSymElement_val]
+  -- A-linearity of `l` transports `youngSymElement • -` from the `V^⊗n`
+  -- factor to the `↥(S i)` factor.
+  have hl : youngSymEndomorphism k N lam (l v) =
+      l ((youngSymElement k N lam : ↥A) • v) := by
+    rw [← hsmul, ← l.map_smul (youngSymElement k N lam) v]
+  rw [he i v l, hl, ← he i ((youngSymElement k N lam : ↥A) • v) l,
+    e.apply_symm_apply]
 
 /-! #### Step 1: Formal character via trace of Young symmetrizer
 
