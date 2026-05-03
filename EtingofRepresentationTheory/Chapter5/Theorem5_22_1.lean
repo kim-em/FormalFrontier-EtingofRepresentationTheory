@@ -864,6 +864,112 @@ theorem youngSymEndomorphism_restrict_sq_scalar
     LinearMap.restrict_apply, SetLike.val_smul_of_tower]
   exact h_pt
 
+/-! #### Scaled-projection structure of `c_λ` restricted to a `symGroupImage`-stable
+block.
+
+For any `symGroupImage`-stable submodule `S ≤ V^⊗n`, the restriction `f_S = c_λ|_S`
+satisfies `f_S² = α • f_S` (above). When `α ≠ 0`, normalising by `α⁻¹` yields a
+projector onto `range f_S`. The trace identity `tr(f_S) = α · finrank k (range f_S)`
+then follows over `CharZero k` and is the input to the rank-1 dimension count
+on the special Specht block (sub-γ rank-1 step). -/
+
+-- Heartbeats bumped: the `Subalgebra → Subsemiring → Module` instance chain
+-- (via `IsScalarTower` from `S.restrictScalars k`) makes elaboration of the
+-- restricted endomorphism's type, and the rewrite-based idempotence proof,
+-- exceed the default budget.
+set_option maxHeartbeats 800000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- For any `symGroupImage`-stable submodule `S ≤ V^⊗n` and `α ≠ 0` with
+`c_λ² = α · c_λ`, the normalised restriction `α⁻¹ • (c_λ|_S)` is a projector
+onto `range (c_λ|_S)`. -/
+private theorem youngSymEndomorphism_restrict_normalized_isProj
+    {k : Type*} [Field k] (N : ℕ) (lam : Fin N → ℕ)
+    (S : Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    (α : k) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam)) :
+    LinearMap.IsProj
+      (LinearMap.range
+        ((youngSymEndomorphism k N lam).restrict
+          (p := S.restrictScalars k) (q := S.restrictScalars k)
+          (fun _ hv =>
+            youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)))
+      (α⁻¹ • (youngSymEndomorphism k N lam).restrict
+        (p := S.restrictScalars k) (q := S.restrictScalars k)
+        (fun _ hv =>
+          youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)) := by
+  set f_S := (youngSymEndomorphism k N lam).restrict
+    (p := S.restrictScalars k) (q := S.restrictScalars k)
+    (fun _ hv =>
+      youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv) with hf_S
+  -- α⁻¹ • f_S is idempotent: (α⁻¹ • f_S) * (α⁻¹ • f_S) = α⁻² • (α • f_S) = α⁻¹ • f_S
+  have h_idem : IsIdempotentElem (α⁻¹ • f_S) := by
+    show (α⁻¹ • f_S) * (α⁻¹ • f_S) = α⁻¹ • f_S
+    rw [smul_mul_smul_comm,
+      youngSymEndomorphism_restrict_sq_scalar (k := k) N lam S α hα_sq,
+      smul_smul, mul_assoc, inv_mul_cancel₀ hα, mul_one]
+  -- The range of α⁻¹ • f_S equals the range of f_S (since α ≠ 0)
+  have h_range : LinearMap.range (α⁻¹ • f_S) = LinearMap.range f_S := by
+    apply le_antisymm
+    · rintro _ ⟨v, rfl⟩
+      exact ⟨α⁻¹ • v, by rw [LinearMap.smul_apply, map_smul]⟩
+    · rintro _ ⟨v, rfl⟩
+      refine ⟨α • v, ?_⟩
+      rw [LinearMap.smul_apply, map_smul, smul_smul, inv_mul_cancel₀ hα, one_smul]
+  rw [← h_range]
+  exact LinearMap.IsIdempotentElem.isProj_range _ h_idem
+
+-- Heartbeats bumped: same `IsScalarTower`/`Subalgebra` instance chain as the
+-- IsProj statement, plus `IsProj.trace`'s `Module.Free`/`Module.Finite` lookups
+-- on `range f_S` and `ker (α⁻¹ • f_S)`.
+set_option maxHeartbeats 800000 in
+set_option synthInstance.maxHeartbeats 800000 in
+/-- Over `CharZero k`, the trace of the Young symmetrizer endomorphism restricted
+to a finite-dimensional `symGroupImage`-stable submodule `S` equals `α` times the
+dimension of its range:
+  `tr(c_λ|_S) = α · finrank k (range (c_λ|_S))`.
+
+This is obtained by tracing the projector `α⁻¹ • (c_λ|_S)` (which has trace equal
+to the dimension of its range, by `IsProj.trace`) and clearing the `α⁻¹`. -/
+private theorem trace_youngSymEndomorphism_restrict_eq_alpha_smul_finrank
+    {k : Type*} [Field k] [CharZero k] (N : ℕ) (lam : Fin N → ℕ)
+    (S : Submodule (symGroupImage k (Fin N → k) (∑ i, lam i))
+      (TensorPower k (Fin N → k) (∑ i, lam i)))
+    [Module.Finite k ↥(S.restrictScalars k)]
+    (α : k) (hα : α ≠ 0)
+    (hα_sq : YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) *
+      YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam) =
+      α • YoungSymmetrizerK k (∑ i, lam i) (weightToPartition N lam)) :
+    LinearMap.trace k _
+        ((youngSymEndomorphism k N lam).restrict
+          (p := S.restrictScalars k) (q := S.restrictScalars k)
+          (fun _ hv =>
+            youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv)) =
+      α * (Module.finrank k
+        (LinearMap.range
+          ((youngSymEndomorphism k N lam).restrict
+            (p := S.restrictScalars k) (q := S.restrictScalars k)
+            (fun _ hv =>
+              youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv))) : k) := by
+  set f_S := (youngSymEndomorphism k N lam).restrict
+    (p := S.restrictScalars k) (q := S.restrictScalars k)
+    (fun _ hv =>
+      youngSymEndomorphism_mem_of_symGroupImage_submodule lam S hv) with hf_S
+  -- α⁻¹ • f_S is IsProj onto range f_S
+  have h_proj := youngSymEndomorphism_restrict_normalized_isProj N lam S α hα hα_sq
+  -- IsProj.trace applies (everything over a field is free)
+  have h_trace := h_proj.trace
+  -- h_trace : trace(α⁻¹ • f_S) = (finrank k (range f_S) : k)
+  rw [LinearMap.map_smul, smul_eq_mul] at h_trace
+  -- h_trace : α⁻¹ * trace(f_S) = (finrank k (range f_S) : k)
+  -- Multiply both sides by α
+  have hα_inv : α * α⁻¹ = 1 := mul_inv_cancel₀ hα
+  calc LinearMap.trace k _ f_S
+      = α * (α⁻¹ * LinearMap.trace k _ f_S) := by rw [← mul_assoc, hα_inv, one_mul]
+    _ = α * (Module.finrank k (LinearMap.range f_S) : k) := by rw [h_trace]
+
 /-! #### Step 1: Formal character via trace of Young symmetrizer
 
 The Schur module `L_λ = Im(c_λ)` where `c_λ² = α · c_λ`. So `(1/α) · c_λ` is
