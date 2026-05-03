@@ -484,6 +484,63 @@ instance centralizerModuleHom_smulCommClass
     show b.val ((c • f) v) = c • b.val (f v)
     rw [LinearMap.smul_apply, map_smul]
 
+-- Heartbeats bumped: `LinearMap.ext` on the centralizer-wrapped subtype
+-- triggers `LinearMap.CompatibleSMul` synthesis, which exceeds the default
+-- 20000 heartbeats (same root cause as `centralizerModuleHom` above).
+set_option synthInstance.maxHeartbeats 400000 in
+/-- Monoid hom `↥centralizer(A) →* End_k(V →ₗ[A] E)` given by post-composition:
+`b ↦ (l ↦ (centralizerToEndA b).comp l)`.
+
+This bundles the post-composition action used to build a `B`-action on
+`V →ₗ[A] E` from a monoid hom into `B = centralizer(A)`. The construction
+is identical in content to the `centralizerModuleHom` SMul, but provided
+as a `MonoidHom` (not via `Module.toModuleEnd`) to bypass an
+instance-synthesis diamond at composite call sites.
+
+Composing this with a `MonoidHom M →* ↥centralizer(A)` (for any monoid
+`M`) yields the canonical `M`-action on `V →ₗ[A] E`, e.g. the `GL_N`
+action on each Schur-Weyl `L_i` summand
+(`Theorem5_18_4_GL_rep_decomposition_explicit`). -/
+noncomputable def postCompCentralizerMonoidHom
+    (A : Subalgebra k (Module.End k E))
+    (V : Type*) [AddCommGroup V] [Module k V]
+    [Module A V] [IsScalarTower k A V] :
+    (↥(Subalgebra.centralizer k (A : Set (Module.End k E)))) →*
+      Module.End k (V →ₗ[A] E) where
+  toFun b :=
+    { toFun := fun l => (centralizerToEndA k E A b).comp l
+      map_add' := fun l₁ l₂ => by
+        ext v
+        simp only [LinearMap.comp_apply, LinearMap.add_apply, map_add]
+      map_smul' := fun c l => by
+        ext v
+        simp only [LinearMap.smul_apply, RingHom.id_apply,
+          LinearMap.comp_apply, LinearMap.map_smul_of_tower] }
+  map_one' := by
+    ext l v
+    simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+      Module.End.one_apply]
+    change (centralizerToEndA k E A 1) (l v) = l v
+    rw [map_one]; rfl
+  map_mul' b₁ b₂ := by
+    ext l v
+    simp only [LinearMap.coe_mk, AddHom.coe_mk, LinearMap.comp_apply,
+      Module.End.mul_apply]
+    change (centralizerToEndA k E A (b₁ * b₂)) (l v) = _
+    rw [map_mul]; rfl
+
+/-- Underlying-map identity for `postCompCentralizerMonoidHom`: applying it to
+`b` and then evaluating at a hom `l` yields the post-composition
+`(centralizerToEndA b).comp l`. Useful for unfolding inside proofs. -/
+@[simp]
+theorem postCompCentralizerMonoidHom_apply_apply
+    (A : Subalgebra k (Module.End k E))
+    (V : Type*) [AddCommGroup V] [Module k V]
+    [Module A V] [IsScalarTower k A V]
+    (b : ↥(Subalgebra.centralizer k (A : Set (Module.End k E))))
+    (l : V →ₗ[A] E) (v : V) :
+    postCompCentralizerMonoidHom k E A V b l v = b.val (l v) := rfl
+
 set_option synthInstance.maxHeartbeats 400000 in
 /-- The natural bridge: every `A`-linear map from a simple submodule `V ≤ E`
 into `E` lands in the isotypic component `isotypicComponent A E V`. -/
