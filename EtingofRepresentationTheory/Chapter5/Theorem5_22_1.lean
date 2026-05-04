@@ -864,6 +864,211 @@ theorem youngSymEndomorphism_restrict_sq_scalar
     LinearMap.restrict_apply, SetLike.val_smul_of_tower]
   exact h_pt
 
+/-! #### β.2 Specht bridge: simple `symGroupImage`-modules ↔ Specht modules
+
+Every simple `symGroupImage`-submodule `S ≤ V^⊗n` is, as a ℂ-module, isomorphic
+to `SpechtModule n la'` for some partition `la'`, with the iso intertwining
+`symGroupAction σ` (restricted to `S`) and `spechtModuleAction n la' σ`. The
+trace identity `tr(σ on S) = spechtModuleCharacter n la' σ` follows.
+
+The bridge: `symGroupAlgHom : ℂ[S_n] →ₐ[ℂ] End_ℂ(V^⊗n)` has range
+`symGroupImage`. Pull back along this surjection to give `↥(S.restrictScalars ℂ)`
+a `SymGroupAlgebra n`-module structure (via `Module.compHom`), then apply the
+Specht classification (`Theorem5_12_2_classification`). -/
+
+section SpechtBridge
+
+variable {N n : ℕ}
+
+-- The `IsScalarTower ℂ ↥(symGroupImage) V^⊗n` instance is needed for several
+-- definitions in this section; its synthesis traverses a deep
+-- `Subalgebra → Subsemiring → Module` chain that exceeds the default 20000
+-- heartbeats.
+set_option synthInstance.maxHeartbeats 800000
+
+/-- Codomain-restricted version of `symGroupAlgHom`, landing in `symGroupImage`.
+This is a surjection `ℂ[S_n] →ₐ[ℂ] symGroupImage`. -/
+private noncomputable def symGroupAlgHomToImage :
+    SymGroupAlgebra n →ₐ[ℂ] ↥(symGroupImage ℂ (Fin N → ℂ) n) :=
+  AlgHom.codRestrict (symGroupAlgHom ℂ (Fin N → ℂ) n)
+    (symGroupImage ℂ (Fin N → ℂ) n)
+    (fun a => by rw [← symGroupAlgHom_range]; exact ⟨a, rfl⟩)
+
+@[simp]
+private theorem symGroupAlgHomToImage_val (a : SymGroupAlgebra n) :
+    ((symGroupAlgHomToImage (N := N) (n := n)) a).val =
+      (symGroupAlgHom ℂ (Fin N → ℂ) n) a := rfl
+
+private theorem symGroupAlgHomToImage_surjective :
+    Function.Surjective (symGroupAlgHomToImage (N := N) (n := n)) := by
+  intro b
+  have h_in : (b.val : Module.End ℂ _) ∈ (symGroupAlgHom ℂ (Fin N → ℂ) n).range := by
+    rw [symGroupAlgHom_range]; exact b.prop
+  obtain ⟨a, ha⟩ := h_in
+  exact ⟨a, Subtype.ext ha⟩
+
+private theorem symGroupAlgHomToImage_of (σ : Equiv.Perm (Fin n)) :
+    (symGroupAlgHomToImage (N := N) (n := n)) (MonoidAlgebra.of ℂ _ σ) =
+      ⟨(symGroupAction ℂ (Fin N → ℂ) n σ).toLinearMap,
+        Algebra.subset_adjoin ⟨σ, rfl⟩⟩ := by
+  apply Subtype.ext
+  show (symGroupAlgHom ℂ (Fin N → ℂ) n) (MonoidAlgebra.of ℂ _ σ) = _
+  unfold symGroupAlgHom
+  rw [MonoidAlgebra.lift_of]
+  rfl
+
+/-- The `SymGroupAlgebra n`-module structure on `↥(S.restrictScalars ℂ)`
+induced from the `symGroupImage`-module structure on `↥S` via
+`symGroupAlgHomToImage`. -/
+private noncomputable def submoduleAsSymGroupAlgebraModule
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n)) :
+    Module (SymGroupAlgebra n) ↥(S.restrictScalars ℂ) :=
+  Module.compHom _ (symGroupAlgHomToImage (N := N) (n := n)).toRingHom
+
+/-- The smul of `submoduleAsSymGroupAlgebraModule` agrees with applying
+`symGroupAlgHomToImage(a)` (an element of `↥(symGroupImage)`) to the carrier. -/
+private theorem submoduleAsSymGroupAlgebraModule_smul_def
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n))
+    (a : SymGroupAlgebra n) (v : ↥(S.restrictScalars ℂ)) :
+    letI := submoduleAsSymGroupAlgebraModule S
+    (a • v).val = (symGroupAlgHom ℂ (Fin N → ℂ) n) a v.val := rfl
+
+/-- Scalar tower: `(c • a) • v = c • (a • v)` for `c : ℂ`,
+`a : SymGroupAlgebra n`, `v : ↥(S.restrictScalars ℂ)`. -/
+private theorem submoduleAsSymGroupAlgebra_isScalarTower
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n)) :
+    letI := submoduleAsSymGroupAlgebraModule S
+    IsScalarTower ℂ (SymGroupAlgebra n) ↥(S.restrictScalars ℂ) := by
+  letI := submoduleAsSymGroupAlgebraModule S
+  refine ⟨fun c a v => ?_⟩
+  apply Subtype.ext
+  rw [submoduleAsSymGroupAlgebraModule_smul_def, map_smul]
+  rfl
+
+/-- The identity-on-carrier `↥(S.restrictScalars ℂ) → ↥S`, semilinear over the
+surjective ring hom `symGroupAlgHomToImage`. -/
+private noncomputable def submoduleSemilinearId
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n)) :
+    letI := submoduleAsSymGroupAlgebraModule S
+    ↥(S.restrictScalars ℂ) →ₛₗ[(symGroupAlgHomToImage (N := N) (n := n)).toRingHom] ↥S :=
+  letI := submoduleAsSymGroupAlgebraModule S
+  { toFun := fun v => ⟨v.val, v.prop⟩
+    map_add' := fun _ _ => rfl
+    map_smul' := fun _ _ => rfl }
+
+private theorem submoduleSemilinearId_bijective
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n)) :
+    letI := submoduleAsSymGroupAlgebraModule S
+    Function.Bijective (submoduleSemilinearId S) := by
+  letI := submoduleAsSymGroupAlgebraModule S
+  refine ⟨?_, ?_⟩
+  · intro v w h
+    apply Subtype.ext
+    exact Subtype.ext_iff.mp h
+  · rintro ⟨w, hw⟩; exact ⟨⟨w, hw⟩, rfl⟩
+
+/-- Simplicity of `↥S` as a `↥(symGroupImage)`-module transfers to simplicity
+of `↥(S.restrictScalars ℂ)` as a `SymGroupAlgebra n`-module. -/
+private theorem submoduleAsSymGroupAlgebra_isSimpleModule
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n))
+    [IsSimpleModule (↥(symGroupImage ℂ (Fin N → ℂ) n)) ↥S] :
+    letI := submoduleAsSymGroupAlgebraModule S
+    IsSimpleModule (SymGroupAlgebra n) ↥(S.restrictScalars ℂ) := by
+  letI := submoduleAsSymGroupAlgebraModule S
+  haveI : RingHomSurjective
+      (symGroupAlgHomToImage (N := N) (n := n)).toRingHom :=
+    ⟨symGroupAlgHomToImage_surjective⟩
+  exact (LinearMap.isSimpleModule_iff_of_bijective
+    (submoduleSemilinearId S)
+    (submoduleSemilinearId_bijective S)).mpr ‹_›
+
+/-- The action of `MonoidAlgebra.of ℂ _ σ` on a Specht module is left
+multiplication, i.e., `spechtModuleAction n la' σ`. -/
+private theorem spechtModule_smul_of
+    (la' : Nat.Partition n) (σ : Equiv.Perm (Fin n)) (w : ↥(SpechtModule n la')) :
+    ((MonoidAlgebra.of ℂ _ σ : SymGroupAlgebra n) • w : ↥(SpechtModule n la')) =
+      spechtModuleAction n la' σ w := by
+  apply Subtype.ext
+  rfl
+
+-- Bumped: the Specht-bridge construction unfolds Module.compHom, traverses a
+-- `Subalgebra → Subsemiring → Module` chain, and applies trace conjugation.
+set_option maxHeartbeats 1600000 in
+/-- **Specht bridge** (β.2). Every simple `symGroupImage`-submodule `S ≤ V^⊗n`
+admits a partition `la'` such that the trace of every `σ`-permutation operator
+restricted to `S` equals `spechtModuleCharacter n la' σ`.
+
+The bridge: identify `↥(S.restrictScalars ℂ)` (with the SymGroupAlgebra-action
+via `symGroupAlgHomToImage`) as a simple `SymGroupAlgebra n`-module, apply the
+Specht classification (Theorem 5.12.2), then transport the trace through the
+ℂ-linear part of the resulting iso. -/
+theorem trace_symGroupAction_eq_spechtModuleCharacter
+    (S : Submodule (symGroupImage ℂ (Fin N → ℂ) n)
+      (TensorPower ℂ (Fin N → ℂ) n))
+    [IsSimpleModule (↥(symGroupImage ℂ (Fin N → ℂ) n)) ↥S] :
+    ∃ la' : Nat.Partition n, ∀ σ : Equiv.Perm (Fin n),
+      LinearMap.trace ℂ ↥(S.restrictScalars ℂ)
+          ((symGroupAction ℂ (Fin N → ℂ) n σ).toLinearMap.restrict
+            (p := S.restrictScalars ℂ) (q := S.restrictScalars ℂ)
+            (fun _ hv =>
+              symGroupAction_mem_of_symGroupImage_submodule S σ hv)) =
+        spechtModuleCharacter n la' σ := by
+  letI := submoduleAsSymGroupAlgebraModule S
+  haveI := submoduleAsSymGroupAlgebra_isScalarTower S
+  haveI := submoduleAsSymGroupAlgebra_isSimpleModule S
+  obtain ⟨la', ⟨e⟩⟩ :=
+    Theorem5_12_2_classification n ↥(S.restrictScalars ℂ)
+  refine ⟨la', fun σ => ?_⟩
+  -- Convert `e` to a ℂ-linear equiv.
+  let eℂ : ↥(S.restrictScalars ℂ) ≃ₗ[ℂ] ↥(SpechtModule n la') :=
+    LinearEquiv.restrictScalars ℂ e
+  -- Goal: trace of restricted symGroupAction σ = spechtModuleCharacter n la' σ.
+  set restrictedAction :
+      ↥(S.restrictScalars ℂ) →ₗ[ℂ] ↥(S.restrictScalars ℂ) :=
+    (symGroupAction ℂ (Fin N → ℂ) n σ).toLinearMap.restrict
+      (p := S.restrictScalars ℂ) (q := S.restrictScalars ℂ)
+      (fun _ hv =>
+        symGroupAction_mem_of_symGroupImage_submodule S σ hv)
+  -- Show eℂ intertwines restrictedAction with spechtModuleAction n la' σ.
+  have h_intertwine : ∀ v : ↥(S.restrictScalars ℂ),
+      eℂ (restrictedAction v) = spechtModuleAction n la' σ (eℂ v) := by
+    intro v
+    have h := e.map_smul (MonoidAlgebra.of ℂ _ σ : SymGroupAlgebra n) v
+    have h_lhs : (MonoidAlgebra.of ℂ _ σ : SymGroupAlgebra n) • v =
+        restrictedAction v := by
+      apply Subtype.ext
+      show (symGroupAlgHom ℂ (Fin N → ℂ) n) (MonoidAlgebra.of ℂ _ σ) v.val =
+        (symGroupAction ℂ (Fin N → ℂ) n σ).toLinearMap v.val
+      unfold symGroupAlgHom
+      rw [MonoidAlgebra.lift_of]
+      rfl
+    have h_rhs : (MonoidAlgebra.of ℂ _ σ : SymGroupAlgebra n) • e v =
+        spechtModuleAction n la' σ (e v) := spechtModule_smul_of la' σ (e v)
+    rw [h_lhs, h_rhs] at h
+    exact h
+  have h_eq : restrictedAction = eℂ.symm.toLinearMap ∘ₗ
+      (spechtModuleAction n la' σ) ∘ₗ eℂ.toLinearMap := by
+    apply LinearMap.ext
+    intro v
+    show restrictedAction v = eℂ.symm (spechtModuleAction n la' σ (eℂ v))
+    rw [← h_intertwine v, eℂ.symm_apply_apply]
+  rw [h_eq]
+  -- Trace conjugation: tr(eℂ.symm ∘ T ∘ eℂ) = tr(T) for ℂ-linear T.
+  have h_conj : eℂ.symm.toLinearMap ∘ₗ
+      (spechtModuleAction n la' σ) ∘ₗ eℂ.toLinearMap =
+        eℂ.symm.conj (spechtModuleAction n la' σ) := by
+    rfl
+  rw [h_conj, LinearMap.trace_conj']
+  rfl
+
+end SpechtBridge
+
 /-! #### Step 1: Formal character via trace of Young symmetrizer
 
 The Schur module `L_λ = Im(c_λ)` where `c_λ² = α · c_λ`. So `(1/α) · c_λ` is
